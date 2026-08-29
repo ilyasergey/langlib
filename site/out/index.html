@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>langlib — the semantics of esoteric programming languages, in Lean 4</title>
+<meta name="description" content="A Lean 4 library of esoteric programming language semantics: specifications, reference interpreters and runnable examples for brainfuck, whitespace, malbolge, Befunge-93, subleq, FRACTRAN, Thue, Ook! and Deadfish, plus Turpentine, the human-readable front end that compiles to them.">
+<link rel="canonical" href="https://langlib.wtf/">
+<meta property="og:title" content="langlib — the semantics of esoteric programming languages, in Lean 4">
+<meta property="og:description" content="A Lean 4 library of esoteric programming language semantics: specifications, reference interpreters and runnable examples for brainfuck, whitespace, malbolge, Befunge-93, subleq, FRACTRAN, Thue, Ook! and Deadfish, plus Turpentine, the human-readable front end that compiles to them.">
+<meta property="og:url" content="https://langlib.wtf/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="langlib">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script>try{var t=localStorage.getItem('langlib-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<script src="/site.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="masthead">
+<div class="masthead-inner">
+<a class="brand" href="/">langlib<span class="dot">.wtf</span></a>
+<nav aria-label="Site"><a href="/#languages">Languages</a><a href="/playground/">Playground</a><a href="/turpentine/">Turpentine</a><a href="/status/">Status</a><a href="/related/">Related work</a><a href="/contributing/">Contributing</a><button class="theme-toggle" type="button" hidden>dark</button></nav>
+</div>
+</header>
+<main class="page" id="main">
+<div class="prose wide">
+<section class="hero">
+<h1>langlib</h1>
+<p class="tagline">The semantics of esoteric programming languages, written down precisely and made to run. In Lean 4.</p>
+<p class="lead">Esoteric languages are not meant for realistic software. They exist to make a point, to win a bet, to parody a committee, or simply to be difficult. Fifty years of them have accumulated into a real body of design knowledge, scattered across personal pages, wikis and long-dead FTP servers. langlib collects the designs, pins down what each one actually means, and ships an interpreter you can run.</p>
+<p>Every language here has a specification with sources and credits, a parser, a pure fuel-based reference interpreter, a standalone runner, example programs, and golden tests. The interpreters are ordinary Lean functions, which means they are also mathematical objects you can prove things about. That is the point of the exercise.</p>
+<div class="button-row">
+<a class="button" href="#playground">Run brainfuck in your browser</a>
+<a class="button ghost" href="#languages">Browse the languages</a>
+<a class="button ghost" href="https://github.com/langlib/langlib">Source on GitHub</a>
+</div>
+</section>
+<div class="section-head" id="languages">
+<h2>The languages</h2>
+<span class="more"><a href="/status/">Full status matrix</a></span>
+</div>
+<div class="cards">
+<a class="card" href="/brainfuck/">
+<span class="card-title">brainfuck<span class="card-year">1993</span></span>
+<p class="card-note">Eight commands and a tape. The fruit fly of esoteric programming, and the library's primary compilation target.</p>
+</a>
+<a class="card" href="/whitespace/">
+<span class="card-title">whitespace<span class="card-year">2003</span></span>
+<p class="card-note">Space, tab and linefeed are the program; every other byte is a comment. It prints as a blank page and it is Turing complete.</p>
+</a>
+<a class="card" href="/malbolge/">
+<span class="card-title">malbolge<span class="card-year">1998</span></span>
+<p class="card-note">Designed to be impossible to write. Nobody managed for two years, and the first program was found by search rather than written.</p>
+</a>
+<a class="card" href="/befunge93/">
+<span class="card-title">Befunge-93<span class="card-year">1993</span></span>
+<p class="card-note">A two-dimensional grid the instruction pointer wanders around, editing itself as it goes. Built to be hard to compile.</p>
+</a>
+<a class="card" href="/subleq/">
+<span class="card-title">subleq<span class="card-year">1990s</span></span>
+<p class="card-note">SUBtract and branch if Less than or EQual to zero. That is not the first instruction; that is the instruction set.</p>
+</a>
+<a class="card" href="/fractran/">
+<span class="card-title">FRACTRAN<span class="card-year">1987</span></span>
+<p class="card-note">A program is a list of fractions and the entire state is one integer. Fourteen fractions enumerate the primes.</p>
+</a>
+<a class="card" href="/thue/">
+<span class="card-title">Thue<span class="card-year">2000</span></span>
+<p class="card-note">Nondeterministic string rewriting, descended directly from the 1914 word problem that turned out to be undecidable.</p>
+</a>
+<a class="card" href="/ook/">
+<span class="card-title">Ook!<span class="card-year">2001</span></span>
+<p class="card-note">Brainfuck for orang-utans. Three syllables, eight commands, one Librarian, and please do not call him a monkey.</p>
+</a>
+<a class="card" href="/deadfish/">
+<span class="card-title">Deadfish<span class="card-year">2006</span></span>
+<p class="card-note">One accumulator, four commands, no input and no way to stop. Famous for what it cannot do.</p>
+</a>
+</div>
+<div class="section-head" id="playground">
+<h2>Brainfuck, here, now</h2>
+<span class="more"><a href="/playground/">Whitespace and Deadfish too</a></span>
+</div>
+<p>The interpreter below is a JavaScript transcription of the semantics on the <a href="/brainfuck/">brainfuck page</a>: 8-bit cells that wrap, a tape unbounded to the right, an error if you walk off the left end, and three selectable conventions for what a read does at end of input. The programs in the menu are the actual files from <code>Langlib/Examples/Brainfuck/</code>, embedded when this page was built. Turn the speed down and watch the tape.</p>
+<script type="application/json" id="bf-examples">[{"name":"hello.b — Hello World!","source":"[ The canonical brainfuck hello world with nested loops, as published on\n  the esolangs wiki at https://esolangs.org/wiki/Brainfuck (CC0).\n  Prints \"Hello World!\" and a newline.\n  This header sits in a loop that never runs: the initial cell is zero. ]\n\n++++++++[\u003e++++[\u003e++\u003e+++\u003e+++\u003e+\u003c\u003c\u003c\u003c-]\u003e+\u003e+\u003e-\u003e\u003e+[\u003c]\u003c-]\u003e\u003e.\u003e---.+++++++..+++.\u003e\u003e.\u003c-.\u003c.+++.------.--------.\u003e\u003e+.\u003e++.\n","input":"","eof":"unchanged","note":"The canonical nested-loop hello world. The prose header sits inside a loop that never runs, because cell 0 starts at zero."},{"name":"add.b — add two digits","source":"[ Single-digit adder: reads two ASCII digits whose sum is at most 9 and\n  prints their sum as one ASCII digit. Original example for langlib.\n  Try: echo -n 34 | lake exe brainfuck Langlib/Examples/Brainfuck/add.b ]\n\n,\u003e,                     read a into cell0 and b into cell1\n[\u003c+\u003e-]                  add cell1 into cell0\n++++++[\u003c--------\u003e-]     subtract 48 from cell0 to undo one ASCII offset\n\u003c.                      print the digit\n","input":"34","eof":"unchanged","note":"Reads two ASCII digits whose sum is at most 9 and prints the sum as one digit."},{"name":"rev.b — reverse a word","source":"[ Reverses its input: stressed in, desserts out. Run with --eof zero.\n  Folklore one-liner: read all input into consecutive cells then walk\n  back down the tape printing.\n  Usage: echo -n stressed | lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/rev.b ]\n\n\u003e,[\u003e,]\u003c[.\u003c]\n","input":"stressed","eof":"zero","note":"stressed in, desserts out. Needs the store-0-at-end-of-input convention, or the read loop never ends."},{"name":"countdown.b — 9 down to 0","source":"[ Prints the digits from 9 down to 0 and a newline.\n  Original example for langlib.\n  Layout: cell0 is the loop counter; cell1 the digit; cell2 a builder. ]\n\n++++++++++              set cell0 to 10\n\u003e\u003e+++++++[\u003c++++++++\u003e-]  build 56 in cell1 using cell2 as a counter\n\u003c+                      make cell1 equal 57 which is ASCII digit nine\n\u003c[\u003e.-\u003c-]                ten times print cell1 then decrement it\n\u003e[-]++++++++++.         clear cell1 then print a newline\n","input":"","eof":"unchanged","note":"Builds ASCII 57 in a cell and walks it down. Watch the builder cell drain into the digit cell."},{"name":"alphabet.b — A to Z","source":"[ Prints the uppercase alphabet and a newline.\n  Original example for langlib.\n  Layout: cell1 holds the letter and cell2 counts 26 iterations. ]\n\n++++++++[\u003e++++++++\u003c-]\u003e+     build 65 in cell1 which is ASCII letter A\n\u003e+++++[\u003e+++++\u003c-]\u003e+          build 26 in cell3 as the loop counter\n[\u003c\u003c.+\u003e\u003e-]                   print cell1 then increment it 26 times\n\u003c\u003c[-]++++++++++.            clear cell1 then print a newline\n","input":"","eof":"unchanged","note":"Twenty-six iterations of print-then-increment."},{"name":"cat.b — copy input to output","source":"[ cat: copy input to output (folklore one-liner). Run it with --eof zero;\n  under the default EOF convention (cell unchanged) it echoes the last\n  byte forever once input runs out, which is its own kind of lesson.\n  Usage: echo hello | lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/cat.b ]\n\n,[.,]\n","input":"meow meow\n","eof":"zero","note":"Switch the end-of-input setting to leave the cell and it echoes the last byte forever, which is its own kind of lesson."},{"name":"truth.b — truth-machine","source":"[ Truth-machine: reads one character. On input 1 it prints 1 forever; on\n  input 0 it prints 0 once and halts. From the esolangs wiki brainfuck\n  page at https://esolangs.org/wiki/Brainfuck (CC0).\n  Usage: echo -n 0 | lake exe brainfuck Langlib/Examples/Brainfuck/truth.b\n  With input 1 it fills your terminal until the fuel runs out; that is\n  the point of a truth-machine. ]\n\n+++++++++\u003e\u003e,\u003c\u003c[-\u003e+++++\u003c]\u003e+++[\u003e-\u003c-]\u003e\u003e+++++[\u003e++++++++++\u003c-]\u003e-\u003c\u003c[\u003e\u003e.\u003c\u003c]\u003e\u003e-.\n","input":"0","eof":"unchanged","note":"On 0 it prints 0 and halts. Feed it 1 and it prints 1 until the step budget runs out; that is what a truth-machine is."},{"name":"xkcd-random.b — getRandomNumber","source":"[ getRandomNumber: prints 4. Chosen by fair dice roll; guaranteed to be\n  random (xkcd 221). From the esolangs wiki brainfuck page at\n  https://esolangs.org/wiki/Brainfuck (CC0). ]\n\n++++[-\u003e+++\u003c]\u003e+[-\u003e++++\u003c]\u003e.\n","input":"","eof":"unchanged","note":"Prints 4. Chosen by fair dice roll, guaranteed to be random."},{"name":"quine.b — a 505-byte quine","source":"--\u003e+++\u003e+\u003e+\u003e+\u003e+++++\u003e++\u003e++\u003e-\u003e+++\u003e++\u003e+\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e-\u003e++++\u003e\u003e\u003e\u003e-\u003e+++\u003e+++\u003e+++\u003e+++\u003e+++\u003e+++\u003e+\u003e+\u003e\u003e\u003e-\u003e-\u003e\u003e++++\u003e+\u003e\u003e\u003e\u003e-\u003e\u003e++++\u003e+\u003e+\u003e\u003e-\u003e-\u003e++\u003e++\u003e++\u003e++++\u003e+\u003e++\u003e-\u003e++\u003e++++\u003e+\u003e+\u003e++\u003e++\u003e-\u003e-\u003e++\u003e++\u003e++++\u003e+\u003e+\u003e\u003e\u003e\u003e\u003e-\u003e\u003e-\u003e\u003e++++\u003e++\u003e++\u003e++++\u003e\u003e\u003e\u003e\u003e-\u003e\u003e\u003e\u003e\u003e+++\u003e-\u003e++++\u003e-\u003e-\u003e-\u003e+++\u003e\u003e\u003e+\u003e+\u003e+++\u003e+\u003e++++\u003e\u003e+++\u003e-\u003e\u003e\u003e\u003e\u003e-\u003e\u003e\u003e++++\u003e++\u003e++\u003e+\u003e+++\u003e-\u003e++++\u003e\u003e-\u003e-\u003e+++\u003e+\u003e+++\u003e+\u003e++++\u003e\u003e\u003e+++\u003e-\u003e++++\u003e\u003e-\u003e-\u003e++\u003e++++\u003e++\u003e++++\u003e\u003e++[-[-\u003e\u003e+[\u003e]++[\u003c]\u003c]\u003e\u003e+[\u003e]\u003c--[++\u003e++++\u003e]+[\u003c]\u003c\u003c++]\u003e\u003e\u003e[\u003e]++++\u003e++++[--[+\u003e+\u003e++++\u003c\u003c[--\u003e\u003e--\u003c\u003c[-\u003e-\u003c[---\u003e\u003e+\u003c\u003c[+\u003e+++\u003c[+\u003e\u003e++\u003c\u003c]]]]]]\u003e+++[\u003e+++++++++++++++\u003c-]\u003e--.\u003c\u003c\u003c]","input":"","eof":"unchanged","note":"Erik Bosman's quine prints itself, in about half a million steps. Set the speed to all-at-once unless you have plans for the afternoon."}]</script>
+<div class="pg" data-kind="brainfuck" data-examples="bf-examples">
+<div class="pg-bar">
+<label>Example <select data-role="example"></select></label>
+<label>At end of input <select data-role="eof"><option value="unchanged">leave the cell</option><option value="zero">store 0</option><option value="minus1">store 255</option></select></label>
+<span class="spacer"></span>
+<label>Speed <input type="range" data-role="speed" min="0" max="6" value="3" aria-label="Steps per frame"><span data-role="speed-label" class="muted"></span></label>
+<button class="pg-btn" type="button" data-role="step">Step</button>
+<button class="pg-btn" type="button" data-role="reset">Reset</button>
+<button class="pg-btn primary" type="button" data-role="run">Run</button>
+</div>
+<div class="pg-grid">
+<div class="pg-cell">
+<div class="pg-label">Program</div>
+<textarea class="program" data-role="program" spellcheck="false" aria-label="Brainfuck program"></textarea>
+<p class="pg-note small muted" data-role="example-note"></p>
+</div>
+<div class="pg-cell">
+<div class="pg-label">Input <span class="hint">what the program reads</span></div>
+<textarea class="small" data-role="input" spellcheck="false" aria-label="Program input"></textarea>
+<div class="pg-label" style="margin-top:0.7rem">Output</div>
+<pre class="pg-out" data-role="output" aria-live="polite"></pre>
+</div>
+<div class="pg-cell span2">
+<div class="pg-label">Tape <span class="hint">8-bit cells, unbounded to the right</span></div>
+<div class="tape-wrap"><div class="tape" data-role="tape"></div></div>
+</div>
+<div class="pg-cell span2">
+<div class="pg-label">Instruction pointer</div>
+<pre class="pg-code" data-role="code"></pre>
+</div>
+</div>
+<div class="pg-status"><span data-role="status">not started</span><span data-role="steps"></span><span data-role="pointer"></span></div>
+</div>
+<div class="section-head" id="turpentine">
+<h2>Turpentine, the way out</h2>
+<span class="more"><a href="/turpentine/">The language</a></span>
+</div>
+<p>Alan Perlis, 1982: <em>beware of the Turing tar-pit in which everything is possible but nothing of interest is easy</em>. Most of this library is exactly that. Brainfuck can compute anything a computer can compute, and computing 7 + 5 in it takes a paragraph.</p>
+<p>Turpentine is the solvent that dissolves tar. It is a small imperative language with variables, <code>while</code> loops, <code>invariant</code> and <code>decreases</code> annotations, and a type checker: you write the program once, in something legible, and the compilers do the suffering. The file extension is <code>.turp</code>, and yes, the name is the whole joke.</p>
+<pre><code>// Integer square root: reads n, prints the r with r*r &lt;= n &lt; (r+1)*(r+1).
+// Ported from Velvet's flagship example (github.com/verse-lab/velvet).
+// The invariant and decreases annotations are kept for the verification
+// pipeline; the interpreter ignores them.
+// Usage: echo 17 | lake exe turpentine run Langlib/Examples/Turpentine/isqrt.turp
+var n : int;
+var x : int := 0;
+n := readInt();
+assert n &gt;= 0;
+while (x + 1) * (x + 1) &lt;= n
+  invariant x * x &lt;= n
+  decreases n - x * x
+{
+  x := x + 1;
+}
+println(x);
+</code></pre>
+<p>That program compiles to brainfuck, to whitespace, to subleq, and to the rest of the zoo. Proving that those compilers preserve behaviour is the long game; the <a href="/verification/">verification pipeline</a> says how, and the <a href="/status/">status matrix</a> says how far along it is.</p>
+<div class="section-head">
+<h2>Reading on</h2>
+</div>
+<div class="cards">
+<a class="card" href="/status/"><span class="card-title">Status matrix</span><p class="card-note">What is specified, parsed, interpreted, tested, compiled and proved, language by language.</p></a>
+<a class="card" href="/related/"><span class="card-title">Related work</span><p class="card-note">Other people have formalised esolangs too. Here is who, and how langlib differs.</p></a>
+<a class="card" href="/roadmap/"><span class="card-title">Roadmap</span><p class="card-note">Languages we want next, and what makes a good candidate.</p></a>
+<a class="card" href="/contributing/"><span class="card-title">Contributing</span><p class="card-note">What a complete language contribution looks like. Small focused pull requests review faster.</p></a>
+</div>
+<script src="/bf.js"></script>
+<script src="/playground.js"></script>
+</div>
+</main>
+<footer class="footer">
+<div class="footer-inner">
+<div>langlib is Apache 2.0. The languages belong to the people who thought of them, and are credited on their pages.</div>
+<div><a href="https://github.com/langlib/langlib">Source on GitHub</a></div>
+</div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thue — langlib</title>
+<meta name="description" content="Nondeterministic string rewriting, descended directly from the 1914 word problem that turned out to be undecidable.">
+<link rel="canonical" href="https://langlib.wtf/thue/">
+<meta property="og:title" content="Thue — langlib">
+<meta property="og:description" content="Nondeterministic string rewriting, descended directly from the 1914 word problem that turned out to be undecidable.">
+<meta property="og:url" content="https://langlib.wtf/thue/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="langlib">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script>try{var t=localStorage.getItem('langlib-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<script src="/site.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="masthead">
+<div class="masthead-inner">
+<a class="brand" href="/">langlib<span class="dot">.wtf</span></a>
+<nav aria-label="Site"><a href="/#languages">Languages</a><a href="/playground/">Playground</a><a href="/turpentine/">Turpentine</a><a href="/status/">Status</a><a href="/related/">Related work</a><a href="/contributing/">Contributing</a><button class="theme-toggle" type="button" hidden>dark</button></nav>
+</div>
+</header>
+<main class="page" id="main">
+<div class="doc-layout">
+<div class="prose">
+<div class="page-kicker">Language</div>
+<h1>Thue</h1>
+<p class="muted">John Colagioia, 2000 · <code>lake exe thue</code> · <a href="https://github.com/langlib/langlib/tree/master/Langlib/Examples/Thue/">examples</a> · <a href="https://github.com/langlib/langlib/tree/master/Langlib/Languages/Thue/">Lean source</a></p>
+<p class="small muted"><a href="/brainfuck/">brainfuck</a> · <a href="/whitespace/">whitespace</a> · <a href="/malbolge/">malbolge</a> · <a href="/befunge93/">Befunge-93</a> · <a href="/subleq/">subleq</a> · <a href="/fractran/">FRACTRAN</a> · <strong>Thue</strong> · <a href="/ook/">Ook!</a> · <a href="/deadfish/">Deadfish</a> · <a href="/piet/">Piet</a> · <a href="/brainloller/">Brainloller</a></p>
+<ul>
+<li><strong>Author</strong>: John Colagioia</li>
+<li><strong>Year</strong>: 2000</li>
+<li><strong>Canonical sources</strong>: Colagioia's specification (<code>thue.txt</code>) and C interpreter (<code>thue.c</code>, rev. 1.5 with Chris Pressey's 2010 fixes), both preserved in Cat's Eye Technologies' distribution at <a href="https://github.com/catseye/Thue">https://github.com/catseye/Thue</a>; the community reference point is <a href="https://esolangs.org/wiki/Thue">https://esolangs.org/wiki/Thue</a></li>
+<li><strong>In langlib</strong>: <code>Langlib/Languages/Thue/</code>, runner <code>lake exe thue</code>, examples in <code>Langlib/Examples/Thue/</code></li>
+</ul>
+<h2 id="history-axel-thue-and-semi-thue-systems">History: Axel Thue and semi-Thue systems<a class="anchor" href="#history-axel-thue-and-semi-thue-systems" aria-hidden="true">#</a></h2>
+<p>Axel Thue (1863-1922) was a Norwegian mathematician who studied, among other things, what happens when you repeatedly replace substrings of a string according to fixed rules. His 1914 paper posed the word problem for such systems: given rewrite rules and two strings, can one be turned into the other? Post and Markov proved independently in 1947 that this is undecidable, which makes string rewriting one of the oldest known Turing-complete formalisms, predating Turing by two decades. A <em>semi-Thue system</em> is the one-way variant: each rule rewrites left to right only.</p>
+<p>In 2000, John Colagioia noticed that a semi-Thue system needs only an initial string and a way to do I/O to become a programming language, and called the result Thue (pronounced roughly &quot;too-ay&quot;). He described it as a constraint-programming Turing tarpit: you do not write instructions, you write a grammar and let the string sort itself out. Thue is Turing-complete, by the obvious embedding of unrestricted grammars.</p>
+<h2 id="the-language">The language<a class="anchor" href="#the-language" aria-hidden="true">#</a></h2>
+<p>A Thue program is a text file in two parts:</p>
+<ol>
+<li><strong>The rulebase</strong>: one rule per line, written <code>lhs::=rhs</code>. The line is split at the <em>first</em> <code>::=</code>, so the lhs cannot contain the production symbol but the rhs may. Both sides are taken verbatim; whitespace is significant. An empty rhs erases the lhs.</li>
+<li><strong>The terminator and the initial state</strong>: the rulebase ends at the first line whose lhs is empty (canonically a lone <code>::=</code>). Everything after that line, concatenated <em>without</em> newlines, is the initial state string.</li>
+</ol>
+<p>Execution repeatedly picks a rule whose lhs occurs in the state and replaces one occurrence by the rhs. The choice of rule and of occurrence is deliberately nondeterministic; a correct Thue program is one that works anyway. The program halts when no rule's lhs occurs in the state.</p>
+<p>Two right-hand sides are special:</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>rhs</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td>exactly <code>:::</code></td><td>replace the lhs by one line read from input (without its newline)</td></tr>
+<tr><td><code>~text</code></td><td>erase the lhs and write <code>text</code> followed by a newline to output</td></tr>
+</tbody>
+</table>
+</div>
+<p>Output can only ever print strings that appear literally in the program, so a general-purpose <code>cat</code> is impossible in Thue. Programs that react to input compare it against fixed strings instead; the examples do exactly that.</p>
+<h2 id="semantic-decisions-in-langlib">Semantic decisions in langlib<a class="anchor" href="#semantic-decisions-in-langlib" aria-hidden="true">#</a></h2>
+<p>Colagioia's C interpreter is the reference implementation, and our interpreter (<code>Langlib/Languages/Thue/Semantics.lean</code>) follows it except where noted. Line references are to <code>thue.c</code> rev. 1.5.</p>
+<ol>
+<li><strong>The default strategy is deterministic.</strong> The original picks uniformly at random among all occurrences of all left-hand sides (<code>rand()</code> seeded from <code>time()</code>), which makes golden tests impossible. Our default, called <code>first</code>, scans the rules in program order and applies the first rule whose lhs occurs in the state, at its leftmost occurrence. Note that this differs from the original's <code>l</code> flag, which picks the leftmost occurrence across <em>all</em> rules (ties broken by rule order); <code>first</code> is rule-major, <code>l</code> is position-major. Programs whose output depends on the strategy are, by Thue's own philosophy, wrong.</li>
+<li><strong><code>--strategy random --seed K</code> restores the original spirit, reproducibly.</strong> All (occurrence, rule) matches are collected and ordered by position, ties broken by rule order, exactly the candidate list the original builds. One is chosen uniformly using a 64-bit linear congruential generator with Knuth's MMIX constants: <code>s' = 6364136223846793005 * s + 1442695040888963407 (mod 2^64)</code>, and the index is <code>(s' &gt;&gt; 33) mod n</code>. The generator advances once per rewrite step, starting from the seed (default 0). Same seed, same run; the golden tests rely on this.</li>
+<li><strong><code>~</code> output appends a newline.</strong> The original prints with <code>puts</code> (thue.c line 203), so <code>a::=~Hello World!</code> emits the text plus <code>\n</code>, and a bare <code>~</code> emits just <code>\n</code>. The esolangs wiki records Laurent Vogel's later proposal (newline only when the text is empty); we follow the original instead.</li>
+<li><strong><code>:::</code> reads one line and strips its newline</strong> (thue.c lines 211-212). At end of input the original is undefined behaviour (<code>fgets</code> fails and a stale buffer is used); we define it to substitute the empty string. A final input line without a trailing newline is returned whole.</li>
+<li><strong>The terminator is the first line whose lhs is empty or whitespace-only</strong>, matching the original's check that every character before <code>::=</code> is whitespace (thue.c lines 116-131). Its rhs is ignored, even if it is nonempty, even if it is <code>:::</code> or a <code>~</code> form.</li>
+<li><strong>The initial state is the remaining lines joined without newlines.</strong> The original strips each line's newline and <code>strcat</code>s (thue.c lines 134-135). Whitespace inside those lines is kept.</li>
+<li><strong>A non-blank rulebase line without <code>::=</code> is a parse error</strong>, reported with its line number. The original prints <code>Malformed production</code> to stderr and keeps going (thue.c line 115); a reference semantics should fail loudly instead. Consequently Thue has no comment syntax; put prose in the README, not the program. Blank and whitespace-only lines in the rulebase are skipped. A program with no terminator line at all is a parse error too (the original silently runs with an empty state).</li>
+<li><strong>Line endings are normalised.</strong> A trailing <code>\r</code> is stripped from every line, and a final line without a newline is kept whole. (The original's <code>get_line</code> always chops the last character, mangling an unterminated final line; we do not reproduce that bug.)</li>
+<li><strong>No size limits.</strong> The original caps rules at 64 bytes, the rulebase at 128 rules, and the state at 16KB. Ours are unbounded.</li>
+<li><strong><code>--final-state</code> (langlib extension).</strong> On a normal halt, the final  state and a newline are appended to the output. Many Thue programs,  including the classic binary-increment example, compute in the state  and never print; this flag (off by default, and pinned by its own test  suite) makes them observable, much like the original's debug mode.</li>
+</ol>
+<p>The evaluator is pure and fuel-based: one unit of fuel per rewrite step. The runner's default budget is 1 million steps (<code>--fuel N</code> to change); rewrites cost linear work in the state, so the budget is deliberately smaller than brainfuck's. Exhausting it is reported distinctly from halting, so divergence is an observable outcome in tests.</p>
+<p>Source files customarily use the extension <code>.t</code>; <code>.thue</code> also occurs in the wild and works the same, since the runner never inspects the name.</p>
+<h2 id="trying-it">Trying it<a class="anchor" href="#trying-it" aria-hidden="true">#</a></h2>
+<p>Hello world: one rule, one rewrite, one line of output.</p>
+<pre><code>$ lake exe thue Langlib/Examples/Thue/hello.t
+Hello World!</code></pre>
+<p>Binary increment. It rewrites <code>_1111111111_</code> (1023, fenced by underscores) into 1024 and halts without printing anything, so <code>--final-state</code> is how you see the answer. It reaches the same result under every strategy, which is what a well-bred Thue program looks like.</p>
+<pre><code>$ lake exe thue --final-state Langlib/Examples/Thue/increment.t
+10000000000</code></pre>
+<p>Parity of a unary number, read from input.</p>
+<pre><code>$ echo 111 | lake exe thue Langlib/Examples/Thue/parity.t
+odd</code></pre>
+<p>The truth-machine, halting on <code>0</code>.</p>
+<pre><code>$ echo 0 | lake exe thue Langlib/Examples/Thue/truth.t
+0</code></pre>
+<p>The random strategy restores the original interpreter's nondeterminism. The seed makes it reproducible, which the original never was.</p>
+<pre><code>$ lake exe thue --strategy random --seed 7 Langlib/Examples/Thue/hello.t
+Hello World!</code></pre>
+<p>For the rest of the examples see <code>Langlib/Examples/Thue/</code> and the tests in <code>Langlib/Tests/Thue.lean</code>.</p>
+<h2 id="compilation-from-turpentine">Compilation from Turpentine<a class="anchor" href="#compilation-from-turpentine" aria-hidden="true">#</a></h2>
+<p>Not planned (see <code>docs/PLAN.md</code>, Stage 4): compiling an imperative language to string rewriting is possible in principle, and stays on the roadmap as exactly that, a principle.</p>
+<p class="source-note">This page is <code>docs/thue/spec.md</code> from the repository, rendered. Corrections belong <a href="https://github.com/langlib/langlib/blob/master/docs/thue/spec.md">in the source file</a>, not here: the site is generated from it.</p>
+</div>
+<nav class="toc" aria-label="On this page">
+<div class="toc-title">On this page</div>
+<ul>
+<li><a href="#history-axel-thue-and-semi-thue-systems">History: Axel Thue and semi-Thue systems</a></li>
+<li><a href="#the-language">The language</a></li>
+<li><a href="#semantic-decisions-in-langlib">Semantic decisions in langlib</a></li>
+<li><a href="#trying-it">Trying it</a></li>
+<li><a href="#compilation-from-turpentine">Compilation from Turpentine</a></li>
+</ul>
+</nav>
+</div>
+</main>
+<footer class="footer">
+<div class="footer-inner">
+<div>langlib is Apache 2.0. The languages belong to the people who thought of them, and are credited on their pages.</div>
+<div><a href="https://github.com/langlib/langlib">Source on GitHub</a></div>
+</div>
+</footer>
+</body>
+</html>

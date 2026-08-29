@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ook! — langlib</title>
+<meta name="description" content="Brainfuck for orang-utans. Three syllables, eight commands, one Librarian, and please do not call him a monkey.">
+<link rel="canonical" href="https://langlib.wtf/ook/">
+<meta property="og:title" content="Ook! — langlib">
+<meta property="og:description" content="Brainfuck for orang-utans. Three syllables, eight commands, one Librarian, and please do not call him a monkey.">
+<meta property="og:url" content="https://langlib.wtf/ook/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="langlib">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script>try{var t=localStorage.getItem('langlib-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<script src="/site.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="masthead">
+<div class="masthead-inner">
+<a class="brand" href="/">langlib<span class="dot">.wtf</span></a>
+<nav aria-label="Site"><a href="/#languages">Languages</a><a href="/playground/">Playground</a><a href="/turpentine/">Turpentine</a><a href="/status/">Status</a><a href="/related/">Related work</a><a href="/contributing/">Contributing</a><button class="theme-toggle" type="button" hidden>dark</button></nav>
+</div>
+</header>
+<main class="page" id="main">
+<div class="doc-layout">
+<div class="prose">
+<div class="page-kicker">Language</div>
+<h1>Ook!</h1>
+<p class="muted">David Morgan-Mar, 2001 · <code>lake exe ook</code> · <a href="https://github.com/langlib/langlib/tree/master/Langlib/Examples/Ook/">examples</a> · <a href="https://github.com/langlib/langlib/tree/master/Langlib/Languages/Ook/">Lean source</a></p>
+<p class="small muted"><a href="/brainfuck/">brainfuck</a> · <a href="/whitespace/">whitespace</a> · <a href="/malbolge/">malbolge</a> · <a href="/befunge93/">Befunge-93</a> · <a href="/subleq/">subleq</a> · <a href="/fractran/">FRACTRAN</a> · <a href="/thue/">Thue</a> · <strong>Ook!</strong> · <a href="/deadfish/">Deadfish</a> · <a href="/piet/">Piet</a> · <a href="/brainloller/">Brainloller</a></p>
+<ul>
+<li><strong>Author</strong>: David Morgan-Mar</li>
+<li><strong>Year</strong>: 2001</li>
+<li><strong>Canonical sources</strong>: Morgan-Mar's page, <a href="https://www.dangermouse.net/esoteric/ook.html">https://www.dangermouse.net/esoteric/ook.html</a>; community page at <a href="https://esolangs.org/wiki/Ook">https://esolangs.org/wiki/Ook</a>! (CC0)</li>
+<li><strong>In langlib</strong>: <code>Langlib/Languages/Ook/</code>, runner <code>lake exe ook</code>, examples in <code>Langlib/Examples/Ook/</code></li>
+</ul>
+<h2 id="history">History<a class="anchor" href="#history" aria-hidden="true">#</a></h2>
+<p>Ook! is a programming language designed for orang-utans, and specifically for one: the Librarian of Unseen University in Terry Pratchett's Discworld novels, who was transformed into an orangutan by a magical accident, found the shape convenient for shelving, and since then communicates exclusively by saying &quot;Ook&quot; with varying inflection. (One does not call him a monkey. He is an ape. People who get this wrong tend to be helped, briefly, toward the ceiling.) Morgan-Mar's design principles follow directly: the syntax should be writable and readable by orang-utans, it must not mention the word &quot;monkey&quot;, and bananas are good.</p>
+<p>Beneath the fur, Ook! is exactly brainfuck (Urban Müller, 1993). Its three words, read in pairs, spell brainfuck's eight commands, which makes Ook! the founding member of what the esolangs wiki calls the trivial brainfuck substitution family, and makes its Turing completeness a corollary rather than a theorem.</p>
+<h2 id="syntax">Syntax<a class="anchor" href="#syntax" aria-hidden="true">#</a></h2>
+<p>The whole vocabulary is three words: <code>Ook.</code>, <code>Ook?</code>, <code>Ook!</code>. A program is a whitespace-separated sequence of these words, read two at a time; each pair is one command:</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Pair</th><th>brainfuck</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>Ook. Ook?</code></td><td><code>&gt;</code></td><td>move the pointer one cell right</td></tr>
+<tr><td><code>Ook? Ook.</code></td><td><code>&lt;</code></td><td>move the pointer one cell left</td></tr>
+<tr><td><code>Ook. Ook.</code></td><td><code>+</code></td><td>increment the current cell</td></tr>
+<tr><td><code>Ook! Ook!</code></td><td><code>-</code></td><td>decrement the current cell</td></tr>
+<tr><td><code>Ook. Ook!</code></td><td><code>,</code></td><td>read one input byte into the current cell</td></tr>
+<tr><td><code>Ook! Ook.</code></td><td><code>.</code></td><td>write the current cell to output</td></tr>
+<tr><td><code>Ook! Ook?</code></td><td><code>[</code></td><td>loop start</td></tr>
+<tr><td><code>Ook? Ook!</code></td><td><code>]</code></td><td>loop end</td></tr>
+<tr><td><code>Ook? Ook?</code></td><td>none</td><td>&quot;Give the Memory Pointer a banana.&quot;</td></tr>
+</tbody>
+</table>
+</div>
+<p>Morgan-Mar's page states that programs must contain an even number of Ooks and that line breaks are ignored. It also settles the comment question: since &quot;ook&quot; can convey entire ideas, emotions, and abstract thoughts depending on the nuances of inflection, Ook! has no need of comments. The code itself serves perfectly well to describe what it does. Provided you are an orang-utan.</p>
+<h2 id="semantic-decisions-in-langlib">Semantic decisions in langlib<a class="anchor" href="#semantic-decisions-in-langlib" aria-hidden="true">#</a></h2>
+<p>Parsing (<code>Langlib/Languages/Ook/Parser.lean</code>) produces a <code>Langlib.Brainfuck.Prog</code>; there is no separate Ook! AST. Our decisions:</p>
+<ol>
+<li><strong>Tokens are whitespace-separated words</strong>, and each word must be exactly <code>Ook.</code>, <code>Ook?</code>, or <code>Ook!</code>. Any other word is a parse error, reported with its line and column. In particular there are no comments (see above, and note that prose would otherwise parse as garbage pairs), and we do not implement the folklore punctuation-only shorthand (<code>. ? !</code>); only classic Ook!.</li>
+<li><strong>An odd number of words is a parse error</strong> (&quot;Programs must thus contain an even number of Ooks&quot; on the language page), reported at the widowed final word.</li>
+<li><strong>Pairing is positional</strong>: words 1-2 form the first command, words 3-4 the second, and so on. Loop pairs <code>Ook! Ook?</code> / <code>Ook? Ook!</code> nest like parentheses; an unmatched one is a parse error with the token's position and index.</li>
+<li><strong><code>Ook? Ook?</code> is a parse error.</strong> The language page lists it with the effect &quot;Give the Memory Pointer a banana&quot;, which specifies no machine behaviour; the esolangs wiki calls it a no-op. In a language whose entire vocabulary is three words, silently accepting a ninth pair mostly hides typos, so we reject it (the error message acknowledges the banana). Programs that use it as filler must go bananas elsewhere.</li>
+<li><strong>Runtime semantics are brainfuck's, by construction</strong>: 8-bit wrapping cells, tape unbounded to the right, moving left of cell 0 is a runtime error, and the same three EOF conventions behind the same <code>--eof</code> flag. Every one of those decisions is recorded, with sources, in <code>docs/brainfuck/spec.md</code>; evaluation is literally a call to <code>Langlib.Brainfuck.evalProg</code>.</li>
+</ol>
+<p>Translation runs both ways: <code>Langlib.Ook.parse</code> (Ook! source to brainfuck program) and <code>Langlib.Ook.render</code> (brainfuck program to Ook! source, sixteen words per line), plus the source-to-source wrappers <code>ofBrainfuck</code> and <code>toBrainfuck</code>. Our <code>.ook</code> examples are generated with <code>render</code> from the brainfuck examples, and the tests round-trip them.</p>
+<h2 id="licensing-note">Licensing note<a class="anchor" href="#licensing-note" aria-hidden="true">#</a></h2>
+<p>Morgan-Mar's page carries a plain copyright notice and no explicit licence text, but it welcomes independent implementations in the most practical way available: its resources section happily links third-party Ook! interpreters, compilers, converters, and even a Palm OS IDE, in Ruby, Python, .NET, Perl, and Java. The language has been reimplemented dozens of times since 2001. The specification is a page of ideas (three words and a pairing table); langlib implements those ideas in its own words and code and pastes none of the page's text.</p>
+<h2 id="trying-it">Trying it<a class="anchor" href="#trying-it" aria-hidden="true">#</a></h2>
+<p>Hello world, spoken entirely in orangutan.</p>
+<pre><code>$ lake exe ook Langlib/Examples/Ook/hello.ook
+Hello World!</code></pre>
+<p>The alphabet, since Ook! inherits everything brainfuck can do.</p>
+<pre><code>$ lake exe ook Langlib/Examples/Ook/alphabet.ook
+ABCDEFGHIJKLMNOPQRSTUVWXYZ</code></pre>
+<p>cat, which needs <code>--eof zero</code> for the same reason its brainfuck original does.</p>
+<pre><code>$ echo -n &quot;Ook-ook&quot; | lake exe ook --eof zero Langlib/Examples/Ook/cat.ook
+Ook-ook</code></pre>
+<h2 id="compilation-from-turpentine">Compilation from Turpentine<a class="anchor" href="#compilation-from-turpentine" aria-hidden="true">#</a></h2>
+<p>Planned (see <code>docs/PLAN.md</code>, Stage 4): Turpentine compiles to brainfuck, and <code>Langlib.Ook.render</code> turns the result into Ook! for free.</p>
+<p class="source-note">This page is <code>docs/ook/spec.md</code> from the repository, rendered. Corrections belong <a href="https://github.com/langlib/langlib/blob/master/docs/ook/spec.md">in the source file</a>, not here: the site is generated from it.</p>
+</div>
+<nav class="toc" aria-label="On this page">
+<div class="toc-title">On this page</div>
+<ul>
+<li><a href="#history">History</a></li>
+<li><a href="#syntax">Syntax</a></li>
+<li><a href="#semantic-decisions-in-langlib">Semantic decisions in langlib</a></li>
+<li><a href="#licensing-note">Licensing note</a></li>
+<li><a href="#trying-it">Trying it</a></li>
+<li><a href="#compilation-from-turpentine">Compilation from Turpentine</a></li>
+</ul>
+</nav>
+</div>
+</main>
+<footer class="footer">
+<div class="footer-inner">
+<div>langlib is Apache 2.0. The languages belong to the people who thought of them, and are credited on their pages.</div>
+<div><a href="https://github.com/langlib/langlib">Source on GitHub</a></div>
+</div>
+</footer>
+</body>
+</html>

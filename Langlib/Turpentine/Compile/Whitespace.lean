@@ -135,10 +135,11 @@ bytes) compile with no divergence at all.
 
 `readInt` is fine by comparison: both languages read one line and raise a
 runtime error at end of input or on a line that is not an optionally
-negated decimal numeral. The wording differs (`readInt at end of input`
-versus `read number at end of input`), and the two accept slightly
-different sets of padding characters around the digits, but every accepted
-line parses to the same integer.
+negated decimal numeral. The two even agree on the padding they tolerate,
+since within a line Turpentine's `String.trimAscii` strips exactly space,
+tab and carriage return, which is the set whitespace's `readnum` strips.
+Only the wording of the failure differs: `readInt at end of input` on one
+side, `read number at end of input` on the other.
 
 ## Failure modes
 

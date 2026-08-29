@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Testing — langlib</title>
+<meta name="description" content="Two layers of tests keep the interpreters honest:">
+<link rel="canonical" href="https://langlib.wtf/testing/">
+<meta property="og:title" content="Testing — langlib">
+<meta property="og:description" content="Two layers of tests keep the interpreters honest:">
+<meta property="og:url" content="https://langlib.wtf/testing/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="langlib">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script>try{var t=localStorage.getItem('langlib-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<script src="/site.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="masthead">
+<div class="masthead-inner">
+<a class="brand" href="/">langlib<span class="dot">.wtf</span></a>
+<nav aria-label="Site"><a href="/#languages">Languages</a><a href="/playground/">Playground</a><a href="/turpentine/">Turpentine</a><a href="/status/">Status</a><a href="/related/">Related work</a><a href="/contributing/">Contributing</a><button class="theme-toggle" type="button" hidden>dark</button></nav>
+</div>
+</header>
+<main class="page" id="main">
+<div class="doc-layout">
+<div class="prose">
+<div class="page-kicker">How we know</div>
+<h1>Testing langlib</h1>
+<p>Two layers of tests keep the interpreters honest:</p>
+<ol>
+<li><strong>Golden unit tests</strong> (<code>lake test</code>, from the repository root): every language runs its example programs and hand-written cases against the pure interpreter core and compares outputs exactly. These need nothing installed beyond the Lean toolchain, and they are the <em>only</em> layer for languages without a canonical non-Lean interpreter.</li>
+<li><strong>Differential tests</strong> (<code>./scripts/difftest.sh</code>, after <code>lake build</code>): for languages that do have a canonical (or de-facto reference) interpreter, the same programs are run on both and the outputs compared byte for byte. Each section skips gracefully when its reference binary is not installed, so the script is always safe to run.</li>
+</ol>
+<p>This file documents, per language, whether a reference exists and what to install to enable its differential section.</p>
+<h2 id="brainfuck">brainfuck<a class="anchor" href="#brainfuck" aria-hidden="true">#</a></h2>
+<p>Reference situation: Urban Müller's original Amiga interpreter is not practical to run; the community treats a handful of C interpreters as de-facto references. Our difftest section tries, in order:</p>
+<p><code>./scripts/get-references.sh</code> builds Daniel B. Cristofani's simple interpreter (<a href="https://brainfuck.org/sbi.c">https://brainfuck.org/sbi.c</a>) as <code>bfi</code>; it leaves the cell unchanged at EOF, matching our default convention. If you already have <code>beef</code> or <code>bf</code> on PATH, difftest will use those instead.</p>
+<p>Only EOF-independent programs are compared, because reference interpreters disagree on the EOF convention (see <code>docs/brainfuck/spec.md</code>); the EOF conventions themselves are pinned down by golden tests instead.</p>
+<h2 id="turpentine">turpentine<a class="anchor" href="#turpentine" aria-hidden="true">#</a></h2>
+<p>Turpentine is langlib's own language, so langlib's interpreter is the canonical one by definition; golden unit tests are the whole story. Once the Stage 4 compilers exist, every compiled example doubles as a differential test of interpreter pairs (Turpentine output vs target-language output).</p>
+<h2 id="fractran">fractran<a class="anchor" href="#fractran" aria-hidden="true">#</a></h2>
+<p>Reference situation: no canonical interpreter exists. Conway defined the language on paper (1987) and never shipped an implementation; well-known interpreters are scattered one-file affairs (Rosetta Code entries, assorted gists), none authoritative. FRACTRAN also has no native I/O, so what an interpreter prints is each implementation's own convention, and outputs are not comparable byte for byte. Golden unit tests are therefore the whole story: trajectories are compared exactly, and PRIMEGAME's first eight primes pin down the <code>pow2</code> observation convention (see <code>docs/fractran/spec.md</code>).</p>
+<h2 id="subleq">subleq<a class="anchor" href="#subleq" aria-hidden="true">#</a></h2>
+<p>Reference situation: subleq is folklore; the de-facto reference is Oleg Mazonka's toolchain (<code>sqasm</code> assembler and <code>sqrun</code> interpreter, C++ sources from mazonka.com, currently reachable mainly via the Wayback Machine links on the esolangs Subleq page; build with <code>c++ -O2 -o sqrun sqrun.cpp</code>). Differential testing is impractical for now: our assembler dialect deliberately differs from sqasm (<code>;</code> is a comment for us, an instruction separator there), and the reference binaries are not packaged anywhere. Golden unit tests are the reference story; the semantic choices (the <code>-1</code> I/O convention, EOF stores -1, mod-256 output, clean halts) are pinned down in <code>docs/subleq/spec.md</code> and by the golden tests.</p>
+<h2 id="whitespace">whitespace<a class="anchor" href="#whitespace" aria-hidden="true">#</a></h2>
+<p>Reference situation: the authors' <code>wspace</code> 0.3 (Haskell, GPL) is canonical but was written for 2003-era GHC; a modernized build lives at <a href="https://github.com/wspace/whitespace-haskell">https://github.com/wspace/whitespace-haskell</a> (clone, <code>make</code>, gives a <code>wspace</code> binary; needs GHC, e.g. <code>brew install ghc</code>). No package manager ships it. Practical modern references:</p>
+<ul>
+<li><strong>whitespace-rs</strong>: <code>cargo install whitespace-rs</code> (installs <code>wsc</code>).</li>
+<li><strong>wsjq</strong>: needs only <code>jq</code>; clone <a href="https://github.com/thaliaarchi/wsjq">https://github.com/thaliaarchi/wsjq</a> and put <code>wsjq</code> on PATH.</li>
+</ul>
+<p>Our difftest section tries <code>wspace</code>, then <code>wsc</code>, then <code>wsjq</code>. Only programs that halt cleanly are compared: programs that read until EOF (like <code>cat.ws</code>) end in a runtime error in every faithful implementation, and implementations phrase the error differently. Heap-default and EOF corner cases are pinned by golden tests instead (see <code>docs/whitespace/spec.md</code>).</p>
+<h2 id="ook">ook<a class="anchor" href="#ook" aria-hidden="true">#</a></h2>
+<p>Reference situation: there is no canonical interpreter. Morgan-Mar's page defines the language but ships no implementation (it links third-party ones, none packaged for brew or apt). Golden unit tests are the reference story: the Ook!-specific surface is the parser, whose error classes are pinned by unit tests, while the runtime is the brainfuck core, which is already differentially tested. A round-trip suite runs brainfuck sources through render and parse to pin down the isomorphism.</p>
+<h2 id="deadfish">deadfish<a class="anchor" href="#deadfish" aria-hidden="true">#</a></h2>
+<p>Reference situation: the original C interpreter is preserved on the esolangs wiki (CC0), but it is an interactive shell whose stdout interleaves a <code>&gt;&gt; </code> prompt before every input character, so byte-for-byte comparison with a batch runner fails by design, and no packaged binary exists. Golden tests are the story: they include the wiki's three mandatory interpreter test cases plus both accumulator resets, squaring past 256, and the newline-on-unknown-character rule.</p>
+<h2 id="befunge93">befunge93<a class="anchor" href="#befunge93" aria-hidden="true">#</a></h2>
+<p>Reference situation: excellent. Pressey's own <code>bef.c</code> (v2.25, the original interpreter, maintained in the Befunge-93 reference distribution at <a href="https://github.com/catseye/Befunge-93">https://github.com/catseye/Befunge-93</a>) builds everywhere and Homebrew packages it: <code>brew install befunge93</code> installs the <code>bef</code> binary. From source: <code>cc -std=c89 -O2 -o bef src/bef.c</code>. Invoke as <code>bef -q file.b93</code> (<code>-q</code> suppresses the version banner, which otherwise goes to stdout). Programs using <code>?</code> are excluded from comparison: bef seeds its PRNG from the clock, while our runner takes <code>--seed</code>. Everything else, including the division-by-zero prompt-and-answer dance, matches bef byte for byte and is also pinned by golden tests.</p>
+<h2 id="thue">thue<a class="anchor" href="#thue" aria-hidden="true">#</a></h2>
+<p>Reference situation: John Colagioia's C interpreter (<code>thue.c</code>) survives in Cat's Eye Technologies' distribution (<a href="https://github.com/catseye/Thue">https://github.com/catseye/Thue</a>) but is not packaged anywhere and must be built from source. It is random by default (seeded from <code>time()</code>), and its deterministic <code>l</code> flag picks the leftmost occurrence across all rules, which differs from our rule-major <code>first</code> strategy. Golden unit tests are therefore the reference story; the spec page records each decision against <code>thue.c</code> line by line. Only strategy-independent programs could ever be usefully diff-tested.</p>
+<h2 id="malbolge">malbolge<a class="anchor" href="#malbolge" aria-hidden="true">#</a></h2>
+<p>Reference situation: Ben Olmstead's own <code>malbolge.c</code> (1998, public domain) is the de-facto specification; where his spec text disagrees with it, the interpreter wins (see <code>docs/malbolge/spec.md</code>). <code>./scripts/get-references.sh</code> fetches it from the Esoteric File Archive and builds it, deleting the <code>#include &lt;malloc.h&gt;</code> line that non-glibc systems reject.</p>
+<p>Only halting examples are compared (<code>hello.mal</code>, and <code>truth.mal</code> on input <code>0</code>): both cat programs never halt by design, and <code>scheffer-cat.mal</code> is stored UTF-8 re-encoded (see the language README), so the C interpreter would read different bytes from it. The cats' echo behaviour, EOF handling, the loader oversight, and the non-printable spin are pinned by golden tests instead.</p>
+<h2 id="piet">piet<a class="anchor" href="#piet" aria-hidden="true">#</a></h2>
+<p>Reference: <strong>npiet</strong> (Erik Schoenfelder) is the community's de-facto reference. It is not in Homebrew; build it from source (PPM input needs no image library, since libpng and gd are only for PNG and GIF):</p>
+<pre><code>curl -O https://www.bertnase.de/npiet/npiet-1.3f.tar.gz
+tar xf npiet-1.3f.tar.gz &amp;&amp; cd npiet-1.3f &amp;&amp; ./configure &amp;&amp; make</code></pre>
+<p>Debian-based systems may also have <code>apt install npiet</code>. Our examples are codel-size-1 P3 files, which npiet reads directly. Caveat: npiet prompts with <code>? </code> when a program reads a number, so the difftest section only compares input-free programs.</p>
+<h2 id="brainloller">brainloller<a class="anchor" href="#brainloller" aria-hidden="true">#</a></h2>
+<p>No canonical interpreter exists (Vandevenne published the spec, not a maintained reference), so golden tests are the whole story: encode-decode round trips, hand-pixelled images pinning the rotation colours, and execution through the brainfuck core, which has its own differential section.</p>
+<h2 id="languages-without-a-canonical-interpreter">Languages without a canonical interpreter<a class="anchor" href="#languages-without-a-canonical-interpreter" aria-hidden="true">#</a></h2>
+<p>For these, golden unit tests on programs are the reference story, and their spec pages record which documents the semantics follows. (Sections are added here as languages land.)</p>
+<p class="source-note">This page is <code>docs/TESTING.md</code> from the repository, rendered. Corrections belong <a href="https://github.com/langlib/langlib/blob/master/docs/TESTING.md">in the source file</a>, not here: the site is generated from it.</p>
+</div>
+<nav class="toc" aria-label="On this page">
+<div class="toc-title">On this page</div>
+<ul>
+<li><a href="#brainfuck">brainfuck</a></li>
+<li><a href="#turpentine">turpentine</a></li>
+<li><a href="#fractran">fractran</a></li>
+<li><a href="#subleq">subleq</a></li>
+<li><a href="#whitespace">whitespace</a></li>
+<li><a href="#ook">ook</a></li>
+<li><a href="#deadfish">deadfish</a></li>
+<li><a href="#befunge93">befunge93</a></li>
+<li><a href="#thue">thue</a></li>
+<li><a href="#malbolge">malbolge</a></li>
+<li><a href="#piet">piet</a></li>
+<li><a href="#brainloller">brainloller</a></li>
+<li><a href="#languages-without-a-canonical-interpreter">Languages without a canonical interpreter</a></li>
+</ul>
+</nav>
+</div>
+</main>
+<footer class="footer">
+<div class="footer-inner">
+<div>langlib is Apache 2.0. The languages belong to the people who thought of them, and are credited on their pages.</div>
+<div><a href="https://github.com/langlib/langlib">Source on GitHub</a></div>
+</div>
+</footer>
+</body>
+</html>

@@ -12,9 +12,9 @@ Legend: `yes` done, `wip` in progress, `-` not started, `n/a` not planned
 |----------|------|--------|-------------|------------------|--------|--------------|-------------------|
 | [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `lake exe brainfuck` | - | - |
 | [fractran](fractran/spec.md) | yes | yes | yes | yes | `lake exe fractran` | n/a | n/a |
-| [subleq](subleq/spec.md) | yes | yes | yes | yes | `lake exe subleq` | - | - |
+| [subleq](subleq/spec.md) | yes | yes | yes | yes | `lake exe subleq` | [yes](subleq/compiler.md) | - |
 | [Turpentine](wtf/spec.md) (front end) | yes | yes | yes | yes | `lake exe turpentine` | (source) | (source) |
-| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `lake exe whitespace` | - | - |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `lake exe whitespace` | [yes](whitespace/compiler.md) | - |
 | [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `lake exe malbolge` | n/a | n/a |
 | [ook](ook/spec.md) | yes | yes | yes | yes | `lake exe ook` | - | - |
 | [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `lake exe deadfish` | - | - |

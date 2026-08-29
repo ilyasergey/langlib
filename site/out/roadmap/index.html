@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roadmap — langlib</title>
+<meta name="description" content="What the library implements and what it can implement next, roughly ordered by (value x feasibility). Before starting a candidate, read the instructions at the bottom, check the license situation, and move the language into docs/PLAN.md Stage 1/2 tables.">
+<link rel="canonical" href="https://langlib.wtf/roadmap/">
+<meta property="og:title" content="Roadmap — langlib">
+<meta property="og:description" content="What the library implements and what it can implement next, roughly ordered by (value x feasibility). Before starting a candidate, read the instructions at the bottom, check the license situation, and move the language into docs/PLAN.md Stage 1/2 tables.">
+<meta property="og:url" content="https://langlib.wtf/roadmap/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="langlib">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script>try{var t=localStorage.getItem('langlib-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<script src="/site.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="masthead">
+<div class="masthead-inner">
+<a class="brand" href="/">langlib<span class="dot">.wtf</span></a>
+<nav aria-label="Site"><a href="/#languages">Languages</a><a href="/playground/">Playground</a><a href="/turpentine/">Turpentine</a><a href="/status/">Status</a><a href="/related/">Related work</a><a href="/contributing/">Contributing</a><button class="theme-toggle" type="button" hidden>dark</button></nav>
+</div>
+</header>
+<main class="page" id="main">
+<div class="doc-layout">
+<div class="prose">
+<div class="page-kicker">What is next</div>
+<h1>Language roadmap</h1>
+<p>What the library implements and what it can implement next, roughly ordered by (value x feasibility). Before starting a candidate, read the instructions at the bottom, check the license situation, and move the language into <code>docs/PLAN.md</code> Stage 1/2 tables.</p>
+<h2 id="committed-first-wave-see-docsplanmd">Committed (first wave, see <code>docs/PLAN.md</code>)<a class="anchor" href="#committed-first-wave-see-docsplanmd" aria-hidden="true">#</a></h2>
+<p><strong>Brainfuck</strong>, <strong>Whitespace</strong>, and <strong>Malbolge</strong> are confirmed must-haves and will be implemented first, followed by the rest of the initial nine: Ook!, Deadfish, Subleq, Fractran, Thue, and Befunge-93. Graphical languages are also confirmed wanted: <strong>Piet</strong> and <strong>Brainloller</strong> form the second wave (see <code>docs/PLAN.md</code>, Stage 2).</p>
+<h2 id="strong-candidates">Strong candidates<a class="anchor" href="#strong-candidates" aria-hidden="true">#</a></h2>
+<ul>
+<li><strong>INTERCAL</strong> (Don Woods &amp; James Lyon, 1972). The ur-esolang: <code>PLEASE</code>, <code>COME FROM</code>, five bizarre operators. The 1972 design is freely implementable (C-INTERCAL is a GPL implementation, which we would not reuse, only cite). Large but well documented. A parser and interpreter is a serious, rewarding project; a Turpentine compiler is plausible.</li>
+<li><strong>FALSE</strong> (Wouter van Oortmerssen, 1993). The stack language that inspired brainfuck; compact and clean. Interpreter is easy; a good extra compilation target.</li>
+<li><strong>Unlambda</strong> (David Madore, 1999). SKI combinators plus <code>call/cc</code> and side effects. Interpreter is a nice exercise in CPS; compilation from Turpentine is research-grade.</li>
+<li><strong>Befunge-98</strong> (Chris Pressey, 1998). Extends our Befunge-93 with an unbounded funge-space and fingerprints. Natural follow-up once Befunge-93 is solid.</li>
+<li><strong>Ook!-adjacent brainfuck isomorphisms</strong> (Blub, Pikalang, etc.). Nearly free once the shared brainfuck core exists; fun for the website. Add as a single parameterised family, not one folder each.</li>
+<li><strong>A quine-friendly tag system: Bitwise Cyclic Tag (BCT)</strong>. Two-symbol cyclic tag; tiny interpreter, useful in Turing-completeness proofs for other languages in the library (thue, fractran, rule 110 arguments).</li>
+<li><strong>OISC variants</strong> (subneg, addleq). Small deltas over our subleq core; good targets for compiler experiments.</li>
+<li><strong>Java generics subtyping</strong> (Radu Grigore, &quot;Java Generics are Turing Complete&quot;, POPL 2017, <a href="https://arxiv.org/abs/1605.05274">https://arxiv.org/abs/1605.05274</a>). Not an esolang by intent, which is exactly the joke: the paper reduces Turing-machine halting to Java subtype checking. A langlib entry would formalise the paper's subtyping machine (a fragment of Java's generic subtyping rules) as the language, implement its &quot;interpreter&quot; (the subtype checker), and provide the reduction as the compiler into it. Research-grade but well specified by the paper.</li>
+</ul>
+<h2 id="candidates-needing-care">Candidates needing care<a class="anchor" href="#candidates-needing-care" aria-hidden="true">#</a></h2>
+<ul>
+<li><strong>Malbolge Unshackled / normalised Malbolge</strong>: only after the Malbolge interpreter is battle-tested; specifications are informal.</li>
+<li><strong>Shakespeare</strong> (Kalle Hasselström &amp; Jon Åslund, 2001). Programs are plays. The original spec is a course report; check redistribution status before writing the doc page.</li>
+<li><strong>Chef</strong> (David Morgan-Mar). Programs are recipes. Parsing is the whole game; semantics is a stack machine.</li>
+<li><strong>Funciton, Hexagony, Labyrinth</strong>: 2-D languages with active communities; specs live on esolangs.org (CC0), so documentation is unproblematic, but each needs a careful choice of canonical semantics.</li>
+</ul>
+<h2 id="not-planned">Not planned<a class="anchor" href="#not-planned" aria-hidden="true">#</a></h2>
+<ul>
+<li>Languages whose specs or sole reference implementations are under non-permissive terms that arguably cover the language itself. Check esolangs.org licensing notes per language; when in doubt, ask the author or skip. Document any rejection here so the question is not re-litigated.</li>
+</ul>
+<h2 id="instructions-for-adding-a-language">Instructions for adding a language<a class="anchor" href="#instructions-for-adding-a-language" aria-hidden="true">#</a></h2>
+<ol>
+<li>Read <code>CONTRIBUTING.md</code> (checklist) and <code>CLAUDE.md</code> (conventions).</li>
+<li>Write <code>docs/&lt;langname&gt;/spec.md</code> first, pinning down the exact semantics (with sources) before writing Lean code.</li>
+<li>Copy the structure of <code>Langlib/Languages/Brainfuck/</code> (the exemplar): Syntax, Parser, Semantics (pure, fuel-based, shared I/O model), Main, README.</li>
+<li>Add examples, golden tests, a difftest entry if a reference implementation is installable, and register the runner in <code>lakefile.toml</code>.</li>
+<li>Update <code>docs/PLAN.md</code>, <code>docs/PROGRESS.md</code>, and <code>docs/README.md</code>.</li>
+</ol>
+<p class="source-note">This page is <code>docs/ROADMAP.md</code> from the repository, rendered. Corrections belong <a href="https://github.com/langlib/langlib/blob/master/docs/ROADMAP.md">in the source file</a>, not here: the site is generated from it.</p>
+</div>
+<nav class="toc" aria-label="On this page">
+<div class="toc-title">On this page</div>
+<ul>
+<li><a href="#committed-first-wave-see-docsplanmd">Committed (first wave, see `docs/PLAN.md`)</a></li>
+<li><a href="#strong-candidates">Strong candidates</a></li>
+<li><a href="#candidates-needing-care">Candidates needing care</a></li>
+<li><a href="#not-planned">Not planned</a></li>
+<li><a href="#instructions-for-adding-a-language">Instructions for adding a language</a></li>
+</ul>
+</nav>
+</div>
+</main>
+<footer class="footer">
+<div class="footer-inner">
+<div>langlib is Apache 2.0. The languages belong to the people who thought of them, and are credited on their pages.</div>
+<div><a href="https://github.com/langlib/langlib">Source on GitHub</a></div>
+</div>
+</footer>
+</body>
+</html>

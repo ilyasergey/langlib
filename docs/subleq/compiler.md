@@ -1,0 +1,367 @@
+# Compiling Turpentine to subleq
+
+* **Compiler**: `Langlib/Turpentine/Compile/Subleq.lean`
+  (module `Langlib.Turpentine.Compile.Subleq`)
+* **Entry points**: `compile : Turpentine.Program → Except String Subleq.Prog`
+  (the memory image) and `compileSource : String → Except String String`
+  (our assembler dialect, with labels and comments)
+* **Tests**: `Langlib/Tests/CompileSubleq.lean`
+* **Language pages**: `docs/turpentine/spec.md`, `docs/subleq/spec.md`
+
+## Summary
+
+Subleq has one instruction, `A B C`, meaning
+
+```
+mem[B] := mem[B] - mem[A];   if the result is <= 0 then goto C
+```
+
+plus the `-1` convention for byte I/O. That is the whole machine.
+Everything below is built out of it, and it turns out to be enough for all
+of Turpentine: every statement, every operator, both I/O styles, unbounded
+integers, and a decimal printer with no digit ceiling.
+
+## Supported fragment
+
+All of it. `compile` returns `Except.error` only when the program does not
+parse or does not type-check. There is no unsupported construct to name.
+
+Words are arbitrary-precision signed integers in our semantics
+(`docs/subleq/spec.md`, decision 1), and so are Turpentine's
+(`docs/turpentine/spec.md`, decision 1), so there is no overflow story and
+no range restriction.
+
+## Memory layout
+
+The image has two regions, code then data.
+
+**Code**: the variable initialisers, the program body, the halt `Z Z -1`,
+the trap, then whichever of the four runtime routines the program used. The
+program counter starts at 0, which is the first initialiser.
+
+**Data**:
+
+| Cell | Contents |
+|------|----------|
+| `v_x` | the Turpentine variable `x`, one cell |
+| `t_0`, `t_1`, ... | the expression temporaries |
+| `Z` | the constant 0, the pivot of every jump; never changes |
+| `sc`, `scn` | scratch used inside `MOV` / `ADD` / `NEG` |
+| `scj` | scratch used inside the zero test |
+| `w0`, `w1`, `w2` | routine workspace |
+| routine cells | `mul_x`, `dv_a`, `pi_n`, `ri_v`, and friends |
+| `rL7`, ... | return addresses, one per call site |
+| `k5`, `km5`, ... | the literal pool: the constants `5` and `-5` |
+
+Booleans are `0` and `1` in one cell, so `==` and `!=` on booleans are the
+same code as on integers, and `if` / `while` test a boolean with a single
+`Z t_0 else`: branch when the value is `<= 0`, which for a boolean means
+"when it is false".
+
+## Expressions without a stack
+
+Subleq has no stack and no addressing modes, so there is no runtime
+expression stack. Each expression node is compiled at a **static depth**:
+`compileExpr e d` leaves the value of `e` in the cell `t_d`, and a binary
+node at depth `d` compiles its left operand at `d` and its right at `d+1`.
+The compiler records the deepest `d` it used and allocates exactly that
+many temporaries. Nesting is bounded by the source text, so this always
+terminates and always fits.
+
+## The macros
+
+The classic subleq idiom set, all written in terms of the one instruction.
+`?+1` is the assembler's "address of the next instruction"
+(`docs/subleq/spec.md`, the assembler format).
+
+| Macro | Emitted | Effect |
+|-------|---------|--------|
+| `ZERO a` | `a a ?+1` | `mem[a] := 0` |
+| `SUB s d` | `s d ?+1` | `mem[d] -= mem[s]` |
+| `ADD s d` | `ZERO sc; SUB s sc; SUB sc d` | `mem[d] += mem[s]` |
+| `MOV s d` | `ZERO sc; SUB s sc; ZERO d; SUB sc d` | `mem[d] := mem[s]` |
+| `NEG a` | `ZERO scn; SUB a scn; ZERO sc; SUB scn sc; ZERO a; SUB sc a` | `mem[a] := -mem[a]` |
+| `JMP l` | `Z Z l` | `0 - 0 <= 0`, so always |
+| `JLE a l` | `Z a l` | jump if `mem[a] <= 0`, leaving `mem[a]` alone |
+| `JZ a l` | `Z a ?+4; JMP cont; ZERO scj; SUB a scj; JLE scj l; cont:` | jump if `mem[a] == 0` |
+| `INC a` | `SUB km1 a` | `mem[a] += 1` |
+| `DEC a` | `SUB k1 a` | `mem[a] -= 1` |
+| `SET a n` | `ZERO a; SUB k(-n) a` | `mem[a] := n` |
+
+Two of these are worth a second look.
+
+`NEG` takes six instructions rather than the four you would expect, because
+subtraction can only ever put `-x` in a **third** cell: `ZERO d; SUB a d`
+gives `mem[d] = -mem[a]`, but flipping a cell in place needs two hops,
+`scn := -a`, then `sc := -scn` (which is `a`), then `a := -sc`. Writing it
+the short way negates twice and leaves the cell exactly where it started,
+which is invisible until the first time a program prints a negative number.
+
+`ADD a a` doubles a cell, which is how the printing routine multiplies by
+ten without a multiplier: `x -> 2(4x + x)`, four `ADD`s.
+
+Comparisons come out of `JLE` and the observation that `x < 0` is the same
+as `x + 1 <= 0`:
+
+| Turpentine | emitted |
+|------------|---------|
+| `a <= b` | `t := a - b`, `JLE t` |
+| `a < b` | `t := a - b + 1`, `JLE t` |
+| `a > b` | `t := a - b`, `JLE t` with the answers exchanged |
+| `a >= b` | `t := a - b + 1`, likewise |
+| `a == b` | `t := a - b`, `JZ t` |
+| `a != b` | `t := a - b`, `JZ t` with the answers exchanged |
+
+`&&` and `||` short-circuit, because Turpentine says they do and it is
+observable: `x != 0 && 1 / x == 0` must run without dividing by zero. `&&`
+is `<a>; JLE t_d end; <b>; end:`, where a false `a` leaves its own `0` as
+the answer; `||` is the mirror image.
+
+## Calls, since there is no call instruction
+
+Each routine ends in `name_exit: Z Z 0`, and a call site **writes its
+continuation address into that third word** before jumping in:
+
+```
+MOV rL5 mul_exit+2      # patch the return address
+JMP mul
+L5:                     # ... and this is where mul comes back to
+```
+
+`rL5` is a data cell holding the address of `L5`. Self-modifying code is
+not a trick in subleq; it is the calling convention (`docs/subleq/spec.md`
+says the same about `hello.sq`). The routines are not reentrant and do not
+need to be: none of them calls another, and operands are copied into the
+parameter cells before the jump.
+
+Only the routines a program actually uses are emitted, which is why a
+compiled `hello.turp` is 86 words and a compiled `collatz.turp` is 1719.
+
+## The four runtime routines
+
+### `mul`: `mul_r := mul_x * mul_y`
+
+Repeated addition, after reducing both operands to non-negative values and
+remembering the sign. The loop counter is the operand of **smaller
+magnitude**, which is what makes `3 * n` in `collatz.turp` cost three
+iterations rather than `n` (and `n` reaches 9232 on the way from 27 to 1).
+Cost is `min(|x|, |y|)` iterations. A machine with one instruction does not
+get a multiplier for free.
+
+### `divmod`: `dv_q`, `dv_r := ` the Euclidean quotient and remainder
+
+Turpentine's `/` and `%` are **Euclidean** (`Int.ediv` / `Int.emod`): the
+remainder is never negative, so `-7 / 2 = -4` and `-7 % 2 = 1`
+(`docs/turpentine/spec.md`, decision 2). Nothing about subleq prefers
+another convention, so the routine computes the Euclidean pair directly and
+**there is no floor-versus-Euclidean gap to repair on this target** (the
+whitespace backend is not so lucky; see `docs/whitespace/compiler.md`).
+
+```
+m := |b|;  r := a;  q := 0
+while r <  0  do  r += m;  q -= 1
+while r >= m  do  r -= m;  q += 1        -- now 0 <= r < m = |b|
+if b < 0 then q := -q                    -- because a = q*|b| + r
+```
+
+Each loop body preserves `a = q*m + r`, and the loops leave `0 <= r < m`,
+which is exactly the Euclidean specification. `b == 0` jumps to the trap.
+Cost is `|a / b| + 1` iterations, so division is cheap when the quotient is
+small, which is the common case (`n / 2`, `n % 10`, `a % b` in Euclid's
+algorithm).
+
+### `printint`: print `pi_n` in decimal
+
+This is the interesting one. Subleq has byte I/O and nothing else, so
+printing `-31337` means producing seven bytes by arithmetic. The routine
+prints `-` for a negative value, then emits digits most significant first:
+
+```
+p := 1;  k := 1
+while p*10 <= v  do  p := p*10;  k := k+1        -- k = number of digits
+
+while k > 0 do
+  p := 10^(k-1)                                  -- rebuilt by multiplying up
+  d := '0';  while v >= p do  v -= p;  d += 1    -- at most 9 subtractions
+  output d
+  k := k-1
+```
+
+Rebuilding `10^(k-1)` from scratch on every digit looks wasteful, and it
+is: the routine spends `O(digits^2)` doublings where a table would spend
+none. It buys something worth more than the doublings, namely that the
+routine never has to **divide** a power of ten by ten. Halving or tenthing
+a number in subleq costs a loop proportional to the answer, and a table
+would impose a maximum number of digits. As written, `printint` works for
+arbitrarily large integers with no ceiling and no table:
+`println(123456789012345678901234567890)` is a test case. A 19-digit number
+costs a few thousand instructions.
+
+Zero falls out correctly: the digit count is 1, the single digit loop
+subtracts nothing, and `'0'` is emitted.
+
+### `readint`: parse one line into `ri_v`
+
+`readInt()` in Turpentine reads one line and parses an optionally negated
+decimal numeral, tolerating surrounding blanks, and fails at end of input
+or on anything else (`docs/turpentine/spec.md`, decision 3). Subleq reads
+bytes, so the routine parses the same grammar one byte at a time: skip
+blanks, optional `-`, digits (accumulating `v := v*10 + (c - '0')`), skip
+blanks, then require the byte to be `\n` or end of input, and require at
+least one digit. Anything else jumps to the trap. Reading stops after the
+newline, so exactly one line is consumed, as in the reference.
+
+The blank set is space, tab and carriage return, which is what Turpentine's
+`String.trimAscii` strips inside a line, so the two accept exactly the same
+strings. `  -13 ` parses to `-13` on both sides; `1 2` fails on both.
+
+`readByte()` needs no routine: it is the single instruction `-1 v_x ?+1`.
+
+## Semantic gaps
+
+Fewer than you would expect from a one-instruction machine.
+
+* **Division and modulo**: none. `divmod` is Euclidean by construction.
+* **`printByte(e)`**: none. Turpentine emits `e mod 256` with a
+  non-negative remainder, and subleq's output instruction emits
+  `mem[A] mod 256` with the same convention (`docs/subleq/spec.md`,
+  decision 4). The compiled form is one instruction, with no reduction in
+  front of it.
+* **`readByte()` at end of input**: none. Turpentine answers `-1` and so
+  does subleq (`docs/subleq/spec.md`, decision 5). `cat.turp` compiles,
+  runs, and **terminates**, which its whitespace twin cannot do.
+* **Runtime error messages**: this is the one gap. Subleq has no error
+  strings; the only way a program can refuse to continue is to do something
+  the machine forbids. The compiler emits
+
+  ```
+  trap:  -2   -2   ?+1
+  ```
+
+  whose operand `-2` is a negative address that is not the I/O sentinel,
+  which our semantics reports as `negative address -2 in operand A`
+  (`docs/subleq/spec.md`, decision 8). Every Turpentine runtime error, a
+  failed `assert`, a division or modulo by zero, a missing or malformed
+  `readInt` line, arrives as that one message. The **behaviour** matches
+  (the run stops, at the same point, with the same output so far); the
+  wording cannot.
+* **Cost**: multiplication and division are loops, so a compiled program is
+  observationally equal to the reference run but takes many more steps. The
+  heaviest example, `collatz.turp` on `27`, runs about a million subleq
+  instructions.
+
+## Worked example
+
+Source (`Langlib/Examples/Turpentine/cat.turp`):
+
+```
+var c : int;
+c := readByte();
+while c >= 0 {
+  printByte(c);
+  c := readByte();
+}
+```
+
+`compileSource` emits, verbatim:
+
+```
+# compiled from Turpentine by Langlib.Turpentine.Compile.Subleq
+# see docs/subleq/compiler.md
+# --- variable initialisers ---
+# --- program body ---
+# c := readByte()
+  -1        v_c       ?+1       # v_c := next input byte (-1 at EOF)
+# while
+L0:
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        sc        ?+1       # sc := 0
+  v_c       sc        ?+1       # sc -= v_c
+  t_1       t_1       ?+1       # t_1 := 0
+  sc        t_1       ?+1       # t_1 := v_c
+  t_1       t_0       ?+1       # t_0 -= t_1
+  Z         t_0       L2        # if t_0 <= 0 goto L2
+  t_0       t_0       ?+1       # t_0 := 0
+  Z         Z         L3        # goto L3
+L2:
+  t_0       t_0       ?+1       # t_0 := 0
+  km1       t_0       ?+1       # t_0 := 1
+L3:
+  Z         t_0       L1        # if t_0 <= 0 goto L1
+# printByte
+  sc        sc        ?+1       # sc := 0
+  v_c       sc        ?+1       # sc -= v_c
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := v_c
+  t_0       -1        ?+1       # output the byte in t_0
+# c := readByte()
+  -1        v_c       ?+1       # v_c := next input byte (-1 at EOF)
+  Z         Z         L0        # goto L0
+L1:
+# --- halt ---
+  Z         Z         -1        # jump to a negative address: halt
+# --- the trap: every Turpentine runtime error lands here ---
+trap:
+  -2        -2        ?+1       # a forbidden negative address: fail loudly
+# --- data ---
+v_c:        0         # variable c
+t_0:        0         # expression temporary 0
+t_1:        0         # expression temporary 1
+Z:          0         # the constant zero: never changes
+sc:         0         # macro scratch
+scn:        0         # negation scratch
+scj:        0         # zero-test scratch
+w0:         0         # routine workspace
+w1:         0         # routine workspace
+w2:         0         # routine workspace
+# --- literal pool ---
+km1:        -1
+```
+
+Seventy-seven words. `c >= 0` is compiled as `0 <= c`, with the operands
+swapped, so the block from `L0` to `L3` computes `t_0 := 0 - c` and turns
+its sign into a boolean. The hand-written `Langlib/Examples/Subleq/cat.sq`
+does the same job in 22 words, which is roughly the going rate for a
+compiler against a person who knows what the program is for.
+
+## Round-tripping the assembler text
+
+The emitted text is not decoration. `Langlib.Subleq.assemble` parses it back
+to exactly the image `compile` builds directly, which
+`Langlib/Tests/CompileSubleq.lean` checks for every example plus a program
+that exercises all four routines at once. So the two entry points cannot
+drift apart.
+
+## Example programs
+
+Every program in `Langlib/Examples/Turpentine/` compiles. The "output"
+column compares the compiled run on the subleq interpreter against the
+Turpentine reference interpreter's run on the same input; all of it is
+checked by `Langlib/Tests/CompileSubleq.lean`.
+
+| Example | Input | Compiles | Size | Steps | Output |
+|---------|-------|----------|------|-------|--------|
+| `hello.turp` | | yes | 86 words | < 1k | identical |
+| `cat.turp` | `meow` | yes | 77 words | < 1k | identical, EOF included |
+| `isqrt.turp` | `17` | yes | 1344 words | < 1k | identical |
+| `fib.turp` | `8` | yes | 1117 words | < 2k | identical |
+| `sumdigits.turp` | `9045` | yes | 1334 words | < 32k | identical |
+| `gcd.turp` | `252`, `105` | yes | 1342 words | < 1k | identical |
+| `primes.turp` | `30` | yes | 1725 words | < 32k | identical |
+| `collatz.turp` | `27` | yes | 1719 words | ~1M | identical |
+
+The sizes are dominated by the routines: the ~1100 words that appear in
+every program doing arithmetic and printing are `mul`, `divmod` and
+`printint`.
+
+## Generated demos
+
+Three compiled programs are checked in under
+`Langlib/Examples/Subleq/compiled/`, in the assembler dialect, comments and
+all:
+
+```
+lake exe subleq Langlib/Examples/Subleq/compiled/hello.sq
+echo 9045 | lake exe subleq Langlib/Examples/Subleq/compiled/sumdigits.sq
+printf '252\n105\n' | lake exe subleq Langlib/Examples/Subleq/compiled/gcd.sq
+```

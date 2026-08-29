@@ -2,6 +2,22 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-30
+
+* Stage 4 opens for real: compilers from Turpentine to **whitespace** and
+  to **subleq**, both accepting the entire language rather than a
+  fragment. All eight Turpentine examples compile on both backends and
+  produce output identical to the reference interpreter, with one
+  documented exception (`cat.turp` on whitespace, which cannot test for
+  end of input and so dies there by design).
+* The interesting gaps are recorded rather than hidden: whitespace floors
+  its division while Turpentine is Euclidean, so the backend emits a
+  sign-correction sequence, checked against the reference on all 361
+  operand pairs in -9..9. Subleq needed none of that, its `-1` EOF
+  convention matching Turpentine exactly.
+* `lake exe turpentine compile --to <lang> [-o out]` wires the backends
+  into the runner. 445 tests, all passing.
+
 ## 2026-08-29 (late night)
 
 * Piet and Brainloller landed, the graphical pair. `Langlib/Common/Image.lean`

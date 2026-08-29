@@ -76,8 +76,10 @@ state first-order, I/O explicit.
 
 * Turpentine -> brainfuck (cell-mapped variables, while via `[ ]`).
 * Turpentine -> ook (via the BF isomorphism).
-* Turpentine -> whitespace (stack machine with heap; the most direct target).
-* Turpentine -> subleq (memory-mapped variables, subtract-and-branch codegen).
+* Turpentine -> whitespace `[x]`: the whole language, no fragment
+  restriction. See `docs/whitespace/compiler.md`.
+* Turpentine -> subleq `[x]`: the whole language, no fragment
+  restriction. See `docs/subleq/compiler.md`.
 * Turpentine -> befunge93 (stretch goal).
 * Turpentine -> deadfish (straight-line, output-only fragment; a joke, documented
   as such).

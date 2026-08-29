@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contributing — langlib</title>
+<meta name="description" content="Contributions are welcome: new languages, better docs, more examples, more tests, and proofs. This file explains what a contribution should look like.">
+<link rel="canonical" href="https://langlib.wtf/contributing/">
+<meta property="og:title" content="Contributing — langlib">
+<meta property="og:description" content="Contributions are welcome: new languages, better docs, more examples, more tests, and proofs. This file explains what a contribution should look like.">
+<meta property="og:url" content="https://langlib.wtf/contributing/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="langlib">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script>try{var t=localStorage.getItem('langlib-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<script src="/site.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="masthead">
+<div class="masthead-inner">
+<a class="brand" href="/">langlib<span class="dot">.wtf</span></a>
+<nav aria-label="Site"><a href="/#languages">Languages</a><a href="/playground/">Playground</a><a href="/turpentine/">Turpentine</a><a href="/status/">Status</a><a href="/related/">Related work</a><a href="/contributing/" aria-current="page">Contributing</a><button class="theme-toggle" type="button" hidden>dark</button></nav>
+</div>
+</header>
+<main class="page" id="main">
+<div class="doc-layout">
+<div class="prose">
+<div class="page-kicker">Join in</div>
+<h1>Contributing to langlib</h1>
+<p>Contributions are welcome: new languages, better docs, more examples, more tests, and proofs. This file explains what a contribution should look like.</p>
+<h2 id="adding-a-language">Adding a language<a class="anchor" href="#adding-a-language" aria-hidden="true">#</a></h2>
+<p>A new language is a good fit if it is (a) esoteric or otherwise fun rather than realistic, and (b) freely implementable: its design is in the public domain, or its authors permit independent implementations. We do not accept languages whose specifications or reference implementations forbid reuse. Check <code>docs/ROADMAP.md</code> first; it lists candidates we already want, with notes.</p>
+<p>A complete language contribution consists of:</p>
+<ol>
+<li><strong>Documentation</strong>: <code>docs/&lt;langname&gt;/spec.md</code>, a self-contained summary of the language in your own words (never paste licensed text). It must credit the author(s) and year, link the canonical specification and reference implementation, and pin down every semantic decision our interpreter makes (cell width, EOF behaviour, error cases), each with a source. History and jokes are encouraged; imprecision is not.</li>
+<li>
+<p><strong>Lean implementation</strong> under <code>Langlib/Languages/&lt;Langname&gt;/</code>:</p>
+<ul>
+<li><code>Syntax.lean</code>: the AST;</li>
+<li><code>Parser.lean</code>: concrete syntax to AST, with useful error messages;</li>
+<li><code>Semantics.lean</code>: a pure, fuel-based reference evaluator over the shared I/O model in <code>Langlib/Common/</code>;</li>
+<li><code>Main.lean</code>: a standalone runner (<code>lake exe &lt;langname&gt; &lt;file&gt;</code>);</li>
+<li><code>README.md</code>: how to build and run, pointers into the docs. Register the executable in <code>lakefile.toml</code> and import the modules from <code>Langlib.lean</code>.</li>
+</ul>
+</li>
+<li><strong>Examples</strong> in <code>Langlib/Examples/&lt;Langname&gt;/</code>: canonical programs (hello world, cat, a quine if the language has a famous one) plus something fun. Examples must be original, public domain, or permissively licensed, with attribution in a comment or in the language README.</li>
+<li><strong>Tests</strong>: golden tests wired into <code>Langlib/Tests/</code> (run by <code>lake test</code>), and, if a non-Lean reference implementation exists, a differential test entry in <code>scripts/difftest.sh</code> that skips when the reference is not installed.</li>
+</ol>
+<h2 id="adding-a-compiler-from-turpentine">Adding a compiler from Turpentine<a class="anchor" href="#adding-a-compiler-from-turpentine" aria-hidden="true">#</a></h2>
+<p>Compilers from Turpentine to a target esolang live in <code>Langlib/Turpentine/Compile/&lt;Langname&gt;.lean</code>. A compiler contribution must state (in the module docstring and in <code>docs/&lt;langname&gt;/compiler.md</code>) which Turpentine fragment it supports, and add compiler tests: each supported Turpentine example is compiled, run on the target's reference interpreter, and compared against the Turpentine interpreter's output. Verification of compilers follows the pipeline described in <code>docs/verification.md</code>; proofs are welcome but may land after the compiler.</p>
+<h2 id="style">Style<a class="anchor" href="#style" aria-hidden="true">#</a></h2>
+<ul>
+<li>Keep <code>lake build</code> and <code>lake test</code> green at every commit.</li>
+<li>No <code>sorry</code> on master.</li>
+<li>Follow the layout and naming conventions in <code>CLAUDE.md</code>.</li>
+<li>Write docs plainly and precisely; these languages supply their own drama.</li>
+</ul>
+<h2 id="process">Process<a class="anchor" href="#process" aria-hidden="true">#</a></h2>
+<p>Fork, branch, open a pull request against <code>master</code>. Small focused PRs review faster than one PR with three languages in it.</p>
+<p class="source-note">This page is <code>CONTRIBUTING.md</code> from the repository, rendered. Corrections belong <a href="https://github.com/langlib/langlib/blob/master/CONTRIBUTING.md">in the source file</a>, not here: the site is generated from it.</p>
+</div>
+<nav class="toc" aria-label="On this page">
+<div class="toc-title">On this page</div>
+<ul>
+<li><a href="#adding-a-language">Adding a language</a></li>
+<li><a href="#adding-a-compiler-from-turpentine">Adding a compiler from Turpentine</a></li>
+<li><a href="#style">Style</a></li>
+<li><a href="#process">Process</a></li>
+</ul>
+</nav>
+</div>
+</main>
+<footer class="footer">
+<div class="footer-inner">
+<div>langlib is Apache 2.0. The languages belong to the people who thought of them, and are credited on their pages.</div>
+<div><a href="https://github.com/langlib/langlib">Source on GitHub</a></div>
+</div>
+</footer>
+</body>
+</html>

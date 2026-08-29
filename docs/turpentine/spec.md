@@ -155,8 +155,38 @@ Langlib/Examples/Turpentine/primes.turp: well typed (4 variable(s), 4 declaratio
 
 ## Compilation to esoteric languages
 
-Stage 4 of `docs/PLAN.md`: `lake exe turpentine compile --to <lang> file.turp`.
-Each backend documents its supported fragment in
-`docs/<langname>/compiler.md`, and each is tested by running every
-supported example on the target's interpreter and comparing against the
-Turpentine interpreter's output.
+```
+lake exe turpentine compile --to <whitespace|subleq> [-o out] file.turp
+```
+
+Two backends exist so far, and both accept the entire language: no
+statement form, operator, or I/O style is out of fragment. Each documents
+its layout and its semantic gaps in `docs/<langname>/compiler.md`, and
+each is tested by compiling every example, running it on the target's
+interpreter, and comparing against this interpreter's output.
+
+Compile Euclid's algorithm to whitespace and run the result.
+
+```
+$ lake exe turpentine compile --to whitespace -o /tmp/gcd.ws Langlib/Examples/Turpentine/gcd.turp
+turpentine: wrote 532 bytes to /tmp/gcd.ws
+```
+
+```
+$ printf '252\n105\n' | lake exe whitespace /tmp/gcd.ws
+21
+```
+
+The same program compiled to a one-instruction machine is larger, because
+multiplication, division, and decimal printing all have to be built from
+subtract-and-branch.
+
+```
+$ lake exe turpentine compile --to subleq -o /tmp/gcd.sq Langlib/Examples/Turpentine/gcd.turp
+turpentine: wrote 22737 bytes to /tmp/gcd.sq
+```
+
+```
+$ printf '252\n105\n' | lake exe subleq /tmp/gcd.sq
+21
+```

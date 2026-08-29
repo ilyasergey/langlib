@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playground — langlib</title>
+<meta name="description" content="Run brainfuck, whitespace and Deadfish in your browser, one step at a time, on the example programs from the langlib library.">
+<link rel="canonical" href="https://langlib.wtf/playground/">
+<meta property="og:title" content="Playground — langlib">
+<meta property="og:description" content="Run brainfuck, whitespace and Deadfish in your browser, one step at a time, on the example programs from the langlib library.">
+<meta property="og:url" content="https://langlib.wtf/playground/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="langlib">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script>try{var t=localStorage.getItem('langlib-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<script src="/site.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="masthead">
+<div class="masthead-inner">
+<a class="brand" href="/">langlib<span class="dot">.wtf</span></a>
+<nav aria-label="Site"><a href="/#languages">Languages</a><a href="/playground/" aria-current="page">Playground</a><a href="/turpentine/">Turpentine</a><a href="/status/">Status</a><a href="/related/">Related work</a><a href="/contributing/">Contributing</a><button class="theme-toggle" type="button" hidden>dark</button></nav>
+</div>
+</header>
+<main class="page" id="main">
+<div class="prose wide">
+<div class="page-kicker">Playground</div>
+<h1>Three machines in your browser</h1>
+<p>These interpreters are written in JavaScript, but they are not improvisations: each one implements the semantic decisions recorded on the language's page, down to the end-of-input conventions and the exact rounding of division, and each is checked against the same example programs the Lean test suite uses. The programs in the menus are those files, embedded when this page was built.</p>
+<p>Nothing is sent anywhere. Everything runs on your machine, in a step-at-a-time interpreter you can slow down, pause, and single-step.</p>
+<h2 id="brainfuck">brainfuck<a class="anchor" href="#brainfuck" aria-hidden="true">#</a></h2>
+<p>Eight commands over a tape of 8-bit cells. The tape grows to the right on demand; moving left of cell 0 is a runtime error rather than undefined behaviour, because a reference semantics that fails loudly is more useful than one that shrugs. The end-of-input selector covers all three conventions found in the wild: leave the cell alone (Müller's interpreter, our default), store 0 (the common modern default), or store 255 (the EOF-is-minus-one convention). Full details on the <a href="/brainfuck/">brainfuck page</a>.</p>
+<script type="application/json" id="bf-examples">[{"name":"hello.b — Hello World!","source":"[ The canonical brainfuck hello world with nested loops, as published on\n  the esolangs wiki at https://esolangs.org/wiki/Brainfuck (CC0).\n  Prints \"Hello World!\" and a newline.\n  This header sits in a loop that never runs: the initial cell is zero. ]\n\n++++++++[\u003e++++[\u003e++\u003e+++\u003e+++\u003e+\u003c\u003c\u003c\u003c-]\u003e+\u003e+\u003e-\u003e\u003e+[\u003c]\u003c-]\u003e\u003e.\u003e---.+++++++..+++.\u003e\u003e.\u003c-.\u003c.+++.------.--------.\u003e\u003e+.\u003e++.\n","input":"","eof":"unchanged","note":"The canonical nested-loop hello world. The prose header sits inside a loop that never runs, because cell 0 starts at zero."},{"name":"add.b — add two digits","source":"[ Single-digit adder: reads two ASCII digits whose sum is at most 9 and\n  prints their sum as one ASCII digit. Original example for langlib.\n  Try: echo -n 34 | lake exe brainfuck Langlib/Examples/Brainfuck/add.b ]\n\n,\u003e,                     read a into cell0 and b into cell1\n[\u003c+\u003e-]                  add cell1 into cell0\n++++++[\u003c--------\u003e-]     subtract 48 from cell0 to undo one ASCII offset\n\u003c.                      print the digit\n","input":"34","eof":"unchanged","note":"Reads two ASCII digits whose sum is at most 9 and prints the sum as one digit."},{"name":"rev.b — reverse a word","source":"[ Reverses its input: stressed in, desserts out. Run with --eof zero.\n  Folklore one-liner: read all input into consecutive cells then walk\n  back down the tape printing.\n  Usage: echo -n stressed | lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/rev.b ]\n\n\u003e,[\u003e,]\u003c[.\u003c]\n","input":"stressed","eof":"zero","note":"stressed in, desserts out. Needs the store-0-at-end-of-input convention, or the read loop never ends."},{"name":"countdown.b — 9 down to 0","source":"[ Prints the digits from 9 down to 0 and a newline.\n  Original example for langlib.\n  Layout: cell0 is the loop counter; cell1 the digit; cell2 a builder. ]\n\n++++++++++              set cell0 to 10\n\u003e\u003e+++++++[\u003c++++++++\u003e-]  build 56 in cell1 using cell2 as a counter\n\u003c+                      make cell1 equal 57 which is ASCII digit nine\n\u003c[\u003e.-\u003c-]                ten times print cell1 then decrement it\n\u003e[-]++++++++++.         clear cell1 then print a newline\n","input":"","eof":"unchanged","note":"Builds ASCII 57 in a cell and walks it down. Watch the builder cell drain into the digit cell."},{"name":"alphabet.b — A to Z","source":"[ Prints the uppercase alphabet and a newline.\n  Original example for langlib.\n  Layout: cell1 holds the letter and cell2 counts 26 iterations. ]\n\n++++++++[\u003e++++++++\u003c-]\u003e+     build 65 in cell1 which is ASCII letter A\n\u003e+++++[\u003e+++++\u003c-]\u003e+          build 26 in cell3 as the loop counter\n[\u003c\u003c.+\u003e\u003e-]                   print cell1 then increment it 26 times\n\u003c\u003c[-]++++++++++.            clear cell1 then print a newline\n","input":"","eof":"unchanged","note":"Twenty-six iterations of print-then-increment."},{"name":"cat.b — copy input to output","source":"[ cat: copy input to output (folklore one-liner). Run it with --eof zero;\n  under the default EOF convention (cell unchanged) it echoes the last\n  byte forever once input runs out, which is its own kind of lesson.\n  Usage: echo hello | lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/cat.b ]\n\n,[.,]\n","input":"meow meow\n","eof":"zero","note":"Switch the end-of-input setting to leave the cell and it echoes the last byte forever, which is its own kind of lesson."},{"name":"truth.b — truth-machine","source":"[ Truth-machine: reads one character. On input 1 it prints 1 forever; on\n  input 0 it prints 0 once and halts. From the esolangs wiki brainfuck\n  page at https://esolangs.org/wiki/Brainfuck (CC0).\n  Usage: echo -n 0 | lake exe brainfuck Langlib/Examples/Brainfuck/truth.b\n  With input 1 it fills your terminal until the fuel runs out; that is\n  the point of a truth-machine. ]\n\n+++++++++\u003e\u003e,\u003c\u003c[-\u003e+++++\u003c]\u003e+++[\u003e-\u003c-]\u003e\u003e+++++[\u003e++++++++++\u003c-]\u003e-\u003c\u003c[\u003e\u003e.\u003c\u003c]\u003e\u003e-.\n","input":"0","eof":"unchanged","note":"On 0 it prints 0 and halts. Feed it 1 and it prints 1 until the step budget runs out; that is what a truth-machine is."},{"name":"xkcd-random.b — getRandomNumber","source":"[ getRandomNumber: prints 4. Chosen by fair dice roll; guaranteed to be\n  random (xkcd 221). From the esolangs wiki brainfuck page at\n  https://esolangs.org/wiki/Brainfuck (CC0). ]\n\n++++[-\u003e+++\u003c]\u003e+[-\u003e++++\u003c]\u003e.\n","input":"","eof":"unchanged","note":"Prints 4. Chosen by fair dice roll, guaranteed to be random."},{"name":"quine.b — a 505-byte quine","source":"--\u003e+++\u003e+\u003e+\u003e+\u003e+++++\u003e++\u003e++\u003e-\u003e+++\u003e++\u003e+\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e\u003e-\u003e++++\u003e\u003e\u003e\u003e-\u003e+++\u003e+++\u003e+++\u003e+++\u003e+++\u003e+++\u003e+\u003e+\u003e\u003e\u003e-\u003e-\u003e\u003e++++\u003e+\u003e\u003e\u003e\u003e-\u003e\u003e++++\u003e+\u003e+\u003e\u003e-\u003e-\u003e++\u003e++\u003e++\u003e++++\u003e+\u003e++\u003e-\u003e++\u003e++++\u003e+\u003e+\u003e++\u003e++\u003e-\u003e-\u003e++\u003e++\u003e++++\u003e+\u003e+\u003e\u003e\u003e\u003e\u003e-\u003e\u003e-\u003e\u003e++++\u003e++\u003e++\u003e++++\u003e\u003e\u003e\u003e\u003e-\u003e\u003e\u003e\u003e\u003e+++\u003e-\u003e++++\u003e-\u003e-\u003e-\u003e+++\u003e\u003e\u003e+\u003e+\u003e+++\u003e+\u003e++++\u003e\u003e+++\u003e-\u003e\u003e\u003e\u003e\u003e-\u003e\u003e\u003e++++\u003e++\u003e++\u003e+\u003e+++\u003e-\u003e++++\u003e\u003e-\u003e-\u003e+++\u003e+\u003e+++\u003e+\u003e++++\u003e\u003e\u003e+++\u003e-\u003e++++\u003e\u003e-\u003e-\u003e++\u003e++++\u003e++\u003e++++\u003e\u003e++[-[-\u003e\u003e+[\u003e]++[\u003c]\u003c]\u003e\u003e+[\u003e]\u003c--[++\u003e++++\u003e]+[\u003c]\u003c\u003c++]\u003e\u003e\u003e[\u003e]++++\u003e++++[--[+\u003e+\u003e++++\u003c\u003c[--\u003e\u003e--\u003c\u003c[-\u003e-\u003c[---\u003e\u003e+\u003c\u003c[+\u003e+++\u003c[+\u003e\u003e++\u003c\u003c]]]]]]\u003e+++[\u003e+++++++++++++++\u003c-]\u003e--.\u003c\u003c\u003c]","input":"","eof":"unchanged","note":"Erik Bosman's quine prints itself, in about half a million steps. Set the speed to all-at-once unless you have plans for the afternoon."}]</script>
+<div class="pg" data-kind="brainfuck" data-examples="bf-examples">
+<div class="pg-bar">
+<label>Example <select data-role="example"></select></label>
+<label>At end of input <select data-role="eof"><option value="unchanged">leave the cell</option><option value="zero">store 0</option><option value="minus1">store 255</option></select></label>
+<span class="spacer"></span>
+<label>Speed <input type="range" data-role="speed" min="0" max="6" value="3" aria-label="Steps per frame"><span data-role="speed-label" class="muted"></span></label>
+<button class="pg-btn" type="button" data-role="step">Step</button>
+<button class="pg-btn" type="button" data-role="reset">Reset</button>
+<button class="pg-btn primary" type="button" data-role="run">Run</button>
+</div>
+<div class="pg-grid">
+<div class="pg-cell">
+<div class="pg-label">Program</div>
+<textarea class="program" data-role="program" spellcheck="false" aria-label="Brainfuck program"></textarea>
+<p class="pg-note small muted" data-role="example-note"></p>
+</div>
+<div class="pg-cell">
+<div class="pg-label">Input <span class="hint">what the program reads</span></div>
+<textarea class="small" data-role="input" spellcheck="false" aria-label="Program input"></textarea>
+<div class="pg-label" style="margin-top:0.7rem">Output</div>
+<pre class="pg-out" data-role="output" aria-live="polite"></pre>
+</div>
+<div class="pg-cell span2">
+<div class="pg-label">Tape <span class="hint">8-bit cells, unbounded to the right</span></div>
+<div class="tape-wrap"><div class="tape" data-role="tape"></div></div>
+</div>
+<div class="pg-cell span2">
+<div class="pg-label">Instruction pointer</div>
+<pre class="pg-code" data-role="code"></pre>
+</div>
+</div>
+<div class="pg-status"><span data-role="status">not started</span><span data-role="steps"></span><span data-role="pointer"></span></div>
+</div>
+<h2 id="whitespace">whitespace<a class="anchor" href="#whitespace" aria-hidden="true">#</a></h2>
+<p>The left pane holds the program as it really is, which is to say blank. The pane beside it shows the same bytes with the invisible made visible: · for space, → for tab, ¶ for linefeed. Underneath sits the stack machine those tokens actually describe, with its arbitrary-precision stack and its heap. Type a few spaces and tabs into the left pane and watch the instruction listing change. See the <a href="/whitespace/">whitespace page</a> for the encoding.</p>
+<script type="application/json" id="ws-examples">[{"name":"hello.ws — Hello, World!","source":"   \t  \t   \n\t\n     \t\t  \t \t\n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t\t\t\n\t\n     \t \t\t  \n\t\n     \t     \n\t\n     \t \t \t\t\t\n\t\n     \t\t \t\t\t\t\n\t\n     \t\t\t  \t \n\t\n     \t\t \t\t  \n\t\n     \t\t  \t  \n\t\n     \t    \t\n\t\n     \t \t \n\t\n  \n\n\n","input":"","eof":"unchanged","note":"Push each character's code and print it. The program is blank; the panel to the right is the same bytes with the invisible made visible."},{"name":"count.ws — 1 to 10","source":"   \t\n\n   \n \n \t\n \t   \t \t \n\t\n     \t\n\t    \n    \t \t\t\n\t  \t\n\t \t\n\n \n \n\n  \t\n \n\n\n\n\n","input":"","eof":"unchanged","note":"A loop with a heap counter and a conditional jump."},{"name":"add.ws — add two numbers","source":"    \n\t\n\t\t   \t\n\t\n\t\t    \n\t\t\t   \t\n\t\t\t\t   \t\n \t   \t \t \n\t\n  \n\n\n","input":"17\n25\n","eof":"unchanged","note":"Two readnum instructions, one add. Reads whole lines, so keep the trailing newlines."},{"name":"fact.ws — factorial","source":"    \n\t\n\t\t   \t\n   \t\n\t\t \n   \n    \n\t\t\t\n\t \t\n   \t\n   \t\n\t\t\t    \n\t\t\t\t  \n\t\t     \n    \n\t\t\t   \t\n\t  \t\t\t \n \n \n\n  \t\n   \t\n\t\t\t\t\n \t   \t \t \n\t\n  \n\n\n","input":"5\n","eof":"unchanged","note":"A subroutine with call and return; watch the call stack drive the multiply."},{"name":"greet.ws — greet a name","source":"    \n\n   \n \n \t\n\t  \n \t\t\t   \t \t \n\t  \t\n\t \t\n   \t\n\t   \n \n \n\n  \t\n    \n\t\t    \t  \t   \n\t\n     \t\t  \t \t\n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t\t\t\n\t\n     \t \t\t  \n\t\n     \t     \n\t\n      \n\n   \t\n \n \t\t\t \n \n\t \t\t\n\t\n     \t\n\t   \n \n \t\n\n  \t\t\n \n\n \n\n   \t    \t\n\t\n     \t \t \n\t\n  \n\n\n","input":"Ada\n","eof":"unchanged","note":"Character input into the heap, then back out again."},{"name":"truth.ws — truth-machine","source":"    \n\t\n\t\t    \n\t\t\t\n\t \t\n\n   \n   \t\n\t\n \t\n \n \n\n  \t\n    \n\t\n \t\n\n\n","input":"0\n","eof":"unchanged","note":"Feed it 1 instead and it never stops, exactly as specified."},{"name":"cat.ws — copy input to output","source":"\n   \n    \n\t\n\t     \n\t\t\t\t\n  \n \n \n","input":"meow\n","eof":"unchanged","note":"Whitespace has no way to test for end of input, so cat copies its input and then fails on the next read. The reference interpreter does the same."}]</script>
+<div class="pg" data-kind="whitespace" data-examples="ws-examples">
+<div class="pg-bar">
+<label>Example <select data-role="example"></select></label>
+<span class="spacer"></span>
+<label>Speed <input type="range" data-role="speed" min="0" max="6" value="3" aria-label="Steps per frame"><span data-role="speed-label" class="muted"></span></label>
+<button class="pg-btn" type="button" data-role="step">Step</button>
+<button class="pg-btn" type="button" data-role="reset">Reset</button>
+<button class="pg-btn primary" type="button" data-role="run">Run</button>
+</div>
+<div class="pg-grid">
+<div class="pg-cell">
+<div class="pg-label">Program <span class="hint">as written: blank</span></div>
+<textarea class="program" data-role="program" spellcheck="false" aria-label="Whitespace program"></textarea>
+<p class="pg-note small muted" data-role="example-note"></p>
+</div>
+<div class="pg-cell">
+<div class="pg-label">Program <span class="hint">with the invisible made visible: · space, → tab, ¶ linefeed</span></div>
+<pre class="pg-code ws-glyphs" data-role="glyphs"></pre>
+</div>
+<div class="pg-cell">
+<div class="pg-label">Input</div>
+<textarea class="small" data-role="input" spellcheck="false" aria-label="Program input"></textarea>
+<div class="pg-label" style="margin-top:0.7rem">Output</div>
+<pre class="pg-out" data-role="output" aria-live="polite"></pre>
+</div>
+<div class="pg-cell">
+<div class="pg-label">Instructions <span class="hint">what those tokens mean</span></div>
+<pre class="pg-code" data-role="listing"></pre>
+</div>
+<div class="pg-cell">
+<div class="pg-label">Stack</div>
+<pre class="stack-view" data-role="stack"></pre>
+</div>
+<div class="pg-cell">
+<div class="pg-label">Heap</div>
+<pre class="heap-view" data-role="heap"></pre>
+</div>
+</div>
+<div class="pg-status"><span data-role="status">not started</span><span data-role="steps"></span></div>
+</div>
+<h2 id="deadfish">Deadfish<a class="anchor" href="#deadfish" aria-hidden="true">#</a></h2>
+<p>One accumulator and four commands: <code>i</code> increment, <code>d</code> decrement, <code>s</code> square, <code>o</code> print. Any other character prints a bare newline, including the newlines in the file itself. The single rule worth knowing is the reset: the accumulator becomes 0 the instant it is exactly -1 or exactly 256, and not one value either side. So <code>iissso</code> prints 0, because 16 squared is 256, while <code>iissisdo</code> prints 288, because 17 squared is 289 and sails straight past the check. See the <a href="/deadfish/">Deadfish page</a>.</p>
+<script type="application/json" id="df-examples">[{"name":"hello.df — the codes of a greeting","source":"iiisdsiiiiiiiioiiiiiiiiiiiiiiiiiiiiiiiiiiiiioiiiiiiiooiiio\ndddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddoddddddddddddo\ndddddddddddddddddddddsddoddddddddoiiioddddddoddddddddo\ndddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddo\n","input":"","eof":"unchanged","note":"Deadfish cannot print letters, so it prints their ASCII codes, one per line."},{"name":"powers.df — squaring into the reset","source":"iiososososo\n","input":"","eof":"unchanged","note":"2, 4, 16, then 256, which is one of the two values that silently become 0."},{"name":"xkcd-random.df — getRandomNumber","source":"iiso\n","input":"","eof":"unchanged","note":"iiso."}]</script>
+<div class="pg" data-kind="deadfish" data-examples="df-examples">
+<div class="pg-bar">
+<label>Example <select data-role="example"></select></label>
+<span class="spacer"></span>
+<label>Speed <input type="range" data-role="speed" min="0" max="6" value="3" aria-label="Steps per frame"><span data-role="speed-label" class="muted"></span></label>
+<button class="pg-btn" type="button" data-role="step">Step</button>
+<button class="pg-btn" type="button" data-role="reset">Reset</button>
+<button class="pg-btn primary" type="button" data-role="run">Run</button>
+</div>
+<div class="pg-grid">
+<div class="pg-cell">
+<div class="pg-label">Program <span class="hint">i d s o</span></div>
+<textarea class="program small" data-role="program" spellcheck="false" aria-label="Deadfish program"></textarea>
+<div class="pg-label" style="margin-top:0.7rem">Accumulator</div>
+<pre class="pg-out" data-role="acc">0</pre>
+</div>
+<div class="pg-cell">
+<div class="pg-label">Output</div>
+<pre class="pg-out" data-role="output" aria-live="polite"></pre>
+</div>
+<div class="pg-cell span2">
+<div class="pg-label">Instruction pointer</div>
+<pre class="pg-code" data-role="code"></pre>
+</div>
+</div>
+<div class="pg-status"><span data-role="status">not started</span><span data-role="steps"></span></div>
+</div>
+<p class="source-note">The interpreters are <a href="https://github.com/langlib/langlib/blob/master/site/static/bf.js">bf.js</a>, <a href="https://github.com/langlib/langlib/blob/master/site/static/ws.js">ws.js</a> and <a href="https://github.com/langlib/langlib/blob/master/site/static/df.js">df.js</a>, each about as long as the specification it implements, and each with a test harness under <a href="https://github.com/langlib/langlib/tree/master/site/test">site/test/</a> that runs the library's own example programs and checks the documented edge cases.</p>
+<script src="/bf.js"></script>
+<script src="/ws.js"></script>
+<script src="/df.js"></script>
+<script src="/playground.js"></script>
+</div>
+</main>
+<footer class="footer">
+<div class="footer-inner">
+<div>langlib is Apache 2.0. The languages belong to the people who thought of them, and are credited on their pages.</div>
+<div><a href="https://github.com/langlib/langlib">Source on GitHub</a></div>
+</div>
+</footer>
+</body>
+</html>

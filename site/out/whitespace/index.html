@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>whitespace — langlib</title>
+<meta name="description" content="Space, tab and linefeed are the program; every other byte is a comment. It prints as a blank page and it is Turing complete.">
+<link rel="canonical" href="https://langlib.wtf/whitespace/">
+<meta property="og:title" content="whitespace — langlib">
+<meta property="og:description" content="Space, tab and linefeed are the program; every other byte is a comment. It prints as a blank page and it is Turing complete.">
+<meta property="og:url" content="https://langlib.wtf/whitespace/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="langlib">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script>try{var t=localStorage.getItem('langlib-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<script src="/site.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="masthead">
+<div class="masthead-inner">
+<a class="brand" href="/">langlib<span class="dot">.wtf</span></a>
+<nav aria-label="Site"><a href="/#languages">Languages</a><a href="/playground/">Playground</a><a href="/turpentine/">Turpentine</a><a href="/status/">Status</a><a href="/related/">Related work</a><a href="/contributing/">Contributing</a><button class="theme-toggle" type="button" hidden>dark</button></nav>
+</div>
+</header>
+<main class="page" id="main">
+<div class="doc-layout">
+<div class="prose">
+<div class="page-kicker">Language</div>
+<h1>whitespace</h1>
+<p class="muted">Edwin Brady and Chris Morris, 2003 · <code>lake exe whitespace</code> · <a href="https://github.com/langlib/langlib/tree/master/Langlib/Examples/Whitespace/">examples</a> · <a href="https://github.com/langlib/langlib/tree/master/Langlib/Languages/Whitespace/">Lean source</a></p>
+<p class="small muted"><a href="/brainfuck/">brainfuck</a> · <strong>whitespace</strong> · <a href="/malbolge/">malbolge</a> · <a href="/befunge93/">Befunge-93</a> · <a href="/subleq/">subleq</a> · <a href="/fractran/">FRACTRAN</a> · <a href="/thue/">Thue</a> · <a href="/ook/">Ook!</a> · <a href="/deadfish/">Deadfish</a> · <a href="/piet/">Piet</a> · <a href="/brainloller/">Brainloller</a></p>
+<ul>
+<li><strong>Authors</strong>: Edwin Brady and Chris Morris</li>
+<li><strong>Year</strong>: 2003 (v0.2); v0.3 added <code>copy</code> and <code>slide</code> in 2004</li>
+<li><strong>Canonical sources</strong>: the original tutorial and the <code>wspace</code> interpreter (Haskell, GPL), written at the University of Durham; preserved at <a href="https://github.com/wspace/whitespace-haskell">https://github.com/wspace/whitespace-haskell</a>. Community reference point: <a href="https://esolangs.org/wiki/Whitespace">https://esolangs.org/wiki/Whitespace</a></li>
+<li><strong>In langlib</strong>: <code>Langlib/Languages/Whitespace/</code>, runner <code>lake exe whitespace</code>, examples in <code>Langlib/Examples/Whitespace/</code></li>
+</ul>
+<h2 id="history">History<a class="anchor" href="#history" aria-hidden="true">#</a></h2>
+<p>Most languages ignore whitespace. Edwin Brady and Chris Morris found this unfair, so in 2003 they published a language that ignores everything else: the only meaningful characters are space, tab, and linefeed, and any other byte is a comment. A Whitespace program prints as a blank page, which the authors noted has real advantages: no ink, no copyright-visible source, and you can hide one program in the indentation of another. The language debuted on Slashdot on April 1st, 2003, where nearly everyone filed it as an April Fool's joke. It was not a joke; it shipped with a working Haskell interpreter and it is Turing complete. Brady went on to build the dependently typed language Idris, which handles whitespace more conventionally.</p>
+<p>Under the invisible syntax sits a friendly little stack machine with a heap and subroutines, which is why langlib wants it: of all our esolangs it is the most pleasant compilation target (see <code>docs/PLAN.md</code>, Stage 4).</p>
+<h2 id="the-machine">The machine<a class="anchor" href="#the-machine" aria-hidden="true">#</a></h2>
+<p>A Whitespace program controls:</p>
+<ul>
+<li>a <strong>stack</strong> of arbitrary-precision signed integers;</li>
+<li>a <strong>heap</strong> mapping integer addresses to integers;</li>
+<li>a <strong>call stack</strong> of return addresses;</li>
+<li>an <strong>input</strong> stream and an <strong>output</strong> stream.</li>
+</ul>
+<p>Programs are written in three tokens, spelled <code>[Space]</code> (0x20), <code>[Tab]</code> (0x09), and <code>[LF]</code> (0x0A) below. Every other character is a comment, including carriage return, so files with CRLF line endings work. An instruction is an Instruction Modification Parameter (IMP) followed by a command, followed for some commands by a number or a label.</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>IMP</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>[Space]</code></td><td>stack manipulation</td></tr>
+<tr><td><code>[Tab][Space]</code></td><td>arithmetic</td></tr>
+<tr><td><code>[Tab][Tab]</code></td><td>heap access</td></tr>
+<tr><td><code>[LF]</code></td><td>flow control</td></tr>
+<tr><td><code>[Tab][LF]</code></td><td>I/O</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Numbers</strong> are a sign token (<code>[Space]</code> positive, <code>[Tab]</code> negative), then binary digits (<code>[Space]</code> 0, <code>[Tab]</code> 1) most significant first, terminated by <code>[LF]</code>. The digit string may be empty: sign then <code>[LF]</code> is zero.</p>
+<p><strong>Labels</strong> are any sequence of <code>[Space]</code>/<code>[Tab]</code> tokens terminated by <code>[LF]</code>, including the empty sequence. A label is an uninterpreted token string, not a number: <code>[Space][LF]</code> and <code>[Space][Space][LF]</code> are different labels.</p>
+<h3 id="stack-manipulation-imp-space">Stack manipulation (IMP <code>[Space]</code>)<a class="anchor" href="#stack-manipulation-imp-space" aria-hidden="true">#</a></h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Command</th><th>Argument</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>[Space]</code></td><td>number</td><td>push the number</td></tr>
+<tr><td><code>[LF][Space]</code></td><td></td><td>duplicate the top item</td></tr>
+<tr><td><code>[LF][Tab]</code></td><td></td><td>swap the top two items</td></tr>
+<tr><td><code>[LF][LF]</code></td><td></td><td>discard the top item</td></tr>
+<tr><td><code>[Tab][Space]</code></td><td>number</td><td>copy the n-th item (0 = top) onto the top (v0.3)</td></tr>
+<tr><td><code>[Tab][LF]</code></td><td>number</td><td>slide n items off the stack, keeping the top (v0.3)</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="arithmetic-imp-tabspace">Arithmetic (IMP <code>[Tab][Space]</code>)<a class="anchor" href="#arithmetic-imp-tabspace" aria-hidden="true">#</a></h3>
+<p>Each pops the right operand (the top), then the left operand, and pushes the result: the value pushed earlier is the left operand.</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Command</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>[Space][Space]</code></td><td>addition</td></tr>
+<tr><td><code>[Space][Tab]</code></td><td>subtraction</td></tr>
+<tr><td><code>[Space][LF]</code></td><td>multiplication</td></tr>
+<tr><td><code>[Tab][Space]</code></td><td>integer division</td></tr>
+<tr><td><code>[Tab][Tab]</code></td><td>modulo</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="heap-access-imp-tabtab">Heap access (IMP <code>[Tab][Tab]</code>)<a class="anchor" href="#heap-access-imp-tabtab" aria-hidden="true">#</a></h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Command</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>[Space]</code></td><td>store: pop a value, pop an address, write value at address</td></tr>
+<tr><td><code>[Tab]</code></td><td>retrieve: pop an address, push the value stored there</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="flow-control-imp-lf">Flow control (IMP <code>[LF]</code>)<a class="anchor" href="#flow-control-imp-lf" aria-hidden="true">#</a></h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Command</th><th>Argument</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>[Space][Space]</code></td><td>label</td><td>mark this point in the program</td></tr>
+<tr><td><code>[Space][Tab]</code></td><td>label</td><td>call a subroutine</td></tr>
+<tr><td><code>[Space][LF]</code></td><td>label</td><td>jump unconditionally</td></tr>
+<tr><td><code>[Tab][Space]</code></td><td>label</td><td>pop a value; jump if it is zero</td></tr>
+<tr><td><code>[Tab][Tab]</code></td><td>label</td><td>pop a value; jump if it is negative</td></tr>
+<tr><td><code>[Tab][LF]</code></td><td></td><td>return from the current subroutine</td></tr>
+<tr><td><code>[LF][LF]</code></td><td></td><td>end the program</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="io-imp-tablf">I/O (IMP <code>[Tab][LF]</code>)<a class="anchor" href="#io-imp-tablf" aria-hidden="true">#</a></h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Command</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>[Space][Space]</code></td><td>pop a value, output it as a character</td></tr>
+<tr><td><code>[Space][Tab]</code></td><td>pop a value, output it as a decimal number</td></tr>
+<tr><td><code>[Tab][Space]</code></td><td>pop an address, read one character, store its code there</td></tr>
+<tr><td><code>[Tab][Tab]</code></td><td>pop an address, read one line, parse a number, store it there</td></tr>
+</tbody>
+</table>
+</div>
+<p>Note that both read commands write to the heap, not the stack, and pop the target address first.</p>
+<h2 id="semantic-decisions-in-langlib">Semantic decisions in langlib<a class="anchor" href="#semantic-decisions-in-langlib" aria-hidden="true">#</a></h2>
+<p>The tutorial pins down the instruction set but not the failure modes. Our reference for those is the behaviour of <code>wspace</code> 0.3, the authors' Haskell interpreter (<code>VM.hs</code>, <code>Input.hs</code> in the source linked above); where the reference behaviour is a Haskell accident rather than a decision, we say so. Our interpreter (<code>Langlib/Languages/Whitespace/Semantics.lean</code>) does the following:</p>
+<ol>
+<li><strong>Values are arbitrary-precision signed integers</strong> on the stack and in the heap, as in the reference (Haskell <code>Integer</code>; Lean <code>Int</code>).</li>
+<li><strong>Division and modulo round toward negative infinity</strong>, and the sign of <code>mod</code> follows the divisor: <code>-7 div 2 = -4</code>, <code>-7 mod 2 = 1</code>, <code>7 mod -2 = -1</code>. This is Haskell's <code>div</code>/<code>mod</code>, which is what the reference calls; we use Lean's <code>Int.fdiv</code>/<code>Int.fmod</code>, which agree. Division or modulo by zero is a runtime error (the reference throws).</li>
+<li><strong>Operand order</strong>: subtraction, division, and modulo compute <code>second - top</code>, <code>second div top</code>, <code>second mod top</code> (reference: <code>doOp op x y</code> with <code>y</code> the top).</li>
+<li><strong>Labels</strong> are exact token strings; leading tokens are significant and the empty label is legal. A label may be defined anywhere (jumps forward or backward). If the same label is defined twice, <strong>the first definition wins</strong>, because the reference resolves labels by scanning the program from the start. An <strong>undefined label is a runtime error at jump time</strong>, not a parse error: the reference resolves labels lazily, so a conditional jump that is never taken may target a label that does not exist. We pre-compute a label table but keep the lazy error.</li>
+<li><strong><code>copy</code> with a negative or out-of-range index is a runtime error</strong> (reference: Haskell <code>!!</code>). <strong><code>slide</code> clamps</strong>: a negative count slides nothing and a count exceeding the stack depth slides everything below the top (reference: Haskell <code>drop</code>). <code>slide</code> still requires a top item.</li>
+<li><strong>The heap is total</strong>: retrieving an address that was never stored yields 0. The reference's list-based heap zero-fills gaps below the highest stored address but crashes above it; modern interpreters generally default the whole heap to 0, and we follow them. This is our one deliberate divergence from <code>wspace</code>. <strong>Negative addresses are a runtime error</strong> on store, retrieve, and both reads (the reference diverges or crashes on them).</li>
+<li><strong>Popping an empty (or too-short) stack is a runtime error</strong> naming the instruction, as is <strong><code>return</code> with an empty call stack</strong> (reference: pattern-match failure, &quot;Can't do ...&quot;).</li>
+<li><strong>Running off the end of the program</strong> without <code>[LF][LF]</code> is a runtime error, even for the empty program (reference: <code>prog!!pc</code> out of range).</li>
+<li><strong>Number literals require a sign token</strong>: a number terminated before its sign (<code>[LF]</code> immediately) is a parse error, as is a number or label still open at end of file. (The reference crashes on <code>last []</code> for the former and hangs the parse for the latter; a parse error is the useful rendering of a crash.) <code>[Space][LF]</code> and <code>[Tab][LF]</code> both denote 0.</li>
+<li><strong>Character I/O is byte-oriented</strong>: <code>readchar</code> reads one byte (0..255)  and stores its value; <code>outchar</code> requires a value in 0..255 and emits  that byte, anything else being a runtime error. The reference is  <code>Char</code>-based, and 2003-era GHC wrote the low byte of the character;  byte orientation matches langlib's shared I/O model and keeps <code>cat</code>  byte-exact.</li>
+<li><strong><code>readnum</code> reads one line</strong> (up to and excluding <code>\n</code>; a final  unterminated line counts) and parses it as a base-10 integer: optional  surrounding whitespace, optional leading minus, then one or more  digits. Anything else is a runtime error. The reference uses Haskell  <code>read</code>, which additionally accepts <code>0x</code>/<code>0o</code> forms; we restrict to  base 10 and document the restriction here.</li>
+<li><strong>Reading at end of input is a runtime error</strong>, for both <code>readchar</code> and  <code>readnum</code> (reference: <code>getChar</code>/<code>getLine</code> throw at EOF). Whitespace has  no way to test for EOF, so programs that loop on input, like <code>cat</code>, end  with this error by design.</li>
+<li><strong><code>jz</code>/<code>jn</code> pop the tested value</strong> whether or not the jump is taken  (reference does the same).</li>
+<li><strong>Tokens are exactly</strong> space (0x20), tab (0x09), and LF (0x0A). CR is a  comment character, so CRLF files parse identically (the reference  tokeniser matches only <code>&quot;\n&quot;</code> despite a comment claiming otherwise).</li>
+</ol>
+<p>The evaluator is pure and fuel-based: one unit of fuel per executed instruction, labels included. The runner's default budget is 200 million steps (<code>--fuel N</code> to change), and exhausting it is reported distinctly from halting, so divergence is an observable outcome in tests.</p>
+<h2 id="trying-it">Trying it<a class="anchor" href="#trying-it" aria-hidden="true">#</a></h2>
+<p>Hello world. The program is nothing but spaces, tabs, and newlines, so your editor will show you an empty file.</p>
+<pre><code>$ lake exe whitespace Langlib/Examples/Whitespace/hello.ws
+Hello, World!</code></pre>
+<p>Factorial, reading n as a decimal number on its own line.</p>
+<pre><code>$ printf '5\n' | lake exe whitespace Langlib/Examples/Whitespace/fact.ws
+120</code></pre>
+<p>A greeter, reading a line of text.</p>
+<pre><code>$ printf 'Ada\n' | lake exe whitespace Langlib/Examples/Whitespace/greet.ws
+Hello, Ada!</code></pre>
+<p>cat copies its input and then fails at end of input, which is correct: the reference implementation has no way to test for EOF either (see decision 12 above).</p>
+<pre><code>$ lake exe whitespace Langlib/Examples/Whitespace/cat.ws &lt; README.md
+# langlib
+...
+whitespace: runtime error: read char at end of input</code></pre>
+<p>The example programs cannot carry comments in any useful way (prose is invisible only if it contains no spaces, tabs, or newlines), so attribution lives in <code>Langlib/Languages/Whitespace/README.md</code>.</p>
+<h2 id="compilation-from-turpentine">Compilation from Turpentine<a class="anchor" href="#compilation-from-turpentine" aria-hidden="true">#</a></h2>
+<p>Planned (see <code>docs/PLAN.md</code>, Stage 4): Whitespace is the most direct target, with Turpentine variables in the heap, expressions on the stack, <code>while</code> via labels and conditional jumps. The compiler will document its supported Turpentine fragment in <code>docs/whitespace/compiler.md</code>.</p>
+<h2 id="run-it-here">Run it here<a class="anchor" href="#run-it-here" aria-hidden="true">#</a></h2>
+<p>The left pane is the program as it really is. The pane beside it shows the same bytes as · space, → tab and ¶ linefeed, and the listing underneath is what the tokeniser made of them.</p>
+<script type="application/json" id="ws-examples">[{"name":"hello.ws — Hello, World!","source":"   \t  \t   \n\t\n     \t\t  \t \t\n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t\t\t\n\t\n     \t \t\t  \n\t\n     \t     \n\t\n     \t \t \t\t\t\n\t\n     \t\t \t\t\t\t\n\t\n     \t\t\t  \t \n\t\n     \t\t \t\t  \n\t\n     \t\t  \t  \n\t\n     \t    \t\n\t\n     \t \t \n\t\n  \n\n\n","input":"","eof":"unchanged","note":"Push each character's code and print it. The program is blank; the panel to the right is the same bytes with the invisible made visible."},{"name":"count.ws — 1 to 10","source":"   \t\n\n   \n \n \t\n \t   \t \t \n\t\n     \t\n\t    \n    \t \t\t\n\t  \t\n\t \t\n\n \n \n\n  \t\n \n\n\n\n\n","input":"","eof":"unchanged","note":"A loop with a heap counter and a conditional jump."},{"name":"add.ws — add two numbers","source":"    \n\t\n\t\t   \t\n\t\n\t\t    \n\t\t\t   \t\n\t\t\t\t   \t\n \t   \t \t \n\t\n  \n\n\n","input":"17\n25\n","eof":"unchanged","note":"Two readnum instructions, one add. Reads whole lines, so keep the trailing newlines."},{"name":"fact.ws — factorial","source":"    \n\t\n\t\t   \t\n   \t\n\t\t \n   \n    \n\t\t\t\n\t \t\n   \t\n   \t\n\t\t\t    \n\t\t\t\t  \n\t\t     \n    \n\t\t\t   \t\n\t  \t\t\t \n \n \n\n  \t\n   \t\n\t\t\t\t\n \t   \t \t \n\t\n  \n\n\n","input":"5\n","eof":"unchanged","note":"A subroutine with call and return; watch the call stack drive the multiply."},{"name":"greet.ws — greet a name","source":"    \n\n   \n \n \t\n\t  \n \t\t\t   \t \t \n\t  \t\n\t \t\n   \t\n\t   \n \n \n\n  \t\n    \n\t\t    \t  \t   \n\t\n     \t\t  \t \t\n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t\t\t\n\t\n     \t \t\t  \n\t\n     \t     \n\t\n      \n\n   \t\n \n \t\t\t \n \n\t \t\t\n\t\n     \t\n\t   \n \n \t\n\n  \t\t\n \n\n \n\n   \t    \t\n\t\n     \t \t \n\t\n  \n\n\n","input":"Ada\n","eof":"unchanged","note":"Character input into the heap, then back out again."},{"name":"truth.ws — truth-machine","source":"    \n\t\n\t\t    \n\t\t\t\n\t \t\n\n   \n   \t\n\t\n \t\n \n \n\n  \t\n    \n\t\n \t\n\n\n","input":"0\n","eof":"unchanged","note":"Feed it 1 instead and it never stops, exactly as specified."},{"name":"cat.ws — copy input to output","source":"\n   \n    \n\t\n\t     \n\t\t\t\t\n  \n \n \n","input":"meow\n","eof":"unchanged","note":"Whitespace has no way to test for end of input, so cat copies its input and then fails on the next read. The reference interpreter does the same."}]</script>
+<div class="pg" data-kind="whitespace" data-examples="ws-examples">
+<div class="pg-bar">
+<label>Example <select data-role="example"></select></label>
+<span class="spacer"></span>
+<label>Speed <input type="range" data-role="speed" min="0" max="6" value="3" aria-label="Steps per frame"><span data-role="speed-label" class="muted"></span></label>
+<button class="pg-btn" type="button" data-role="step">Step</button>
+<button class="pg-btn" type="button" data-role="reset">Reset</button>
+<button class="pg-btn primary" type="button" data-role="run">Run</button>
+</div>
+<div class="pg-grid">
+<div class="pg-cell">
+<div class="pg-label">Program <span class="hint">as written: blank</span></div>
+<textarea class="program" data-role="program" spellcheck="false" aria-label="Whitespace program"></textarea>
+<p class="pg-note small muted" data-role="example-note"></p>
+</div>
+<div class="pg-cell">
+<div class="pg-label">Program <span class="hint">with the invisible made visible: · space, → tab, ¶ linefeed</span></div>
+<pre class="pg-code ws-glyphs" data-role="glyphs"></pre>
+</div>
+<div class="pg-cell">
+<div class="pg-label">Input</div>
+<textarea class="small" data-role="input" spellcheck="false" aria-label="Program input"></textarea>
+<div class="pg-label" style="margin-top:0.7rem">Output</div>
+<pre class="pg-out" data-role="output" aria-live="polite"></pre>
+</div>
+<div class="pg-cell">
+<div class="pg-label">Instructions <span class="hint">what those tokens mean</span></div>
+<pre class="pg-code" data-role="listing"></pre>
+</div>
+<div class="pg-cell">
+<div class="pg-label">Stack</div>
+<pre class="stack-view" data-role="stack"></pre>
+</div>
+<div class="pg-cell">
+<div class="pg-label">Heap</div>
+<pre class="heap-view" data-role="heap"></pre>
+</div>
+</div>
+<div class="pg-status"><span data-role="status">not started</span><span data-role="steps"></span></div>
+</div>
+<p class="source-note">This page is <code>docs/whitespace/spec.md</code> from the repository, rendered. Corrections belong <a href="https://github.com/langlib/langlib/blob/master/docs/whitespace/spec.md">in the source file</a>, not here: the site is generated from it.</p>
+<script src="/ws.js"></script>
+<script src="/playground.js"></script>
+</div>
+<nav class="toc" aria-label="On this page">
+<div class="toc-title">On this page</div>
+<ul>
+<li><a href="#history">History</a></li>
+<li><a href="#the-machine">The machine</a></li>
+<li class="sub"><a href="#stack-manipulation-imp-space">Stack manipulation (IMP `[Space]`)</a></li>
+<li class="sub"><a href="#arithmetic-imp-tabspace">Arithmetic (IMP `[Tab][Space]`)</a></li>
+<li class="sub"><a href="#heap-access-imp-tabtab">Heap access (IMP `[Tab][Tab]`)</a></li>
+<li class="sub"><a href="#flow-control-imp-lf">Flow control (IMP `[LF]`)</a></li>
+<li class="sub"><a href="#io-imp-tablf">I/O (IMP `[Tab][LF]`)</a></li>
+<li><a href="#semantic-decisions-in-langlib">Semantic decisions in langlib</a></li>
+<li><a href="#trying-it">Trying it</a></li>
+<li><a href="#compilation-from-turpentine">Compilation from Turpentine</a></li>
+</ul>
+</nav>
+</div>
+</main>
+<footer class="footer">
+<div class="footer-inner">
+<div>langlib is Apache 2.0. The languages belong to the people who thought of them, and are credited on their pages.</div>
+<div><a href="https://github.com/langlib/langlib">Source on GitHub</a></div>
+</div>
+</footer>
+</body>
+</html>

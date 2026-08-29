@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deadfish — langlib</title>
+<meta name="description" content="One accumulator, four commands, no input and no way to stop. Famous for what it cannot do.">
+<link rel="canonical" href="https://langlib.wtf/deadfish/">
+<meta property="og:title" content="Deadfish — langlib">
+<meta property="og:description" content="One accumulator, four commands, no input and no way to stop. Famous for what it cannot do.">
+<meta property="og:url" content="https://langlib.wtf/deadfish/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="langlib">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script>try{var t=localStorage.getItem('langlib-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<script src="/site.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="masthead">
+<div class="masthead-inner">
+<a class="brand" href="/">langlib<span class="dot">.wtf</span></a>
+<nav aria-label="Site"><a href="/#languages">Languages</a><a href="/playground/">Playground</a><a href="/turpentine/">Turpentine</a><a href="/status/">Status</a><a href="/related/">Related work</a><a href="/contributing/">Contributing</a><button class="theme-toggle" type="button" hidden>dark</button></nav>
+</div>
+</header>
+<main class="page" id="main">
+<div class="doc-layout">
+<div class="prose">
+<div class="page-kicker">Language</div>
+<h1>Deadfish</h1>
+<p class="muted">Jonathan Todd Skinner, 2006 · <code>lake exe deadfish</code> · <a href="https://github.com/langlib/langlib/tree/master/Langlib/Examples/Deadfish/">examples</a> · <a href="https://github.com/langlib/langlib/tree/master/Langlib/Languages/Deadfish/">Lean source</a></p>
+<p class="small muted"><a href="/brainfuck/">brainfuck</a> · <a href="/whitespace/">whitespace</a> · <a href="/malbolge/">malbolge</a> · <a href="/befunge93/">Befunge-93</a> · <a href="/subleq/">subleq</a> · <a href="/fractran/">FRACTRAN</a> · <a href="/thue/">Thue</a> · <a href="/ook/">Ook!</a> · <strong>Deadfish</strong> · <a href="/piet/">Piet</a> · <a href="/brainloller/">Brainloller</a></p>
+<ul>
+<li><strong>Author</strong>: Jonathan Todd Skinner</li>
+<li><strong>Year</strong>: 2006</li>
+<li><strong>Canonical sources</strong>: Skinner's original C interpreter, released into the public domain and preserved (with the language page) at <a href="https://esolangs.org/wiki/Deadfish">https://esolangs.org/wiki/Deadfish</a> (CC0)</li>
+<li><strong>In langlib</strong>: <code>Langlib/Languages/Deadfish/</code>, runner <code>lake exe deadfish</code>, examples in <code>Langlib/Examples/Deadfish/</code></li>
+</ul>
+<h2 id="history">History<a class="anchor" href="#history" aria-hidden="true">#</a></h2>
+<p>Deadfish is the famous language that cannot do anything, written in under an hour in 2006. It has one integer accumulator, four commands, output, no input, no control flow, and no way to halt. Since a program is a straight line of commands, every program terminates, which makes Deadfish a celebrated example of a language that is not Turing complete, and a machine whose entire theory fits in one paragraph. It began as a subset of HQ9+ under the working name &quot;fishheads&quot;; the name changed when its author decided that programming in it was like eating (and having to smell) dead, rotting fish heads. The wiki lists well over a hundred ports, plus dozens of derivative languages (Deadfish~, ΙΧΘΥΣ, Deadsocket, and other cries for help); implementing Deadfish is a rite of passage for new languages, and langlib was not going to be the exception.</p>
+<h2 id="the-machine">The machine<a class="anchor" href="#the-machine" aria-hidden="true">#</a></h2>
+<p>One accumulator, starting at 0. Four commands:</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Command</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>i</code></td><td>increment the accumulator</td></tr>
+<tr><td><code>d</code></td><td>decrement the accumulator</td></tr>
+<tr><td><code>s</code></td><td>square the accumulator</td></tr>
+<tr><td><code>o</code></td><td>output the accumulator in decimal, followed by a newline</td></tr>
+</tbody>
+</table>
+</div>
+<p>Any other character prints a bare newline. That is the entire language.</p>
+<p>The one interesting rule is the reset: whenever the accumulator is exactly <code>-1</code> or exactly <code>256</code>, it becomes 0. (The comment in Skinner's C source says &quot;Make sure x is not greater then [sic] 256&quot;; the code checks <code>x == -1 || x == 256</code> and nothing else, and the wiki is emphatic that the code, and only the code, is the semantics.) The consequences take a moment to enjoy:</p>
+<ul>
+<li><code>iissso</code> prints <code>0</code>: the accumulator reaches 16, and 16² = 256 resets.</li>
+<li><code>diissisdo</code> prints <code>288</code>: <code>d</code> at 0 gives -1, which resets; the program then builds 17, and 17² = 289 sails straight past the 256 check and survives; one <code>d</code> gives 288.</li>
+<li>From 289, decrementing 33 times lands exactly on 256 and resets; so does wandering back down to -1. Above 256, the only exits are exact.</li>
+</ul>
+<p>The wiki designates these (plus a 33-<code>d</code> variant of the third) as mandatory test cases for interpreters; ours are in <code>Langlib/Tests/Deadfish.lean</code>.</p>
+<h2 id="semantic-decisions-in-langlib">Semantic decisions in langlib<a class="anchor" href="#semantic-decisions-in-langlib" aria-hidden="true">#</a></h2>
+<p>Skinner's original C interpreter is an interactive shell: it prints a <code>&gt;&gt; </code> prompt, reads one character with <code>scanf(&quot;%c&quot;, ...)</code>, checks the reset, dispatches, and recurses forever. Our interpreter (<code>Langlib/Languages/Deadfish/Semantics.lean</code>) is a batch interpreter over a program file, faithful to that code:</p>
+<ol>
+<li><strong>The accumulator is an unbounded integer.</strong> The original declares <code>unsigned int x</code>, so its arithmetic wraps at 2³² and reads <code>-1</code> through the unsigned conversion; that machine-sized wrap is a C artifact, not language lore, and the wiki's own mandatory tests and complexity discussion (<code>iissis s s s ... o</code> printing powers of 17) assume values beyond any fixed width. Decrement can never take the accumulator below -1 (which resets), so our integers never print a minus sign.</li>
+<li><strong>The reset is <code>value == -1 || value == 256</code>, nothing wider.</strong> The original performs the check before dispatching each command; we normalize after each of <code>i</code>, <code>d</code>, <code>s</code>. The two are observably identical: only <code>i</code>, <code>d</code>, <code>s</code> change the value, so the state seen by the original's check before any command equals ours after the previous one, and the initial 0 passes the check anyway. Squaring may jump over 256 (17² = 289) and is then subject only to exact hits on -1 or 256.</li>
+<li><strong><code>o</code> prints the decimal value and a newline</strong>: the original's <code>printf(&quot;%d\n&quot;, x)</code>.</li>
+<li><strong>Every non-command character prints a bare newline</strong>: the original's <code>default: printf(&quot;\n&quot;)</code>. The wiki: &quot;Errors are not acknowledged: the shell simply adds a newline character!&quot; This applies to spaces, to the newlines in the program file itself (a four-line program emits at least four newlines), and to <code>h</code>: the optional halt command mentioned on the wiki is a later folklore addition absent from the original, so to us it is one more way to print a newline. Commands are case-sensitive; <code>I</code> is noise.</li>
+<li><strong>No <code>&gt;&gt; </code> prompt.</strong> The prompt belongs to the original's interactive shell, printed before each character read; it is not program output, and a batch run of a 265-character file preceded by 265 prompts helps nobody. The runner ignores stdin entirely, since the language has no input commands.</li>
+</ol>
+<p>The evaluator is pure and fuel-based like every langlib core, one unit of fuel per command. Deadfish has no loops, so a program of n commands halts in exactly n steps; out-of-fuel is reachable only by asking for it, which one golden test does, for completeness.</p>
+<h2 id="trying-it">Trying it<a class="anchor" href="#trying-it" aria-hidden="true">#</a></h2>
+<p>Deadfish greets you in ASCII codes, one per line, because numbers are the only thing it can print. The full output spells &quot;Hello, world!&quot;.</p>
+<pre><code>$ lake exe deadfish Langlib/Examples/Deadfish/hello.df
+72
+101
+108
+108
+...</code></pre>
+<p>The xkcd constant: <code>iiso</code> increments twice, squares, and prints. Chosen by fair dice roll.</p>
+<pre><code>$ lake exe deadfish Langlib/Examples/Deadfish/xkcd-random.df
+4</code></pre>
+<p>Squaring from 2 walks into the 256 reset and never comes back, which is the whole personality of the language.</p>
+<pre><code>$ lake exe deadfish Langlib/Examples/Deadfish/powers.df
+2
+4
+16
+0
+0</code></pre>
+<h2 id="compilation-from-turpentine">Compilation from Turpentine<a class="anchor" href="#compilation-from-turpentine" aria-hidden="true">#</a></h2>
+<p>Planned as a documented joke (see <code>docs/PLAN.md</code>, Stage 4): the supported Turpentine fragment is straight-line, output-only arithmetic, which is all the target permits.</p>
+<h2 id="run-it-here">Run it here<a class="anchor" href="#run-it-here" aria-hidden="true">#</a></h2>
+<p>Four commands, one accumulator, and the reset that catches everybody.</p>
+<script type="application/json" id="df-examples">[{"name":"hello.df — the codes of a greeting","source":"iiisdsiiiiiiiioiiiiiiiiiiiiiiiiiiiiiiiiiiiiioiiiiiiiooiiio\ndddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddoddddddddddddo\ndddddddddddddddddddddsddoddddddddoiiioddddddoddddddddo\ndddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddo\n","input":"","eof":"unchanged","note":"Deadfish cannot print letters, so it prints their ASCII codes, one per line."},{"name":"powers.df — squaring into the reset","source":"iiososososo\n","input":"","eof":"unchanged","note":"2, 4, 16, then 256, which is one of the two values that silently become 0."},{"name":"xkcd-random.df — getRandomNumber","source":"iiso\n","input":"","eof":"unchanged","note":"iiso."}]</script>
+<div class="pg" data-kind="deadfish" data-examples="df-examples">
+<div class="pg-bar">
+<label>Example <select data-role="example"></select></label>
+<span class="spacer"></span>
+<label>Speed <input type="range" data-role="speed" min="0" max="6" value="3" aria-label="Steps per frame"><span data-role="speed-label" class="muted"></span></label>
+<button class="pg-btn" type="button" data-role="step">Step</button>
+<button class="pg-btn" type="button" data-role="reset">Reset</button>
+<button class="pg-btn primary" type="button" data-role="run">Run</button>
+</div>
+<div class="pg-grid">
+<div class="pg-cell">
+<div class="pg-label">Program <span class="hint">i d s o</span></div>
+<textarea class="program small" data-role="program" spellcheck="false" aria-label="Deadfish program"></textarea>
+<div class="pg-label" style="margin-top:0.7rem">Accumulator</div>
+<pre class="pg-out" data-role="acc">0</pre>
+</div>
+<div class="pg-cell">
+<div class="pg-label">Output</div>
+<pre class="pg-out" data-role="output" aria-live="polite"></pre>
+</div>
+<div class="pg-cell span2">
+<div class="pg-label">Instruction pointer</div>
+<pre class="pg-code" data-role="code"></pre>
+</div>
+</div>
+<div class="pg-status"><span data-role="status">not started</span><span data-role="steps"></span></div>
+</div>
+<p class="source-note">This page is <code>docs/deadfish/spec.md</code> from the repository, rendered. Corrections belong <a href="https://github.com/langlib/langlib/blob/master/docs/deadfish/spec.md">in the source file</a>, not here: the site is generated from it.</p>
+<script src="/df.js"></script>
+<script src="/playground.js"></script>
+</div>
+<nav class="toc" aria-label="On this page">
+<div class="toc-title">On this page</div>
+<ul>
+<li><a href="#history">History</a></li>
+<li><a href="#the-machine">The machine</a></li>
+<li><a href="#semantic-decisions-in-langlib">Semantic decisions in langlib</a></li>
+<li><a href="#trying-it">Trying it</a></li>
+<li><a href="#compilation-from-turpentine">Compilation from Turpentine</a></li>
+</ul>
+</nav>
+</div>
+</main>
+<footer class="footer">
+<div class="footer-inner">
+<div>langlib is Apache 2.0. The languages belong to the people who thought of them, and are credited on their pages.</div>
+<div><a href="https://github.com/langlib/langlib">Source on GitHub</a></div>
+</div>
+</footer>
+</body>
+</html>
