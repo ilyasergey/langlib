@@ -44,6 +44,18 @@ bounding its state space. Status per language is in the
 [Stage 8](docs/PLAN.md), and `scripts/axioms.lean` audits every result,
 since a proof resting on `sorry` type-checks like a real one.
 
+The components:
+
+* [Langlib/Computability/Class.lean](Langlib/Computability/Class.lean) —
+  `Esolang`, `TuringComplete` and `BoundedStorage`: one interface every
+  result is an instance of.
+* [Langlib/Computability/Whitespace.lean](Langlib/Computability/Whitespace.lean) —
+  **Whitespace is proved Turing complete.** Axiom-clean.
+* [Langlib/Computability/URM.lean](Langlib/Computability/URM.lean) — the
+  register machine the proofs are stated against.
+* [scripts/axioms.lean](scripts/axioms.lean) — the audit.
+* [docs/README.md](docs/README.md) — status per language.
+
 Precision here has already paid. [Befunge-93](docs/befunge93/spec.md) is
 called incomplete because of its 80 by 25 playfield, but the real argument
 is that the reference implementation gives it byte-sized cells, making it
@@ -72,6 +84,20 @@ own decisions in `docs/<langname>/compiler.md`, for example
 [whitespace](docs/whitespace/compiler.md),
 [subleq](docs/subleq/compiler.md) and
 [brainfuck](docs/brainfuck/compiler.md).
+
+The components:
+
+* [Langlib/Turpentine/Compile/](Langlib/Turpentine/Compile/) — the bespoke
+  backends: [brainfuck](Langlib/Turpentine/Compile/Brainfuck.lean),
+  [whitespace](Langlib/Turpentine/Compile/Whitespace.lean),
+  [subleq](Langlib/Turpentine/Compile/Subleq.lean).
+* [docs/certified-compilation.md](docs/certified-compilation.md) — the
+  pipeline, the theorem that makes it compose, and the diagrams.
+* [docs/verification.md](docs/verification.md) — what compiler correctness
+  means here, including how `assert` compiles.
+* Per target: `docs/<langname>/compiler.md`, for example
+  [whitespace](docs/whitespace/compiler.md) and
+  [brainfuck](docs/brainfuck/compiler.md).
 
 Turpentine is deeply embedded in Lean and modelled on
 [Velvet](https://github.com/verse-lab/velvet). The longer-term plan is to

@@ -162,9 +162,10 @@ theorem move_spec {R a b : Nat} (ha : a < R) (hb : b < R) (hab : a ≠ b) :
     intro s hs
     have hnz : s.regs a ≠ 0 := by omega
     have hsa : ((s.down a).up b).regs a = v := by
-      rw [CState.up_regs_of_ne _ hab.symm, CState.down_regs_self, hs]
+      rw [CState.up_regs_of_ne _ hab, CState.down_regs_self, hs]
+      omega
     have hsb : ((s.down a).up b).regs b = s.regs b + 1 := by
-      rw [CState.up_regs_self, CState.down_regs_of_ne _ hab]
+      rw [CState.up_regs_self, CState.down_regs_of_ne _ hab.symm]
     obtain ⟨w', hev, h0, hbv, hfr⟩ := ih ((s.down a).up b) hsa
     refine ⟨w', Ev.loopS ha hnz (Ev.dec ha hnz (Ev.inc hb hev)), h0, by omega, ?_⟩
     intro r hra hrb
@@ -187,12 +188,13 @@ theorem move2_spec {R a b c : Nat} (ha : a < R) (hb : b < R) (hc : c < R)
     intro s hs
     have hnz : s.regs a ≠ 0 := by omega
     have hsa : (((s.down a).up b).up c).regs a = v := by
-      rw [CState.up_regs_of_ne _ hac.symm, CState.up_regs_of_ne _ hab.symm,
+      rw [CState.up_regs_of_ne _ hac, CState.up_regs_of_ne _ hab,
         CState.down_regs_self, hs]
+      omega
     have hsb : (((s.down a).up b).up c).regs b = s.regs b + 1 := by
-      rw [CState.up_regs_of_ne _ hbc, CState.up_regs_self, CState.down_regs_of_ne _ hab]
+      rw [CState.up_regs_of_ne _ hbc, CState.up_regs_self, CState.down_regs_of_ne _ hab.symm]
     have hsc : (((s.down a).up b).up c).regs c = s.regs c + 1 := by
-      rw [CState.up_regs_self, CState.up_regs_of_ne _ hbc.symm, CState.down_regs_of_ne _ hac]
+      rw [CState.up_regs_self, CState.up_regs_of_ne _ hbc.symm, CState.down_regs_of_ne _ hac.symm]
     obtain ⟨w', hev, h0, hbv, hcv, hfr⟩ := ih (((s.down a).up b).up c) hsa
     refine ⟨w', Ev.loopS ha hnz (Ev.dec ha hnz (Ev.inc hb (Ev.inc hc hev))), h0,
       by omega, by omega, ?_⟩

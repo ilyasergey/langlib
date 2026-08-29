@@ -8,6 +8,26 @@ This is the concrete plan behind Stage 9 of [PLAN.md](PLAN.md). The design
 argument is in [verification.md](verification.md); this page is the
 engineering.
 
+## Where the definitions live
+
+| Definition | File |
+|---|---|
+| `Esolang`, the class of runnable languages | [Class.lean:40](../Langlib/Computability/Class.lean#L40) |
+| **`TuringComplete`**, the completeness claim | [Class.lean:80](../Langlib/Computability/Class.lean#L80) |
+| `BoundedStorage`, the incompleteness claim | [Class.lean:134](../Langlib/Computability/Class.lean#L134) |
+| `halts_iff_search`, decidability from a bound | [Class.lean:162](../Langlib/Computability/Class.lean#L162) |
+| `whitespaceComplete`, the one proved instance | [Whitespace.lean:1117](../Langlib/Computability/Whitespace.lean#L1117) |
+| its compiler, `compile` | [Whitespace.lean:126](../Langlib/Computability/Whitespace.lean#L126) |
+| its `simulation` theorem | [Whitespace.lean:1048](../Langlib/Computability/Whitespace.lean#L1048) |
+| our URM helpers over cslib's | [URM.lean](../Langlib/Computability/URM.lean) |
+| cslib's `Instr` and `Program` | `Cslib/Computability/URM/Defs.lean` |
+| the axiom audit | [scripts/axioms.lean](../scripts/axioms.lean) |
+
+The bespoke backends, for contrast, are
+[Brainfuck.lean](../Langlib/Turpentine/Compile/Brainfuck.lean),
+[Whitespace.lean](../Langlib/Turpentine/Compile/Whitespace.lean) and
+[Subleq.lean](../Langlib/Turpentine/Compile/Subleq.lean).
+
 ## The pipeline
 
 ```
@@ -25,12 +45,14 @@ target program
 The second arrow is free. It is not a new compiler: it is the `compile`
 field of that language's `TuringComplete` instance, which exists because
 somebody proved the language Turing complete. Whitespace already has one
-(`Langlib/Computability/Whitespace.lean`), so the only missing piece for a
-verified Turpentine-to-Whitespace compiler is the first arrow.
+([`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L1117)),
+so the only missing piece for a verified Turpentine-to-Whitespace compiler
+is the first arrow.
 
 ## The interface it plugs into
 
-`Langlib/Computability/Class.lean` fixes the shape:
+[`Langlib/Computability/Class.lean`](../Langlib/Computability/Class.lean)
+fixes the shape:
 
 ```lean
 structure TuringComplete (L : Type) [Esolang L] where
@@ -51,7 +73,7 @@ type-check, and it is also what bounds the fragment.
 
 ### 1. `compileToURM` (the only real work)
 
-`Langlib/Turpentine/Compile/URM.lean`:
+[`Langlib/Turpentine/Compile/URM.lean`](../Langlib/Turpentine/Compile/URM.lean):
 
 ```lean
 def compileToURM : Turpentine.Program → Except String (URM.Program × List Nat)

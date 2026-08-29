@@ -136,7 +136,9 @@ most of the other.
 
 ## Two compilers per target, two obligations
 
-`docs/PLAN.md` Stage 9 splits each backend in two, and the split changes
+[PLAN.md](PLAN.md) Stage 9 and
+[certified-compilation.md](certified-compilation.md) split each backend in
+two, and the split changes
 what has to be proved.
 
 A **derived** compiler is obtained by composing the Turpentine-to-register-machine
@@ -249,7 +251,9 @@ pages for why), so they have no proof obligations.
 ## What is proved today
 
 One thing, and it is not a compiler-correctness result: **Whitespace is
-proved Turing complete** (`Langlib/Computability/Whitespace.lean`), by
+proved Turing complete**
+([Whitespace.lean](../Langlib/Computability/Whitespace.lean),
+[`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L1117)), by
 compiling cslib's unlimited register machine into it and proving the
 compilation simulates. `#print axioms` on the result reports only
 `propext`, `Classical.choice` and `Quot.sound`.
