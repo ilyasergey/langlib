@@ -310,6 +310,94 @@ Output:
 19
 ```
 
+### Compiling Turpentine
+
+Turpentine programs can be interpreted, compiled to an esolang, or
+compiled and run in one step. Both compilers are available for each
+target: `--bespoke` (hand-written, whole language, compact, unverified) and
+`--certified` (derived from the target's Turing-completeness proof, correct
+by construction, larger, and restricted to an I/O-free fragment). Passing
+neither uses the bespoke one; passing both is an error.
+
+Interpret it.
+
+```
+echo 17 | lake exe turpentine run Langlib/Examples/Turpentine/isqrt.turp
+```
+
+Output:
+
+```
+4
+```
+
+Compile and run in one step, using the hand-written backend.
+
+```
+echo 17 | lake exe turpentine exec --via whitespace --bespoke Langlib/Examples/Turpentine/isqrt.turp
+```
+
+Output:
+
+```
+4
+```
+
+Emit the target program instead, and note that the message says which
+compiler produced it.
+
+```
+lake exe turpentine compile --to subleq --bespoke -o isqrt.sq Langlib/Examples/Turpentine/isqrt.turp
+```
+
+Output:
+
+```
+turpentine: wrote 22615 bytes to isqrt.sq [bespoke, hand-written and unverified]
+```
+
+That file is an ordinary subleq program, so run it with subleq's own
+runner.
+
+```
+echo 17 | lake exe subleq isqrt.sq
+```
+
+Output:
+
+```
+4
+```
+
+The certified compiler needs a program in its fragment: no I/O, and the
+result left in a variable called `answer`.
+
+```
+lake exe turpentine exec --via whitespace --certified sum.turp
+```
+
+Output:
+
+```
+10
+```
+
+Outside that fragment it says which construct is the problem rather than
+emitting something it cannot justify.
+
+```
+echo 17 | lake exe turpentine exec --via whitespace --certified Langlib/Examples/Turpentine/isqrt.turp
+```
+
+Output:
+
+```
+turpentine exec: 'x' has an initialiser; the certified URM fragment declares variables without one, since every register starts at zero
+```
+
+Every mode, including emitting to stdout and what the two schemes cost, is
+in [certified-compilation.md](docs/certified-compilation.md).
+
 Every runner accepts `--fuel N` (step budget), `--verbose` (report how the
 run ended: halted, runtime error, or out of fuel), and `--help`. Exit codes:
 0 halted, 1 runtime error, 2 out of fuel, 3 parse or usage error. Example

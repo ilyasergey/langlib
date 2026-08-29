@@ -45,6 +45,24 @@ lake exe <runner> [--fuel N] [--verbose] <file>
 Input comes from stdin, output goes to stdout, and every runner takes
 `--help`. Some add their own flags, documented on the language's spec page.
 
+Turpentine, in the last row, is the source language rather than a target,
+so its runner also compiles. The **Bespoke compiler** and **Correct via TC**
+columns say which of the two schemes each language has:
+
+```
+lake exe turpentine run <file.turp>                          # interpret
+lake exe turpentine check <file.turp>                        # type-check only
+lake exe turpentine compile --to <lang> [--bespoke|--certified] [-o out] <file.turp>
+lake exe turpentine exec --via <lang> [--bespoke|--certified] <file.turp>
+```
+
+`exec` compiles in memory and immediately runs the result on that
+language's own interpreter, so its output should match `run` exactly.
+`--bespoke` is the default and accepts the whole language; `--certified`
+uses the compiler derived from the target's completeness proof and accepts
+only an I/O-free fragment. Worked examples of every mode, with real output,
+are in [certified-compilation.md](certified-compilation.md).
+
 
 Legend: `yes` done, `wip` in progress, `-` not started, `n/a` not applicable
 (with the reason in the language's spec page).

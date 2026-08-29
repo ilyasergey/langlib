@@ -380,16 +380,17 @@ compile the same source both ways, run both, compare. That is two
 independent implementations of one specification, which is a much better
 test than a golden file.
 
-## Running it
+## Every mode, with real output
 
 `compile` and `exec` each take `--bespoke` or `--certified`, so the choice
-of compiler is explicit; passing both is an error, and passing neither uses
-the bespoke one. Whichever runs, the command names it in the message it
-prints, so a build log records which compiler produced the artifact.
+of compiler is explicit; passing both is an error, passing neither uses the
+bespoke one, and whichever runs is named in the message, so a build log
+records which compiler produced an artifact.
 
-The certified fragment is narrow: the program must be I/O-free and name its
-result in a variable called `answer`, because a URM has no output and the
-theorem reads register 0.
+Two source programs are used below. `sum.turp` is inside the certified
+fragment: I/O-free, no subtraction or division, and its result is in a
+variable called `answer`, because a URM has no output and the theorem reads
+register 0.
 
 ```
 cat sum.turp
@@ -406,8 +407,46 @@ while i < 5 {
 }
 ```
 
-Compile and run it in one step, through the compiler derived from the
-Whitespace completeness proof:
+`Langlib/Examples/Turpentine/isqrt.turp` is not: it reads a number and
+prints one, so only the bespoke compilers accept it.
+
+### Interpret
+
+```
+echo 17 | lake exe turpentine run Langlib/Examples/Turpentine/isqrt.turp
+```
+
+Output:
+
+```
+4
+```
+
+### Type-check without running
+
+```
+lake exe turpentine check sum.turp
+```
+
+Output:
+
+```
+sum.turp: well typed (2 variable(s), 2 declaration(s))
+```
+
+### Compile and run in one step, bespoke
+
+```
+echo 17 | lake exe turpentine exec --via whitespace --bespoke Langlib/Examples/Turpentine/isqrt.turp
+```
+
+Output:
+
+```
+4
+```
+
+### Compile and run in one step, certified
 
 ```
 lake exe turpentine exec --via whitespace --certified sum.turp
@@ -419,12 +458,46 @@ Output:
 10
 ```
 
-The same source through the compiler derived from the Subleq proof. Subleq
-has only a single-byte output primitive, so its `decodeOutput` counts
-bytes: ten of them here, which is the answer.
+### Emit the target program, then run it yourself
 
 ```
-lake exe turpentine exec --via subleq --certified sum.turp
+lake exe turpentine compile --to subleq --bespoke -o isqrt.sq Langlib/Examples/Turpentine/isqrt.turp
+```
+
+Output:
+
+```
+turpentine: wrote 22615 bytes to isqrt.sq [bespoke, hand-written and unverified]
+```
+
+The emitted file is an ordinary program in that language:
+
+```
+echo 17 | lake exe subleq isqrt.sq
+```
+
+Output:
+
+```
+4
+```
+
+The certified compiler for the same target, on the in-fragment program.
+Subleq's only output primitive is a single byte, so its `decodeOutput`
+counts bytes: ten of them is the answer.
+
+```
+lake exe turpentine compile --to subleq --certified -o sum.sq sum.turp
+```
+
+Output:
+
+```
+turpentine: wrote 1286 bytes to sum.sq [certified, derived from the Turing-completeness proof]
+```
+
+```
+lake exe subleq sum.sq
 ```
 
 Output:
@@ -433,48 +506,75 @@ Output:
 1111111111
 ```
 
-Emit the code instead of running it, to see what a machine simulation
-costs:
+### Emit to stdout
+
+With no `-o`, the program goes to stdout and the note to stderr, so
+redirecting captures only the program.
 
 ```
-lake exe turpentine compile --to whitespace --certified -o sum.ws sum.turp
-```
-
-Output:
-
-```
-turpentine: wrote 1873 bytes to sum.ws [certified, derived from the Turing-completeness proof]
-```
-
-Out of fragment, the compiler says which construct is the problem rather
-than emitting something it cannot justify:
-
-```
-lake exe turpentine compile --to whitespace --certified Langlib/Examples/Turpentine/isqrt.turp
+lake exe turpentine compile --to whitespace --bespoke sum.turp > sum.ws
 ```
 
 Output:
 
 ```
-turpentine compile: 'x' has an initialiser; the certified URM fragment declares variables without one, since every register starts at zero
+turpentine: emitting 159 bytes [bespoke, hand-written and unverified]
 ```
 
-Swap `--certified` for `--bespoke` to use the hand-written backend on the
-same source. It accepts the whole language and emits far smaller code, and
-nothing about it is proved:
+### What the two schemes cost
+
+The same program, both compilers, one target:
+
+| | bespoke | certified |
+|---|---|---|
+| whitespace | 159 bytes | 1873 bytes |
+| subleq | 2874 bytes | 1286 bytes |
+
+Subleq is the surprise: the certified output is *smaller*, because the
+bespoke backend carries runtime routines for multiplication, division and
+decimal printing that this program never uses, while the certified one
+emits only what the register machine needs. Code size is roughly one order
+of magnitude apart in general; running time is worse, and grows with the
+operand values.
+
+### When it refuses
+
+Out of fragment, the certified compiler names the construct rather than
+emitting something it cannot justify:
 
 ```
-lake exe turpentine compile --to whitespace --bespoke -o sum.ws sum.turp
+echo 17 | lake exe turpentine exec --via whitespace --certified Langlib/Examples/Turpentine/isqrt.turp
 ```
 
 Output:
 
 ```
-turpentine: wrote 159 bytes to sum.ws [bespoke, hand-written and unverified]
+turpentine exec: 'x' has an initialiser; the certified URM fragment declares variables without one, since every register starts at zero
 ```
 
-Against 1873 bytes for the certified one on the same program, which is the
-price of routing everything through a register machine.
+A target with no completeness proof has no certified compiler to offer:
+
+```
+lake exe turpentine compile --to brainfuck --certified sum.turp
+```
+
+Output:
+
+```
+turpentine compile: no certified compiler for 'brainfuck' yet
+```
+
+Running out of fuel is reported distinctly from halting, and exits 2:
+
+```
+echo 27 | lake exe turpentine exec --via brainfuck --bespoke --fuel 100000 Langlib/Examples/Turpentine/collatz.turp
+```
+
+Output:
+
+```
+turpentine exec: out of fuel after 100000 steps of brainfuck (raise with --fuel)
+```
 
 ## Two diagrams
 
