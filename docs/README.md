@@ -21,15 +21,20 @@ the difference between them is the whole point of this library:
   repository. `no` means nobody has proved it here yet, whatever the
   literature believes. `yes` links to the theorem.
 
-Every entry in the proved column currently reads `no`. That is the honest
-state: the interpreters and compilers came first, and Stage 8 of
-[PLAN.md](PLAN.md) is where that column starts changing. Every language
+One entry in the proved column now reads `yes`:
+[whitespace](../Langlib/Computability/Whitespace.lean) is machine-checked
+Turing complete, by compiling cslib's unlimited register machine into it
+and proving the compilation simulates. `#print axioms` on the result
+reports only `propext`, `Classical.choice` and `Quot.sound`, so nothing is
+resting on a `sorry`. The rest still read `no`, which is the honest state:
+the interpreters and compilers came first, and Stage 8 of
+[PLAN.md](PLAN.md) is where that column keeps changing. Every language
 claimed Turing complete is also a language Turpentine should compile to.
 
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | TC known | TC proved | Turpentine compiler | Verified compiler |
 |----------|------|--------|-------------|------------------|--------|----------|-----------|---------------------|-------------------|
 | [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `lake exe brainfuck` | yes | no | [yes, scalars](brainfuck/compiler.md) | - |
-| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `lake exe whitespace` | yes | no | [yes](whitespace/compiler.md) | - |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `lake exe whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean) | [yes](whitespace/compiler.md) | - |
 | [subleq](subleq/spec.md) | yes | yes | yes | yes | `lake exe subleq` | yes | no | [yes](subleq/compiler.md) | - |
 | [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `lake exe befunge93` | [depends on cell width](befunge93/spec.md) | no | [not planned](befunge93/compiler.md) | n/a |
 | [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `lake exe malbolge` | no (bounded storage) | no | [not planned](malbolge/compiler.md) | n/a |

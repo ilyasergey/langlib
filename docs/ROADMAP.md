@@ -5,6 +5,14 @@ by (value x feasibility). Before starting a candidate, read the instructions
 at the bottom, check the license situation, and move the language into
 `docs/PLAN.md` Stage 1/2 tables.
 
+## In the library today
+
+Eleven languages are implemented, documented and tested: brainfuck,
+whitespace, malbolge, befunge93, subleq, fractran, thue, ook, deadfish,
+piet and brainloller, plus the Turpentine front end. Whitespace is proved
+Turing complete. Three more are part-written and unwired: Malbolge
+Unshackled, Unlambda and SKI.
+
 ## Committed (first wave, see `docs/PLAN.md`)
 
 **Brainfuck**, **Whitespace**, and **Malbolge** are confirmed must-haves and

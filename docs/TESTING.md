@@ -164,6 +164,26 @@ round trips, hand-pixelled images pinning the rotation colours, and
 execution through the brainfuck core, which has its own differential
 section.
 
+## Computability results
+
+The proofs under `Langlib/Computability/` are checked by Lean itself, so
+they need no test harness. What they do need is an axiom audit, because a
+theorem resting on `sorryAx` type-checks perfectly well:
+
+```
+$ lake env lean --run scripts/axioms.lean
+'Langlib.Computability.whitespaceComplete' depends on axioms: [propext, Classical.choice, Quot.sound]
+```
+
+Anything other than those three standard axioms means the result is not
+what it claims. There is no `scripts/axioms.lean` yet; writing one that
+audits every completeness instance is a small and worthwhile job.
+
+Separately, a completeness proof yields a runnable compiler, so it can be
+differentially tested like any other: compile a small register-machine
+program and run it on our interpreter for that language. No such suite
+exists yet either.
+
 ## Languages without a canonical interpreter
 
 For these, golden unit tests on programs are the reference story, and their

@@ -200,7 +200,7 @@ the domain `langlib.turp`: language index, rendered specs, runnable examples.
 Verso must match the pinned toolchain; check compatibility before wiring it
 into the build (keep it in a separate Lake package under `site/` if needed).
 
-## Stage 8: computational class `[ ]`
+## Stage 8: computational class `[~]`
 
 Every language in the library gets a claim about its computational class,
 and the claim gets a proof. This is the point where langlib stops being a
@@ -337,18 +337,19 @@ contorting the statements to fit theorems we have not needed yet.
 
 | Language | Claim | Route |
 |---|---|---|
-| whitespace | complete | **first target.** Unbounded heap indexed by integer, arbitrary-precision integers, labels and conditional jumps: a URM register is a heap cell, a URM instruction is a labelled block. The most direct simulation in the library. |
+| whitespace | **complete, PROVED** (`Langlib/Computability/Whitespace.lean`, axiom-clean) | was the first target. Unbounded heap indexed by integer, arbitrary-precision integers, labels and conditional jumps: a URM register is a heap cell, a URM instruction is a labelled block. The most direct simulation in the library. |
 | subleq | complete | classic OISC result. URM registers map to memory words; increment and decrement are single instructions, and the conditional jump is what subleq *is*. |
 | brainfuck | complete | the textbook proof, but the honest one is fiddly: byte cells mean a URM register needs a multi-cell bignum representation, or a two-counter (Minsky) machine argument with unary counters on the tape. Prefer Minsky: two counters, each a tape region, and `>` `<` for selection. |
 | befunge93 | **it depends, and that is the finding** | The classical claim is that Befunge-93 is not Turing complete. Checking it against `bef.c` sharpens it: the playfield is `char pg[80*25]`, so the control state is finite, and the stack is a malloc'd list of `signed long`, so it has unbounded *depth* but a finite *alphabet*. Finite control plus one finite-alphabet stack is a pushdown automaton, which is not Turing complete. **Our implementation is a different language on this point**: we store unbounded `Int` in both stack and playfield cells (deviations 1 and 2 in the spec), which turns the 2000 cells into 2000 unbounded registers, and a register machine with two unbounded registers is already universal. So prove *both*: `BoundedStorage` for a faithful char-cell variant, and `TuringComplete` for the semantics we actually implement. The pair is the most instructive entry in this table. |
 | fractran | complete | Conway's own result: a register machine's registers are prime exponents. The simulation is arithmetic rather than operational, so this proof looks different from the others and is worth doing for that reason. |
 | thue | complete | semi-Thue systems are universal (Post). Our deterministic strategy needs care: prove it for the rule set produced by the compiler, where confluence makes the strategy irrelevant. |
+| malbolge-unshackled | complete | interpreter partially written, unwired. Unbounded values and addresses; settled in 2020 by MalbolgeLisp. |
 | malbolge | **incomplete** | a bounded-storage machine: 59049 words of 59049 values is a large finite state space, so its halting problem is decidable and it cannot be Turing complete. The proof is the same shape as Befunge-93's and the bound is explicit in `docs/malbolge/spec.md`. The interesting sequel is Scheffer's Malbolge-T (the program reads its own output, lifting the bound) and Ørjan Johansen's Malbolge Unshackled (2007), which is complete, settled in 2020 by MalbolgeLisp, and which we are implementing. |
 | piet | complete | unbounded stack of unbounded integers plus conditional branching. Codel-level codegen is laborious; a paper-level argument via a stack machine is the realistic first step. |
 | ook | complete | free: `parse . render = id` against brainfuck, so it inherits the brainfuck result by composition. |
 | brainloller | complete | likewise free, via its decoder into the brainfuck AST. |
 | turpentine | complete | our own front end, so this is a statement about the *source* language: a URM compiles to Turpentine directly (registers are array elements, the decrement-or-jump is a `while`), which also makes every Turing-complete backend's compiler a second, independent completeness proof for that target. |
-| unlambda / SKI | complete | see below. |
+| unlambda / SKI | complete | interpreters exist but are unwired and untested; see below for the bracket-abstraction route. |
 | deadfish | **incomplete** | no input, no loops, no conditionals: the reachable state is a function of the program text alone. Prove that every program's output is computable by a total function of its source, hence its halting problem is trivially decidable. The easiest theorem here and the one most worth stating, since Deadfish's fame rests on it. |
 
 ### A combinator language for the other side of the argument

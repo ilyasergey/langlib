@@ -102,8 +102,12 @@ status matrix, including compilers):
 * [Turpentine](docs/turpentine/spec.md): the library's own human-readable
   front end, named for what dissolves a Turing tarpit
 
-In progress: the compilers from Turpentine to each target. The roadmap of
-languages still to be implemented lives in
+[whitespace](docs/whitespace/spec.md) is **proved Turing complete**, the
+first entry in that column; the proof is in
+[Langlib/Computability/Whitespace.lean](Langlib/Computability/Whitespace.lean).
+
+Part-written and not yet wired in: Malbolge Unshackled, Unlambda and SKI.
+The roadmap of languages still to be implemented lives in
 [docs/ROADMAP.md](docs/ROADMAP.md), and a survey of related efforts in
 [docs/RELATED.md](docs/RELATED.md).
 

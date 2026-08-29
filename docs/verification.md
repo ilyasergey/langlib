@@ -197,9 +197,21 @@ pages for why), so they have no proof obligations.
 
 ## What is proved today
 
-Nothing yet: the compilers are landing first (Stage 4), and this document
-is their target. The table below is the scoreboard; update it in the same
-commit as the proof.
+One thing, and it is not a compiler-correctness result: **Whitespace is
+proved Turing complete** (`Langlib/Computability/Whitespace.lean`), by
+compiling cslib's unlimited register machine into it and proving the
+compilation simulates. `#print axioms` on the result reports only
+`propext`, `Classical.choice` and `Quot.sound`.
+
+That proof matters to this document for the reason Stage 9 gives: a
+completeness proof contains a verified compiler. The Whitespace instance
+therefore already supplies a **derived** compiler from a register machine,
+and once Turpentine compiles to a register machine, composition gives a
+verified Turpentine-to-Whitespace compiler without touching the effective
+backend.
+
+No effective compiler is verified yet. The table below is the scoreboard;
+update it in the same commit as the proof.
 
 | Backend | Effective compiler | Fuel monotonicity | Simulation | End-to-end theorem | Derived compiler |
 |---------|--------------------|-------------------|------------|--------------------|------------------|

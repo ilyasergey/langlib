@@ -2,6 +2,24 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-09-01: Whitespace proved Turing complete
+
+The first entry in the `TC proved` column.
+`Langlib/Computability/Whitespace.lean` compiles cslib's unlimited
+register machine into Whitespace and proves the compilation simulates,
+yielding `whitespaceComplete : TuringComplete WhitespaceLang`.
+`#print axioms` reports only `propext`, `Classical.choice` and
+`Quot.sound`: no `sorryAx`, so the theorem is real. Since the URM computes
+every partial computable function, so does Whitespace.
+
+It is an instance of the uniform interface from Stage 8 rather than a
+one-off theorem, so the next language states its result the same way and
+the negative results will use `BoundedStorage` alongside it.
+
+Not yet done for it: `docs/computability.md`, and the differential test
+suite that runs compiled URM programs on our Whitespace interpreter. The
+agent died before writing either.
+
 ## 2026-09-01: handoff state
 
 Where things stand for whoever picks this up next. `lake build` and
@@ -21,15 +39,15 @@ break the suite, but they are not finished, not wired into
 `Langlib.lean`, `Langlib/Tests/Main.lean` or `lakefile.toml`, and have no
 docs pages yet:
 
-* `Langlib/Computability/{Class,URM,Whitespace}.lean`: the uniform
-  computability interface and the Whitespace Turing-completeness proof
-  (Stage 8). Check for `sorry` before trusting anything here; the agent
-  was told never to write one, but the work was interrupted.
-* `Langlib/Languages/MalbolgeUnshackled/{Syntax,Parser,Semantics}.lean`:
-  no `Main.lean`, no aggregator, no examples, no tests, no
-  `docs/malbolge-unshackled/` yet.
-* `Langlib/Languages/Unlambda/` and `Langlib/Languages/Unlambda.lean`:
-  same, no `docs/unlambda/` yet.
+* `Langlib/Computability/{Class,URM,Whitespace}.lean`: **the proof is
+  finished and axiom-clean** (see the entry above). What is missing is
+  `docs/computability.md` and a test suite.
+* `Langlib/Languages/MalbolgeUnshackled/`, `Langlib/Languages/Unlambda/`
+  and `Langlib/Languages/Ski/`: all four modules of each exist and the
+  tree builds, with example directories started. None has tests, docs, a
+  `lakefile.toml` entry, or an import from `Langlib.lean`, so none is
+  wired in and none has been run end to end. Verify before trusting: the
+  agents died mid-task and their examples were never checked.
 
 **To resume**: finish or discard the three items above, then continue
 with `docs/PLAN.md`. The open stages are 5 (Velvet examples), 6
