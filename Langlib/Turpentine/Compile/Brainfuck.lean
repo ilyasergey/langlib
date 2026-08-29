@@ -308,19 +308,23 @@ The two operands are halved eight times in lockstep, which walks their bits
 from least to most significant; at each bit, `if xᵢ ≠ yᵢ then flag := yᵢ`, so
 the last disagreement wins, which is the most significant one. -/
 def ltUB (flag x y w : Nat) : M Unit := do
-  let cx0 := w; let cx1 := w + 1; let cy0 := w + 2; let cy1 := w + 3
-  let px := w + 4; let py := w + 5
-  let ha := w + 6; let hb := w + 7; let ht := w + 8
-  let e1 := w + 9; let e2 := w + 10
-  for i in [0 : 11] do clr (w + i)
+  -- The cells are interleaved so that each operand sits next to its own
+  -- toggle cells: the halving loop is the hot path of the whole compiler,
+  -- and every `>` in its body is paid once per tape unit.
+  let cx0 := w; let xa := w + 1; let xb := w + 2; let xt := w + 3
+  let cx1 := w + 4
+  let cy0 := w + 5; let ya := w + 6; let yb := w + 7; let yt := w + 8
+  let cy1 := w + 9
+  let px := w + 10; let py := w + 11; let e1 := w + 12; let e2 := w + 13
+  for i in [0 : 14] do clr (w + i)
   mv cx0 x
   mv cy0 y
   clr flag
   for i in [0 : 8] do
     let (sx, dx) := if i % 2 == 0 then (cx0, cx1) else (cx1, cx0)
     let (sy, dy) := if i % 2 == 0 then (cy0, cy1) else (cy1, cy0)
-    halveB sx dx px ha hb ht
-    halveB sy dy py ha hb ht
+    halveB sx dx px xa xb xt
+    halveB sy dy py ya yb yt
     ifElse px e1
       (ifElse py e2 (pure ()) (clr flag))
       (ifElse py e2 (do clr flag; inc flag 1) (pure ()))
@@ -562,12 +566,16 @@ def divmodU16 (q r a b : Val) (w : Work) : M Unit := do
   zero16 mm; inc mm.lo 1
   clr cont; inc cont 1
   loopAt cont do
-    copy16 tt dd w2
-    add16 tt dd w2
-    lt16 ovf tt dd w2 false
-    lt16 lt r tt w2 false
+    -- Doubling the divisor overflows exactly when its top bit is set, which
+    -- is one byte comparison against a constant rather than a full 16-bit
+    -- one. The inner loop of every division runs this.
+    isNeg16 ovf dd w2
     ifElse ovf e1 (clr cont)
-      (ifElse lt e2 (clr cont) (do copy16 dd tt w2; dbl16 mm w2))
+      (do
+        copy16 tt dd w2
+        add16 tt dd w2
+        lt16 lt r tt w2 false
+        ifElse lt e2 (clr cont) (do copy16 dd tt w2; dbl16 mm w2))
   clr cont; inc cont 1
   loopAt cont do
     lt16 lt r dd w2 false

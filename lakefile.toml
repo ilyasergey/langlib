@@ -3,6 +3,16 @@ version = "0.1.0"
 defaultTargets = ["Langlib"]
 testDriver = "tests"
 
+# cslib supplies the computability yardsticks (a single-tape Turing machine
+# and an unlimited register machine) that Stage 8 states its results
+# against, and Mathlib comes with it. This revision is the last one pinned
+# to Lean v4.33.0, matching our toolchain exactly; bump it in step with
+# lean-toolchain, never on its own.
+[[require]]
+name = "cslib"
+git = "https://github.com/leanprover/cslib.git"
+rev = "3951377e5a3f5772737f11cd62bc5bb6a72f95d1"
+
 [[lean_lib]]
 name = "Langlib"
 globs = ["Langlib.**"]

@@ -62,6 +62,17 @@ human-readable front-end language (Turpentine) and verified compilers from it.
   showing the actual output (verified by running it, not guessed). Never
   collate several commands into one block.
 
+## Dependencies
+
+* `langlib` depends on **cslib** (pinned by revision in `lakefile.toml`),
+  which brings **Mathlib**. The revision is the last one matching our
+  `lean-toolchain`; bump the two together, never separately.
+* Keep Mathlib and cslib confined to `Langlib/Computability/`. Language
+  modules under `Langlib/Languages/` and `Langlib/Turpentine/` must not
+  import them, so the interpreters stay light and compile fast.
+* First build on a fresh machine needs Mathlib's cache
+  (`lake exe cache get`).
+
 ## Testing
 
 * Every language gets golden tests (program + input + expected output) wired

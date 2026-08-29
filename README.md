@@ -11,6 +11,13 @@ self-modifying trit codes. This knowledge is scattered across personal pages,
 wikis, and long-dead FTP servers. It is nice to have all these designs in one
 place, written down precisely, and executable.
 
+On top of the interpreters sits **Turpentine** (`.turp`), a small readable
+imperative language that compiles to the esoteric ones. It is named for
+the solvent: a [Turing tarpit](https://en.wikipedia.org/wiki/Turing_tarpit)
+is a language in which everything is possible and nothing is easy, and
+turpentine dissolves tar. Write the program once with variables and loops,
+and let the compiler suffer.
+
 For each language, langlib provides:
 
 * a **specification** in `docs/<langname>/`, summarising the language's
@@ -22,55 +29,46 @@ For each language, langlib provides:
   available;
 * a **computational-class result**: a claim that the language is or is not
   Turing complete, and a machine-checked proof of it;
-* where the language can host one, a **compiler from Turpentine**, the
-  library's small readable imperative language, named because turpentine
-  dissolves a [Turing tarpit](https://en.wikipedia.org/wiki/Turing_tarpit).
+* where the language can host one, a **compiler from Turpentine**.
 
 ## Computability is the point
 
-Esolang folklore is full of confident claims. This language is Turing
-complete; that one is not; this other one is complete only if you assume
-an unbounded stack. The arguments are usually a paragraph on a wiki and a
-translation sketch that nobody has checked. Since langlib already has the
-semantics written down formally, it can do better: every language in the
-library gets a claim about its computational class and a proof to go with
-it, stated against the Turing machine and unlimited register machine from
-[cslib](https://github.com/leanprover/cslib).
+Esolang folklore is full of confident claims that nobody has checked. Since
+langlib writes the semantics down formally, it can do better: every
+language gets a claim about its computational class and a machine-checked
+proof, stated against the Turing machine and register machine from
+[cslib](https://github.com/leanprover/cslib), which the project depends on.
 
-Turing completeness is proved by exhibiting a compiler from a universal
-model and proving it simulates faithfully. Incompleteness is proved by
-bounding the state space, which is the more entertaining direction:
-Deadfish is famous precisely for not being able to compute anything, and
-Befunge-93's fixed 80 by 25 playfield makes its halting problem
-decidable. The claims and the plan for each language are in
-[docs/README.md](docs/README.md) and [docs/PLAN.md](docs/PLAN.md).
+Completeness is proved by compiling a universal machine into the language
+and proving the compilation simulates. Incompleteness is proved by bounding
+the state space, which is the more entertaining direction:
+[deadfish](docs/deadfish/spec.md) is famous for computing nothing at all,
+and [malbolge](docs/malbolge/spec.md) has 59049 words of storage and so is
+decidably bounded.
 
-Completeness also drives the compilers, and more literally than it might
-sound. A completeness proof for a language contains a compiler into it
-(from a register machine) together with a theorem that the compilation
-preserves behaviour. Composing that with a single Turpentine-to-register-machine
-compiler yields a **derived compiler** into every language proved
-complete, correct by construction, with no backend written for it. The
-catch is that derived compilers are correct and unusable: they thread
-everything through a machine simulation, so their output is enormous and
-slow. So the library keeps two per target, and says which is which: the
-derived one, free and verified, and an **effective** one, hand-written for
-the target's real strengths and separately verified. The derived compiler
-doubles as a test oracle for the effective one, which is the strongest
-test available before the effective one is proved. See
-[docs/PLAN.md](docs/PLAN.md) Stage 9 and
-[docs/verification.md](docs/verification.md).
+Being precise here already paid off. [befunge93](docs/befunge93/spec.md) is
+usually called incomplete because of its 80 by 25 playfield. The real
+argument is that the reference implementation gives it byte-sized cells and
+a finite stack alphabet, making it a pushdown automaton. Our
+implementation stores unbounded integers in those cells, which turns them
+into 2000 unbounded registers and makes the language we implement Turing
+complete. Two different languages, one name, and the difference is
+invisible until someone asks.
 
-On top of the interpreters, langlib develops **Turpentine** (`.turp`), a
-small imperative language deeply embedded in Lean and inspired by
-[Velvet](https://github.com/verse-lab/velvet). The name is the joke: a
-Turing tarpit is a language in which everything is possible and nothing is
-easy, and turpentine is what dissolves tar. Turpentine is the
-human-readable front end: langlib builds compilers from it to the esoteric
-languages, together with a verification pipeline for proving those
-compilers correct. In the longer term the plan is to compile
-shallowly-embedded Velvet programs to Turpentine, and from there to any
-esolang in the library, using relational compilation.
+Completeness also produces compilers. A completeness proof *contains* a
+verified compiler from a register machine into the language, so composing
+it with one Turpentine-to-register-machine compiler yields a **derived
+compiler** into every language proved complete, correct by construction and
+free. Derived compilers are also unusable, since they thread everything
+through a machine simulation, so each target additionally gets a
+hand-written **effective** compiler, separately verified. The derived one
+serves as a test oracle for the effective one. See
+[docs/PLAN.md](docs/PLAN.md) and [docs/verification.md](docs/verification.md).
+
+Turpentine is deeply embedded in Lean and modelled on
+[Velvet](https://github.com/verse-lab/velvet). In the longer term the plan
+is to compile shallowly-embedded Velvet programs to Turpentine, and from
+there to any esolang in the library, using relational compilation.
 
 ## Building
 

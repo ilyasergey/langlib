@@ -2,6 +2,21 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-31 (later)
+
+* **cslib and Mathlib are now dependencies**, reversing the
+  dependency-free stance. The reason is duplication: without cslib we
+  would define our own register machine and Turing machine and then
+  re-prove the relationships cslib already has. The pinned revision
+  `3951377e` is the last one on Lean v4.33.0, matching our toolchain
+  exactly, so nothing had to be upgraded to accept it. Mathlib stays
+  confined to `Langlib/Computability/` so the interpreters keep compiling
+  fast.
+* Marked as future work: restate the completeness results to reuse
+  cslib's own machine-model equivalences, so we only ever prove
+  simulations and borrow the rest. Deliberately not done yet, since the
+  shape of our simulation statements has not settled.
+
 ## 2026-08-31
 
 * **Stage 9 planned: derived compilers.** A completeness proof already

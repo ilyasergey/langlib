@@ -285,35 +285,45 @@ Befunge-93 supplies "80 by 25 playfield, bounded stack", Malbolge supplies
 This is the payoff of stating it generally: the negative results become
 three short instances instead of three separate developments.
 
-### Connecting to cslib
+### cslib is a dependency
 
-The universal model is cslib's unlimited register machine
-(`Cslib.Computability.URM`), and the intended reading of
-`TuringComplete L` is "L computes every partial computable function",
-which follows from the URM's universality. There is a toolchain obstacle:
-cslib pins a newer Lean than we do and depends on Mathlib, while `Langlib`
-is dependency-free and we would like it to stay that way.
+Settled, and already wired: `lakefile.toml` requires cslib at revision
+`3951377e`, the last one pinned to Lean v4.33.0, which matches our
+toolchain exactly. Mathlib comes with it, at the matching `v4.33.0` tag.
 
-The plan, in order:
+This reverses an earlier decision to keep `Langlib` dependency-free. The
+reason is duplication: without cslib we would define our own register
+machine, our own Turing machine, and then re-prove the relationships
+between them that cslib already has. Depending on it means the
+computational-class results are stated in the vocabulary the rest of the
+Lean ecosystem uses, and we get its existing theorems rather than
+reproducing them.
 
-1. Define `Langlib.Computability.URM` ourselves, **mirroring cslib's
-   instruction set and step relation** deliberately and documenting every
-   deviation. Prove the per-language instances against it. `Langlib` stays
-   dependency-free and the theorems are real today.
-2. Add a `proofs/` Lake package (a sibling of `site/`, with its own
-   toolchain pin) that depends on both cslib and `langlib`, containing a
-   single bridging file: an isomorphism between our URM and cslib's, and
-   the transport of `TuringComplete` across it. That is one lemma, not a
-   port.
-3. After that bridge exists, every completeness instance in the main
-   library upgrades automatically to a statement about cslib's URM, and
-   through cslib's own results, about Turing machines.
+Consequences to respect:
 
-The `BoundedStorage` side needs care in step 1: `Set.Finite` is a Mathlib
-notion. Either state the bound concretely as an injection into `Fin n`,
-which needs no Mathlib, or keep the decidability corollary in `proofs/`.
-Prefer the injection: it keeps the negative results in the main library
-where the languages are.
+* Bump the cslib revision **in step with `lean-toolchain`**, never on its
+  own. The revision above is the head of cslib's short v4.33.0 window; a
+  later revision requires a Lean upgrade first.
+* Mathlib is now in the build graph, so first builds need
+  `lake exe cache get` and CI needs the same. Language modules should
+  still not import Mathlib: keep it confined to `Langlib/Computability/`
+  so the interpreters stay light and fast to compile.
+
+### Reuse cslib's results, prove only the simulations (future)
+
+Marked for later, deliberately not now: cslib already proves things about
+its machines, and its `Computability` tree has more in it than the URM
+(single-tape deterministic and non-deterministic Turing machines,
+automata, and the relationships between them). Once our first simulations
+exist, the completeness results should be restated to *reuse* those
+theorems rather than rebuild anything: prove `URM simulates L` for our
+language `L`, then compose with cslib's own equivalences to get the
+statement against whichever machine model a reader prefers.
+
+The work item is therefore "prove simulations, borrow everything else",
+and it should be revisited after Stage 8 has two or three instances and
+the shape of our simulation statements has settled. Doing it earlier risks
+contorting the statements to fit theorems we have not needed yet.
 
 ### Per-language plan
 
