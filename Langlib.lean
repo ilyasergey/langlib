@@ -3,6 +3,7 @@ import Langlib.Languages.Befunge93
 import Langlib.Languages.Brainfuck
 import Langlib.Languages.Deadfish
 import Langlib.Languages.Fractran
+import Langlib.Languages.Malbolge
 import Langlib.Languages.Ook
 import Langlib.Languages.Subleq
 import Langlib.Languages.Thue

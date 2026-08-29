@@ -15,7 +15,7 @@ Legend: `yes` done, `wip` in progress, `-` not started, `n/a` not planned
 | [subleq](subleq/spec.md) | yes | yes | yes | yes | `lake exe subleq` | - | - |
 | [Turpentine](wtf/spec.md) (front end) | yes | yes | yes | yes | `lake exe turpentine` | (source) | (source) |
 | [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `lake exe whitespace` | - | - |
-| [malbolge](malbolge/spec.md) | wip | wip | wip | wip | `lake exe malbolge` | n/a | n/a |
+| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `lake exe malbolge` | n/a | n/a |
 | [ook](ook/spec.md) | yes | yes | yes | yes | `lake exe ook` | - | - |
 | [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `lake exe deadfish` | - | - |
 | [thue](thue/spec.md) | yes | yes | yes | yes | `lake exe thue` | n/a | n/a |

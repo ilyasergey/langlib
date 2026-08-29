@@ -2,6 +2,18 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-29 (night, later)
+
+* Malbolge landed: the loader with its validity check, the ternary crazy
+  operation, rotate, and the post-execution encryption table, all verified
+  against a locally compiled `malbolge.c`. Where Olmstead's spec text and
+  his interpreter disagree (output and input opcodes are swapped in the
+  text, non-printable words spin rather than halt), the interpreter wins,
+  as the community holds. Cooke's 2000 hello world and Scheffer's cat run.
+* Differential testing now covers brainfuck (Cristofani's sbi), befunge93
+  (Pressey's bef) and malbolge (Olmstead's own): 13 cases, all passing.
+* 296 golden tests.
+
 ## 2026-08-29 (night)
 
 * The front-end language WTF is renamed **Turpentine** (`.turp`), after the

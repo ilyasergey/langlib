@@ -118,6 +118,29 @@ else
   fi
 fi
 
+# ----------------------------------------------------------------- malbolge
+# Reference: Olmstead's malbolge.c (public domain); see docs/TESTING.md.
+# Only halting examples are compared: the cats never halt by design, and
+# scheffer-cat.mal is UTF-8 re-encoded, so the C reference reads it
+# differently (golden tests cover both).
+MAL_LANGLIB=.lake/build/bin/malbolge
+if [ ! -x "$MAL_LANGLIB" ]; then
+  note "malbolge: build first (lake build malbolge); skipping"
+else
+  if ! command -v malbolge >/dev/null 2>&1; then
+    SKIP=$((SKIP+1))
+    note "malbolge: 'malbolge' not found (run ./scripts/get-references.sh); skipping"
+  else
+    note "malbolge vs malbolge.c:"
+    for ex in hello truth; do
+      f=Langlib/Examples/Malbolge/$ex.mal
+      input=""
+      case $ex in truth) input="0" ;; esac
+      compare "$ex.mal" "$input" "$MAL_LANGLIB" "$f" -- malbolge "$f"
+    done
+  fi
+fi
+
 # Languages with no comparable reference binary (see docs/TESTING.md for
 # why): ook, deadfish, fractran, subleq, thue. Golden tests cover them.
 

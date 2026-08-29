@@ -22,8 +22,10 @@ Reference situation: Urban Müller's original Amiga interpreter is not
 practical to run; the community treats a handful of C interpreters as
 de-facto references. Our difftest section tries, in order:
 
-* **beef**: `brew install beef` (macOS) or `apt install beef` (Debian).
-* **bf**: some distributions package Brainfuck interpreters under `bf`.
+`./scripts/get-references.sh` builds Daniel B. Cristofani's simple
+interpreter (https://brainfuck.org/sbi.c) as `bfi`; it leaves the cell
+unchanged at EOF, matching our default convention. If you already have
+`beef` or `bf` on PATH, difftest will use those instead.
 
 Only EOF-independent programs are compared, because reference interpreters
 disagree on the EOF convention (see `docs/brainfuck/spec.md`); the EOF
@@ -122,6 +124,21 @@ leftmost occurrence across all rules, which differs from our rule-major
 `first` strategy. Golden unit tests are therefore the reference story; the
 spec page records each decision against `thue.c` line by line. Only
 strategy-independent programs could ever be usefully diff-tested.
+
+## malbolge
+
+Reference situation: Ben Olmstead's own `malbolge.c` (1998, public domain)
+is the de-facto specification; where his spec text disagrees with it, the
+interpreter wins (see `docs/malbolge/spec.md`). `./scripts/get-references.sh`
+fetches it from the Esoteric File Archive and builds it, deleting the
+`#include <malloc.h>` line that non-glibc systems reject.
+
+Only halting examples are compared (`hello.mal`, and `truth.mal` on input
+`0`): both cat programs never halt by design, and `scheffer-cat.mal` is
+stored UTF-8 re-encoded (see the language README), so the C interpreter
+would read different bytes from it. The cats' echo behaviour, EOF handling,
+the loader oversight, and the non-printable spin are pinned by golden tests
+instead.
 
 ## Languages without a canonical interpreter
 

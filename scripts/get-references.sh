@@ -30,7 +30,7 @@ want() {
 
 WANTED=("$@")
 if [ ${#WANTED[@]} -eq 0 ]; then
-  WANTED=(befunge93 brainfuck)
+  WANTED=(befunge93 brainfuck malbolge)
 fi
 
 have_cc() { command -v cc >/dev/null 2>&1 || command -v gcc >/dev/null 2>&1; }
@@ -61,16 +61,16 @@ fi
 # ----------------------------------------------------------------- brainfuck
 # No single canonical brainfuck interpreter exists, and the popular ones
 # disagree about EOF (see docs/brainfuck/spec.md). We build Daniel B.
-# Cristofani's widely cited public-domain interpreter, which uses the
-# leave-the-cell-unchanged convention, matching our default.
+# Cristofani's simple interpreter (brainfuck.org/sbi.c), which leaves the
+# cell unchanged at EOF, matching our default convention.
 if want brainfuck; then
   if [ -x "$BIN/bfi" ]; then
     echo "brainfuck: $BIN/bfi already built"
   elif ! have_cc; then
     echo "brainfuck: no C compiler found; skipping"
   else
-    echo "brainfuck: fetching and building Cristofani's dbfi..."
-    if curl -sfL http://brainfuck.org/bfi.c -o "$SRC/bfi.c"; then
+    echo "brainfuck: fetching and building Cristofani's sbi..."
+    if curl -sfL https://brainfuck.org/sbi.c -o "$SRC/bfi.c"; then
       if "$CC" -O2 -w -o "$BIN/bfi" "$SRC/bfi.c"; then
         echo "brainfuck: built $BIN/bfi"
       else
@@ -78,6 +78,31 @@ if want brainfuck; then
       fi
     else
       echo "brainfuck: download failed (brainfuck.org may be down); skipping"
+    fi
+  fi
+fi
+
+# ------------------------------------------------------------------ malbolge
+# Ben Olmstead's malbolge.c (1998, public domain): the de-facto
+# specification. On macOS and other non-glibc systems the malloc.h include
+# has to go; the rest compiles unchanged.
+if want malbolge; then
+  if [ -x "$BIN/malbolge" ]; then
+    echo "malbolge: $BIN/malbolge already built"
+  elif ! have_cc; then
+    echo "malbolge: no C compiler found; skipping"
+  else
+    echo "malbolge: fetching and building Olmstead's malbolge.c..."
+    if curl -sfL https://raw.githubusercontent.com/graue/esofiles/master/malbolge/impl/malbolge.c \
+         -o "$SRC/malbolge.c"; then
+      sed -i.bak '/#include <malloc.h>/d' "$SRC/malbolge.c"
+      if "$CC" -O2 -w -o "$BIN/malbolge" "$SRC/malbolge.c"; then
+        echo "malbolge: built $BIN/malbolge"
+      else
+        echo "malbolge: compilation failed; skipping"
+      fi
+    else
+      echo "malbolge: download failed; skipping"
     fi
   fi
 fi

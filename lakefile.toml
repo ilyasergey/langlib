@@ -46,3 +46,7 @@ root = "Langlib.Languages.Befunge93.Main"
 [[lean_exe]]
 name = "thue"
 root = "Langlib.Languages.Thue.Main"
+
+[[lean_exe]]
+name = "malbolge"
+root = "Langlib.Languages.Malbolge.Main"

@@ -3,6 +3,7 @@ import Langlib.Tests.Befunge93
 import Langlib.Tests.Brainfuck
 import Langlib.Tests.Deadfish
 import Langlib.Tests.Fractran
+import Langlib.Tests.Malbolge
 import Langlib.Tests.Ook
 import Langlib.Tests.Subleq
 import Langlib.Tests.Thue
@@ -23,6 +24,7 @@ def main : IO UInt32 :=
     , Langlib.Tests.Brainfuck.suites
     , Langlib.Tests.Deadfish.suites
     , Langlib.Tests.Fractran.suites
+    , Langlib.Tests.Malbolge.suites
     , Langlib.Tests.Ook.suites
     , Langlib.Tests.Subleq.suites
     , Langlib.Tests.Thue.suites
