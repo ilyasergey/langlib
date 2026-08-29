@@ -40,6 +40,33 @@ For each language, LangLib provides:
   hand-written and one derived from the completeness proof, and the
   library keeps both.
 
+## Languages
+
+Currently implemented (see [docs/README.md](docs/README.md) for the full
+status matrix, including compilers):
+
+* [brainfuck](docs/brainfuck/spec.md) (Urban Müller, 1993)
+* [fractran](docs/fractran/spec.md) (John Conway, 1987)
+* [subleq](docs/subleq/spec.md) (folklore OISC, de-facto conventions by
+  Oleg Mazonka)
+* [whitespace](docs/whitespace/spec.md) (Edwin Brady & Chris Morris, 2003)
+* [ook](docs/ook/spec.md) (David Morgan-Mar, 2001)
+* [deadfish](docs/deadfish/spec.md) (Jonathan Todd Skinner, 2006)
+* [befunge93](docs/befunge93/spec.md) (Chris Pressey, 1993)
+* [malbolge](docs/malbolge/spec.md) (Ben Olmstead, 1998)
+* [thue](docs/thue/spec.md) (John Colagioia, 2000)
+* [piet](docs/piet/spec.md) (David Morgan-Mar, 2002), whose programs are
+  abstract paintings
+* [brainloller](docs/brainloller/spec.md) (Lode Vandevenne, 2005),
+  brainfuck encoded in pixels
+* [Turpentine](docs/turpentine/spec.md): the library's own human-readable
+  front end, named for what dissolves a Turing tarpit
+
+Part-written and not yet wired in: Malbolge Unshackled, Unlambda and SKI.
+The roadmap of languages still to be implemented lives in
+[docs/ROADMAP.md](docs/ROADMAP.md), and a survey of related efforts in
+[docs/RELATED.md](docs/RELATED.md).
+
 ## Computability
 
 Esolang folklore is full of claims nobody has checked. Every language here
@@ -116,37 +143,6 @@ Install [elan](https://github.com/leanprover/elan), then:
 lake build          # build the libraries and runners
 lake test           # run the test suite
 ```
-
-## Languages
-
-Currently implemented (see [docs/README.md](docs/README.md) for the full
-status matrix, including compilers):
-
-* [brainfuck](docs/brainfuck/spec.md) (Urban Müller, 1993)
-* [fractran](docs/fractran/spec.md) (John Conway, 1987)
-* [subleq](docs/subleq/spec.md) (folklore OISC, de-facto conventions by
-  Oleg Mazonka)
-* [whitespace](docs/whitespace/spec.md) (Edwin Brady & Chris Morris, 2003)
-* [ook](docs/ook/spec.md) (David Morgan-Mar, 2001)
-* [deadfish](docs/deadfish/spec.md) (Jonathan Todd Skinner, 2006)
-* [befunge93](docs/befunge93/spec.md) (Chris Pressey, 1993)
-* [malbolge](docs/malbolge/spec.md) (Ben Olmstead, 1998)
-* [thue](docs/thue/spec.md) (John Colagioia, 2000)
-* [piet](docs/piet/spec.md) (David Morgan-Mar, 2002), whose programs are
-  abstract paintings
-* [brainloller](docs/brainloller/spec.md) (Lode Vandevenne, 2005),
-  brainfuck encoded in pixels
-* [Turpentine](docs/turpentine/spec.md): the library's own human-readable
-  front end, named for what dissolves a Turing tarpit
-
-[whitespace](docs/whitespace/spec.md) is **proved Turing complete**, the
-first entry in that column; the proof is in
-[Langlib/Computability/Whitespace.lean](Langlib/Computability/Whitespace.lean).
-
-Part-written and not yet wired in: Malbolge Unshackled, Unlambda and SKI.
-The roadmap of languages still to be implemented lives in
-[docs/ROADMAP.md](docs/ROADMAP.md), and a survey of related efforts in
-[docs/RELATED.md](docs/RELATED.md).
 
 ## Running programs
 

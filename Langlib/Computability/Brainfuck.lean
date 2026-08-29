@@ -511,6 +511,7 @@ def Matches (R : Nat) (c : CState) (s : Brainfuck.State) : Prop :=
   0 < R ∧
   s.left.length = stride R ∧
   s.output.size = c.out ∧
+  (∀ r, r < R → tapeAt s (2 * r + 1) = 0) ∧
   ∀ r, r < R → ∀ row,
     tapeAt s (dataPos R row r) = (if row < c.regs r then 1 else 0) ∧
     tapeAt s (guidePos R row r) = (if row < c.regs r then 1 else 0)
@@ -519,14 +520,81 @@ theorem Matches.cell_at_reg {R : Nat} {c : CState} {s : Brainfuck.State}
     (h : Matches R c s) {r : Nat} (hr : r < R) :
     (moveRightN (2 * r) s).cell = (if 0 < c.regs r then 1 else 0) := by
   rw [moveRightN_cell, h.2.1]
-  simpa [dataPos] using (h.2.2.2 r hr 0).1
+  simpa [dataPos] using (h.2.2.2.2 r hr 0).1
 
 theorem Matches.output_push {R : Nat} {c : CState} {s : Brainfuck.State}
     (h : Matches R c s) :
     Matches R c.emitOne { s with output := s.output.push s.cell } := by
   refine ⟨h.1, h.2.1, ?_, ?_⟩
   · simp [CState.emitOne, h.2.2.1]
-  · exact h.2.2.2
+  · exact ⟨h.2.2.2.1, h.2.2.2.2⟩
+
+private theorem slotPos_inj {R a b x y : Nat} (hR : 0 < R)
+    (hx : x < stride R) (hy : y < stride R)
+    (h : stride R * a + x = stride R * b + y) : a = b ∧ x = y := by
+  have hm := congrArg (fun z => z % stride R) h
+  have hxy : x = y := by
+    simpa [Nat.add_mod, Nat.mod_eq_of_lt hx, Nat.mod_eq_of_lt hy] using hm
+  subst y
+  have hab : stride R * a = stride R * b := by omega
+  exact ⟨Nat.eq_of_mul_eq_mul_left (by simp [stride, hR]) hab, rfl⟩
+
+theorem dataPos_inj {R row row' r r' : Nat} (hR : 0 < R)
+    (hr : r < R) (hr' : r' < R)
+    (h : dataPos R row r = dataPos R row' r') : row = row' ∧ r = r' := by
+  have hs := slotPos_inj hR (by simp [stride]; omega : 2 * r < stride R)
+    (by simp [stride]; omega : 2 * r' < stride R) h
+  constructor <;> omega
+
+theorem guidePos_inj {R row row' r r' : Nat} (hR : 0 < R)
+    (hr : r < R) (hr' : r' < R)
+    (h : guidePos R row r = guidePos R row' r') : row = row' ∧ r = r' := by
+  have hh : stride R * (row + 1) + (2 * r + 1) =
+      stride R * (row' + 1) + (2 * r' + 1) := by
+    unfold guidePos dataPos at h
+    omega
+  have hs := slotPos_inj (a := row + 1) (b := row' + 1) hR
+    (by simp [stride]; omega : 2 * r + 1 < stride R)
+    (by simp [stride]; omega : 2 * r' + 1 < stride R) hh
+  constructor <;> omega
+
+theorem dataPos_ne_guidePos {R row row' r r' : Nat} (hR : 0 < R)
+    (hr : r < R) (hr' : r' < R) : dataPos R row r ≠ guidePos R row' r' := by
+  intro h
+  have hh : stride R * (row + 1) + 2 * r =
+      stride R * (row' + 1) + (2 * r' + 1) := by
+    unfold guidePos dataPos at h
+    omega
+  have hs := slotPos_inj (a := row + 1) (b := row' + 1) hR
+    (by simp [stride]; omega : 2 * r < stride R)
+    (by simp [stride]; omega : 2 * r' + 1 < stride R) hh
+  omega
+
+theorem guard_ne_dataPos {R row r r' : Nat} (hR : 0 < R)
+    (hr : r < R) (hr' : r' < R) : 2 * r + 1 ≠ dataPos R row r' := by
+  intro h
+  have hh : stride R * 0 + (2 * r + 1) = stride R * (row + 1) + 2 * r' := by
+    unfold dataPos at h
+    simpa only [Nat.zero_mul, Nat.zero_add] using h
+  have hs := slotPos_inj (a := 0) (b := row + 1) hR
+    (by simp [stride]; omega : 2 * r + 1 < stride R)
+    (by simp [stride]; omega : 2 * r' < stride R)
+    hh
+  omega
+
+theorem guard_ne_guidePos {R row r r' : Nat} (hR : 0 < R)
+    (hr : r < R) (hr' : r' < R) : 2 * r + 1 ≠ guidePos R row r' := by
+  intro h
+  have hh : stride R * 0 + (2 * r + 1) =
+      stride R * (row + 1) + (2 * r' + 1) := by
+    unfold guidePos dataPos at h
+    simp only [Nat.zero_mul, Nat.zero_add]
+    omega
+  have hs := slotPos_inj (a := 0) (b := row + 1) hR
+    (by simp [stride]; omega : 2 * r + 1 < stride R)
+    (by simp [stride]; omega : 2 * r' + 1 < stride R)
+    hh
+  omega
 
 /-! ### Scanning a unary column -/
 
