@@ -2871,6 +2871,251 @@ theorem loopGrid_body_isolated (prologue body : List BlockCmd)
       apply chromatic_bne
       exact advance_ne _ _ _
 
+/-! ## Which generated code a corridor may contain
+
+A corridor keeps the direction pointer and the codel chooser fixed, so it
+may not contain `pointer` or `switch`.  Everything the dispatcher emits
+satisfies that except the two commands at the very end, and these lemmas
+say so, generator by generator. -/
+
+theorem stableCode_nil : StableCode [] := by intro c hc; simp at hc
+
+theorem stableCode_append {a b : List BlockCmd} (ha : StableCode a)
+    (hb : StableCode b) : StableCode (a ++ b) := by
+  intro c hc
+  rcases List.mem_append.mp hc with h | h
+  · exact ha c h
+  · exact hb c h
+
+theorem stableCode_single {o : Op} (h : o ≠ .pointer ∧ o ≠ .switch) :
+    StableCode [op o] := by
+  intro c hc
+  simp only [List.mem_singleton] at hc
+  subst hc
+  exact h
+
+theorem stableCode_pushNat (n : Nat) : StableCode (pushNat n) := by
+  intro c hc
+  simp only [pushNat] at hc
+  split at hc <;> simp at hc
+  · rcases hc with rfl | rfl | rfl <;> exact ⟨by simp [op], by simp [op]⟩
+  · subst hc; exact ⟨by simp, by simp⟩
+
+theorem stableCode_rollNat (rolls depth : Nat) : StableCode (rollNat rolls depth) := by
+  intro c hc
+  simp only [rollNat, List.mem_append] at hc
+  rcases hc with (h | h) | h
+  · exact stableCode_pushNat _ c h
+  · exact stableCode_pushNat _ c h
+  · simp only [List.mem_singleton] at h
+    subst h
+    exact ⟨by simp [op], by simp [op]⟩
+
+theorem stableCode_addUnit (n : Nat) : StableCode (addUnit n) := by
+  induction n with
+  | zero => simp [addUnit]; exact stableCode_nil
+  | succ n ih =>
+      rw [addUnit]
+      apply stableCode_append ih
+      intro c hc
+      simp at hc
+      rcases hc with rfl | rfl <;> exact ⟨by simp [op], by simp [op]⟩
+
+theorem stableCode_pushNatUnit (n : Nat) : StableCode (pushNatUnit n) := by
+  cases n with
+  | zero => intro c hc; simp [pushNatUnit] at hc; rcases hc with rfl | rfl | rfl <;>
+      exact ⟨by simp [op], by simp [op]⟩
+  | succ n =>
+      intro c hc
+      rw [pushNatUnit] at hc
+      rcases List.mem_cons.mp hc with rfl | h
+      · exact ⟨by simp [op], by simp [op]⟩
+      · exact stableCode_addUnit n c h
+
+theorem stableCode_unitize {code : List BlockCmd} (h : StableCode code) :
+    StableCode (unitize code) := by
+  intro c hc
+  simp only [unitize, List.mem_flatMap] at hc
+  obtain ⟨d, hd, hc⟩ := hc
+  have hdst := h d hd
+  simp only [unitizeCmd] at hc
+  cases hop : d.op <;> rw [hop] at hc <;>
+    first
+      | exact stableCode_pushNatUnit _ c hc
+      | exact absurd hop hdst.1
+      | exact absurd hop hdst.2
+      | (simp only [List.mem_singleton] at hc
+         subst hc
+         exact ⟨by simp [op], by simp [op]⟩)
+
+/-- A list of commands, none of which moves the pointer or the chooser. -/
+theorem stableCode_ops (ops : List Op)
+    (h : ∀ o ∈ ops, o ≠ .pointer ∧ o ≠ .switch) : StableCode (ops.map op) := by
+  intro c hc
+  simp only [List.mem_map] at hc
+  obtain ⟨o, ho, rfl⟩ := hc
+  exact h o ho
+
+theorem stableCode_storeTop (r : Nat) : StableCode (storeTop r) := by
+  unfold storeTop
+  repeat' apply stableCode_append
+  all_goals first
+    | exact stableCode_rollNat _ _
+    | exact stableCode_pushNat _
+    | (apply stableCode_single; exact ⟨by simp, by simp⟩)
+
+theorem stableCode_copyAt (R r : Nat) : StableCode (copyAt R r) := by
+  unfold copyAt
+  repeat' apply stableCode_append
+  all_goals first
+    | exact stableCode_rollNat _ _
+    | exact stableCode_pushNat _
+    | (apply stableCode_single; exact ⟨by simp, by simp⟩)
+
+theorem stableCode_pair {o₁ o₂ : Op} (h₁ : o₁ ≠ .pointer ∧ o₁ ≠ .switch)
+    (h₂ : o₂ ≠ .pointer ∧ o₂ ≠ .switch) : StableCode [op o₁, op o₂] := by
+  intro c hc
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hc
+  rcases hc with rfl | rfl
+  · exact h₁
+  · exact h₂
+
+/-- Every generator below is a concatenation of these six shapes. -/
+syntax "stable_tac" : tactic
+macro_rules
+  | `(tactic| stable_tac) =>
+    `(tactic|
+      (repeat' apply stableCode_append)
+      <;> first
+        | exact stableCode_copyAt _ _
+        | exact stableCode_storeTop _
+        | exact stableCode_rollNat _ _
+        | exact stableCode_pushNat _
+        | (apply stableCode_single; exact ⟨by simp, by simp⟩)
+        | (apply stableCode_pair <;> exact ⟨by simp, by simp⟩))
+
+theorem stableCode_beginDispatch (N pc next : Nat) :
+    StableCode (beginDispatch N pc next) := by
+  unfold beginDispatch
+  stable_tac
+
+theorem stableCode_selectInstr (N pc flag i : Nat) :
+    StableCode (selectInstr N pc flag i) := by
+  unfold selectInstr
+  stable_tac
+
+theorem stableCode_guardedZ (N flag r : Nat) : StableCode (guardedZ N flag r) := by
+  unfold guardedZ
+  stable_tac
+
+theorem stableCode_guardedS (N flag r : Nat) : StableCode (guardedS N flag r) := by
+  unfold guardedS
+  stable_tac
+
+theorem stableCode_guardedT (N flag m r : Nat) : StableCode (guardedT N flag m r) := by
+  unfold guardedT
+  stable_tac
+
+theorem stableCode_guardedEq (N flag m r : Nat) : StableCode (guardedEq N flag m r) := by
+  unfold guardedEq
+  stable_tac
+
+theorem stableCode_guardedNextLeft (N next flag : Nat) :
+    StableCode (guardedNextLeft N next flag) := by
+  unfold guardedNextLeft
+  stable_tac
+
+theorem stableCode_guardedNext (N next flag q : Nat) :
+    StableCode (guardedNext N next flag q) := by
+  refine stableCode_append (stableCode_append (stableCode_append
+    (stableCode_append (stableCode_guardedNextLeft _ _ _)
+      (stableCode_copyAt _ _)) (stableCode_pushNat _)) ?_)
+    (stableCode_storeTop _)
+  apply stableCode_pair <;> exact ⟨by simp, by simp⟩
+
+theorem stableCode_guardedJ (N next flag m r q : Nat) :
+    StableCode (guardedJ N next flag m r q) := by
+  unfold guardedJ
+  exact stableCode_append (stableCode_guardedEq _ _ _ _)
+    (stableCode_guardedNext _ _ _ _)
+
+theorem stableCode_guardedInstr (N next flag : Nat) (instr : Cslib.URM.Instr) :
+    StableCode (guardedInstr N next flag instr) := by
+  cases instr with
+  | Z r => exact stableCode_guardedZ _ _ _
+  | S r => exact stableCode_guardedS _ _ _
+  | T m r => exact stableCode_guardedT _ _ _ _
+  | J m r q => exact stableCode_guardedJ _ _ _ _ _ _
+
+theorem stableCode_dispatchFrom (N pc next flag : Nat) :
+    ∀ (i : Nat) (P : Cslib.URM.Program), StableCode (dispatchFrom N pc next flag i P)
+  | _, [] => stableCode_nil
+  | i, instr :: rest => by
+      rw [dispatchFrom]
+      exact stableCode_append (stableCode_append (stableCode_selectInstr _ _ _ _)
+        (stableCode_guardedInstr _ _ _ _))
+        (stableCode_dispatchFrom N pc next flag (i + 1) rest)
+
+theorem stableCode_endDispatch (N pc next : Nat) :
+    StableCode (endDispatch N pc next) := by
+  unfold endDispatch
+  stable_tac
+
+theorem stableCode_prepareBranch (N pc programLength : Nat) :
+    StableCode (prepareBranch N pc programLength) := by
+  unfold prepareBranch
+  stable_tac
+
+theorem stableCode_initialCode (R : Nat) (inputs : List Nat) :
+    StableCode (initialCode R inputs) := by
+  intro c hc
+  simp only [initialCode, List.mem_flatMap] at hc
+  obtain ⟨n, _, hn⟩ := hc
+  exact stableCode_pushNat n c hn
+
+/-- The loop body splits into a corridor-safe prefix and the two commands
+that move the pointer and the chooser. -/
+theorem loopCode_dispatcher_split (P : Cslib.URM.Program) (base : Nat) :
+    ∃ stable, loopCode (unitize (dispatcherCode P base)) =
+        stable ++ [op .switch, op .pointer] ∧ StableCode stable := by
+  refine ⟨pushNat 1 ++ [op .pop] ++
+    unitize (beginDispatch (base + 3) base (base + 1) ++
+      dispatchFrom (base + 3) base (base + 1) (base + 2) 0 P ++
+      endDispatch (base + 3) base (base + 1) ++
+      prepareBranch (base + 3) base P.length) ++ unitize (pushNat 1), ?_, ?_⟩
+  · simp only [loopCode, dispatcherCode, steerBranch, unitize_append]
+    simp [unitize, unitizeCmd, op, List.append_assoc]
+  · have hD : StableCode (beginDispatch (base + 3) base (base + 1) ++
+        dispatchFrom (base + 3) base (base + 1) (base + 2) 0 P ++
+        endDispatch (base + 3) base (base + 1) ++
+        prepareBranch (base + 3) base P.length) :=
+      stableCode_append (stableCode_append (stableCode_append
+        (stableCode_beginDispatch _ _ _) (stableCode_dispatchFrom _ _ _ _ _ _))
+        (stableCode_endDispatch _ _ _)) (stableCode_prepareBranch _ _ _)
+    have hpop : StableCode [op Op.pop] := stableCode_single ⟨by simp, by simp⟩
+    exact stableCode_append (stableCode_append (stableCode_append
+      (stableCode_pushNat 1) hpop) (stableCode_unitize hD))
+      (stableCode_unitize (stableCode_pushNat 1))
+
+theorem unitCode_pushNat_one : UnitCode (pushNat 1) := by
+  intro c hc
+  simp [pushNat] at hc
+  subst hc
+  rfl
+
+theorem unitCode_op (o : Op) : UnitCode [op o] := by
+  intro c hc
+  simp at hc
+  subst hc
+  rfl
+
+/-- Every command source in the generated loop occupies one codel. -/
+theorem unitCode_loopCode (code : List BlockCmd) :
+    UnitCode (loopCode (unitize code)) := by
+  unfold loopCode
+  apply unitCode_append (unitCode_append unitCode_pushNat_one (unitCode_op _))
+  exact unitCode_unitize code
+
 /-! ## One pass of the dispatcher body
 
 The corridor, then the two commands a corridor may not contain. -/
