@@ -5,6 +5,7 @@ import Langlib.Tests.Brainloller
 import Langlib.Tests.CompileBrainfuck
 import Langlib.Tests.CompileSubleq
 import Langlib.Tests.CompileWhitespace
+import Langlib.Tests.DerivedSubleq
 import Langlib.Tests.DerivedWhitespace
 import Langlib.Tests.Deadfish
 import Langlib.Tests.Fractran
@@ -33,6 +34,7 @@ def main : IO UInt32 :=
     , Langlib.Tests.CompileBrainfuck.suites
     , Langlib.Tests.CompileSubleq.suites
     , Langlib.Tests.CompileWhitespace.suites
+    , Langlib.Tests.DerivedSubleq.suites
     , Langlib.Tests.DerivedWhitespace.suites
     , Langlib.Tests.Deadfish.suites
     , Langlib.Tests.Fractran.suites

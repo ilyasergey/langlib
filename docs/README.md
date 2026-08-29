@@ -1,8 +1,5 @@
 # LangLib documentation
 
-Per-language specifications live in `docs/<langname>/spec.md`; compiler notes
-(once a Turpentine compiler exists for the language) in `docs/<langname>/compiler.md`.
-
 ## Status matrix
 
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved | Hosts full Turpentine | Bespoke compiler | Bespoke correct | Correct via TC |
@@ -25,7 +22,9 @@ Per-language specifications live in `docs/<langname>/spec.md`; compiler notes
 ## Reading the table
 
 Legend: `yes` done, `wip` in progress, `-` not started, `n/a` not
-applicable.
+applicable. Per-language specifications live in
+`docs/<langname>/spec.md`, and compiler notes, once a Turpentine compiler
+exists or is planned for a language, in `docs/<langname>/compiler.md`.
 
 ### Hosts full Turpentine
 
