@@ -71,26 +71,15 @@ Legend: `yes` done, `wip` in progress, `-` not started, `n/a` not applicable
 everything a Turing machine can. It gets two columns on purpose, because
 the difference between them is the whole point of this library:
 
-* **Turing complete** is the claim: what the literature says, or what our
-  own spec page argues, with a link to the argument in every case where
-  the answer is anything but a plain yes. It is prose, and prose can be
-  wrong. We have already found two claims that were, one about
-  [befunge93](befunge93/spec.md) and one about
+* **Turing complete** is the claim: what the literature or our spec page
+  argues, linked whenever the answer is not a plain yes. Prose can be
+  wrong, and two of ours were: [befunge93](befunge93/spec.md) and
   [malbolge](malbolge/spec.md).
-* **TC proved** is whether a machine-checked theorem exists in this
-  repository. The claim is stated in cslib's vocabulary by
-  `computes_of_turingComplete`: a complete language computes every
-  URM-computable partial function wherever it is defined. `no` means nobody has proved it here yet, whatever the
-  literature believes. `yes` links to the theorem.
-
-A `yes` there means a completeness proof exists in this repository: a
-compiler from cslib's unlimited register machine into the language, plus a
-proof that the compilation simulates, audited by
-[scripts/axioms.lean](../scripts/axioms.lean) to confirm it rests on
-nothing but Lean's three standard axioms. Most rows read `no`, which is
-the honest state: the interpreters and compilers came first, and Stage 8
-of [PLAN.md](PLAN.md) is where that column keeps changing. Every language
-claimed Turing complete is also a language Turpentine should compile to.
+* **TC proved** is whether a machine-checked theorem exists here: a
+  compiler from the URM into the language and a proof that it simulates,
+  audited by [scripts/axioms.lean](../scripts/axioms.lean). `yes` links to
+  the theorem; `no` means nobody has proved it here, whatever the
+  literature believes.
 
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved | Bespoke compiler | Bespoke correct | Correct via TC |
 |----------|------|--------|-------------|------------------|--------|-----------------|-----------|------------------|-----------------|----------------|
