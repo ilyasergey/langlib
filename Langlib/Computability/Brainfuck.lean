@@ -483,6 +483,7 @@ theorem compareLoop_spec {R x y tmp gate eq : Nat}
         change wT r = s.regs r
         rw [hTfr r hry hrt hrg]
         exact CState.down_regs_of_ne s hrx
+
     · obtain ⟨yv, hsyv⟩ := Nat.exists_eq_succ_of_ne_zero hsy
       have hTgZero : sT.regs gate = 0 := by
         change wT gate = 0
@@ -507,6 +508,482 @@ theorem compareLoop_spec {R x y tmp gate eq : Nat}
         change wT r = s.regs r
         rw [hTfr r hry hrt hrg]
         exact CState.down_regs_of_ne s hrx
+
+/-- Add the literal `n` to a counter. -/
+def incMany (r n : Nat) : Code := List.replicate n (Cmd.inc r)
+
+theorem incMany_spec {R r : Nat} (hr : r < R) (n : Nat) (s : CState) :
+    ∃ w', Ev R (incMany r n) s ⟨w', s.out⟩ ∧ w' r = s.regs r + n ∧
+      ∀ k, k ≠ r → w' k = s.regs k := by
+  induction n generalizing s with
+  | zero => exact ⟨s.regs, Ev.nil, by simp, fun _ _ => rfl⟩
+  | succ n ih =>
+    obtain ⟨w', hev, hwr, hwfr⟩ := ih (s.up r)
+    refine ⟨w', Ev.inc hr hev, ?_, ?_⟩
+    · rw [hwr, CState.up_regs_self]
+      omega
+    · intro k hkr
+      rw [hwfr k hkr, CState.up_regs_of_ne s hkr]
+
+/-- The framing form of `copy_spec`: copying only changes its destination and
+scratch register. -/
+theorem copy_spec_frame {R a b t : Nat} (ha : a < R) (hb : b < R) (ht : t < R)
+    (hab : a ≠ b) (hat : a ≠ t) (hbt : b ≠ t) (s : CState) :
+    ∃ w', Ev R (copy a b t) s ⟨w', s.out⟩ ∧
+      w' b = s.regs a ∧ w' t = 0 ∧
+      ∀ r, r ≠ b → r ≠ t → w' r = s.regs r := by
+  obtain ⟨w', hev, hwa, hwb, hwt, hwfr⟩ :=
+    copy_spec ha hb ht hab hat hbt s
+  refine ⟨w', hev, hwb, hwt, ?_⟩
+  intro r hrb hrt
+  by_cases hra : r = a
+  · simpa [hra] using hwa
+  · exact hwfr r hra hrb hrt
+
+/-- A register disjoint from the five comparison scratch registers. -/
+def Away5 (a x y tmp gate eq : Nat) : Prop :=
+  a ≠ x ∧ a ≠ y ∧ a ≠ tmp ∧ a ≠ gate ∧ a ≠ eq
+
+/-- Compare `a` and `b` while preserving them.  The five scratch registers
+are initialized and cleaned by the macro itself. -/
+def equal (a b x y tmp gate eq : Nat) : Code :=
+  copy a x tmp ++ copy b y tmp ++ clear gate ++ clear eq ++ [Cmd.inc eq] ++
+    compareLoop x y tmp gate eq
+
+theorem equal_spec {R a b x y tmp gate eq : Nat}
+    (ha : a < R) (hb : b < R) (hx : x < R) (hy : y < R) (ht : tmp < R)
+    (hg : gate < R) (he : eq < R) (hd : Distinct5 x y tmp gate eq)
+    (ha5 : Away5 a x y tmp gate eq) (hb5 : Away5 b x y tmp gate eq)
+    (s : CState) :
+    ∃ w', Ev R (equal a b x y tmp gate eq) s ⟨w', s.out⟩ ∧
+      w' x = 0 ∧ w' y = 0 ∧ w' tmp = 0 ∧ w' gate = 0 ∧
+      w' eq = (if s.regs a = s.regs b then 1 else 0) ∧
+      ∀ r, r ≠ x → r ≠ y → r ≠ tmp → r ≠ gate → r ≠ eq →
+        w' r = s.regs r := by
+  rcases hd with ⟨hxy, hxt, hxg, hxe, hyt, hyg, hye, htg, hte, hge⟩
+  rcases ha5 with ⟨hax, hay, hat, hag, hae⟩
+  rcases hb5 with ⟨hbx, hby, hbt, hbg, hbe⟩
+  obtain ⟨w₁, h₁, h₁x, h₁t, h₁fr⟩ :=
+    copy_spec_frame ha hx ht hax hat hxt s
+  let s₁ : CState := ⟨w₁, s.out⟩
+  have h₁b : s₁.regs b = s.regs b := by
+    change w₁ b = s.regs b
+    exact h₁fr b hbx hbt
+  have h₁y : s₁.regs y = s.regs y := by
+    change w₁ y = s.regs y
+    exact h₁fr y hxy.symm hyt
+  obtain ⟨w₂, h₂, h₂y, h₂t, h₂fr⟩ :=
+    copy_spec_frame hb hy ht hby hbt hyt s₁
+  let s₂ : CState := ⟨w₂, s.out⟩
+  have h₂x : s₂.regs x = s.regs a := by
+    change w₂ x = s.regs a
+    rw [h₂fr x hxy hxt]
+    simpa [s₁] using h₁x
+  have h₂yv : s₂.regs y = s.regs b := by
+    change w₂ y = s.regs b
+    rw [h₂y]
+    exact h₁b
+  obtain ⟨w₃, h₃, h₃g, h₃fr⟩ := clear_spec hg (s₂.regs gate) s₂ rfl
+  let s₃ : CState := ⟨w₃, s.out⟩
+  have h₃x : s₃.regs x = s.regs a := by
+    change w₃ x = s.regs a
+    rw [h₃fr x hxg, h₂x]
+  have h₃y : s₃.regs y = s.regs b := by
+    change w₃ y = s.regs b
+    rw [h₃fr y hyg, h₂yv]
+  have h₃t : s₃.regs tmp = 0 := by
+    change w₃ tmp = 0
+    rw [h₃fr tmp htg]
+    simpa [s₂] using h₂t
+  obtain ⟨w₄, h₄, h₄e, h₄fr⟩ := clear_spec he (s₃.regs eq) s₃ rfl
+  let s₄ : CState := ⟨w₄, s.out⟩
+  have h₄x : s₄.regs x = s.regs a := by
+    change w₄ x = s.regs a
+    rw [h₄fr x hxe, h₃x]
+  have h₄y : s₄.regs y = s.regs b := by
+    change w₄ y = s.regs b
+    rw [h₄fr y hye, h₃y]
+  have h₄t : s₄.regs tmp = 0 := by
+    change w₄ tmp = 0
+    rw [h₄fr tmp hte, h₃t]
+  have h₄g : s₄.regs gate = 0 := by
+    change w₄ gate = 0
+    rw [h₄fr gate hge]
+    simpa [s₃] using h₃g
+  let s₅ := s₄.up eq
+  have h₅x : s₅.regs x = s.regs a := by
+    rw [CState.up_regs_of_ne s₄ hxe, h₄x]
+  have h₅y : s₅.regs y = s.regs b := by
+    rw [CState.up_regs_of_ne s₄ hye, h₄y]
+  have h₅t : s₅.regs tmp = 0 := by
+    rw [CState.up_regs_of_ne s₄ hte, h₄t]
+  have h₅g : s₅.regs gate = 0 := by
+    rw [CState.up_regs_of_ne s₄ hge, h₄g]
+  have h₄ez : s₄.regs eq = 0 := by simpa [s₄] using h₄e
+  have h₅e : s₅.regs eq = 1 := by simp [s₅, h₄ez]
+  obtain ⟨wF, hF, hFx, hFy, hFt, hFg, hFe, hFfr⟩ :=
+    compareLoop_spec hx hy ht hg he
+      ⟨hxy, hxt, hxg, hxe, hyt, hyg, hye, htg, hte, hge⟩
+      (s₅.regs x) s₅ rfl h₅t h₅g h₅e
+  refine ⟨wF, ?_, hFx, hFy, hFt, hFg, ?_, ?_⟩
+  · unfold equal
+    exact h₁.append (h₂.append (h₃.append (h₄.append (Ev.inc he hF))))
+  · simpa [h₅x, h₅y] using hFe
+  · intro r hrx hry hrt hrg hre
+    rw [hFfr r hrx hry hrt hrg hre]
+    rw [CState.up_regs_of_ne s₄ hre]
+    change w₄ r = s.regs r
+    rw [h₄fr r hre]
+    change w₃ r = s.regs r
+    rw [h₃fr r hrg]
+    change w₂ r = s.regs r
+    rw [h₂fr r hry hrt]
+    change w₁ r = s.regs r
+    exact h₁fr r hrx hrt
+
+/-- Consume a Boolean `flag` and set a zero `pc` to one of two literals.
+The auxiliary `fall` counter is cleared on exit. -/
+def selectPC (pc flag fall yes no : Nat) : Code :=
+  [Cmd.inc fall,
+    Cmd.loop flag ([Cmd.dec flag] ++ clear fall ++ incMany pc yes),
+    Cmd.loop fall ([Cmd.dec fall] ++ incMany pc no)]
+
+theorem selectPC_spec {R pc flag fall yes no : Nat}
+    (hp : pc < R) (hf : flag < R) (hl : fall < R)
+    (hpf : pc ≠ flag) (hpl : pc ≠ fall) (hfl : flag ≠ fall)
+    (s : CState) (hpc : s.regs pc = 0) (hflag : s.regs flag = 0 ∨ s.regs flag = 1)
+    (hfall : s.regs fall = 0) :
+    ∃ w', Ev R (selectPC pc flag fall yes no) s ⟨w', s.out⟩ ∧
+      w' pc = (if s.regs flag = 0 then no else yes) ∧
+      w' flag = 0 ∧ w' fall = 0 ∧
+      ∀ r, r ≠ pc → r ≠ flag → r ≠ fall → w' r = s.regs r := by
+  let sI := s.up fall
+  have hIp : sI.regs pc = 0 := by rw [CState.up_regs_of_ne s hpl, hpc]
+  have hIf : sI.regs flag = s.regs flag := CState.up_regs_of_ne s hfl
+  have hIl : sI.regs fall = 1 := by simp [sI, hfall]
+  rcases hflag with hz | ho
+  · have hfirst : Ev R
+        [Cmd.loop flag ([Cmd.dec flag] ++ clear fall ++ incMany pc yes)] sI sI :=
+      Ev.loopZ hf (by rw [hIf, hz]) Ev.nil
+    have hlnz : sI.regs fall ≠ 0 := by omega
+    let sD := sI.down fall
+    have hDl : sD.regs fall = 0 := by simp [sD, hIl]
+    have hDp : sD.regs pc = 0 := by
+      rw [CState.down_regs_of_ne sI hpl, hIp]
+    have hDf : sD.regs flag = 0 := by
+      rw [CState.down_regs_of_ne sI (r := fall) (k := flag) hfl, hIf, hz]
+    obtain ⟨wN, hN, hNp, hNfr⟩ := incMany_spec hp no sD
+    let sN : CState := ⟨wN, s.out⟩
+    have hNl : sN.regs fall = 0 := by
+      change wN fall = 0
+      rw [hNfr fall hpl.symm, hDl]
+    have hNf : sN.regs flag = 0 := by
+      change wN flag = 0
+      rw [hNfr flag hpf.symm, hDf]
+    have hlast : Ev R [Cmd.loop fall ([Cmd.dec fall] ++ incMany pc no)] sN sN :=
+      Ev.loopZ hl hNl Ev.nil
+    refine ⟨wN, Ev.inc hl (hfirst.append
+      (Ev.loopS hl hlnz (Ev.dec hl hlnz (hN.append hlast)))), ?_, hNf, hNl, ?_⟩
+    · rw [hNp, hDp, hz, if_pos rfl]
+      omega
+    · intro r hrp hrf hrl
+      rw [hNfr r hrp, CState.down_regs_of_ne sI hrl]
+      exact CState.up_regs_of_ne s hrl
+  · have hfnz : sI.regs flag ≠ 0 := by rw [hIf, ho]; omega
+    let sD := sI.down flag
+    have hDf : sD.regs flag = 0 := by simp [sD, hIf, ho]
+    have hDp : sD.regs pc = 0 := by
+      rw [CState.down_regs_of_ne sI hpf, hIp]
+    have hDl : sD.regs fall = 1 := by
+      rw [CState.down_regs_of_ne sI (r := flag) (k := fall) hfl.symm, hIl]
+    obtain ⟨wC, hC, hCl, hCfr⟩ := clear_spec hl (sD.regs fall) sD rfl
+    let sC : CState := ⟨wC, s.out⟩
+    have hCp : sC.regs pc = 0 := by
+      change wC pc = 0
+      rw [hCfr pc hpl, hDp]
+    have hCf : sC.regs flag = 0 := by
+      change wC flag = 0
+      rw [hCfr flag hfl, hDf]
+    obtain ⟨wY, hY, hYp, hYfr⟩ := incMany_spec hp yes sC
+    let sY : CState := ⟨wY, s.out⟩
+    have hYf : sY.regs flag = 0 := by
+      change wY flag = 0
+      rw [hYfr flag hpf.symm, hCf]
+    have hYl : sY.regs fall = 0 := by
+      change wY fall = 0
+      rw [hYfr fall hpl.symm]
+      simpa [sC] using hCl
+    have hfirstZ : Ev R
+        [Cmd.loop flag ([Cmd.dec flag] ++ clear fall ++ incMany pc yes),
+          Cmd.loop fall ([Cmd.dec fall] ++ incMany pc no)] sY sY :=
+      Ev.loopZ hf hYf (Ev.loopZ hl hYl Ev.nil)
+    refine ⟨wY, Ev.inc hl (Ev.loopS hf hfnz (Ev.dec hf hfnz
+      (hC.append (hY.append hfirstZ)))), ?_, hYf, hYl, ?_⟩
+    · rw [hYp, hCp, ho, if_neg (by omega)]
+      omega
+    · intro r hrp hrf hrl
+      rw [hYfr r hrp]
+      change wC r = s.regs r
+      rw [hCfr r hrl]
+      exact (CState.down_regs_of_ne sI hrf).trans (CState.up_regs_of_ne s hrl)
+
+/-! ## Compiling one URM instruction -/
+
+/-- Dispatcher registers are allocated immediately above the source URM
+registers `0, ..., B-1`. -/
+def pcReg (B : Nat) : Nat := B
+def savedReg (B : Nat) : Nat := B + 1
+def cmpXReg (B : Nat) : Nat := B + 2
+def cmpYReg (B : Nat) : Nat := B + 3
+def tmpReg (B : Nat) : Nat := B + 4
+def gateReg (B : Nat) : Nat := B + 5
+def eqReg (B : Nat) : Nat := B + 6
+def fallReg (B : Nat) : Nat := B + 7
+def counterBound (B : Nat) : Nat := B + 8
+
+/-- Agreement of the low counter registers with a URM register file. -/
+def SourceMatches (B : Nat) (w : Nat → Nat) (σ : Cslib.URM.Regs) : Prop :=
+  ∀ r, r < B → w r = σ r
+
+/-- Every dispatcher scratch counter except the program counter is zero. -/
+def ScratchClean (B : Nat) (w : Nat → Nat) : Prop :=
+  w (savedReg B) = 0 ∧ w (cmpXReg B) = 0 ∧ w (cmpYReg B) = 0 ∧
+    w (tmpReg B) = 0 ∧ w (gateReg B) = 0 ∧ w (eqReg B) = 0 ∧
+    w (fallReg B) = 0
+
+/-- Arithmetic semantics of the registers written by one URM instruction. -/
+def instrNextRegs (i : Cslib.URM.Instr) (σ : Cslib.URM.Regs) : Cslib.URM.Regs :=
+  match i with
+  | .Z n => σ.write n 0
+  | .S n => σ.write n (σ.read n + 1)
+  | .T m n => σ.write n (σ.read m)
+  | .J _ _ _ => σ
+
+/-- Arithmetic semantics of the program counter after instruction `k`. -/
+def instrNextPC (k : Nat) (i : Cslib.URM.Instr) (σ : Cslib.URM.Regs) : Nat :=
+  match i with
+  | .Z _ | .S _ | .T _ _ => k + 1
+  | .J m n q => if σ.read m = σ.read n then q else k + 1
+
+/-- Counter code for one selected URM instruction.  It enters with `pc = 0`
+and writes the encoded successor counter `instrNextPC + 1`. -/
+def execInstr (B k : Nat) : Cslib.URM.Instr → Code
+  | .Z n => clear n ++ incMany (pcReg B) (k + 2)
+  | .S n => [Cmd.inc n] ++ incMany (pcReg B) (k + 2)
+  | .T m n =>
+      (if m = n then [] else copy m n (tmpReg B)) ++
+        incMany (pcReg B) (k + 2)
+  | .J m n q =>
+      equal m n (cmpXReg B) (cmpYReg B) (tmpReg B) (gateReg B) (eqReg B) ++
+        selectPC (pcReg B) (eqReg B) (fallReg B) (q + 1) (k + 2)
+
+theorem ScratchClean.frame {B : Nat} {w w' : Nat → Nat} (h : ScratchClean B w)
+    (hfr : ∀ r, B < r → r < counterBound B → w' r = w r) :
+    ScratchClean B w' := by
+  rcases h with ⟨hs, hx, hy, ht, hg, he, hf⟩
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  · rw [hfr (savedReg B) (by simp [savedReg]) (by simp [savedReg, counterBound]), hs]
+  · rw [hfr (cmpXReg B) (by simp [cmpXReg]) (by simp [cmpXReg, counterBound]), hx]
+  · rw [hfr (cmpYReg B) (by simp [cmpYReg]) (by simp [cmpYReg, counterBound]), hy]
+  · rw [hfr (tmpReg B) (by simp [tmpReg]) (by simp [tmpReg, counterBound]), ht]
+  · rw [hfr (gateReg B) (by simp [gateReg]) (by simp [gateReg, counterBound]), hg]
+  · rw [hfr (eqReg B) (by simp [eqReg]) (by simp [eqReg, counterBound]), he]
+  · rw [hfr (fallReg B) (by simp [fallReg]) (by simp [fallReg, counterBound]), hf]
+
+/-- The exact arithmetic simulation of a selected URM instruction.  Source
+registers agree with `instrNextRegs`, the encoded program counter is
+`instrNextPC + 1`, and every dispatcher scratch register is reset. -/
+theorem execInstr_spec {B k : Nat} (i : Cslib.URM.Instr) (σ : Cslib.URM.Regs)
+    (hmax : i.maxRegister < B) (s : CState)
+    (hsrc : SourceMatches B s.regs σ) (hpc : s.regs (pcReg B) = 0)
+    (hclean : ScratchClean B s.regs) :
+    ∃ w', Ev (counterBound B) (execInstr B k i) s ⟨w', s.out⟩ ∧
+      SourceMatches B w' (instrNextRegs i σ) ∧
+      w' (pcReg B) = instrNextPC k i σ + 1 ∧ ScratchClean B w' := by
+  have hp : pcReg B < counterBound B := by simp [pcReg, counterBound]
+  cases i with
+  | Z n =>
+    have hn : n < B := by simpa [Cslib.URM.Instr.maxRegister] using hmax
+    obtain ⟨wC, hC, hCn, hCfr⟩ :=
+      clear_spec (R := counterBound B) (a := n)
+        (lt_trans hn (by simp [counterBound])) (s.regs n) s rfl
+    let sC : CState := ⟨wC, s.out⟩
+    have hCpc : sC.regs (pcReg B) = 0 := by
+      change wC (pcReg B) = 0
+      rw [hCfr (pcReg B) (by simp [pcReg]; omega), hpc]
+    obtain ⟨wP, hP, hPpc, hPfr⟩ := incMany_spec hp (k + 2) sC
+    refine ⟨wP, hC.append hP, ?_, ?_, ?_⟩
+    · intro r hr
+      rw [hPfr r (by simp [pcReg]; omega)]
+      change wC r = instrNextRegs (.Z n) σ r
+      by_cases hrn : r = n
+      · subst r
+        simp [instrNextRegs, hCn, Cslib.URM.Regs.write]
+      · rw [hCfr r hrn, hsrc r hr]
+        simp [instrNextRegs, Cslib.URM.Regs.write, Function.update_of_ne hrn]
+    · rw [hPpc, hCpc]
+      simp [instrNextPC]
+    · apply ScratchClean.frame hclean
+      intro r hBr hrR
+      rw [hPfr r (by simp [pcReg]; omega)]
+      change wC r = s.regs r
+      exact hCfr r (by omega)
+  | S n =>
+    have hn : n < B := by simpa [Cslib.URM.Instr.maxRegister] using hmax
+    let sI := s.up n
+    have hIpc : sI.regs (pcReg B) = 0 := by
+      rw [CState.up_regs_of_ne s (by simp [pcReg]; omega), hpc]
+    obtain ⟨wP, hP, hPpc, hPfr⟩ := incMany_spec hp (k + 2) sI
+    refine ⟨wP, Ev.inc (lt_trans hn (by simp [counterBound])) hP, ?_, ?_, ?_⟩
+    · intro r hr
+      rw [hPfr r (by simp [pcReg]; omega)]
+      by_cases hrn : r = n
+      · subst r
+        simp [sI, instrNextRegs, Cslib.URM.Regs.write, hsrc n hn,
+          Cslib.URM.Regs.read]
+      · rw [CState.up_regs_of_ne s hrn, hsrc r hr]
+        simp [instrNextRegs, Cslib.URM.Regs.write, Function.update_of_ne hrn]
+    · rw [hPpc, hIpc]
+      simp [instrNextPC]
+    · apply ScratchClean.frame hclean
+      intro r hBr hrR
+      rw [hPfr r (by simp [pcReg]; omega)]
+      exact CState.up_regs_of_ne s (by omega)
+  | T m n =>
+    have hmnB : max m n < B := by
+      simpa [Cslib.URM.Instr.maxRegister] using hmax
+    have hm : m < B := lt_of_le_of_lt (Nat.le_max_left m n) hmnB
+    have hn : n < B := lt_of_le_of_lt (Nat.le_max_right m n) hmnB
+    by_cases hmn : m = n
+    · subst n
+      obtain ⟨wP, hP, hPpc, hPfr⟩ := incMany_spec hp (k + 2) s
+      refine ⟨wP, ?_, ?_, ?_, ?_⟩
+      · simpa [execInstr] using hP
+      · intro r hr
+        rw [hPfr r (by simp [pcReg]; omega), hsrc r hr]
+        simp [instrNextRegs, Cslib.URM.Regs.write, Cslib.URM.Regs.read]
+      · rw [hPpc, hpc]
+        simp [instrNextPC]
+      · apply ScratchClean.frame hclean
+        intro r hBr hrR
+        exact hPfr r (by simp [pcReg]; omega)
+    · have ht : tmpReg B < counterBound B := by simp [tmpReg, counterBound]
+      obtain ⟨wC, hC, hCn, hCt, hCfr⟩ := copy_spec_frame
+        (R := counterBound B) (a := m) (b := n) (t := tmpReg B)
+        (lt_trans hm (by simp [counterBound])) (lt_trans hn (by simp [counterBound]))
+        ht hmn (by simp [tmpReg]; omega)
+        (by simp [tmpReg]; omega) s
+      let sC : CState := ⟨wC, s.out⟩
+      have hCpc : sC.regs (pcReg B) = 0 := by
+        change wC (pcReg B) = 0
+        rw [hCfr (pcReg B) (by simp [pcReg]; omega) (by simp [pcReg, tmpReg]), hpc]
+      obtain ⟨wP, hP, hPpc, hPfr⟩ := incMany_spec hp (k + 2) sC
+      refine ⟨wP, ?_, ?_, ?_, ?_⟩
+      · simpa [execInstr, hmn] using hC.append hP
+      · intro r hr
+        rw [hPfr r (by simp [pcReg]; omega)]
+        change wC r = instrNextRegs (.T m n) σ r
+        by_cases hrn : r = n
+        · subst r
+          rw [hCn, hsrc m hm]
+          simp [instrNextRegs, Cslib.URM.Regs.write, Cslib.URM.Regs.read]
+        · rw [hCfr r hrn (by simp [tmpReg]; omega), hsrc r hr]
+          simp [instrNextRegs, Cslib.URM.Regs.write, Function.update_of_ne hrn]
+      · rw [hPpc, hCpc]
+        simp [instrNextPC]
+      · have hCclean : ScratchClean B wC := by
+          apply ScratchClean.frame hclean
+          intro r hBr hrR
+          by_cases hrt : r = tmpReg B
+          · subst r
+            rw [hCt]
+            exact hclean.2.2.2.1.symm
+          · exact hCfr r (by omega) hrt
+        apply ScratchClean.frame hCclean
+        intro r hBr hrR
+        exact hPfr r (by simp [pcReg]; omega)
+  | J m n q =>
+    have hmnB : max m n < B := by
+      simpa [Cslib.URM.Instr.maxRegister] using hmax
+    have hm : m < B := lt_of_le_of_lt (Nat.le_max_left m n) hmnB
+    have hn : n < B := lt_of_le_of_lt (Nat.le_max_right m n) hmnB
+    have hdist : Distinct5 (cmpXReg B) (cmpYReg B) (tmpReg B)
+        (gateReg B) (eqReg B) := by
+      simp [Distinct5, cmpXReg, cmpYReg, tmpReg, gateReg, eqReg]
+    have ham : Away5 m (cmpXReg B) (cmpYReg B) (tmpReg B) (gateReg B) (eqReg B) := by
+      simp [Away5, cmpXReg, cmpYReg, tmpReg, gateReg, eqReg]
+      omega
+    have han : Away5 n (cmpXReg B) (cmpYReg B) (tmpReg B) (gateReg B) (eqReg B) := by
+      simp [Away5, cmpXReg, cmpYReg, tmpReg, gateReg, eqReg]
+      omega
+    obtain ⟨wE, hE, hEx, hEy, hEt, hEg, hEe, hEfr⟩ := equal_spec
+      (R := counterBound B) (a := m) (b := n)
+      (lt_trans hm (by simp [counterBound])) (lt_trans hn (by simp [counterBound]))
+      (by simp [cmpXReg, counterBound])
+      (by simp [cmpYReg, counterBound]) (by simp [tmpReg, counterBound])
+      (by simp [gateReg, counterBound]) (by simp [eqReg, counterBound])
+      hdist ham han s
+    let sE : CState := ⟨wE, s.out⟩
+    have hEpc : sE.regs (pcReg B) = 0 := by
+      change wE (pcReg B) = 0
+      rw [hEfr (pcReg B) (by simp [pcReg, cmpXReg]) (by simp [pcReg, cmpYReg])
+        (by simp [pcReg, tmpReg]) (by simp [pcReg, gateReg])
+        (by simp [pcReg, eqReg]), hpc]
+    have hEfall : sE.regs (fallReg B) = 0 := by
+      change wE (fallReg B) = 0
+      rw [hEfr (fallReg B) (by simp [fallReg, cmpXReg])
+        (by simp [fallReg, cmpYReg]) (by simp [fallReg, tmpReg])
+        (by simp [fallReg, gateReg]) (by simp [fallReg, eqReg])]
+      exact hclean.2.2.2.2.2.2
+    have hEflag : sE.regs (eqReg B) = 0 ∨ sE.regs (eqReg B) = 1 := by
+      change wE (eqReg B) = 0 ∨ wE (eqReg B) = 1
+      rw [hEe]
+      split <;> simp
+    have hEeq : sE.regs (eqReg B) =
+        (if σ.read m = σ.read n then 1 else 0) := by
+      change wE (eqReg B) = _
+      rw [hEe, hsrc m hm, hsrc n hn]
+      simp only [Cslib.URM.Regs.read]
+      rfl
+    obtain ⟨wP, hP, hPpc, hPe, hPf, hPfr⟩ := selectPC_spec
+      (R := counterBound B) (pc := pcReg B) (flag := eqReg B) (fall := fallReg B)
+      (yes := q + 1) (no := k + 2) hp
+      (by simp [eqReg, counterBound]) (by simp [fallReg, counterBound])
+      (by simp [pcReg, eqReg]) (by simp [pcReg, fallReg])
+      (by simp [eqReg, fallReg]) sE hEpc hEflag hEfall
+    refine ⟨wP, hE.append hP, ?_, ?_, ?_⟩
+    · intro r hr
+      rw [hPfr r (by simp [pcReg]; omega) (by simp [eqReg]; omega)
+        (by simp [fallReg]; omega)]
+      change wE r = instrNextRegs (.J m n q) σ r
+      rw [hEfr r (by simp [cmpXReg]; omega) (by simp [cmpYReg]; omega)
+        (by simp [tmpReg]; omega) (by simp [gateReg]; omega)
+        (by simp [eqReg]; omega), hsrc r hr]
+      rfl
+    · rw [hPpc, hEeq]
+      by_cases heq : σ.read m = σ.read n
+      · simp [instrNextPC, heq]
+      · simp [instrNextPC, heq]
+    · refine ⟨?_, ?_, ?_, ?_, ?_, hPe, hPf⟩
+      · rw [hPfr (savedReg B) (by simp [savedReg, pcReg])
+          (by simp [savedReg, eqReg]) (by simp [savedReg, fallReg])]
+        change wE (savedReg B) = 0
+        rw [hEfr (savedReg B) (by simp [savedReg, cmpXReg])
+          (by simp [savedReg, cmpYReg]) (by simp [savedReg, tmpReg])
+          (by simp [savedReg, gateReg]) (by simp [savedReg, eqReg])]
+        exact hclean.1
+      · rw [hPfr (cmpXReg B) (by simp [cmpXReg, pcReg])
+          (by simp [cmpXReg, eqReg]) (by simp [cmpXReg, fallReg])]
+        exact hEx
+      · rw [hPfr (cmpYReg B) (by simp [cmpYReg, pcReg])
+          (by simp [cmpYReg, eqReg]) (by simp [cmpYReg, fallReg])]
+        exact hEy
+      · rw [hPfr (tmpReg B) (by simp [tmpReg, pcReg])
+          (by simp [tmpReg, eqReg]) (by simp [tmpReg, fallReg])]
+        exact hEt
+      · rw [hPfr (gateReg B) (by simp [gateReg, pcReg])
+          (by simp [gateReg, eqReg]) (by simp [gateReg, fallReg])]
+        exact hEg
 
 
 /-! ## Paired unary columns on the Brainfuck tape
