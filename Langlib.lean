@@ -5,10 +5,13 @@ import Langlib.Languages.Brainloller
 import Langlib.Languages.Deadfish
 import Langlib.Languages.Fractran
 import Langlib.Languages.Malbolge
+import Langlib.Languages.MalbolgeUnshackled
 import Langlib.Languages.Ook
 import Langlib.Languages.Piet
+import Langlib.Languages.Ski
 import Langlib.Languages.Subleq
 import Langlib.Languages.Thue
+import Langlib.Languages.Unlambda
 import Langlib.Languages.Whitespace
 import Langlib.Turpentine
 

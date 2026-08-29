@@ -2,6 +2,46 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-30 (later): Malbolge Unshackled, Unlambda and SKI wired in
+
+The three trees the 2026-09-01 handoff note left as "in flight and
+INCOMPLETE — verify before trusting: the agents died mid-task and their
+examples were never checked" are now finished languages. Everything was
+verified rather than assumed, and everything worked, which was not the
+expected outcome.
+
+Each of the three gained a `lakefile.toml` runner, an import from
+`Langlib.lean`, a golden-test suite in `lake test`, a language README, a
+`docs/<lang>/spec.md` with its semantic decisions numbered, and a
+`compiler.md`. `Langlib/Languages/MalbolgeUnshackled.lean` had to be
+written; the other two root modules already existed.
+
+The interpreters themselves needed no changes. The Unlambda machine
+handles `c` and `d` exactly as its docstring claims, `hello.mu` prints
+`Hello, world!` at three different rotation widths, and every example in
+all three directories runs. Three test expectations of mine were wrong
+before the code was: `hello.mu` ends with a newline, and `KKSI` is
+`((KK)S)I`, which normalises to `KI` rather than `K`.
+
+The spec pages record what the implementations already decided. The ones
+worth naming: Unlambda's `e` exits (the two C interpreters in Madore's
+2.0.0 distribution parse it as a second `c`, contradicting the
+specification, the Java interpreter and the Scheme one); Unshackled's end
+of input is `...22`, which *closes the output stream* rather than printing
+a byte; and Unshackled's encryption step can crash, because a rotated word
+need not be a printable natural and Johansen's interpreter calls `crash`
+where Malbolge would shrug. That last one has its own three-character
+example now, `rotcrash.mu`, which is the only Unshackled program here we
+wrote ourselves.
+
+Which is the loose end. `hello.mu`, `truth.mu`, `cat.mu` and Unlambda's
+`quine.unl` arrived with those unfinished branches and their authorship was
+never recorded. They run, but Malbolge's own examples credit Cooke and
+Scheffer by name and these credit nobody. Both READMEs say so and ask for
+the attribution.
+
+972 tests.
+
 ## 2026-08-30: Thue proved Turing complete
 
 `thueComplete : TuringComplete ThueLang` landed, and with it

@@ -58,10 +58,16 @@ status matrix, including compilers):
   abstract paintings
 * [brainloller](docs/brainloller/spec.md) (Lode Vandevenne, 2005),
   brainfuck encoded in pixels
+* [malbolge-unshackled](docs/malbolge-unshackled/spec.md) (Ørjan Johansen,
+  2007), Malbolge with the memory bound taken out, which is what makes it
+  Turing complete
+* [unlambda](docs/unlambda/spec.md) (David Madore, 1999), a functional
+  language with no variables and no lambdas
+* [ski](docs/ski/spec.md) (Schönfinkel 1924, Curry 1930), not an esolang
+  but the calculus Unlambda's completeness argument goes through
 * [Turpentine](docs/turpentine/spec.md): the library's own human-readable
   front end, named for what dissolves a Turing tarpit
 
-Part-written and not yet wired in: Malbolge Unshackled, Unlambda and SKI.
 The roadmap of languages still to be implemented lives in
 [docs/ROADMAP.md](docs/ROADMAP.md), and a survey of related efforts in
 [docs/RELATED.md](docs/RELATED.md).
@@ -105,6 +111,9 @@ keeps both kinds.
 | [befunge93](docs/befunge93/spec.md) | [no with byte cells, yes with ours](docs/befunge93/spec.md#computational-class-and-why-our-deviations-matter) | **[yes](Langlib/Computability/Befunge93.lean#L326)**, for the byte core | [none: 2000 cells](docs/befunge93/compiler.md) |
 | [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[yes](Langlib/Computability/Malbolge.lean#L743)** | [none: bounded](docs/malbolge/compiler.md) |
 | [deadfish](docs/deadfish/spec.md) | no, every program halts | **[yes](Langlib/Computability/Deadfish.lean#L89)** | [planned, output only](docs/deadfish/compiler.md) |
+| [malbolge-unshackled](docs/malbolge-unshackled/spec.md) | yes | open | [planned](docs/malbolge-unshackled/compiler.md) |
+| [unlambda](docs/unlambda/spec.md) | yes | open | [planned](docs/unlambda/compiler.md) |
+| [ski](docs/ski/spec.md) | yes | open | [none: compile to unlambda](docs/ski/compiler.md) |
 | [Turpentine](docs/turpentine/spec.md) | yes | open | [(it is the source)](docs/turpentine/spec.md) |
 
 The full matrix, with per-stage columns and links to every theorem, is in

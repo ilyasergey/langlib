@@ -68,3 +68,15 @@ root = "Langlib.Languages.Piet.Main"
 [[lean_exe]]
 name = "brainloller"
 root = "Langlib.Languages.Brainloller.Main"
+
+[[lean_exe]]
+name = "unlambda"
+root = "Langlib.Languages.Unlambda.Main"
+
+[[lean_exe]]
+name = "ski"
+root = "Langlib.Languages.Ski.Main"
+
+[[lean_exe]]
+name = "malbolge-unshackled"
+root = "Langlib.Languages.MalbolgeUnshackled.Main"

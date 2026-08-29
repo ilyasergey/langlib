@@ -14,7 +14,8 @@ RELATED).
 
 ## Stage 1: language documentation `[~]`
 
-Write `docs/<langname>/spec.md` for the initial nine languages:
+Write `docs/<langname>/spec.md` for the languages below (the first
+nine were the initial batch; the last three landed later):
 
 | Language   | Author, year                     | Why it is here |
 |------------|----------------------------------|----------------|
@@ -29,6 +30,9 @@ Write `docs/<langname>/spec.md` for the initial nine languages:
 | malbolge   | Ben Olmstead, 1998               | designed to be impossible to program; interpreter-only |
 | piet       | David Morgan-Mar, ~2002          | programs are abstract paintings; the graphical esolang |
 | brainloller| Lode Vandevenne, 2005            | brainfuck encoded in pixel colours; graphical, nearly free given BF |
+| malbolge-unshackled | Ørjan Johansen, 2007    | Malbolge without the memory bound, so it is Turing complete where Malbolge is not |
+| unlambda   | David Madore, 1999               | a functional tarpit: prefix application, no variables, no lambdas, and call/cc |
+| ski        | Schönfinkel 1924, Curry 1930     | not an esolang; the calculus Unlambda is, and the functional route to universality |
 
 Each spec must pin down the exact semantics our interpreter implements
 (cell width, EOF, bounds, errors), with sources. Also: `docs/ROADMAP.md`
@@ -346,13 +350,13 @@ contorting the statements to fit theorems we have not needed yet.
 | befunge93 | **it depends, and that is the finding** | The classical claim is that Befunge-93 is not Turing complete. Checking it against `bef.c` sharpens it: the playfield is `char pg[80*25]`, so the control state is finite, and the stack is a malloc'd list of `signed long`, so it has unbounded *depth* but a finite *alphabet*. Finite control plus one finite-alphabet stack is a pushdown automaton, which is not Turing complete. **Our implementation is a different language on this point**: we store unbounded `Int` in both stack and playfield cells (deviations 1 and 2 in the spec), which turns the 2000 cells into 2000 unbounded registers, and a register machine with two unbounded registers is already universal. So prove *both*: `BoundedStorage` for a faithful char-cell variant, and `TuringComplete` for the semantics we actually implement. The pair is the most instructive entry in this table. |
 | fractran | complete | Conway's own result: a register machine's registers are prime exponents. The simulation is arithmetic rather than operational, so this proof looks different from the others and is worth doing for that reason. |
 | thue | **complete, PROVED** (`Langlib/Computability/Thue.lean`, axiom-clean) | semi-Thue systems are universal (Post), but the interesting part here was the deterministic strategy. A configuration is a unique `@` marker carrying the phase, plus one unary run per counter; every generated rule reads that marker and exactly one adjacent cell, so `firstMatch` is a function on represented states and the intended derivation is the only one the interpreter can follow. Strategy *independence* (the same answer under `Strategy.random`) is one step further and not claimed; see `docs/computability-thue.md`. |
-| malbolge-unshackled | complete | interpreter partially written, unwired. Unbounded values and addresses; settled in 2020 by MalbolgeLisp. |
+| malbolge-unshackled | complete | **language landed** (interpreter, runner, tests, `docs/malbolge-unshackled/spec.md`); the proof is open. Unbounded values and addresses; settled in 2020 by MalbolgeLisp. The simulation would have to survive both the self-encrypting code and the free choice of rotation width, which no other target here has an analogue of. |
 | malbolge | **incomplete, PROVED** (`Langlib/Computability/Malbolge.lean`, axiom-clean) | a bounded-storage machine: 59049 words of 59049 values is a large finite state space, so its halting problem is decidable and it cannot be Turing complete. The proof turned out *not* to be the same shape as Befunge-93's: that language's restricted core is finite by construction, while Malbolge's state type is wide (an unbounded array, a growing output, a cursor whose range depends on the input), so the reachable states had to be cut out with an invariant carried through every instruction. That is also why the witness is a `BoundedRun` (the reachable-only form of `BoundedStorage`, added for this) rather than a `BoundedStorage`; see `docs/computability-malbolge.md`. The interesting sequel is Scheffer's Malbolge-T (the program reads its own output, lifting the bound) and Ørjan Johansen's Malbolge Unshackled (2007), which is complete, settled in 2020 by MalbolgeLisp, and which we are implementing. |
 | piet | complete | unbounded stack of unbounded integers plus conditional branching. Codel-level codegen is laborious; a paper-level argument via a stack machine is the realistic first step. |
 | ook | complete | free: `parse . render = id` against brainfuck, so it inherits the brainfuck result by composition. |
 | brainloller | complete | likewise free, via its decoder into the brainfuck AST. |
 | turpentine | complete | our own front end, so this is a statement about the *source* language: a URM compiles to Turpentine directly (registers are array elements, the decrement-or-jump is a `while`), which also makes every Turing-complete backend's compiler a second, independent completeness proof for that target. |
-| unlambda / SKI | complete | interpreters exist but are unwired and untested; see below for the bracket-abstraction route. |
+| unlambda / SKI | complete | **both languages landed** (interpreters, runners, tests, `docs/unlambda/spec.md` and `docs/ski/spec.md`); the proofs are open. See below for the bracket-abstraction route, which is the one completeness argument in this table that is not a machine simulation. |
 | deadfish | **incomplete** | no input, no loops, no conditionals: the reachable state is a function of the program text alone. Prove that every program's output is computable by a total function of its source, hence its halting problem is trivially decidable. The easiest theorem here and the one most worth stating, since Deadfish's fame rests on it. |
 
 ### A combinator language for the other side of the argument
