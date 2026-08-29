@@ -202,6 +202,313 @@ theorem move2_spec {R a b c : Nat} (ha : a < R) (hb : b < R) (hc : c < R)
     rw [hfr r hra hrb hrc, CState.up_regs_of_ne _ hrc, CState.up_regs_of_ne _ hrb,
       CState.down_regs_of_ne _ hra]
 
+/-- `b := a`, preserving `a` and clearing scratch `t`. -/
+def copy (a b t : Nat) : Code :=
+  clear b ++ clear t ++ move2 a b t ++ move t a
+
+theorem copy_spec {R a b t : Nat} (ha : a < R) (hb : b < R) (ht : t < R)
+    (hab : a ≠ b) (hat : a ≠ t) (hbt : b ≠ t) (s : CState) :
+    ∃ w', Ev R (copy a b t) s ⟨w', s.out⟩ ∧
+      w' a = s.regs a ∧ w' b = s.regs a ∧ w' t = 0 ∧
+      ∀ r, r ≠ a → r ≠ b → r ≠ t → w' r = s.regs r := by
+  obtain ⟨w₁, h₁, h₁b, h₁fr⟩ := clear_spec hb (s.regs b) s rfl
+  let s₁ : CState := ⟨w₁, s.out⟩
+  obtain ⟨w₂, h₂, h₂t, h₂fr⟩ := clear_spec ht (s₁.regs t) s₁ rfl
+  let s₂ : CState := ⟨w₂, s.out⟩
+  have h₂a : w₂ a = s.regs a := by
+    rw [h₂fr a hat]
+    simpa [s₁] using h₁fr a hab
+  have h₂b : w₂ b = 0 := by
+    rw [h₂fr b hbt]
+    simpa [s₁] using h₁b
+  obtain ⟨w₃, h₃, h₃a, h₃b, h₃t, h₃fr⟩ :=
+    move2_spec ha hb ht hab hat hbt (s₂.regs a) s₂ rfl
+  let s₃ : CState := ⟨w₃, s.out⟩
+  have h₃av : w₃ a = 0 := h₃a
+  have h₃bv : w₃ b = s.regs a := by simpa [s₂, h₂b, h₂a] using h₃b
+  have h₃tv : w₃ t = s.regs a := by simpa [s₂, h₂t, h₂a] using h₃t
+  obtain ⟨w₄, h₄, h₄t, h₄a, h₄fr⟩ :=
+    move_spec ht ha hat.symm (s₃.regs t) s₃ rfl
+  refine ⟨w₄, ?_, ?_, ?_, h₄t, ?_⟩
+  · unfold copy
+    exact h₁.append (h₂.append (h₃.append (h₄.append Ev.nil)))
+  · rw [h₄a]
+    simp [s₃, h₃av, h₃tv]
+  · rw [h₄fr b hbt hab.symm]
+    simpa [s₃] using h₃bv
+  · intro r hra hrb hrt
+    rw [h₄fr r hrt hra]
+    change w₃ r = s.regs r
+    rw [h₃fr r hra hrb hrt]
+    change w₂ r = s.regs r
+    rw [h₂fr r hrt]
+    simpa [s₁] using h₁fr r hrb
+
+/-- Decrement `a` once when it is nonzero.  `gate` is left at one exactly
+when `a` was zero; scratch `t` is cleared. -/
+def decTest (a t gate : Nat) : Code :=
+  [Cmd.inc gate,
+    Cmd.loop a ([Cmd.dec a] ++ move a t ++ clear gate)] ++ move t a
+
+theorem decTest_spec {R a t gate : Nat} (ha : a < R) (ht : t < R)
+    (hg : gate < R) (hat : a ≠ t) (hag : a ≠ gate) (htg : t ≠ gate)
+    (s : CState) (ht₀ : s.regs t = 0) (hg₀ : s.regs gate = 0) :
+    ∃ w', Ev R (decTest a t gate) s ⟨w', s.out⟩ ∧
+      w' a = s.regs a - 1 ∧ w' t = 0 ∧
+      w' gate = (if s.regs a = 0 then 1 else 0) ∧
+      ∀ r, r ≠ a → r ≠ t → r ≠ gate → w' r = s.regs r := by
+  let sG := s.up gate
+  have hGa : sG.regs a = s.regs a := CState.up_regs_of_ne s hag
+  have hGt : sG.regs t = 0 := by rw [CState.up_regs_of_ne s htg, ht₀]
+  have hGg : sG.regs gate = 1 := by simp [sG, hg₀]
+  by_cases hz : s.regs a = 0
+  · have hloop : Ev R [Cmd.loop a ([Cmd.dec a] ++ move a t ++ clear gate)] sG sG :=
+      Ev.loopZ ha (by rw [hGa, hz]) Ev.nil
+    obtain ⟨w', hm, hmt, hma, hmfr⟩ := move_spec ht ha hat.symm (sG.regs t) sG rfl
+    refine ⟨w', Ev.inc hg (hloop.append (hm.append Ev.nil)), ?_, hmt, ?_, ?_⟩
+    · rw [hma, hGa, hGt, Nat.add_zero, hz]
+    · rw [hmfr gate htg.symm hag.symm, hGg, if_pos hz]
+    · intro r hra hrt hrg
+      rw [hmfr r hrt hra, CState.up_regs_of_ne s hrg]
+  · have hsnz : sG.regs a ≠ 0 := by rw [hGa]; exact hz
+    let sD := sG.down a
+    have hDa : sD.regs a = s.regs a - 1 := by simp [sD, hGa]
+    have hDt : sD.regs t = 0 := by
+      rw [CState.down_regs_of_ne sG (r := a) (k := t) hat.symm, hGt]
+    have hDg : sD.regs gate = 1 := by
+      rw [CState.down_regs_of_ne sG (r := a) (k := gate) hag.symm, hGg]
+    obtain ⟨wM, hm, hmA, hmT, hmfr⟩ := move_spec ha ht hat (sD.regs a) sD rfl
+    let sM : CState := ⟨wM, s.out⟩
+    have hMA : sM.regs a = 0 := hmA
+    have hMT : sM.regs t = s.regs a - 1 := by simpa [sM, hDt, hDa] using hmT
+    have hMG : sM.regs gate = 1 := by
+      change wM gate = 1
+      rw [hmfr gate hag.symm htg.symm, hDg]
+    obtain ⟨wC, hc, hcG, hcfr⟩ := clear_spec hg (sM.regs gate) sM rfl
+    let sC : CState := ⟨wC, s.out⟩
+    have hCA : sC.regs a = 0 := by
+      change wC a = 0
+      rw [hcfr a hag, hMA]
+    have hCT : sC.regs t = s.regs a - 1 := by
+      change wC t = _
+      rw [hcfr t htg, hMT]
+    have hCG : sC.regs gate = 0 := hcG
+    have hloopZ : Ev R [Cmd.loop a ([Cmd.dec a] ++ move a t ++ clear gate)] sC sC :=
+      Ev.loopZ ha hCA Ev.nil
+    obtain ⟨wF, hf, hfT, hfA, hffr⟩ := move_spec ht ha hat.symm (sC.regs t) sC rfl
+    refine ⟨wF, ?_, ?_, hfT, ?_, ?_⟩
+    · refine Ev.inc hg (Ev.loopS ha hsnz ?_)
+      exact Ev.dec ha hsnz (hm.append (hc.append (hloopZ.append (hf.append Ev.nil))))
+    · rw [hfA, hCA, hCT, Nat.zero_add]
+    · rw [hffr gate htg.symm hag.symm, hCG, if_neg hz]
+    · intro r hra hrt hrg
+      rw [hffr r hrt hra]
+      change wC r = s.regs r
+      rw [hcfr r hrg]
+      change wM r = s.regs r
+      rw [hmfr r hra hrt]
+      rw [CState.down_regs_of_ne sG (r := a) (k := r) hra,
+        CState.up_regs_of_ne s hrg]
+
+/-- If the zero-test gate is one, consume it and clear `eq` and `x`.  If the
+gate is zero, leave all three registers alone. -/
+def failWhen (gate eq x : Nat) : Code :=
+  [Cmd.loop gate ([Cmd.dec gate] ++ clear eq ++ clear x)]
+
+theorem failWhen_spec {R gate eq x : Nat} (hg : gate < R) (he : eq < R)
+    (hx : x < R) (hge : gate ≠ eq) (hgx : gate ≠ x) (hex : eq ≠ x)
+    (s : CState) (hgate : s.regs gate = 0 ∨ s.regs gate = 1) :
+    ∃ w', Ev R (failWhen gate eq x) s ⟨w', s.out⟩ ∧ w' gate = 0 ∧
+      w' eq = (if s.regs gate = 0 then s.regs eq else 0) ∧
+      w' x = (if s.regs gate = 0 then s.regs x else 0) ∧
+      ∀ r, r ≠ gate → r ≠ eq → r ≠ x → w' r = s.regs r := by
+  rcases hgate with hzero | hone
+  · exact ⟨s.regs, Ev.loopZ hg hzero Ev.nil, hzero, by simp [hzero],
+      by simp [hzero], fun _ _ _ _ => rfl⟩
+  · have hnz : s.regs gate ≠ 0 := by omega
+    let sD := s.down gate
+    have hDg : sD.regs gate = 0 := by simp [sD, hone]
+    have hDe : sD.regs eq = s.regs eq :=
+      CState.down_regs_of_ne s hge.symm
+    have hDx : sD.regs x = s.regs x :=
+      CState.down_regs_of_ne s hgx.symm
+    obtain ⟨wE, hE, hEe, hEfr⟩ := clear_spec he (sD.regs eq) sD rfl
+    let sE : CState := ⟨wE, s.out⟩
+    have hEg : sE.regs gate = 0 := by
+      change wE gate = 0
+      rw [hEfr gate hge, hDg]
+    have hEx : sE.regs x = s.regs x := by
+      change wE x = s.regs x
+      rw [hEfr x hex.symm, hDx]
+    obtain ⟨wX, hX, hXx, hXfr⟩ := clear_spec hx (sE.regs x) sE rfl
+    let sX : CState := ⟨wX, s.out⟩
+    have hXg : sX.regs gate = 0 := by
+      change wX gate = 0
+      rw [hXfr gate hgx, hEg]
+    have hXe : sX.regs eq = 0 := by
+      change wX eq = 0
+      rw [hXfr eq hex]
+      simpa [sE] using hEe
+    have hloopZ : Ev R (failWhen gate eq x) sX sX := Ev.loopZ hg hXg Ev.nil
+    refine ⟨wX, Ev.loopS hg hnz (Ev.dec hg hnz
+      (hE.append (hX.append hloopZ))), hXg, ?_, ?_, ?_⟩
+    · simpa [sX, if_neg hnz] using hXe
+    · rw [hXx, if_neg hnz]
+    · intro r hrg hre hrx
+      rw [hXfr r hrx]
+      change wE r = s.regs r
+      rw [hEfr r hre]
+      exact CState.down_regs_of_ne s hrg
+
+/-- Destructively compare `x` and `y`.  The input flag `eq` must be one;
+it is one at the end exactly when the two inputs were equal. -/
+def compareLoop (x y tmp gate eq : Nat) : Code :=
+  [Cmd.loop x
+    ([Cmd.dec x] ++ decTest y tmp gate ++ failWhen gate eq x)] ++
+  [Cmd.loop y (clear y ++ clear eq)]
+
+/-- Clear `a` and `b` when `a` is nonzero; otherwise leave both alone. -/
+def clearPairWhen (a b : Nat) : Code := [Cmd.loop a (clear a ++ clear b)]
+
+theorem clearPairWhen_spec {R a b : Nat} (ha : a < R) (hb : b < R)
+    (hab : a ≠ b) (s : CState) :
+    ∃ w', Ev R (clearPairWhen a b) s ⟨w', s.out⟩ ∧ w' a = 0 ∧
+      w' b = (if s.regs a = 0 then s.regs b else 0) ∧
+      ∀ r, r ≠ a → r ≠ b → w' r = s.regs r := by
+  by_cases hz : s.regs a = 0
+  · exact ⟨s.regs, Ev.loopZ ha hz Ev.nil, hz, by simp [hz], fun _ _ _ => rfl⟩
+  · obtain ⟨w₁, h₁, h₁a, h₁fr⟩ := clear_spec ha (s.regs a) s rfl
+    let s₁ : CState := ⟨w₁, s.out⟩
+    have h₁b : s₁.regs b = s.regs b := by
+      change w₁ b = s.regs b
+      exact h₁fr b hab.symm
+    obtain ⟨w₂, h₂, h₂b, h₂fr⟩ := clear_spec hb (s₁.regs b) s₁ rfl
+    let s₂ : CState := ⟨w₂, s.out⟩
+    have h₂a : s₂.regs a = 0 := by
+      change w₂ a = 0
+      rw [h₂fr a hab]
+      simpa [s₁] using h₁a
+    have hloopZ : Ev R (clearPairWhen a b) s₂ s₂ := Ev.loopZ ha h₂a Ev.nil
+    refine ⟨w₂, Ev.loopS ha hz (h₁.append (h₂.append hloopZ)), h₂a, ?_, ?_⟩
+    · rw [h₂b, if_neg hz]
+    · intro r hra hrb
+      rw [h₂fr r hrb]
+      simpa [s₁] using h₁fr r hra
+
+/-- Pairwise distinctness for the five registers used by comparison. -/
+def Distinct5 (a b c d e : Nat) : Prop :=
+  a ≠ b ∧ a ≠ c ∧ a ≠ d ∧ a ≠ e ∧ b ≠ c ∧ b ≠ d ∧ b ≠ e ∧
+    c ≠ d ∧ c ≠ e ∧ d ≠ e
+
+theorem compareLoop_spec {R x y tmp gate eq : Nat}
+    (hx : x < R) (hy : y < R) (ht : tmp < R) (hg : gate < R) (he : eq < R)
+    (hd : Distinct5 x y tmp gate eq) :
+    ∀ (v : Nat) (s : CState), s.regs x = v → s.regs tmp = 0 →
+      s.regs gate = 0 → s.regs eq = 1 →
+      ∃ w', Ev R (compareLoop x y tmp gate eq) s ⟨w', s.out⟩ ∧
+        w' x = 0 ∧ w' y = 0 ∧ w' tmp = 0 ∧ w' gate = 0 ∧
+        w' eq = (if s.regs x = s.regs y then 1 else 0) ∧
+        ∀ r, r ≠ x → r ≠ y → r ≠ tmp → r ≠ gate → r ≠ eq →
+          w' r = s.regs r := by
+  rcases hd with ⟨hxy, hxt, hxg, hxe, hyt, hyg, hye, htg, hte, hge⟩
+  intro v
+  induction v with
+  | zero =>
+    intro s hsx hst hsg hse
+    obtain ⟨w', hclear, hwy, hwe, hwfr⟩ :=
+      clearPairWhen_spec hy he hye s
+    have hwx : w' x = 0 := by rw [hwfr x hxy hxe, hsx]
+    have hwt : w' tmp = 0 := by rw [hwfr tmp hyt.symm hte, hst]
+    have hwg : w' gate = 0 := by rw [hwfr gate hyg.symm hge, hsg]
+    refine ⟨w', Ev.loopZ hx hsx hclear, hwx, hwy, hwt, hwg, ?_, ?_⟩
+    · simpa [hsx, hse, eq_comm] using hwe
+    · intro r hrx hry hrt hrg hre
+      exact hwfr r hry hre
+  | succ v ih =>
+    intro s hsx hst hsg hse
+    have hxnz : s.regs x ≠ 0 := by omega
+    let sD := s.down x
+    have hDx : sD.regs x = v := by simp [sD, hsx]
+    have hDy : sD.regs y = s.regs y := CState.down_regs_of_ne s hxy.symm
+    have hDt : sD.regs tmp = 0 := by
+      rw [CState.down_regs_of_ne s hxt.symm, hst]
+    have hDg : sD.regs gate = 0 := by
+      rw [CState.down_regs_of_ne s hxg.symm, hsg]
+    have hDe : sD.regs eq = 1 := by
+      rw [CState.down_regs_of_ne s hxe.symm, hse]
+    obtain ⟨wT, hT, hTy, hTt, hTg, hTfr⟩ :=
+      decTest_spec hy ht hg hyt hyg htg sD hDt hDg
+    let sT : CState := ⟨wT, s.out⟩
+    have hTx : sT.regs x = v := by
+      change wT x = v
+      rw [hTfr x hxy hxt hxg, hDx]
+    have hTe : sT.regs eq = 1 := by
+      change wT eq = 1
+      rw [hTfr eq hye.symm hte.symm hge.symm, hDe]
+    have hTgate : sT.regs gate = 0 ∨ sT.regs gate = 1 := by
+      change wT gate = 0 ∨ wT gate = 1
+      rw [hTg]
+      split <;> simp
+    obtain ⟨wF, hF, hFg, hFe, hFx, hFfr⟩ :=
+      failWhen_spec hg he hx hge hxg.symm hxe.symm sT hTgate
+    let sF : CState := ⟨wF, s.out⟩
+    have hFt : sF.regs tmp = 0 := by
+      change wF tmp = 0
+      rw [hFfr tmp htg hte hxt.symm]
+      simpa [sT] using hTt
+    have hFy : sF.regs y = s.regs y - 1 := by
+      change wF y = s.regs y - 1
+      rw [hFfr y hyg hye hxy.symm]
+      simpa [sT, hDy] using hTy
+    by_cases hsy : s.regs y = 0
+    · have hTgOne : sT.regs gate = 1 := by
+        change wT gate = 1
+        rw [hTg, hDy, if_pos hsy]
+      have hFxZero : sF.regs x = 0 := by
+        change wF x = 0
+        rw [hFx, if_neg (by omega : sT.regs gate ≠ 0)]
+      have hFeZero : sF.regs eq = 0 := by
+        change wF eq = 0
+        rw [hFe, if_neg (by omega : sT.regs gate ≠ 0)]
+      have hFyZero : sF.regs y = 0 := by rw [hFy, hsy]
+      have hrest : Ev R (compareLoop x y tmp gate eq) sF sF :=
+        Ev.loopZ hx hFxZero (Ev.loopZ hy hFyZero Ev.nil)
+      refine ⟨wF, ?_, hFxZero, hFyZero, hFt, hFg, ?_, ?_⟩
+      · refine Ev.loopS hx hxnz ?_
+        exact Ev.dec hx hxnz (hT.append (hF.append hrest))
+      · rw [show wF eq = 0 by simpa [sF] using hFeZero, hsx, hsy]
+        simp
+      · intro r hrx hry hrt hrg hre
+        rw [hFfr r hrg hre hrx]
+        change wT r = s.regs r
+        rw [hTfr r hry hrt hrg]
+        exact CState.down_regs_of_ne s hrx
+    · obtain ⟨yv, hsyv⟩ := Nat.exists_eq_succ_of_ne_zero hsy
+      have hTgZero : sT.regs gate = 0 := by
+        change wT gate = 0
+        rw [hTg, hDy, if_neg hsy]
+      have hFxV : sF.regs x = v := by
+        change wF x = v
+        rw [hFx, if_pos hTgZero, hTx]
+      have hFeOne : sF.regs eq = 1 := by
+        change wF eq = 1
+        rw [hFe, if_pos hTgZero, hTe]
+      obtain ⟨w', hrec, hwx, hwy, hwt, hwg, hweq, hwfr⟩ :=
+        ih sF hFxV hFt hFg hFeOne
+      refine ⟨w', ?_, hwx, hwy, hwt, hwg, ?_, ?_⟩
+      · refine Ev.loopS hx hxnz ?_
+        exact Ev.dec hx hxnz (hT.append (hF.append hrec))
+      · rw [hweq, hsx, hFxV, hFy, hsyv]
+        simp
+      · intro r hrx hry hrt hrg hre
+        rw [hwfr r hrx hry hrt hrg hre]
+        change wF r = s.regs r
+        rw [hFfr r hrg hre hrx]
+        change wT r = s.regs r
+        rw [hTfr r hry hrt hrg]
+        exact CState.down_regs_of_ne s hrx
+
+
 /-! ## Paired unary columns on the Brainfuck tape
 
 For a fixed positive register bound `R`, a row occupies `2 * R` cells.  The
