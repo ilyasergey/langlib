@@ -119,6 +119,17 @@ theorem Ev.append {R : Nat} {c₁ : Code} {s t : CState} (h₁ : Ev R c₁ s t) 
     have hx := ih h2
     simpa [List.append_assoc] using hx
 
+/-- Increasing the register bound preserves a derivation. -/
+theorem Ev.mono {R R' : Nat} (hRR : R ≤ R') {code : Code} {s t : CState}
+    (h : Ev R code s t) : Ev R' code s t := by
+  induction h with
+  | nil => exact Ev.nil
+  | inc hr _ ih => exact Ev.inc (lt_of_lt_of_le hr hRR) ih
+  | dec hr hnz _ ih => exact Ev.dec (lt_of_lt_of_le hr hRR) hnz ih
+  | emit _ ih => exact Ev.emit ih
+  | loopZ hr hz _ ih => exact Ev.loopZ (lt_of_lt_of_le hr hRR) hz ih
+  | loopS hr hnz _ ih => exact Ev.loopS (lt_of_lt_of_le hr hRR) hnz ih
+
 /-! ## Counter-machine macros
 
 Each macro comes with a lemma of one shape: from any register file `w` it
@@ -1431,6 +1442,207 @@ theorem steps_runCode {B : Nat} {P : Cslib.URM.Program}
     refine ⟨wF, Ev.loopS (by simp [pcReg, counterBound]) hpnz ?_, hFsrc, hFpc⟩
     exact hD.append hF
 
+/-! ## Initialization and output -/
+
+/-- Load literal inputs into consecutive source counters.  Loading the tail
+first keeps the induction state zero at every yet-unwritten index. -/
+def loadInputs : Nat → List Nat → Code
+  | _, [] => []
+  | a, v :: vs => loadInputs (a + 1) vs ++ incMany a v
+
+theorem loadInputs_spec (a : Nat) (xs : List Nat) (out : Nat) :
+    ∃ w', Ev (a + xs.length + 1) (loadInputs a xs) ⟨fun _ => 0, out⟩ ⟨w', out⟩ ∧
+      ∀ r, w' r =
+        if a ≤ r ∧ r < a + xs.length then xs.getD (r - a) 0 else 0 := by
+  induction xs generalizing a with
+  | nil =>
+    refine ⟨fun _ => 0, Ev.nil, ?_⟩
+    intro r
+    simp
+  | cons v vs ih =>
+    obtain ⟨wT, hT, hTval⟩ := ih (a + 1)
+    let sT : CState := ⟨wT, out⟩
+    have haBound : a < a + (v :: vs).length + 1 := by simp; omega
+    have hTbig : Ev (a + (v :: vs).length + 1) (loadInputs (a + 1) vs)
+        ⟨fun _ => 0, out⟩ ⟨wT, out⟩ := by
+      apply Ev.mono (R := a + 1 + vs.length + 1)
+      · simp only [List.length_cons]
+        omega
+      · exact hT
+    obtain ⟨wF, hF, hFa, hFfr⟩ :=
+      incMany_spec haBound v sT
+    refine ⟨wF, ?_, ?_⟩
+    · exact hTbig.append hF
+    · intro r
+      by_cases hra : r = a
+      · subst r
+        rw [hFa]
+        have hTa : wT a = 0 := by
+          rw [hTval]
+          simp
+        simp [sT, hTa]
+      · rw [hFfr r hra]
+        change wT r = _
+        rw [hTval]
+        by_cases har : a ≤ r
+        · have har' : a + 1 ≤ r := by omega
+          by_cases hrlen : r < a + (v :: vs).length
+          · have hrlen' : r < a + 1 + vs.length := by
+              simp only [List.length_cons] at hrlen
+              omega
+            rw [if_pos ⟨har', hrlen'⟩, if_pos ⟨har, hrlen⟩]
+            have hsub : r - a = (r - (a + 1)) + 1 := by omega
+            rw [hsub]
+            simp
+          · have hrlen' : ¬r < a + 1 + vs.length := by
+              simp only [List.length_cons] at hrlen
+              omega
+            rw [if_neg (fun h => hrlen' h.2), if_neg (fun h => hrlen h.2)]
+        · have har' : ¬a + 1 ≤ r := by omega
+          rw [if_neg (fun h => har' h.1), if_neg (fun h => har h.1)]
+
+/-- Source-register capacity needed by a program and its input vector. -/
+def sourceBound (P : Cslib.URM.Program) (inputs : List Nat) : Nat :=
+  max (P.maxRegister + 1) inputs.length
+
+theorem sourceBound_pos (P : Cslib.URM.Program) (inputs : List Nat) :
+    0 < sourceBound P inputs := by
+  unfold sourceBound
+  omega
+
+theorem programBelow_sourceBound (P : Cslib.URM.Program) (inputs : List Nat) :
+    ProgramBelow (sourceBound P inputs) P := by
+  intro i hi
+  have le_foldl : ∀ (xs : List Cslib.URM.Instr) (acc : Nat),
+      acc ≤ xs.foldl (fun a j => max a j.maxRegister) acc := by
+    intro xs
+    induction xs with
+    | nil => intro acc; rfl
+    | cons j js ih =>
+      intro acc
+      exact Nat.le_trans (Nat.le_max_left acc j.maxRegister) (ih _)
+  have mem_le : ∀ (xs : List Cslib.URM.Instr) (acc : Nat) (j : Cslib.URM.Instr),
+      j ∈ xs → j.maxRegister ≤ xs.foldl (fun a t => max a t.maxRegister) acc := by
+    intro xs
+    induction xs with
+    | nil => intro _ _ h; simp at h
+    | cons head tail ih =>
+      intro acc j hj
+      simp only [List.mem_cons] at hj
+      rcases hj with rfl | hj
+      · exact Nat.le_trans
+          (Nat.le_max_right acc _) (le_foldl tail _)
+      · exact ih (max acc _) j hj
+  have hle : i.maxRegister ≤ P.maxRegister := by
+    exact mem_le P 0 i hi
+  unfold sourceBound
+  omega
+
+/-- Counter-machine prologue: load inputs and activate source instruction 0. -/
+def initCode (P : Cslib.URM.Program) (inputs : List Nat) : Code :=
+  loadInputs 0 inputs ++ incMany (pcReg (sourceBound P inputs)) 1
+
+theorem initCode_spec (P : Cslib.URM.Program) (inputs : List Nat) :
+    ∃ w', Ev (counterBound (sourceBound P inputs)) (initCode P inputs)
+        ⟨fun _ => 0, 0⟩ ⟨w', 0⟩ ∧
+      SourceMatches (sourceBound P inputs) w' (Cslib.URM.Regs.ofInputs inputs) ∧
+      w' (pcReg (sourceBound P inputs)) = 1 ∧
+      ScratchClean (sourceBound P inputs) w' := by
+  let B := sourceBound P inputs
+  have hlen : inputs.length ≤ B := by simp [B, sourceBound]
+  obtain ⟨wL, hLsmall, hLval⟩ := loadInputs_spec 0 inputs 0
+  have hmono : 0 + inputs.length + 1 ≤ counterBound B := by
+    simp [counterBound]
+    omega
+  have hL : Ev (counterBound B) (loadInputs 0 inputs) ⟨fun _ => 0, 0⟩ ⟨wL, 0⟩ :=
+    Ev.mono hmono hLsmall
+  let sL : CState := ⟨wL, 0⟩
+  have hp : pcReg B < counterBound B := by simp [pcReg, counterBound]
+  obtain ⟨wP, hP, hPpc, hPfr⟩ := incMany_spec hp 1 sL
+  refine ⟨wP, hL.append hP, ?_, ?_, ?_⟩
+  · intro r hr
+    rw [hPfr r (by simp [pcReg]; omega)]
+    change wL r = Cslib.URM.Regs.ofInputs inputs r
+    rw [hLval]
+    simp only [Nat.zero_le, Nat.zero_add, true_and]
+    by_cases hri : r < inputs.length
+    · simp [hri, Cslib.URM.Regs.ofInputs]
+    · simp [hri, Cslib.URM.Regs.ofInputs, List.getD_eq_getElem?_getD]
+  · rw [hPpc]
+    change wL (pcReg B) + 1 = 1
+    rw [hLval]
+    simp [pcReg, hlen]
+  · have houtside : ∀ r, B < r → wP r = 0 := by
+      intro r hBr
+      rw [hPfr r (by simp [pcReg]; omega)]
+      change wL r = 0
+      rw [hLval]
+      simp only [Nat.zero_le, Nat.zero_add, true_and]
+      rw [if_neg (by omega)]
+    exact ⟨houtside (savedReg B) (by simp [savedReg]),
+      houtside (cmpXReg B) (by simp [cmpXReg]),
+      houtside (cmpYReg B) (by simp [cmpYReg]),
+      houtside (tmpReg B) (by simp [tmpReg]),
+      houtside (gateReg B) (by simp [gateReg]),
+      houtside (eqReg B) (by simp [eqReg]),
+      houtside (fallReg B) (by simp [fallReg])⟩
+
+/-- Emit one byte per unit of counter `r`, consuming that counter. -/
+def emitCounter (r : Nat) : Code := [Cmd.loop r [Cmd.dec r, Cmd.emit]]
+
+theorem emitCounter_spec {R r : Nat} (hr : r < R) :
+    ∀ (v : Nat) (s : CState), s.regs r = v →
+      ∃ w', Ev R (emitCounter r) s ⟨w', s.out + v⟩ ∧ w' r = 0 ∧
+        ∀ k, k ≠ r → w' k = s.regs k := by
+  intro v
+  induction v with
+  | zero =>
+    intro s hs
+    exact ⟨s.regs, Ev.loopZ hr hs Ev.nil, hs, fun _ _ => rfl⟩
+  | succ v ih =>
+    intro s hs
+    have hnz : s.regs r ≠ 0 := by omega
+    let sD := s.down r
+    have hDr : sD.regs r = v := by simp [sD, hs]
+    obtain ⟨w', hrest, hwr, hwfr⟩ := ih sD.emitOne hDr
+    have hrest' : Ev R (emitCounter r) sD.emitOne
+        ⟨w', s.out + (v + 1)⟩ := by
+      convert hrest using 1
+      all_goals simp [sD, CState.emitOne]
+      all_goals omega
+    refine ⟨w', Ev.loopS hr hnz (Ev.dec hr hnz (Ev.emit hrest')), hwr, ?_⟩
+    · intro k hkr
+      rw [hwfr k hkr]
+      exact CState.down_regs_of_ne s hkr
+
+/-- Complete structured-counter program: initialize, simulate, then encode
+the answer as an output-byte count. -/
+def counterProgram (P : Cslib.URM.Program) (inputs : List Nat) : Code :=
+  initCode P inputs ++ runCode (sourceBound P inputs) P ++ emitCounter 0
+
+theorem counterProgram_spec (P : Cslib.URM.Program) (inputs : List Nat)
+    (result : Nat) (h : Cslib.URM.HaltsWithResult P inputs result) :
+    ∃ w', Ev (counterBound (sourceBound P inputs)) (counterProgram P inputs)
+      ⟨fun _ => 0, 0⟩ ⟨w', result⟩ := by
+  rcases h with ⟨v, hsteps, hhalt, hresult⟩
+  let B := sourceBound P inputs
+  obtain ⟨wI, hI, hIsrc, hIpc, hIclean⟩ := initCode_spec P inputs
+  let sI : CState := ⟨wI, 0⟩
+  obtain ⟨wR, hR, hRsrc, hRpc⟩ := steps_runCode
+    (B := B) (P := P) (programBelow_sourceBound P inputs) hsteps hhalt sI
+      hIsrc hIpc hIclean
+  let sR : CState := ⟨wR, 0⟩
+  have hzeroB : 0 < B := sourceBound_pos P inputs
+  have hRzero : sR.regs 0 = result := by
+    change wR 0 = result
+    rw [hRsrc 0 hzeroB]
+    exact hresult
+  obtain ⟨wF, hF, hFzero, hFfr⟩ := emitCounter_spec
+    (R := counterBound B) (r := 0) (by simp [counterBound]) result sR hRzero
+  refine ⟨wF, ?_⟩
+  unfold counterProgram
+  simpa [B, sR, List.append_assoc] using hI.append (hR.append hF)
+
 
 /-! ## Paired unary columns on the Brainfuck tape
 
@@ -2578,5 +2790,106 @@ theorem ev_lower {R : Nat} {code : Code} {c t : CState}
     have htotal := Reaches.trans hto (Reaches.trans hloop (Reaches.trans hback hrest))
     simpa [lower, body, cont, List.append_assoc] using htotal
 
+/-! ## End-to-end Brainfuck compiler -/
+
+/-- Moving one row right from Brainfuck's all-zero initial tape establishes
+the paired-column invariant for the zero counter state. -/
+theorem initial_matches (R : Nat) (hR : 0 < R) (input : Input) :
+    Matches R ⟨fun _ => 0, 0⟩
+      (moveRightN (stride R) ({ input := input } : Brainfuck.State)) := by
+  let s₀ : Brainfuck.State := { input := input }
+  have htape₀ : ∀ p, tapeAt s₀ p = 0 := by
+    intro p
+    cases p <;> simp [s₀, tapeAt, tapeCells]
+  refine ⟨hR, ?_, ?_, ?_, ?_⟩
+  · simp [moveRightN_pointer]
+  · simp [moveRightN_output]
+  · intro r hr
+    rw [moveRightN_tapeAt]
+    exact htape₀ _
+  · intro r hr row
+    rw [moveRightN_tapeAt, moveRightN_tapeAt, htape₀, htape₀]
+    simp
+
+/-- Total runnable compiler from a URM program and input vector. -/
+def compile (P : Cslib.URM.Program) (inputs : List Nat) : Brainfuck.Prog :=
+  let R := counterBound (sourceBound P inputs)
+  rights (stride R) ++ lower R (counterProgram P inputs)
+
+/-- Decode the unary output convention by counting emitted bytes. -/
+def decodeOutput (out : ByteArray) : Option Nat := some out.size
+
+/-- The compiled program embeds the URM input vector, so its runtime input
+stream is empty. -/
+def encodeInput (_inputs : List Nat) : Input := Input.ofString ""
+
+/-- **Simulation theorem.** A halting URM run becomes a halting execution of
+the compiled Brainfuck program whose byte-count output is the URM result. -/
+theorem simulation (P : Cslib.URM.Program) (inputs : List Nat) (result : Nat)
+    (h : Cslib.URM.HaltsWithResult P inputs result) (input : Input) :
+    ∃ m, (Brainfuck.evalProg {} (compile P inputs) input m).exit = Exit.halted ∧
+      decodeOutput (Brainfuck.evalProg {} (compile P inputs) input m).output =
+        some result := by
+  let B := sourceBound P inputs
+  let R := counterBound B
+  let c₀ : CState := ⟨fun _ => 0, 0⟩
+  let s₀ : Brainfuck.State := { input := input }
+  let sB := moveRightN (stride R) s₀
+  obtain ⟨wF, hcounter⟩ := counterProgram_spec P inputs result h
+  have hcounter' : Ev R (counterProgram P inputs) c₀ ⟨wF, result⟩ := by
+    simpa [R, B, c₀] using hcounter
+  have hR : 0 < R := by simp [R, counterBound]
+  have hmB : Matches R c₀ sB := by
+    simpa [sB, s₀, c₀] using initial_matches R hR input
+  have hmove : Reaches (bfExec ({} : Brainfuck.Config))
+      (rights (stride R) ++ lower R (counterProgram P inputs), s₀)
+      (lower R (counterProgram P inputs), sB) := by
+    simpa [sB] using reaches_rights (cfg := ({} : Brainfuck.Config))
+      (stride R) (lower R (counterProgram P inputs)) s₀
+  obtain ⟨sF, hlower, hmF⟩ :=
+    ev_lower (cfg := ({} : Brainfuck.Config)) hcounter' hmB []
+  have hlower' : Reaches (bfExec ({} : Brainfuck.Config))
+      (lower R (counterProgram P inputs), sB) ([], sF) := by
+    simpa using hlower
+  have htotal : Reaches (bfExec ({} : Brainfuck.Config))
+      (compile P inputs, s₀) ([], sF) := by
+    have := Reaches.trans hmove hlower'
+    simpa [compile, R, B] using this
+  obtain ⟨m, hm⟩ := htotal.eval 1
+  have hexec : Brainfuck.exec {} m (compile P inputs) s₀ = (sF, Exit.halted) := by
+    simpa [bfExec, Brainfuck.exec] using hm
+  refine ⟨m, ?_, ?_⟩
+  · simp only [Brainfuck.evalProg]
+    rw [show ({ input := input } : Brainfuck.State) = s₀ by rfl, hexec]
+  · simp only [Brainfuck.evalProg]
+    rw [show ({ input := input } : Brainfuck.State) = s₀ by rfl, hexec]
+    simp [decodeOutput, hmF.2.2.1]
+
 
 end Langlib.Computability.URMBrainfuck
+
+namespace Langlib.Computability
+
+open Langlib.Common
+
+/-- The tag type naming Brainfuck for the shared computability interface. -/
+inductive BrainfuckLang : Type
+
+instance : ProgLang BrainfuckLang where
+  Prog := Langlib.Brainfuck.Prog
+  parse := Langlib.Brainfuck.parse
+  run := Langlib.Brainfuck.evalProg {}
+
+/-- **Brainfuck is Turing complete.**
+
+The witness uses paired unary tape columns and a structured counter-machine
+dispatcher. The compiled program ignores its external input because the URM
+input vector is embedded by the compiler. -/
+def brainfuckComplete : TuringComplete BrainfuckLang where
+  compile := URMBrainfuck.compile
+  encodeInput := URMBrainfuck.encodeInput
+  decodeOutput := URMBrainfuck.decodeOutput
+  simulates := fun P inputs result h =>
+    URMBrainfuck.simulation P inputs result h (URMBrainfuck.encodeInput inputs)
+
+end Langlib.Computability
