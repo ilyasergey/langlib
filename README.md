@@ -66,13 +66,17 @@ The roadmap of languages still to be implemented lives in
 [docs/ROADMAP.md](docs/ROADMAP.md), and a survey of related efforts in
 [docs/RELATED.md](docs/RELATED.md).
 
-Where each one stands. Both of the middle columns answer the same
-question, "is this language Turing complete?", first as the literature or
-our own spec page claims it and then as a machine-checked theorem in this
-repository settles it. So a **no** in the second column is a proof that
-the language is *not* complete, linked to the theorem, and not a note that
-no proof exists; `open` is what that would say. For the three languages
-that carry one, that proof is a decided halting problem.
+Where each one stands. The two middle columns answer different questions.
+**Turing-complete (TC)** is the answer itself, as the literature or our own
+spec page gives it. **TC proven here** is whether that answer is backed by
+a machine-checked theorem in this repository, and links it.
+
+So `yes` in the second column means settled, whichever way the first column
+came out: brainfuck is proved complete, malbolge is proved *not* complete
+by way of a decided halting problem, and both are equally results. The
+column never reads `no`, because no question here has been attempted and
+lost; the unsettled ones say `open`, or `in progress` where the foundations
+have landed and one step remains.
 
 The last column names the Turpentine compilers a target has and links each
 to its source. A **bespoke** one is hand-written for that target: it emits
@@ -85,7 +89,7 @@ fragment and enormous output.
 [Verified compilers](#verified-compilers) below explains why the library
 keeps both kinds.
 
-| Language | Turing complete: claimed | Turing complete: proven here | Turpentine compiler |
+| Language | Turing-complete (TC) | TC claim mechanised | Turpentine compiler |
 |----------|--------------------------|------------------------------|---------------------|
 | [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L2888)** | [bespoke](Langlib/Turpentine/Compile/Brainfuck.lean#L1317) (trusted), and [derived](Langlib/Computability/Derived.lean#L110) (certified) |
 | [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1117)** | [bespoke](Langlib/Turpentine/Compile/Whitespace.lean#L530) (trusted), and [derived](Langlib/Computability/Derived.lean#L102) (certified) |
@@ -95,9 +99,9 @@ keeps both kinds.
 | [thue](docs/thue/spec.md) | yes | open | [planned](docs/thue/compiler.md) |
 | [ook](docs/ook/spec.md) | yes, via brainfuck | open | [planned, free via brainfuck](docs/ook/compiler.md) |
 | [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | open | [planned, free via brainfuck](docs/brainloller/compiler.md) |
-| [befunge93](docs/befunge93/spec.md) | [no with byte cells, yes with ours](docs/befunge93/spec.md#computational-class-and-why-our-deviations-matter) | **[no](Langlib/Computability/Befunge93.lean#L326)**, for the byte core | [none: 2000 cells](docs/befunge93/compiler.md) |
-| [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[no](Langlib/Computability/Malbolge.lean#L743)** | [none: bounded](docs/malbolge/compiler.md) |
-| [deadfish](docs/deadfish/spec.md) | no, every program halts | **[no](Langlib/Computability/Deadfish.lean#L89)** | [planned, output only](docs/deadfish/compiler.md) |
+| [befunge93](docs/befunge93/spec.md) | [no with byte cells, yes with ours](docs/befunge93/spec.md#computational-class-and-why-our-deviations-matter) | **[yes](Langlib/Computability/Befunge93.lean#L326)**, for the byte core | [none: 2000 cells](docs/befunge93/compiler.md) |
+| [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[yes](Langlib/Computability/Malbolge.lean#L743)** | [none: bounded](docs/malbolge/compiler.md) |
+| [deadfish](docs/deadfish/spec.md) | no, every program halts | **[yes](Langlib/Computability/Deadfish.lean#L89)** | [planned, output only](docs/deadfish/compiler.md) |
 | [Turpentine](docs/turpentine/spec.md) | yes | open | [(it is the source)](docs/turpentine/spec.md) |
 
 The full matrix, with per-stage columns and links to every theorem, is in

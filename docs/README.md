@@ -2,7 +2,7 @@
 
 ## Status matrix
 
-| Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC (dis)proved | Correct via TC | Hosts full Turpentine | Bespoke compiler | Bespoke correct |
+| Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved / disproved | Correct via TC | Hosts full Turpentine | Bespoke compiler | Bespoke correct |
 | ---------- | ------ | -------- | ------------- | ------------------ | -------- | ----------------- | ----------- | ---------------- | ----------------------- | ------------------ | ----------------- |
 | [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | [**yes**](../Langlib/Computability/Brainfuck.lean#L2888) | [**yes**](../Langlib/Computability/Derived.lean#L110) | yes | [yes](../Langlib/Turpentine/Compile/Brainfuck.lean#L1317), [notes](brainfuck/compiler.md) | wip |
 | [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [**yes**](../Langlib/Computability/Derived.lean#L102) | yes | [yes](../Langlib/Turpentine/Compile/Whitespace.lean#L530), [notes](whitespace/compiler.md) | wip |
@@ -115,7 +115,7 @@ oddly on purpose:
   run from the command line.
 * **Parser**: `n/a`. URM programs are lists of four constructors, with no
   concrete syntax to parse.
-* **TC (dis)proved**: `(yardstick)`. Every other proof in the table is a
+* **TC proved / disproved**: `(yardstick)`. Every other proof in the table is a
   simulation *of* this machine, so proving it complete against itself would
   be circular; its universality is Shepherdson and Sturgis's theorem, and
   we take it as the definition of the standard.
@@ -156,9 +156,13 @@ whole point of this library.
   argues, linked whenever the answer is not a plain yes. Prose can be
   wrong, and two of ours were: [befunge93](befunge93/spec.md) and
   [malbolge](malbolge/spec.md).
-* **TC (dis)proved** is whether a machine-checked theorem proves it here, and
-  the column says so in either direction, because a proof that a language
+* **TC proved / disproved** is whether a machine-checked theorem settles it
+  here, and *which way it came out*, because a proof that a language
   *cannot* compute everything is as much a result as a proof that it can.
+  Note that this differs from the summary table in
+  [README.md](../README.md), whose narrower `TC proven here` column asks
+  only whether the question is settled and so reads `yes` for a disproof
+  too; here `yes` and `no` name the answer.
   Every entry is audited by
   [scripts/axioms.lean](../scripts/axioms.lean).
   * `yes` links to a simulation: a compiler from the URM into the language,
