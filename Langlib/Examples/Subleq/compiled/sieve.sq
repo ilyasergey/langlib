@@ -1,0 +1,608 @@
+# compiled from Turpentine by Langlib.Turpentine.Compile.Subleq
+# see docs/subleq/compiler.md
+# --- variable initialisers ---
+  t_0       t_0       ?+1       # t_0 := 0
+  km2       t_0       ?+1       # t_0 := 2
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  v_p       v_p       ?+1       # v_p := 0
+  sc        v_p       ?+1       # v_p := t_0
+# --- program body ---
+# while
+L0:
+  sc        sc        ?+1       # sc := 0
+  v_p       sc        ?+1       # sc -= v_p
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := v_p
+  sc        sc        ?+1       # sc := 0
+  v_p       sc        ?+1       # sc -= v_p
+  t_1       t_1       ?+1       # t_1 := 0
+  sc        t_1       ?+1       # t_1 := v_p
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  mul_x     mul_x     ?+1       # mul_x := 0
+  sc        mul_x     ?+1       # mul_x := t_0
+  sc        sc        ?+1       # sc := 0
+  t_1       sc        ?+1       # sc -= t_1
+  mul_y     mul_y     ?+1       # mul_y := 0
+  sc        mul_y     ?+1       # mul_y := t_1
+# call mul
+  sc        sc        ?+1       # sc := 0
+  rL2       sc        ?+1       # sc -= rL2
+  mul_exit+2 mul_exit+2 ?+1       # mul_exit+2 := 0
+  sc        mul_exit+2 ?+1       # mul_exit+2 := rL2
+  Z         Z         mul       # goto mul
+L2:
+  sc        sc        ?+1       # sc := 0
+  mul_r     sc        ?+1       # sc -= mul_r
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := mul_r
+  t_1       t_1       ?+1       # t_1 := 0
+  km50      t_1       ?+1       # t_1 := 50
+  t_1       t_0       ?+1       # t_0 -= t_1
+  km1       t_0       ?+1       # t_0 += 1
+  Z         t_0       L3        # if t_0 <= 0 goto L3
+  t_0       t_0       ?+1       # t_0 := 0
+  Z         Z         L4        # goto L4
+L3:
+  t_0       t_0       ?+1       # t_0 := 0
+  km1       t_0       ?+1       # t_0 := 1
+L4:
+  Z         t_0       L1        # if t_0 <= 0 goto L1
+# if
+  sc        sc        ?+1       # sc := 0
+  v_p       sc        ?+1       # sc -= v_p
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := v_p
+# bounds-check the index of composite against 0 .. 49
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := t_0
+  km1       w0        ?+1       # w0 += 1
+  Z         w0        trap      # if w0 <= 0 goto trap
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := t_0
+  k50       w0        ?+1       # w0 -= k50
+  km1       w0        ?+1       # w0 += 1
+  Z         w0        L7        # if w0 <= 0 goto L7
+  Z         Z         trap      # goto trap
+L7:
+# ax := address of composite[i]
+  sc        sc        ?+1       # sc := 0
+  ab_composite sc        ?+1       # sc -= ab_composite
+  ax        ax        ?+1       # ax := 0
+  sc        ax        ?+1       # ax := ab_composite
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  sc        ax        ?+1       # ax += t_0
+# t_0 := mem[ax], by patching the load at L8
+  sc        sc        ?+1       # sc := 0
+  ax        sc        ?+1       # sc -= ax
+  L8        L8        ?+1       # L8 := 0
+  sc        L8        ?+1       # L8 := ax
+  sc        sc        ?+1       # sc := 0
+L8:
+  0         sc        ?+1       # A is patched: sc := -mem[address]
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := the element
+  scn       scn       ?+1       # scn := 0
+  t_0       scn       ?+1       # scn -= t_0
+  sc        sc        ?+1       # sc := 0
+  scn       sc        ?+1       # sc -= scn
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := -t_0
+  km1       t_0       ?+1       # t_0 += 1
+  Z         t_0       L5        # if t_0 <= 0 goto L5
+# m := ...
+  sc        sc        ?+1       # sc := 0
+  v_p       sc        ?+1       # sc -= v_p
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := v_p
+  sc        sc        ?+1       # sc := 0
+  v_p       sc        ?+1       # sc -= v_p
+  t_1       t_1       ?+1       # t_1 := 0
+  sc        t_1       ?+1       # t_1 := v_p
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  mul_x     mul_x     ?+1       # mul_x := 0
+  sc        mul_x     ?+1       # mul_x := t_0
+  sc        sc        ?+1       # sc := 0
+  t_1       sc        ?+1       # sc -= t_1
+  mul_y     mul_y     ?+1       # mul_y := 0
+  sc        mul_y     ?+1       # mul_y := t_1
+# call mul
+  sc        sc        ?+1       # sc := 0
+  rL9       sc        ?+1       # sc -= rL9
+  mul_exit+2 mul_exit+2 ?+1       # mul_exit+2 := 0
+  sc        mul_exit+2 ?+1       # mul_exit+2 := rL9
+  Z         Z         mul       # goto mul
+L9:
+  sc        sc        ?+1       # sc := 0
+  mul_r     sc        ?+1       # sc -= mul_r
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := mul_r
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  v_m       v_m       ?+1       # v_m := 0
+  sc        v_m       ?+1       # v_m := t_0
+# while
+L10:
+  sc        sc        ?+1       # sc := 0
+  v_m       sc        ?+1       # sc -= v_m
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := v_m
+  t_1       t_1       ?+1       # t_1 := 0
+  km50      t_1       ?+1       # t_1 := 50
+  t_1       t_0       ?+1       # t_0 -= t_1
+  km1       t_0       ?+1       # t_0 += 1
+  Z         t_0       L12       # if t_0 <= 0 goto L12
+  t_0       t_0       ?+1       # t_0 := 0
+  Z         Z         L13       # goto L13
+L12:
+  t_0       t_0       ?+1       # t_0 := 0
+  km1       t_0       ?+1       # t_0 := 1
+L13:
+  Z         t_0       L11       # if t_0 <= 0 goto L11
+# composite[i] := ...
+  t_0       t_0       ?+1       # t_0 := 0
+  km1       t_0       ?+1       # t_0 := 1
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  av        av        ?+1       # av := 0
+  sc        av        ?+1       # av := t_0
+  sc        sc        ?+1       # sc := 0
+  v_m       sc        ?+1       # sc -= v_m
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := v_m
+# bounds-check the index of composite against 0 .. 49
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := t_0
+  km1       w0        ?+1       # w0 += 1
+  Z         w0        trap      # if w0 <= 0 goto trap
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := t_0
+  k50       w0        ?+1       # w0 -= k50
+  km1       w0        ?+1       # w0 += 1
+  Z         w0        L14       # if w0 <= 0 goto L14
+  Z         Z         trap      # goto trap
+L14:
+# ax := address of composite[i]
+  sc        sc        ?+1       # sc := 0
+  ab_composite sc        ?+1       # sc -= ab_composite
+  ax        ax        ?+1       # ax := 0
+  sc        ax        ?+1       # ax := ab_composite
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  sc        ax        ?+1       # ax += t_0
+# mem[ax] := av, by patching L15 and L16
+  sc        sc        ?+1       # sc := 0
+  ax        sc        ?+1       # sc -= ax
+  L15       L15       ?+1       # L15 := 0
+  sc        L15       ?+1       # L15 := ax
+  sc        sc        ?+1       # sc := 0
+  ax        sc        ?+1       # sc -= ax
+  L15+1     L15+1     ?+1       # L15+1 := 0
+  sc        L15+1     ?+1       # L15+1 := ax
+  sc        sc        ?+1       # sc := 0
+  ax        sc        ?+1       # sc -= ax
+  L16+1     L16+1     ?+1       # L16+1 := 0
+  sc        L16+1     ?+1       # L16+1 := ax
+  sc        sc        ?+1       # sc := 0
+  av        sc        ?+1       # sc -= av
+L15:
+  0         0         ?+1       # A and B are patched: mem[address] := 0
+L16:
+  sc        0         ?+1       # B is patched: mem[address] -= sc, storing the value
+# m := ...
+  sc        sc        ?+1       # sc := 0
+  v_m       sc        ?+1       # sc -= v_m
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := v_m
+  sc        sc        ?+1       # sc := 0
+  v_p       sc        ?+1       # sc -= v_p
+  t_1       t_1       ?+1       # t_1 := 0
+  sc        t_1       ?+1       # t_1 := v_p
+  sc        sc        ?+1       # sc := 0
+  t_1       sc        ?+1       # sc -= t_1
+  sc        t_0       ?+1       # t_0 += t_1
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  v_m       v_m       ?+1       # v_m := 0
+  sc        v_m       ?+1       # v_m := t_0
+  Z         Z         L10       # goto L10
+L11:
+  Z         Z         L6        # goto L6
+L5:
+L6:
+# p := ...
+  sc        sc        ?+1       # sc := 0
+  v_p       sc        ?+1       # sc -= v_p
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := v_p
+  t_1       t_1       ?+1       # t_1 := 0
+  km1       t_1       ?+1       # t_1 := 1
+  sc        sc        ?+1       # sc := 0
+  t_1       sc        ?+1       # sc -= t_1
+  sc        t_0       ?+1       # t_0 += t_1
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  v_p       v_p       ?+1       # v_p := 0
+  sc        v_p       ?+1       # v_p := t_0
+  Z         Z         L0        # goto L0
+L1:
+# p := ...
+  t_0       t_0       ?+1       # t_0 := 0
+  km2       t_0       ?+1       # t_0 := 2
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  v_p       v_p       ?+1       # v_p := 0
+  sc        v_p       ?+1       # v_p := t_0
+# while
+L17:
+  sc        sc        ?+1       # sc := 0
+  v_p       sc        ?+1       # sc -= v_p
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := v_p
+  t_1       t_1       ?+1       # t_1 := 0
+  km50      t_1       ?+1       # t_1 := 50
+  t_1       t_0       ?+1       # t_0 -= t_1
+  km1       t_0       ?+1       # t_0 += 1
+  Z         t_0       L19       # if t_0 <= 0 goto L19
+  t_0       t_0       ?+1       # t_0 := 0
+  Z         Z         L20       # goto L20
+L19:
+  t_0       t_0       ?+1       # t_0 := 0
+  km1       t_0       ?+1       # t_0 := 1
+L20:
+  Z         t_0       L18       # if t_0 <= 0 goto L18
+# if
+  sc        sc        ?+1       # sc := 0
+  v_p       sc        ?+1       # sc -= v_p
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := v_p
+# bounds-check the index of composite against 0 .. 49
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := t_0
+  km1       w0        ?+1       # w0 += 1
+  Z         w0        trap      # if w0 <= 0 goto trap
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := t_0
+  k50       w0        ?+1       # w0 -= k50
+  km1       w0        ?+1       # w0 += 1
+  Z         w0        L23       # if w0 <= 0 goto L23
+  Z         Z         trap      # goto trap
+L23:
+# ax := address of composite[i]
+  sc        sc        ?+1       # sc := 0
+  ab_composite sc        ?+1       # sc -= ab_composite
+  ax        ax        ?+1       # ax := 0
+  sc        ax        ?+1       # ax := ab_composite
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  sc        ax        ?+1       # ax += t_0
+# t_0 := mem[ax], by patching the load at L24
+  sc        sc        ?+1       # sc := 0
+  ax        sc        ?+1       # sc -= ax
+  L24       L24       ?+1       # L24 := 0
+  sc        L24       ?+1       # L24 := ax
+  sc        sc        ?+1       # sc := 0
+L24:
+  0         sc        ?+1       # A is patched: sc := -mem[address]
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := the element
+  scn       scn       ?+1       # scn := 0
+  t_0       scn       ?+1       # scn -= t_0
+  sc        sc        ?+1       # sc := 0
+  scn       sc        ?+1       # sc -= scn
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := -t_0
+  km1       t_0       ?+1       # t_0 += 1
+  Z         t_0       L21       # if t_0 <= 0 goto L21
+# print an int
+  sc        sc        ?+1       # sc := 0
+  v_p       sc        ?+1       # sc -= v_p
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := v_p
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  pi_n      pi_n      ?+1       # pi_n := 0
+  sc        pi_n      ?+1       # pi_n := t_0
+# call printint
+  sc        sc        ?+1       # sc := 0
+  rL25      sc        ?+1       # sc -= rL25
+  printint_exit+2 printint_exit+2 ?+1       # printint_exit+2 := 0
+  sc        printint_exit+2 ?+1       # printint_exit+2 := rL25
+  Z         Z         printint  # goto printint
+L25:
+# print "\n"
+  k10       -1        ?+1       # output the byte in k10
+  Z         Z         L22       # goto L22
+L21:
+L22:
+# p := ...
+  sc        sc        ?+1       # sc := 0
+  v_p       sc        ?+1       # sc -= v_p
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := v_p
+  t_1       t_1       ?+1       # t_1 := 0
+  km1       t_1       ?+1       # t_1 := 1
+  sc        sc        ?+1       # sc := 0
+  t_1       sc        ?+1       # sc -= t_1
+  sc        t_0       ?+1       # t_0 += t_1
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  v_p       v_p       ?+1       # v_p := 0
+  sc        v_p       ?+1       # v_p := t_0
+  Z         Z         L17       # goto L17
+L18:
+# --- halt ---
+  Z         Z         -1        # jump to a negative address: halt
+# --- the trap: every Turpentine runtime error lands here ---
+trap:
+  -2        -2        ?+1       # a forbidden negative address: fail loudly
+# --- mul: mul_r := mul_x * mul_y, by repeated addition ---
+# the loop counter is the operand of smaller magnitude
+mul:
+  mul_neg   mul_neg   ?+1       # mul_neg := 0
+  mul_r     mul_r     ?+1       # mul_r := 0
+  sc        sc        ?+1       # sc := 0
+  mul_x     sc        ?+1       # sc -= mul_x
+  mul_a     mul_a     ?+1       # mul_a := 0
+  sc        mul_a     ?+1       # mul_a := mul_x
+  sc        sc        ?+1       # sc := 0
+  mul_y     sc        ?+1       # sc -= mul_y
+  mul_b     mul_b     ?+1       # mul_b := 0
+  sc        mul_b     ?+1       # mul_b := mul_y
+  Z         mul_a     L26       # if mul_a <= 0 goto L26
+  Z         Z         L27       # goto L27
+L26:
+  scn       scn       ?+1       # scn := 0
+  mul_a     scn       ?+1       # scn -= mul_a
+  sc        sc        ?+1       # sc := 0
+  scn       sc        ?+1       # sc -= scn
+  mul_a     mul_a     ?+1       # mul_a := 0
+  sc        mul_a     ?+1       # mul_a := -mul_a
+  scn       scn       ?+1       # scn := 0
+  mul_neg   scn       ?+1       # scn -= mul_neg
+  sc        sc        ?+1       # sc := 0
+  scn       sc        ?+1       # sc -= scn
+  mul_neg   mul_neg   ?+1       # mul_neg := 0
+  sc        mul_neg   ?+1       # mul_neg := -mul_neg
+  km1       mul_neg   ?+1       # mul_neg += 1
+L27:
+  Z         mul_b     L28       # if mul_b <= 0 goto L28
+  Z         Z         L29       # goto L29
+L28:
+  scn       scn       ?+1       # scn := 0
+  mul_b     scn       ?+1       # scn -= mul_b
+  sc        sc        ?+1       # sc := 0
+  scn       sc        ?+1       # sc -= scn
+  mul_b     mul_b     ?+1       # mul_b := 0
+  sc        mul_b     ?+1       # mul_b := -mul_b
+  scn       scn       ?+1       # scn := 0
+  mul_neg   scn       ?+1       # scn -= mul_neg
+  sc        sc        ?+1       # sc := 0
+  scn       sc        ?+1       # sc -= scn
+  mul_neg   mul_neg   ?+1       # mul_neg := 0
+  sc        mul_neg   ?+1       # mul_neg := -mul_neg
+  km1       mul_neg   ?+1       # mul_neg += 1
+L29:
+# swap so that mul_b, the counter, is the smaller of the two
+  sc        sc        ?+1       # sc := 0
+  mul_a     sc        ?+1       # sc -= mul_a
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := mul_a
+  mul_b     w0        ?+1       # w0 -= mul_b
+  km1       w0        ?+1       # w0 += 1
+  Z         w0        L30       # if w0 <= 0 goto L30
+  Z         Z         L31       # goto L31
+L30:
+  sc        sc        ?+1       # sc := 0
+  mul_a     sc        ?+1       # sc -= mul_a
+  w1        w1        ?+1       # w1 := 0
+  sc        w1        ?+1       # w1 := mul_a
+  sc        sc        ?+1       # sc := 0
+  mul_b     sc        ?+1       # sc -= mul_b
+  mul_a     mul_a     ?+1       # mul_a := 0
+  sc        mul_a     ?+1       # mul_a := mul_b
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  mul_b     mul_b     ?+1       # mul_b := 0
+  sc        mul_b     ?+1       # mul_b := w1
+L31:
+L32:
+  Z         mul_b     L33       # if mul_b <= 0 goto L33
+  sc        sc        ?+1       # sc := 0
+  mul_a     sc        ?+1       # sc -= mul_a
+  sc        mul_r     ?+1       # mul_r += mul_a
+  k1        mul_b     ?+1       # mul_b -= 1
+  Z         Z         L32       # goto L32
+L33:
+  Z         mul_neg   L34       # if mul_neg <= 0 goto L34
+  scn       scn       ?+1       # scn := 0
+  mul_r     scn       ?+1       # scn -= mul_r
+  sc        sc        ?+1       # sc := 0
+  scn       sc        ?+1       # sc -= scn
+  mul_r     mul_r     ?+1       # mul_r := 0
+  sc        mul_r     ?+1       # mul_r := -mul_r
+L34:
+mul_exit:
+  Z         Z         0         # return (the third word is the patched return address)
+# --- printint: print pi_n in decimal, most significant digit first ---
+printint:
+  sc        sc        ?+1       # sc := 0
+  pi_n      sc        ?+1       # sc -= pi_n
+  pi_v      pi_v      ?+1       # pi_v := 0
+  sc        pi_v      ?+1       # pi_v := pi_n
+  Z         pi_v      L35       # if pi_v <= 0 goto L35
+  Z         Z         L36       # goto L36
+L35:
+  w0        w0        ?+1       # w0 := 0
+  pi_v      w0        ?+1       # w0 -= pi_v
+  Z         w0        L36       # if w0 <= 0 goto L36
+  k45       -1        ?+1       # output the byte in k45
+  sc        sc        ?+1       # sc := 0
+  w0        sc        ?+1       # sc -= w0
+  pi_v      pi_v      ?+1       # pi_v := 0
+  sc        pi_v      ?+1       # pi_v := w0
+L36:
+# count the digits: pi_k := number of digits of pi_v
+  pi_p      pi_p      ?+1       # pi_p := 0
+  km1       pi_p      ?+1       # pi_p := 1
+  pi_k      pi_k      ?+1       # pi_k := 0
+  km1       pi_k      ?+1       # pi_k := 1
+L37:
+# pi_t := 10 * pi_p
+  sc        sc        ?+1       # sc := 0
+  pi_p      sc        ?+1       # sc -= pi_p
+  w1        w1        ?+1       # w1 := 0
+  sc        w1        ?+1       # w1 := pi_p
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  sc        w1        ?+1       # w1 += w1
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  sc        w1        ?+1       # w1 += w1
+  sc        sc        ?+1       # sc := 0
+  pi_p      sc        ?+1       # sc -= pi_p
+  sc        w1        ?+1       # w1 += pi_p
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  sc        w1        ?+1       # w1 += w1
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  pi_t      pi_t      ?+1       # pi_t := 0
+  sc        pi_t      ?+1       # pi_t := w1
+  sc        sc        ?+1       # sc := 0
+  pi_t      sc        ?+1       # sc -= pi_t
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := pi_t
+  pi_v      w0        ?+1       # w0 -= pi_v
+  Z         w0        L38       # if w0 <= 0 goto L38
+  Z         Z         L39       # goto L39
+L38:
+  sc        sc        ?+1       # sc := 0
+  pi_t      sc        ?+1       # sc -= pi_t
+  pi_p      pi_p      ?+1       # pi_p := 0
+  sc        pi_p      ?+1       # pi_p := pi_t
+  km1       pi_k      ?+1       # pi_k += 1
+  Z         Z         L37       # goto L37
+# emit pi_k digits, rebuilding 10^(k-1) each time
+L39:
+  Z         pi_k      L46       # if pi_k <= 0 goto L46
+  pi_p      pi_p      ?+1       # pi_p := 0
+  km1       pi_p      ?+1       # pi_p := 1
+  pi_j      pi_j      ?+1       # pi_j := 0
+  km1       pi_j      ?+1       # pi_j := 1
+L40:
+  sc        sc        ?+1       # sc := 0
+  pi_j      sc        ?+1       # sc -= pi_j
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := pi_j
+  pi_k      w0        ?+1       # w0 -= pi_k
+  km1       w0        ?+1       # w0 += 1
+  Z         w0        L41       # if w0 <= 0 goto L41
+  Z         Z         L42       # goto L42
+L41:
+# pi_p := 10 * pi_p
+  sc        sc        ?+1       # sc := 0
+  pi_p      sc        ?+1       # sc -= pi_p
+  w1        w1        ?+1       # w1 := 0
+  sc        w1        ?+1       # w1 := pi_p
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  sc        w1        ?+1       # w1 += w1
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  sc        w1        ?+1       # w1 += w1
+  sc        sc        ?+1       # sc := 0
+  pi_p      sc        ?+1       # sc -= pi_p
+  sc        w1        ?+1       # w1 += pi_p
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  sc        w1        ?+1       # w1 += w1
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  pi_p      pi_p      ?+1       # pi_p := 0
+  sc        pi_p      ?+1       # pi_p := w1
+  km1       pi_j      ?+1       # pi_j += 1
+  Z         Z         L40       # goto L40
+L42:
+  pi_d      pi_d      ?+1       # pi_d := 0
+  km48      pi_d      ?+1       # pi_d := 48
+L43:
+  sc        sc        ?+1       # sc := 0
+  pi_p      sc        ?+1       # sc -= pi_p
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := pi_p
+  pi_v      w0        ?+1       # w0 -= pi_v
+  Z         w0        L44       # if w0 <= 0 goto L44
+  Z         Z         L45       # goto L45
+L44:
+  pi_p      pi_v      ?+1       # pi_v -= pi_p
+  km1       pi_d      ?+1       # pi_d += 1
+  Z         Z         L43       # goto L43
+L45:
+  pi_d      -1        ?+1       # output the byte in pi_d
+  k1        pi_k      ?+1       # pi_k -= 1
+  Z         Z         L39       # goto L39
+L46:
+printint_exit:
+  Z         Z         0         # return
+# --- data ---
+v_composite: 0         # array composite, element 0
+# composite[1..49]
+  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  0
+ab_composite: v_composite # base address of composite
+v_p:        0         # variable p
+v_m:        0         # variable m
+t_0:        0         # expression temporary 0
+t_1:        0         # expression temporary 1
+Z:          0         # the constant zero: never changes
+sc:         0         # macro scratch
+scn:        0         # negation scratch
+scj:        0         # zero-test scratch
+w0:         0         # routine workspace
+w1:         0         # routine workspace
+w2:         0         # routine workspace
+ax:         0         # computed address of an array element
+av:         0         # value on its way into an array element
+rL2:        L2        # return address for the call at L2
+rL9:        L9        # return address for the call at L9
+rL25:       L25       # return address for the call at L25
+mul_x:      0         # mul
+mul_y:      0         # mul
+mul_r:      0         # mul
+mul_a:      0         # mul
+mul_b:      0         # mul
+mul_neg:    0         # mul
+pi_n:       0         # printint
+pi_v:       0         # printint
+pi_p:       0         # printint
+pi_t:       0         # printint
+pi_k:       0         # printint
+pi_j:       0         # printint
+pi_d:       0         # printint
+# --- literal pool ---
+km2:        -2
+km50:       -50
+km1:        -1
+k50:        50
+k10:        10
+k1:         1
+k45:        45
+km48:       -48

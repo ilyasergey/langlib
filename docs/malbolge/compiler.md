@@ -1,54 +1,134 @@
 # Compiling Turpentine to Malbolge
 
-* **Status**: not planned. This page exists to record why, and what would
-  change the answer.
+* **Status**: planned. Hard, tractable, and the most valuable thing in
+  Stage 4 if it lands.
+* **Family**: none. Malbolge is not like anything else here, and that is
+  the point.
 
-## The situation
+## Why bother
 
-Ben Olmstead designed Malbolge in 1998 specifically to be impossible to
-program in, and he succeeded well enough that the first program in it was
-produced two years later by a beam search rather than a person (Andrew
-Cooke's `HEllO WORld`, which runs in this library). The obstacles are not
-incidental:
+Malbolge was designed in 1998 to be impossible to program in. The first
+program in it was found by a beam search rather than written. If langlib
+can compile a readable imperative language into it, and eventually prove
+that the compilation is correct, that is a result worth having: as far as
+we know, no verified Malbolge compiler exists.
 
-* **The program encrypts itself as it runs.** After each instruction the
-  cell just executed is replaced via a fixed permutation table, so a cell
-  means something different the second time control reaches it. Writing a
-  loop means arranging for the encrypted forms to also be the instructions
-  you wanted.
-* **The instruction at a cell depends on where the cell is.** The opcode
-  is `(mem[c] + c) mod 94`, so moving a fragment of code changes what it
-  does. There is no such thing as position-independent code.
-* **There are three data operations**, one of which is the ternary "crazy"
-  operation, and none of which is addition.
+It is also not the research problem an earlier draft of this page claimed.
+People compile to Malbolge. Hisashi Iizawa and colleagues at Nagoya
+University published a programming method and an assembler; Matthias
+Lutter wrote a higher-level language (HeLL) and an assembler for it, and
+used them to produce the first Malbolge quine in 2012. The technique is
+documented. What is missing is a from-scratch implementation with a
+correctness argument, which is exactly what this library is for.
 
-Together these mean that the compiler's target language is not a machine
-in the ordinary sense; it is a fixed point problem. The community's
-programs are found by search (Cooke), by cryptanalysis (Lou Scheffer's
-work, which is how anyone understands the language at all), or by
-constructing a higher-level virtual machine inside Malbolge and
-programming that instead. The last route is how the known large Malbolge
-programs are written, and it is the only one a compiler could use.
+## What makes it hard
 
-## What would change the answer
+Three properties, all deliberate on Olmstead's part:
 
-A **Malbolge VM approach**: find (once, by search or by adapting the
-published constructions) a Malbolge program that implements a small
-interpreter for a conventional bytecode, with the bytecode held in data
-cells rather than in code. Then compiling Turpentine to Malbolge means
-compiling to that bytecode and emitting the fixed interpreter plus the
-data. This is how it has been done by the people who write Malbolge
-programs, and it is a legitimate route.
+1. **Executed code encrypts itself.** After an instruction at cell `c`
+   runs, `mem[c]` is replaced through a fixed permutation table. A cell
+   means something different the second time control reaches it, so a
+   naive loop executes different instructions on its second pass.
+2. **Opcodes are position-dependent.** The instruction at `c` is
+   `(mem[c] + c) mod 94`. Code is not relocatable: moving a fragment
+   changes what it does.
+3. **The data operations are hostile.** There is no addition. There is a
+   ternary rotate-right and the "crazy" operation, a per-trit table that
+   is neither associative nor commutative in any convenient way.
 
-It is also a research project with a copyright question attached, since
-the existing VMs are other people's work. If someone wants to build one
-from scratch for langlib, it would be a genuinely notable artifact and
-this page will be rewritten to describe it.
+Point 1 is the one that defeats the obvious approach, and it is the one
+with the known answer.
+
+## The route: a VM inside Malbolge
+
+Do not compile Turpentine constructs directly into Malbolge instructions.
+Instead:
+
+1. **Write a virtual machine in Malbolge**, once, by hand, using the
+   published techniques. It holds a bytecode program in *data* cells and
+   interprets it. Data cells are never executed, so they never encrypt,
+   which sidesteps obstacle 1 entirely. The VM's own code is a fixed
+   artifact that has to survive its own encryption, which is where the
+   real Malbolge craft goes.
+2. **Compile Turpentine to that bytecode**, which is an ordinary
+   compilation problem against an ordinary register or stack machine. This
+   is where RegIR (`docs/PLAN.md`, Stage 4) pays off: the bytecode should
+   simply be RegIR, so this half is shared with the subleq backend.
+3. **Emit VM plus bytecode** as the compiled program.
+
+The self-encryption problem is then solved once, in a fixed piece of code,
+rather than per compiled program.
+
+### The craft in step 1
+
+Surviving encryption is the technique to learn. Two ingredients, both from
+the published work:
+
+* The encryption permutation has **cycles**. A cell whose value lies on a
+  short cycle returns to its original value after a fixed number of
+  executions, so a loop body can be built from cells that restore
+  themselves on the schedule the loop uses.
+* Otherwise, code **rewrites itself back**: a preamble copies pristine
+  copies of the loop body from data cells into the code region before each
+  pass. Costly in cells, and cells are the scarce resource.
+
+Budget: 59049 words total, shared by code and data. The VM plus its
+bytecode has to fit, which directly bounds the size of programs this
+backend can accept.
+
+## Fragment
+
+Bounded, and honestly so. Malbolge is a bounded-storage machine (see
+"Turing completeness" below), so no backend can accept all of Turpentine.
+Expect:
+
+* a program-size limit, set by whatever the VM leaves of the 59049 words;
+* integers bounded by the VM's word representation, not Turpentine's
+  unbounded `Int`;
+* arrays bounded by the same budget;
+* I/O as in the reference semantics (`in` and `out` exist and are cheap).
+
+Every one of those bounds must be stated precisely and enforced by the
+fragment predicate, so that `compile` refuses a program it cannot
+faithfully translate rather than emitting something that silently wraps.
+
+## Correctness
+
+The same simulation statement as every other backend
+(`docs/verification.md`), with the proof factored the way the
+implementation is:
+
+* Turpentine to RegIR: shared with subleq, proved once.
+* RegIR to VM bytecode: an encoding argument, small.
+* **The VM is correct**: the interesting obligation, and a self-contained
+  one. It says that the fixed Malbolge program, run on our reference
+  Malbolge semantics, interprets bytecode as specified. Since the VM is a
+  fixed artifact, this is a finite (if large) verification against an
+  interpreter we already have and have differentially tested against
+  Olmstead's own.
+
+That last point is why this is worth attempting here rather than
+elsewhere: we already have a Malbolge semantics in Lean, checked against
+the reference implementation. The VM proof is a statement about a specific
+program in that semantics, not about a language.
 
 ## Turing completeness
 
-Separately from compilation, whether the original Malbolge is Turing
-complete is **an open question**, recorded as such in `docs/PLAN.md`,
-Stage 8. Malbolge Unshackled, a later variant with unbounded memory, is
-believed to be complete. We do not claim either way, and neither should
-anything in this repository.
+Separate question, and settled: Malbolge is **not** Turing complete. Its
+memory is 59049 words of 59049 possible values, a large but finite state
+space, so its halting problem is decidable. `docs/PLAN.md` Stage 8 plans
+that proof, which has the same shape as Befunge-93's.
+
+Turing completeness returns in two variants that lift the bound:
+Scheffer's Malbolge-T, in which a program may re-read its own output, and
+Lutter's Malbolge Unshackled, which extends the addressing. Both are
+roadmap items (`docs/ROADMAP.md`), and a compiler targeting Unshackled
+would have no size bound to apologise for.
+
+## Credit and copyright
+
+The techniques above are other people's discoveries: Lou Scheffer's
+cryptanalysis, Iizawa et al.'s programming method, Matthias Lutter's HeLL
+and quine. Any VM in this repository must be written from scratch for
+langlib and credited to them as prior art; do not copy their artifacts
+into this tree. See `CONTRIBUTING.md` on respecting copyright.

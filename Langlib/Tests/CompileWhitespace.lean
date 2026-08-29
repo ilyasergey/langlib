@@ -13,9 +13,12 @@ by `Langlib/Tests/Turpentine.lean` where the two suites overlap). A case
 passes only when the two interpreters agree, so the suite is a running
 proof-by-testing that the backend preserves meaning.
 
-The three cases at the end labelled "divergence" are the documented places
-where the two languages cannot agree, and they assert the divergence rather
-than hiding it: see `docs/whitespace/compiler.md`.
+The cases labelled "divergence" are the documented places where the two
+languages cannot agree, and they assert the divergence rather than hiding
+it. Out-of-bounds indexing is checked by the compiled code and reported as
+`heap store at negative address -2`, a different forbidden address from the
+assert trap's `-1`, so the two failures stay distinguishable. See
+`docs/whitespace/compiler.md`.
 -/
 
 namespace Langlib.Tests.CompileWhitespace
@@ -113,6 +116,62 @@ def suite : Suite where
     , { name := "printByte reduces mod 256 like Turpentine",
         source := .inline "printByte(321); printByte(-191); printByte(65);",
         expect := .outputs "AAA" }
+      -- Arrays
+    , { name := "array write then read",
+        source := .inline "var a : int[3]; a[0] := 7; a[2] := 9; println(a[0] + a[2]);",
+        expect := .outputs "16\n" }
+    , { name := "array elements start at zero",
+        source := .inline "var a : int[3]; println(a[0]); println(a[1] + a[2]);",
+        expect := .outputs "0\n0\n" }
+    , { name := "len is a literal",
+        source := .inline "var a : int[5]; var b : bool[2]; println(len(a)); println(len(b) * 3);",
+        expect := .outputs "5\n6\n" }
+    , { name := "computed indices in a loop",
+        source := .inline
+          "var a : int[4]; var i : int := 0; while i < len(a) { a[i] := i * i; i := i + 1; } i := 0; while i < 4 { print(a[i]); print(\",\"); i := i + 1; } println();",
+        expect := .outputs "0,1,4,9,\n" }
+    , { name := "bool array",
+        source := .inline "var b : bool[3]; b[1] := true; println(b[0]); println(b[1]); println(b[2]);",
+        expect := .outputs "false\ntrue\nfalse\n" }
+    , { name := "index by an arbitrary expression",
+        source := .inline "var a : int[5]; a[2 + 1] := 42; println(a[6 / 2]);",
+        expect := .outputs "42\n" }
+    , { name := "an array element indexes another array",
+        source := .inline
+          "var a : int[3]; var b : int[3]; a[0] := 2; b[2] := 99; println(b[a[0]]);",
+        expect := .outputs "99\n" }
+    , { name := "short-circuit && keeps a bad index unevaluated",
+        source := .inline
+          "var a : int[3]; var j : int := -1; if j >= 0 && a[j] > 0 { println(1); } else { println(2); }",
+        expect := .outputs "2\n" }
+    , { name := "readInt into an element",
+        source := .inline "var a : int[3]; a[1] := readInt(); println(a[1] * 2);",
+        input := "21\n", expect := .outputs "42\n" }
+    , { name := "readByte into an element",
+        source := .inline "var a : int[2]; a[0] := readByte(); println(a[0]);",
+        input := "A", expect := .outputs "65\n" }
+    , { name := "a failing right-hand side beats a bad index",
+        source := .inline "var a : int[3]; var z : int := 0; a[9] := 1 / z;",
+        expect := .runtimeError "division by zero" }
+    , { name := "a bad input line beats a bad index",
+        source := .inline "var a : int[2]; a[5] := readInt();", input := "nope\n",
+        expect := .runtimeError "cannot parse" }
+      -- Out of bounds: checked, and distinct from the assert trap
+    , { name := "out of bounds: negative index, read",
+        source := .inline "var a : int[3]; println(a[-1]);",
+        expect := .runtimeError "heap store at negative address -2" }
+    , { name := "out of bounds: index past the end, read",
+        source := .inline "var a : int[3]; println(a[3]);",
+        expect := .runtimeError "heap store at negative address -2" }
+    , { name := "out of bounds: negative index, write",
+        source := .inline "var a : int[3]; a[-2] := 1;",
+        expect := .runtimeError "heap store at negative address -2" }
+    , { name := "out of bounds: index past the end, write",
+        source := .inline "var a : int[3]; a[9] := 1;",
+        expect := .runtimeError "heap store at negative address -2" }
+    , { name := "rejects indexing a scalar",
+        source := .inline "var x : int; println(x[0]);",
+        expect := .parseError "cannot be indexed" }
       -- Example programs, compiled and run on the target
     , { name := "hello example", source := ex "hello",
         expect := .outputs "Hello, Turpentine!\n" }
@@ -132,6 +191,12 @@ def suite : Suite where
         expect := .outputs "111\n" }
     , { name := "primes example (30)", source := ex "primes", input := "30\n",
         expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n" }
+    , { name := "maxelem example", source := ex "maxelem",
+        input := "3\n1\n4\n1\n5\n6\n9\n2\n", expect := .outputs "9\n" }
+    , { name := "sort example", source := ex "sort",
+        input := "5\n2\n9\n1\n5\n6\n", expect := .outputs "1\n2\n5\n5\n6\n9\n" }
+    , { name := "sieve example", source := ex "sieve",
+        expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n31\n37\n41\n43\n47\n" }
       -- Runtime errors that survive compilation unchanged
     , { name := "division by zero, same message as Turpentine",
         source := .inline "var x : int := 0; println(1 / x);",

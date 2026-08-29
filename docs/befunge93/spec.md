@@ -203,6 +203,35 @@ $ lake exe befunge93 --seed 42 Langlib/Examples/Befunge93/random.b93
 1
 ```
 
+## Computational class, and why our deviations matter
+
+Befunge-93 is usually described as not Turing complete, on the grounds
+that its playfield is only 80 by 25. Checking that against `bef.c`
+sharpens the argument and turns up something worth stating.
+
+In the reference implementation the playfield is `char pg[80*25]`, so
+every cell holds one byte and the control state is finite: 2000 cells over
+256 values, plus the instruction pointer and its direction. The stack is a
+heap-allocated linked list of `signed long`, so its *depth* is unbounded
+but its *alphabet* is finite. Finite control plus a single stack over a
+finite alphabet is a pushdown automaton, and pushdown automata are not
+Turing complete. That, not the playfield size alone, is the argument.
+
+Our implementation is a different language on exactly this point.
+Deviations 1 and 2 above store unbounded `Int` in stack cells and in
+playfield cells, for a clean semantics and lossless `p` and `g`. The
+consequence is that the playfield becomes 2000 unbounded registers, and
+`g` and `p` read and write them; two unbounded registers with increment,
+decrement and zero-test are already enough for universality (Minsky), and
+Befunge-93 has arithmetic besides. So **the semantics implemented here is
+Turing complete, while the semantics `bef.c` implements is not**.
+
+Neither is wrong; they are different languages, and the difference is
+invisible until you ask this question. langlib plans to prove both, since
+having the pair in one library is more instructive than either alone: see
+`docs/PLAN.md`, Stage 8. Anyone relying on the classical claim should say
+which Befunge-93 they mean.
+
 ## Sources
 
 * Befunge-93 documentation, Chris Pressey, 1993 (revised through 2018):

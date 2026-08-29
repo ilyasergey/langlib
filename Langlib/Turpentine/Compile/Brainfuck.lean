@@ -224,7 +224,7 @@ def loopAt (c : Nat) (body : M Unit) : M Unit := do
   body
   goto c
   let inner := (← get).ops
-  set { ops := saved.push (.loop inner.toList), pos := c }
+  set ({ ops := saved.push (.loop inner.toList), pos := c } : Emit)
 
 /-- `loopAt` split in two, for loop bodies containing a recursive call to
 `emitStmt`: a closure there would put the recursive call under an opaque
@@ -238,7 +238,7 @@ def openLoop (c : Nat) : M (Array BOp) := do
 def closeLoop (c : Nat) (saved : Array BOp) : M Unit := do
   goto c
   let inner := (← get).ops
-  set { ops := saved.push (.loop inner.toList), pos := c }
+  set ({ ops := saved.push (.loop inner.toList), pos := c } : Emit)
 
 /-! ## Byte-level primitives -/
 
@@ -300,5 +300,443 @@ def halveB (src dst par a b t : Nat) : M Unit := do
     xfer t [(b, 1), (dst, 1)]
   mv par a
   clr b
+
+/-- `flag := (x <u y)` for bytes, consuming `x` and `y`. `w` is the base of
+24 scratch cells; `flag` must lie outside them.
+
+The two operands are halved eight times in lockstep, which walks their bits
+from least to most significant; at each bit, `if xᵢ ≠ yᵢ then flag := yᵢ`, so
+the last disagreement wins, which is the most significant one. -/
+def ltUB (flag x y w : Nat) : M Unit := do
+  let cx0 := w; let cx1 := w + 1; let cy0 := w + 2; let cy1 := w + 3
+  let px := w + 4; let py := w + 5
+  let ha := w + 6; let hb := w + 7; let ht := w + 8
+  let e1 := w + 9; let e2 := w + 10
+  for i in [0 : 11] do clr (w + i)
+  mv cx0 x
+  mv cy0 y
+  clr flag
+  for i in [0 : 8] do
+    let (sx, dx) := if i % 2 == 0 then (cx0, cx1) else (cx1, cx0)
+    let (sy, dy) := if i % 2 == 0 then (cy0, cy1) else (cy1, cy0)
+    halveB sx dx px ha hb ht
+    halveB sy dy py ha hb ht
+    ifElse px e1
+      (ifElse py e2 (pure ()) (clr flag))
+      (ifElse py e2 (do clr flag; inc flag 1) (pure ()))
+
+/-- `flag := (x == y)` for bytes, preserving both. Scratch: `w.b 0`, `w.b 1`. -/
+def eqB (flag x y : Nat) (w : Nat) : M Unit := do
+  let d := w; let t := w + 1
+  cpyB d x t
+  subB d y t
+  clr flag; inc flag 1
+  ifThen d (clr flag)
+
+/-- `flag := (x == 0)` for a byte, preserving `x`. -/
+def isZeroB (flag x : Nat) (w : Nat) : M Unit := do
+  let t := w; let u := w + 1
+  cpyB t x u
+  clr flag; inc flag 1
+  ifThen t (clr flag)
+
+/-! ## Values, work areas -/
+
+/-- A 16-bit value: two adjacent cells, little-endian. -/
+structure Val where
+  lo : Nat
+  hi : Nat
+deriving Inhabited
+
+/-- A scratch region: 24 bytes at `base`, then 16-bit temporaries. A
+primitive that keeps `n` temporaries live across a call hands the callee
+`after n`, which starts above them. -/
+structure Work where
+  base : Nat
+deriving Inhabited
+
+/-- Scratch byte `i` (`i < 24`). -/
+def Work.b (w : Work) (i : Nat) : Nat := w.base + i
+/-- 16-bit temporary `i`. -/
+def Work.t (w : Work) (i : Nat) : Val := ⟨w.base + 24 + 2 * i, w.base + 25 + 2 * i⟩
+/-- A fresh region above this one's first `n` temporaries. -/
+def Work.after (w : Work) (n : Nat) : Work := ⟨w.base + 24 + 2 * n⟩
+
+/-! ## 16-bit primitives -/
+
+def zero16 (v : Val) : M Unit := do clr v.lo; clr v.hi
+
+/-- Set a value to a constant, taken mod 2^16. -/
+def set16 (v : Val) (n : Int) : M Unit := do
+  let m := (Int.emod n 65536).toNat
+  setB v.lo (m % 256)
+  setB v.hi (m / 256)
+
+/-- `d := s`, preserving `s`. -/
+def copy16 (d s : Val) (w : Work) : M Unit := do
+  let t := w.b 0
+  cpyB d.lo s.lo t
+  cpyB d.hi s.hi t
+
+/-- `d := d + s`, preserving `s`. The carry out of the low byte is
+`result <u s.lo`, because a wrapped sum is always below either addend. -/
+def add16 (d s : Val) (w : Work) : M Unit := do
+  let a := w.b 0; let b := w.b 1; let r := w.b 2; let t := w.b 3; let c := w.b 4
+  let ws := (w.after 0).base
+  cpyB a s.lo t
+  cpyB b s.lo t
+  xfer a [(d.lo, 1)]
+  cpyB r d.lo t
+  ltUB c r b ws
+  xfer c [(d.hi, 1)]
+  cpyB a s.hi t
+  xfer a [(d.hi, 1)]
+
+/-- `d := d - s`, preserving `s`. The borrow is `d.lo <u s.lo`, tested
+before the subtraction. -/
+def sub16 (d s : Val) (w : Work) : M Unit := do
+  let a := w.b 0; let b := w.b 1; let t := w.b 3; let c := w.b 4
+  let ws := (w.after 0).base
+  cpyB a d.lo t
+  cpyB b s.lo t
+  ltUB c a b ws
+  cpyB a s.lo t
+  xfer a [(d.lo, -1)]
+  xfer c [(d.hi, -1)]
+  cpyB a s.hi t
+  xfer a [(d.hi, -1)]
+
+/-- `flag := (v < 0)`, i.e. the top bit of `v.hi`, preserving `v`.
+`flag` must lie outside `w.after 0`. -/
+def isNeg16 (flag : Nat) (v : Val) (w : Work) : M Unit := do
+  let t1 := w.b 0; let t2 := w.b 1; let t := w.b 2
+  let ws := (w.after 0).base
+  setB t1 127
+  cpyB t2 v.hi t
+  ltUB flag t1 t2 ws
+
+/-- `flag := (v ≠ 0)`, preserving `v`. -/
+def nz16 (flag : Nat) (v : Val) (w : Work) : M Unit := do
+  let t := w.b 0; let u := w.b 1
+  clr flag
+  cpyB t v.lo u
+  ifThen t (do clr flag; inc flag 1)
+  cpyB t v.hi u
+  ifThen t (do clr flag; inc flag 1)
+
+/-- `flag := (v == 0)`, preserving `v`. -/
+def isZero16 (flag : Nat) (v : Val) (w : Work) : M Unit := do
+  nz16 flag v w
+  let e := w.b 2
+  clr e; inc e 1
+  ifThen flag (clr e)
+  clr flag
+  mv flag e
+
+/-- `v := -v`. -/
+def neg16 (v : Val) (w : Work) : M Unit := do
+  let tv := w.t 0
+  zero16 tv
+  sub16 tv v (w.after 1)
+  copy16 v tv (w.after 1)
+
+/-- `v := |v|`. -/
+def abs16 (v : Val) (w : Work) : M Unit := do
+  let f := w.b 0
+  isNeg16 f v (w.after 0)
+  ifThen f (neg16 v (w.after 0))
+
+/-- `v := v + v`. -/
+def dbl16 (v : Val) (w : Work) : M Unit := do
+  let tv := w.t 0
+  copy16 tv v (w.after 1)
+  add16 v tv (w.after 1)
+
+/-- `v := v >>> 1` (unsigned shift right by one). -/
+def half16 (v : Val) (w : Work) : M Unit := do
+  let h := w.b 0; let p := w.b 1
+  let a := w.b 2; let b := w.b 3; let t := w.b 4
+  let h2 := w.b 5; let p2 := w.b 6
+  halveB v.hi h p a b t
+  halveB v.lo h2 p2 a b t
+  mv v.hi h
+  mv v.lo h2
+  ifThen p (inc v.lo 128)
+  clr p2
+
+/-- `flag := (a < b)`, unsigned when `signed` is false and two's complement
+signed when it is true (biasing both high bytes by 128 turns signed order
+into unsigned order). Both operands are preserved. -/
+def lt16 (flag : Nat) (a b : Val) (w : Work) (signed : Bool) : M Unit := do
+  let hlt := w.b 0; let hgt := w.b 1; let llt := w.b 2
+  let e1 := w.b 3; let e2 := w.b 4
+  let t1 := w.b 5; let t2 := w.b 6; let t := w.b 7
+  let ws := (w.after 0).base
+  let bias : Int := if signed then 128 else 0
+  cpyB t1 a.hi t; inc t1 bias
+  cpyB t2 b.hi t; inc t2 bias
+  ltUB hlt t1 t2 ws
+  cpyB t1 b.hi t; inc t1 bias
+  cpyB t2 a.hi t; inc t2 bias
+  ltUB hgt t1 t2 ws
+  cpyB t1 a.lo t
+  cpyB t2 b.lo t
+  ltUB llt t1 t2 ws
+  clr flag
+  ifElse hlt e1
+    (inc flag 1)
+    (ifElse hgt e2 (pure ()) (mv flag llt))
+  clr hgt; clr llt; clr e2
+
+/-- `flag := (a == b)`, preserving both. -/
+def eq16 (flag : Nat) (a b : Val) (w : Work) : M Unit := do
+  let d := w.b 0; let t := w.b 1
+  clr flag; inc flag 1
+  cpyB d a.lo t; subB d b.lo t
+  ifThen d (clr flag)
+  cpyB d a.hi t; subB d b.hi t
+  ifThen d (clr flag)
+
+/-- Diverge on purpose. Turpentine's runtime errors (failed `assert`,
+division by zero) have no counterpart in brainfuck, so they become an
+infinite loop, which our interpreter reports as running out of fuel. -/
+def trap (w : Work) : M Unit := do
+  let c := w.b 23
+  clr c; inc c 1
+  loopAt c (pure ())
+
+/-! ## Multiplication and division -/
+
+/-- `d := d * s`, consuming `s`.
+
+Shift-and-add over the bits of the multiplier, taken least significant
+first, looping only while the multiplier is still nonzero. The magnitudes
+are multiplied and the sign applied afterwards; two's complement would give
+the right truncated answer without that, but the loop would then run the
+full sixteen rounds on a negative operand and double the multiplicand into
+the tens of thousands on the way. -/
+def mul16 (d s : Val) (w : Work) : M Unit := do
+  let p := w.t 0; let a := w.t 1; let m := w.t 2
+  let w2 := w.after 3
+  let nd := w.b 0; let ns := w.b 1; let sign := w.b 2; let cont := w.b 3
+  let e1 := w.b 4; let e2 := w.b 5
+  let hb := w.b 6; let pb := w.b 7; let x := w.b 8
+  let ha := w.b 9; let hbb := w.b 10; let ht := w.b 11; let u := w.b 12
+  isNeg16 nd d w2
+  isNeg16 ns s w2
+  clr sign
+  ifElse nd e1
+    (ifElse ns e2 (pure ()) (inc sign 1))
+    (ifElse ns e2 (inc sign 1) (pure ()))
+  abs16 d w2
+  abs16 s w2
+  zero16 p
+  copy16 a d w2
+  copy16 m s w2
+  nz16 cont m w2
+  loopAt cont do
+    cpyB x m.lo u
+    halveB x hb pb ha hbb ht
+    ifThen pb (add16 p a w2)
+    dbl16 a w2
+    half16 m w2
+    nz16 cont m w2
+  copy16 d p w2
+  ifThen sign (neg16 d w2)
+
+/-- Unsigned division: `q := a / b`, `r := a % b`, with `a` and `b`
+preserved. `b` must be nonzero; the caller checks.
+
+The doubling method: push the divisor up by powers of two while it still
+fits under the remainder, then walk back down, subtracting where it fits.
+About `2·log₂(a/b)` iterations, against the `a/b` that naive repeated
+subtraction would take. -/
+def divmodU16 (q r a b : Val) (w : Work) : M Unit := do
+  let dd := w.t 0; let mm := w.t 1; let tt := w.t 2
+  let w2 := w.after 3
+  let cont := w.b 0; let ovf := w.b 1; let lt := w.b 2; let one := w.b 3
+  let e1 := w.b 4; let e2 := w.b 5; let e3 := w.b 6
+  zero16 q
+  copy16 r a w2
+  copy16 dd b w2
+  zero16 mm; inc mm.lo 1
+  clr cont; inc cont 1
+  loopAt cont do
+    copy16 tt dd w2
+    add16 tt dd w2
+    lt16 ovf tt dd w2 false
+    lt16 lt r tt w2 false
+    ifElse ovf e1 (clr cont)
+      (ifElse lt e2 (clr cont) (do copy16 dd tt w2; dbl16 mm w2))
+  clr cont; inc cont 1
+  loopAt cont do
+    lt16 lt r dd w2 false
+    ifElse lt e1 (pure ()) (do sub16 r dd w2; add16 q mm w2)
+    set16 tt 1
+    eq16 one mm tt w2
+    ifElse one e3 (clr cont) (do half16 dd w2; half16 mm w2)
+
+/-- Euclidean division: `q := a / b`, `r := a % b` with `0 ≤ r < |b|`, which
+is what `Int.ediv`/`Int.emod` give and therefore what the reference
+interpreter gives. Magnitudes go through `divmodU16`; the correction is
+
+* `r := |b| - r` and `|q| := |q| + 1` when `a < 0` and the remainder is
+  nonzero, otherwise `r` and `|q|` stand;
+* `q` is negative exactly when `a` and `b` have different signs.
+
+`b` must be nonzero; the caller checks. -/
+def ediv16 (q r a b : Val) (w : Work) : M Unit := do
+  let aa := w.t 0; let bb := w.t 1; let qq := w.t 2; let rr := w.t 3
+  let tv := w.t 4
+  let w2 := w.after 5
+  let sa := w.b 0; let sb := w.b 1; let rz := w.b 2
+  let adj := w.b 3; let adj2 := w.b 4; let sq := w.b 5
+  let e1 := w.b 6; let e2 := w.b 7; let t := w.b 8
+  isNeg16 sa a w2
+  isNeg16 sb b w2
+  copy16 aa a w2; abs16 aa w2
+  copy16 bb b w2; abs16 bb w2
+  divmodU16 qq rr aa bb w2
+  isZero16 rz rr w2
+  clr adj
+  ifThen sa (ifElse rz e1 (pure ()) (inc adj 1))
+  cpyB adj2 adj t
+  ifThen adj (do
+    copy16 tv bb w2
+    sub16 tv rr w2
+    copy16 rr tv w2)
+  ifThen adj2 (do
+    set16 tv 1
+    add16 qq tv w2)
+  clr sq
+  ifElse sa e1
+    (ifElse sb e2 (pure ()) (inc sq 1))
+    (ifElse sb e2 (inc sq 1) (pure ()))
+  ifThen sq (neg16 qq w2)
+  copy16 q qq w2
+  copy16 r rr w2
+
+/-! ## Input and output -/
+
+/-- Print a literal string, walking one scratch cell through the byte values
+with `+`/`-` deltas. -/
+def emitStr (w : Work) (s : String) : M Unit := do
+  let c := w.b 0
+  clr c
+  let mut cur : Nat := 0
+  for byte in s.toUTF8.toList do
+    let target := byte.toNat
+    inc c (Int.ofNat target - Int.ofNat cur)
+    emitOp .output
+    cur := target
+  clr c
+
+/-- Print a signed 16-bit value in decimal.
+
+Five rounds of division by ten, shifting the digits along five cells so that
+the last (most significant) digit ends up first, then a print pass with
+leading-zero suppression and the last digit always printed. The division
+code is emitted once and run five times; unrolling it would quintuple the
+size of the output for no gain. -/
+def printInt16 (v : Val) (w : Work) : M Unit := do
+  let vv := w.t 0; let qq := w.t 1; let rr := w.t 2; let ten := w.t 3
+  let w2 := w.after 4
+  let neg := w.b 0
+  let d0 := w.b 1; let d1 := w.b 2; let d2 := w.b 3; let d3 := w.b 4; let d4 := w.b 5
+  let k := w.b 6; let seen := w.b 7; let t := w.b 8; let u := w.b 9; let ch := w.b 10
+  copy16 vv v w2
+  isNeg16 neg vv w2
+  ifThen neg (do
+    setB ch 45
+    goto ch; emitOp .output
+    clr ch
+    neg16 vv w2)
+  zero16 ten; inc ten.lo 10
+  clr d0; clr d1; clr d2; clr d3; clr d4
+  setB k 5
+  loopAt k do
+    inc k (-1)
+    clr d4; mv d4 d3; mv d3 d2; mv d2 d1; mv d1 d0
+    divmodU16 qq rr vv ten w2
+    mv d0 rr.lo
+    copy16 vv qq w2
+  clr seen
+  for d in [d0, d1, d2, d3] do
+    cpyB t d u
+    ifThen t (do clr seen; inc seen 1)
+    cpyB t seen u
+    ifThen t (do
+      setB ch 48
+      addB ch d u
+      goto ch; emitOp .output
+      clr ch)
+  setB ch 48
+  addB ch d4 u
+  goto ch; emitOp .output
+  clr ch
+
+/-- `v := readByte()`. Under `--eof zero` a `,` at end of input stores 0,
+which is indistinguishable from a NUL byte in the input, so both come back
+as `-1`. Text input never contains NUL, so this matches the interpreter on
+everything the fragment claims. -/
+def readByte16 (v : Val) (w : Work) : M Unit := do
+  let c := w.b 0; let z := w.b 1; let t := w.b 2; let u := w.b 3
+  clr c
+  goto c; emitOp .input
+  isZeroB z c u
+  let _ := t
+  zero16 v
+  mv v.lo c
+  ifThen z (do inc v.lo 255; inc v.hi 255)
+
+/-- `v := readInt()`. Consumes bytes up to a newline or end of input,
+accepting a leading `-` and decimal digits and ignoring everything else.
+The reference interpreter rejects a malformed line; this reader does not,
+which is the one place where the compiled program is more forgiving than
+the source language. -/
+def readInt16 (v : Val) (w : Work) : M Unit := do
+  let nn := w.t 0; let tv := w.t 1; let tw := w.t 2
+  let w2 := w.after 3
+  let c := w.b 0; let neg := w.b 1; let cont := w.b 2
+  let t := w.b 3; let u := w.b 4; let dig := w.b 5; let isd := w.b 6
+  let f := w.b 7; let e1 := w.b 8
+  let x := w.b 9; let y := w.b 10
+  -- `cont := c ∉ {10, 0}`, recomputed after each byte.
+  let recomputeCont : M Unit := do
+    clr cont; inc cont 1
+    cpyB t c u; inc t (-10)
+    clr f; inc f 1
+    ifThen t (clr f)
+    ifThen f (clr cont)
+    isZeroB f c u
+    ifThen f (clr cont)
+  zero16 nn; clr neg
+  clr c
+  goto c; emitOp .input
+  recomputeCont
+  loopAt cont do
+    cpyB t c u; inc t (-45)
+    clr f; inc f 1
+    ifThen t (clr f)
+    ifElse f e1
+      (do clr neg; inc neg 1)
+      (do
+        cpyB dig c u; inc dig (-48)
+        cpyB x dig u
+        setB y 10
+        ltUB isd x y w2.base
+        ifThen isd (do
+          copy16 tv nn w2
+          dbl16 nn w2; dbl16 nn w2; dbl16 nn w2
+          add16 nn tv w2
+          add16 nn tv w2
+          zero16 tw
+          mv tw.lo dig
+          add16 nn tw w2))
+    clr c
+    goto c; emitOp .input
+    recomputeCont
+  ifThen neg (neg16 nn w2)
+  copy16 v nn w2
 
 end Langlib.Turpentine.Compile.Brainfuck

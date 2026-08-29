@@ -20,9 +20,10 @@ about the one place where the two languages disagree about division).
 
 ## Supported fragment
 
-All of it. Every statement form, every operator, both I/O styles,
-`invariant` and `decreases` annotations (parsed, ignored, exactly as the
-reference interpreter ignores them).
+All of it. Every statement form, every operator, both I/O styles, fixed-size
+`int[n]` and `bool[n]` arrays with checked bounds, and `invariant` and
+`decreases` annotations (parsed, ignored, exactly as the reference
+interpreter ignores them).
 
 `compile` returns `Except.error` only when the program does not parse or
 does not type-check. There is no unsupported construct to name.
@@ -39,16 +40,40 @@ of it. Compare the brainfuck backend, which has to earn every byte.
 
 ## Memory layout
 
-The heap is a flat frame addressed from 0:
+The heap is a flat frame addressed from 0. Declarations are laid out
+consecutively: a scalar takes one cell, and an array of length `n` takes `n`
+consecutive cells, the variable's recorded address being element 0. Call the
+total `W`:
 
 | Address | Contents |
 |---------|----------|
-| `0 .. n-1` | the `n` declared variables, in declaration order |
-| `n` | `tmpA`, dividend scratch |
-| `n+1` | `tmpB`, divisor scratch |
+| `0 .. W-1` | the declarations, in declaration order |
+| `W` | `tmpA`, dividend scratch |
+| `W+1` | `tmpB`, divisor scratch |
+| `W+2` | `tmpI`, a freshly read number or byte during an indexed read |
 
 Nothing else touches the heap. Booleans live in one cell each as `0` or
-`1`, so `==` and `!=` on booleans are the same code as on integers.
+`1`, so `==` and `!=` on booleans are the same code as on integers, and a
+`bool[n]` is just `n` cells of `0`/`1`.
+
+### Arrays
+
+Arrays cost this backend close to nothing, because the whitespace heap is
+already integer-addressed and its addresses are ordinary stack values.
+There is no descriptor, no indirection table, and no dynamic allocation:
+
+* `a[i]` is `<i>; <bounds check>; push base; add; retrieve`;
+* `a[i] := e` is `<e>; <i>; <bounds check>; push base; add; swap; store`;
+* `len(a)` is `push n`, because the length is fixed at declaration.
+
+The `swap` in the write is there because `store` pops the value before the
+address, and the value has to be computed first (see the evaluation-order
+note below).
+
+The prologue writes a zero to every element. Our heap already defaults to
+0, but the authors' `wspace` crashes on cells that were never stored, so
+writing them keeps the output portable. A `bool[50]` therefore costs 150
+instructions of prologue, which is the largest single cost arrays impose.
 
 Expression values live on the stack. The stack is empty between statements
 and holds exactly one value when an expression finishes. Whitespace's
@@ -66,8 +91,12 @@ distinct labels.
 
 | Turpentine | Whitespace |
 |------------|------------|
-| program | one `store` per declaration, the body, then `end` |
+| program | one `store` per declaration (per element, for an array), the body, `end`, then the shared out-of-bounds trap if any array is declared |
 | `x := e` | `push addr; <e>; store` |
+| `a[i]` | `<i>; <bounds>; push base; add; retrieve` |
+| `a[i] := e` | `<e>; <i>; <bounds>; push base; add; swap; store` |
+| `a[i] := readInt()` | `push tmpI; readnum; <i>; <bounds>; push base; add; push tmpI; retrieve; store` |
+| `len(a)` | `push n` |
 | `if c {a} else {b}` | `<c>; jz else; <a>; jump end; else: <b>; end:` |
 | `while c {b}` | `top: <c>; jz end; <b>; jump top; end:` |
 | `assert e` | `<e>; jz trap; jump ok; trap: push -1; retrieve; ok:` |
@@ -107,6 +136,23 @@ a || b   ->   <a>; jz second; push 1; jump end; second: <b>; end:
 
 The `dup` in `&&` is there because `jz` pops what it tests: when `a` is
 false its own `0` has to survive as the answer.
+
+Short-circuiting is what makes the inner loop of `sort.turp` legal:
+`while j >= 0 && a[j] > key` reaches `j == -1`, and `a[-1]` must never be
+evaluated. The compiled code jumps past the index before it is computed, so
+the bounds check never fires.
+
+### Evaluation order around indexed writes
+
+The reference semantics evaluates the right-hand side of `a[i] := e`
+**first**, then the index, then bounds-checks. The compiled code does the
+same, and it matters when both can fail: `a[9] := 1 / z` with `z == 0`
+reports division by zero, not a bad index, on both sides.
+
+The indexed reads follow the reference too. `a[i] := readInt()` consumes
+and parses the line before it looks at the index, so the compiled form
+reads into `tmpI` first and only then evaluates and checks `i`. A
+malformed line therefore beats a bad index, as it does in the reference.
 
 ## The one real piece of work: Euclidean division
 
@@ -157,7 +203,7 @@ Turpentine interpreter raises.
 
 ## Semantic gaps
 
-Three, and only three.
+Four, and only four.
 
 ### 1. Division and modulo (repaired, above)
 
@@ -169,7 +215,31 @@ retrieve from a negative heap address, which our interpreter reports as
 `heap retrieve at negative address -1`. Both runs stop at the same point
 with the same output so far. Only the wording differs.
 
-### 3. `readByte` at end of input (a real divergence)
+### 3. Array bounds (checked, different wording)
+
+Indexing out of range is a runtime error in the reference semantics, in the
+same class as division by zero, and the compiled code checks it. Whitespace
+has jump-if-negative and nothing else, and both halves of `0 <= i < n` are
+sign tests, so the check is five instructions:
+
+```
+dup; jn oob                  -- i < 0
+dup; push n; sub; jn ok      -- i - n < 0, that is i < n
+jump oob
+ok:
+```
+
+The index survives on the stack for the address arithmetic that follows.
+The shared `oob:` trap, emitted once per program after `end`, does
+`push -2; push 0; store`, a store to a negative heap address, reported as
+`heap store at negative address -2`. That is a different forbidden address
+from the assert trap's `-1`, so the two failures are told apart by their
+messages. The behaviour matches the reference exactly (the run stops at the
+same point with the same output so far); only the wording differs, and the
+reference's wording names the index and the array, which whitespace has no
+way to say.
+
+### 4. `readByte` at end of input (a real divergence)
 
 This one cannot be repaired, and the compiler does not pretend otherwise.
 Turpentine's `readByte()` answers `-1` at end of input, so a Turpentine
@@ -183,6 +253,11 @@ with `read char at end of input` where the Turpentine interpreter would have
 halted cleanly. Programs that read a known number of bytes and never reach
 EOF compile with no divergence. The test suite asserts this divergence
 rather than skipping the program.
+
+The same divergence reaches `a[i] := readByte()`, which reads before it
+checks the index (as the reference does): at end of input the compiled form
+raises the read error where the reference would have stored `-1` and then
+possibly complained about the index.
 
 `readInt` has no such problem. Both languages read one line and fail at end
 of input or on a line that is not an optionally negated decimal numeral,
@@ -256,21 +331,29 @@ checked by `Langlib/Tests/CompileWhitespace.lean`.
 | `gcd.turp` | `252`, `105` | yes | 105 instrs | identical |
 | `primes.turp` | `30` | yes | 124 instrs | identical |
 | `collatz.turp` | `27` | yes | 130 instrs | identical |
-| `cat.turp` | `meow` | yes | 29 instrs | identical bytes, then `read char at end of input` (gap 3) |
+| `maxelem.turp` | `3 1 4 1 5 6 9 2` | yes | 155 instrs | identical |
+| `sort.turp` | `5 2 9 1 5 6` | yes | 247 instrs | identical |
+| `sieve.turp` | | yes | 293 instrs | identical |
+| `cat.turp` | `meow` | yes | 29 instrs | identical bytes, then `read char at end of input` (gap 4) |
 
 Runtime cost is unremarkable: the heaviest of these, `collatz.turp` on
-`27`, executes under 8000 whitespace instructions.
+`27`, executes under 8000 whitespace instructions, and the three array
+programs all finish in under 4000.
 
 ## Generated demos
 
-Three compiled programs are checked in under
+Four compiled programs are checked in under
 `Langlib/Examples/Whitespace/compiled/`:
 
 ```
 lake exe whitespace Langlib/Examples/Whitespace/compiled/hello.ws
 echo 17 | lake exe whitespace Langlib/Examples/Whitespace/compiled/isqrt.ws
 echo 30 | lake exe whitespace Langlib/Examples/Whitespace/compiled/primes.ws
+lake exe whitespace Langlib/Examples/Whitespace/compiled/sieve.ws
 ```
+
+The last one is the array demo: a `bool[50]`, sieved and printed, in 1710
+bytes of spaces, tabs and linefeeds.
 
 They are byte-for-byte what `compileSource` emits, so they carry no
 comments: whitespace prose is only invisible if it contains no spaces, tabs

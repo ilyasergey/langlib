@@ -83,8 +83,11 @@ state first-order, I/O explicit.
 * Turpentine -> befunge93 (stretch goal).
 * Turpentine -> deadfish (straight-line, output-only fragment; a joke, documented
   as such).
-* Not planned: malbolge (open research problem; see its spec page), thue and
-  fractran (possible in principle via rewriting/arithmetisation, roadmap).
+* Turpentine -> malbolge `[ ]`: planned, hard, and worth it. See
+  `docs/malbolge/compiler.md`; the route is a VM written in Malbolge,
+  which is how every substantial Malbolge program has been produced.
+* Turpentine -> thue and -> fractran `[ ]`: planned via a shared register
+  machine (RegIR); see their compiler pages.
 
 ### Intermediate representations, and why
 
@@ -229,6 +232,89 @@ gives Turing completeness.
 easier and always more fun. For a language whose state space is finite,
 exhibit the bound and conclude that its halting problem is decidable.
 
+### One statement for every language
+
+The claims in the table below must not be eleven unrelated theorems. They
+should be eleven instances of two definitions, so that "langlib proves X
+is Turing complete" means the same thing every time and the reader learns
+the shape once. Concretely, in `Langlib/Computability/`:
+
+**A language is a package of syntax and semantics.** Every interpreter in
+the library already has this shape, so the class is a formality that makes
+it quantifiable:
+
+```lean
+class Esolang (L : Type) where
+  Prog : Type
+  parse : String → Except String Prog
+  run : Prog → Input → Nat → RunResult
+```
+
+**Completeness is a compiler plus a simulation.** Not a bare existence
+claim: the witness is the interesting part, and it is usually a compiler
+we want anyway.
+
+```lean
+structure TuringComplete (L : Type) [Esolang L] where
+  compile : URM.Program → Esolang.Prog L
+  encodeInput : URM.Regs → Input
+  decodeOutput : ByteArray → Option Nat
+  simulates : ∀ P regs n, URM.Halts P regs n →
+    ∃ m, let r := Esolang.run (compile P) (encodeInput regs) m
+         r.exit = .halted ∧ decodeOutput r.output = some (URM.result P regs n)
+```
+
+**Incompleteness is a finite bound.** The general lemma is proved once,
+and each language supplies only its bound:
+
+```lean
+structure BoundedStorage (L : Type) [Esolang L] where
+  Config : Type
+  configOf : Esolang.Prog L → Input → Nat → Config
+  finite : ∀ p i, Set.Finite {c | ∃ n, configOf p i n = c}
+
+theorem halting_decidable_of_bounded [Esolang L] (b : BoundedStorage L) :
+    ∀ p i, Decidable (∃ n, (Esolang.run p i n).exit = .halted)
+```
+
+A language with `BoundedStorage` cannot be Turing complete, and that
+implication is one theorem in the library rather than one per language.
+Befunge-93 supplies "80 by 25 playfield, bounded stack", Malbolge supplies
+"59049 words of 59049 values", Deadfish supplies "one accumulator in
+0..255 and no input", and each gets its decidability corollary for free.
+This is the payoff of stating it generally: the negative results become
+three short instances instead of three separate developments.
+
+### Connecting to cslib
+
+The universal model is cslib's unlimited register machine
+(`Cslib.Computability.URM`), and the intended reading of
+`TuringComplete L` is "L computes every partial computable function",
+which follows from the URM's universality. There is a toolchain obstacle:
+cslib pins a newer Lean than we do and depends on Mathlib, while `Langlib`
+is dependency-free and we would like it to stay that way.
+
+The plan, in order:
+
+1. Define `Langlib.Computability.URM` ourselves, **mirroring cslib's
+   instruction set and step relation** deliberately and documenting every
+   deviation. Prove the per-language instances against it. `Langlib` stays
+   dependency-free and the theorems are real today.
+2. Add a `proofs/` Lake package (a sibling of `site/`, with its own
+   toolchain pin) that depends on both cslib and `langlib`, containing a
+   single bridging file: an isomorphism between our URM and cslib's, and
+   the transport of `TuringComplete` across it. That is one lemma, not a
+   port.
+3. After that bridge exists, every completeness instance in the main
+   library upgrades automatically to a statement about cslib's URM, and
+   through cslib's own results, about Turing machines.
+
+The `BoundedStorage` side needs care in step 1: `Set.Finite` is a Mathlib
+notion. Either state the bound concretely as an injection into `Fin n`,
+which needs no Mathlib, or keep the decidability corollary in `proofs/`.
+Prefer the injection: it keeps the negative results in the main library
+where the languages are.
+
 ### Per-language plan
 
 | Language | Claim | Route |
@@ -236,10 +322,10 @@ exhibit the bound and conclude that its halting problem is decidable.
 | whitespace | complete | **first target.** Unbounded heap indexed by integer, arbitrary-precision integers, labels and conditional jumps: a URM register is a heap cell, a URM instruction is a labelled block. The most direct simulation in the library. |
 | subleq | complete | classic OISC result. URM registers map to memory words; increment and decrement are single instructions, and the conditional jump is what subleq *is*. |
 | brainfuck | complete | the textbook proof, but the honest one is fiddly: byte cells mean a URM register needs a multi-cell bignum representation, or a two-counter (Minsky) machine argument with unary counters on the tape. Prefer Minsky: two counters, each a tape region, and `>` `<` for selection. |
-| befunge93 | **incomplete**, then complete with a caveat | Befunge-93 has an 80x25 playfield and (in the reference) a bounded stack, so the -93 state space is finite: prove the bound and decidability. Note that unbounded-stack variants and Befunge-98 are complete. This is the most interesting entry in the table. |
+| befunge93 | **it depends, and that is the finding** | The classical claim is that Befunge-93 is not Turing complete. Checking it against `bef.c` sharpens it: the playfield is `char pg[80*25]`, so the control state is finite, and the stack is a malloc'd list of `signed long`, so it has unbounded *depth* but a finite *alphabet*. Finite control plus one finite-alphabet stack is a pushdown automaton, which is not Turing complete. **Our implementation is a different language on this point**: we store unbounded `Int` in both stack and playfield cells (deviations 1 and 2 in the spec), which turns the 2000 cells into 2000 unbounded registers, and a register machine with two unbounded registers is already universal. So prove *both*: `BoundedStorage` for a faithful char-cell variant, and `TuringComplete` for the semantics we actually implement. The pair is the most instructive entry in this table. |
 | fractran | complete | Conway's own result: a register machine's registers are prime exponents. The simulation is arithmetic rather than operational, so this proof looks different from the others and is worth doing for that reason. |
 | thue | complete | semi-Thue systems are universal (Post). Our deterministic strategy needs care: prove it for the rule set produced by the compiler, where confluence makes the strategy irrelevant. |
-| malbolge | open | genuinely unknown for the original language; Malbolge Unshackled is believed complete. Record the question, do not promise an answer. |
+| malbolge | **incomplete** | a bounded-storage machine: 59049 words of 59049 values is a large finite state space, so its halting problem is decidable and it cannot be Turing complete. The proof is the same shape as Befunge-93's and the bound is explicit in `docs/malbolge/spec.md`. The interesting sequel is Scheffer's Malbolge-T (the program reads its own output, lifting the bound) and Lutter's Malbolge Unshackled, which is complete; both are roadmap items, not claims about what we implement. |
 | piet | complete | unbounded stack of unbounded integers plus conditional branching. Codel-level codegen is laborious; a paper-level argument via a stack machine is the realistic first step. |
 | ook | complete | free: `parse . render = id` against brainfuck, so it inherits the brainfuck result by composition. |
 | brainloller | complete | likewise free, via its decoder into the brainfuck AST. |

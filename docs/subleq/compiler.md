@@ -19,12 +19,14 @@ mem[B] := mem[B] - mem[A];   if the result is <= 0 then goto C
 plus the `-1` convention for byte I/O. That is the whole machine.
 Everything below is built out of it, and it turns out to be enough for all
 of Turpentine: every statement, every operator, both I/O styles, unbounded
-integers, and a decimal printer with no digit ceiling.
+integers, a decimal printer with no digit ceiling, and arrays with computed
+indices on a machine that has no computed addressing.
 
 ## Supported fragment
 
-All of it. `compile` returns `Except.error` only when the program does not
-parse or does not type-check. There is no unsupported construct to name.
+All of it, arrays included. `compile` returns `Except.error` only when the
+program does not parse or does not type-check. There is no unsupported
+construct to name.
 
 Words are arbitrary-precision signed integers in our semantics
 (`docs/subleq/spec.md`, decision 1), and so are Turpentine's
@@ -43,15 +45,22 @@ program counter starts at 0, which is the first initialiser.
 
 | Cell | Contents |
 |------|----------|
-| `v_x` | the Turpentine variable `x`, one cell |
+| `v_x` | the Turpentine variable `x`, one cell; for an array, element 0 of `n` consecutive cells |
+| `ab_x` | for an array `x`, a cell holding the **address** of `v_x` |
 | `t_0`, `t_1`, ... | the expression temporaries |
 | `Z` | the constant 0, the pivot of every jump; never changes |
 | `sc`, `scn` | scratch used inside `MOV` / `ADD` / `NEG` |
 | `scj` | scratch used inside the zero test |
 | `w0`, `w1`, `w2` | routine workspace |
+| `ax`, `av` | the computed address of an array element, and the value on its way into one |
 | routine cells | `mul_x`, `dv_a`, `pi_n`, `ri_v`, and friends |
 | `rL7`, ... | return addresses, one per call site |
 | `k5`, `km5`, ... | the literal pool: the constants `5` and `-5` |
+
+`ab_x` exists because subleq cannot take the address of a label at runtime,
+but the assembler can at build time: the cell is assembled with the address
+of `v_x` as its value, so `ax := ab_x; ax += i` is ordinary arithmetic. The
+`ax`/`av` pair is allocated only if the program actually indexes something.
 
 Booleans are `0` and `1` in one cell, so `==` and `!=` on booleans are the
 same code as on integers, and `if` / `while` test a boolean with a single
@@ -116,6 +125,103 @@ as `x + 1 <= 0`:
 observable: `x != 0 && 1 / x == 0` must run without dividing by zero. `&&`
 is `<a>; JLE t_d end; <b>; end:`, where a false `a` leaves its own `0` as
 the answer; `||` is the mirror image.
+
+## Arrays, or: computed addressing by rewriting the program
+
+This is the most instructive thing in the backend, so it gets the most
+space.
+
+Subleq has exactly one addressing mode: **the operand I was assembled
+with**. `A` and `B` are literal addresses baked into the instruction. There
+is no index register, no offset mode, no pointer dereference. So `a[i]`,
+where `i` is only known at runtime, cannot be expressed by any instruction
+the assembler could emit.
+
+The way out is the one subleq has always used: since code and data share
+one memory, an instruction is data, and **a program can compute its own
+operands before executing them**. The compiler emits an instruction with a
+placeholder operand, and just above it, code that writes the real address
+into that operand's cell. `docs/subleq/spec.md` makes the same point about
+`hello.sq`: self-modifying code is not a trick here, it is the calling
+convention.
+
+### The address
+
+`ax := ab_a; ax += i`, where `ab_a` is the data cell holding the address of
+`a`'s element 0 and `i` is the (bounds-checked) index. Two macros, no
+cleverness. Arrays are laid out as `n` consecutive cells, so the address of
+element `i` really is base plus `i`, and a `bool[n]` is `n` cells of `0`/`1`.
+
+### The indirect load, `dst := mem[ax]`
+
+```
+      MOV ax  L                # overwrite the A operand of the load below
+      ZERO sc
+L:    0       sc   ?+1         # A is patched: sc := -mem[address]
+      ZERO dst
+      sc      dst  ?+1         # dst := mem[address]
+```
+
+The word at address `L` is the `A` operand of the instruction at `L`. The
+`MOV` above writes the computed address into it, and then the instruction
+runs with the operand it was just handed. The `0` in the source is a
+placeholder; it is never the value that executes.
+
+### The indirect store, `mem[ax] := src`
+
+```
+      MOV ax  L1               # A operand of the zeroing instruction
+      MOV ax  L1+1             # B operand of the same instruction
+      MOV ax  L2+1             # B operand of the subtraction
+      ZERO sc
+      SUB src sc               # sc := -src
+L1:   0       0    ?+1         # both patched: mem[address] := 0
+L2:   sc      0    ?+1         # patched: mem[address] -= sc, storing src
+```
+
+Three operand words get rewritten instead of one, because zeroing a cell in
+subleq means naming it twice (`a a ?+1`) and the write-back names it once
+more. `L1+1` and `L2+1` are ordinary label arithmetic, which our assembler
+supports, so the patch targets are written the same way a person would
+write them.
+
+Every execution re-patches before it runs, so these blocks work inside
+loops, which is the only reason `sort.turp` and `sieve.turp` compile at all.
+
+### Bounds checking
+
+Indexing out of range is a runtime error in the reference semantics, and
+the compiled code checks it. Both halves come out of `JLE` and the identity
+`x < 0` iff `x + 1 <= 0`:
+
+```
+w0 := i;  w0 += 1;      JLE w0 trap     # i < 0
+w0 := i;  w0 -= n;  w0 += 1;  JLE w0 ok # i < n
+JMP trap
+ok:
+```
+
+`trap` is the same cell every other Turpentine runtime error reaches, so an
+out-of-bounds index reports `negative address -2 in operand A` like all the
+rest. See the gaps section.
+
+The check is about a dozen instructions per index and runs before every
+load and every store. Nothing in the layout depends on it, so dropping it
+would be a local change if anyone ever wants the speed.
+
+### `len(a)`
+
+A literal. The length is fixed at declaration, so `len` never touches
+memory.
+
+### Evaluation order
+
+The reference evaluates the right-hand side of `a[i] := e` **first**, then
+the index, then bounds-checks; the compiled code stashes the value in `av`
+and does the same. It matters when both can fail: `a[9] := 1 / z` with
+`z == 0` fails on the division on both sides. Likewise
+`a[i] := readInt()` consumes and parses the line before it looks at the
+index, so a malformed line beats a bad index, as it does in the reference.
 
 ## Calls, since there is no call instruction
 
@@ -230,6 +336,9 @@ Fewer than you would expect from a one-instruction machine.
 * **`readByte()` at end of input**: none. Turpentine answers `-1` and so
   does subleq (`docs/subleq/spec.md`, decision 5). `cat.turp` compiles,
   runs, and **terminates**, which its whitespace twin cannot do.
+* **Array bounds**: checked, and reached at the right moment (see the
+  evaluation-order note above). Only the message differs, which is the next
+  bullet.
 * **Runtime error messages**: this is the one gap. Subleq has no error
   strings; the only way a program can refuse to continue is to do something
   the machine forbids. The compiler emits
@@ -242,9 +351,10 @@ Fewer than you would expect from a one-instruction machine.
   which our semantics reports as `negative address -2 in operand A`
   (`docs/subleq/spec.md`, decision 8). Every Turpentine runtime error, a
   failed `assert`, a division or modulo by zero, a missing or malformed
-  `readInt` line, arrives as that one message. The **behaviour** matches
-  (the run stops, at the same point, with the same output so far); the
-  wording cannot.
+  `readInt` line, an out-of-range array index, arrives as that one message.
+  The **behaviour** matches (the run stops, at the same point, with the same
+  output so far); the wording cannot. The reference names the offending
+  index and the array's length, and subleq has no way to say either.
 * **Cost**: multiplication and division are loops, so a compiled program is
   observationally equal to the reference run but takes many more steps. The
   heaviest example, `collatz.turp` on `27`, runs about a million subleq
@@ -349,14 +459,19 @@ checked by `Langlib/Tests/CompileSubleq.lean`.
 | `gcd.turp` | `252`, `105` | yes | 1342 words | < 1k | identical |
 | `primes.turp` | `30` | yes | 1725 words | < 32k | identical |
 | `collatz.turp` | `27` | yes | 1719 words | ~1M | identical |
+| `maxelem.turp` | `3 1 4 1 5 6 9 2` | yes | 1571 words | < 4k | identical |
+| `sort.turp` | `5 2 9 1 5 6` | yes | 2167 words | < 4k | identical |
+| `sieve.turp` | | yes | 1501 words | < 16k | identical |
 
 The sizes are dominated by the routines: the ~1100 words that appear in
 every program doing arithmetic and printing are `mul`, `divmod` and
-`printint`.
+`printint`. Arrays themselves are cheap in space (one cell per element plus
+one for the base address) and pay for themselves in code: each index site
+costs a bounds check plus a patch sequence.
 
 ## Generated demos
 
-Three compiled programs are checked in under
+Four compiled programs are checked in under
 `Langlib/Examples/Subleq/compiled/`, in the assembler dialect, comments and
 all:
 
@@ -364,4 +479,9 @@ all:
 lake exe subleq Langlib/Examples/Subleq/compiled/hello.sq
 echo 9045 | lake exe subleq Langlib/Examples/Subleq/compiled/sumdigits.sq
 printf '252\n105\n' | lake exe subleq Langlib/Examples/Subleq/compiled/gcd.sq
+lake exe subleq Langlib/Examples/Subleq/compiled/sieve.sq
 ```
+
+`sieve.sq` is the one to read: a `bool[50]` sieved with computed indices,
+so the patch sequences above appear in it half a dozen times, each with the
+comment that says which label it is rewriting.

@@ -17,8 +17,8 @@ complete is a language Turpentine should eventually compile to.
 | [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `lake exe brainfuck` | yes | [wip](brainfuck/compiler.md) | - |
 | [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `lake exe whitespace` | wip | [yes](whitespace/compiler.md) | - |
 | [subleq](subleq/spec.md) | yes | yes | yes | yes | `lake exe subleq` | yes | [yes](subleq/compiler.md) | - |
-| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `lake exe befunge93` | no (bounded playfield) | [not planned](befunge93/compiler.md) | n/a |
-| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `lake exe malbolge` | open question | [not planned](malbolge/compiler.md) | n/a |
+| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `lake exe befunge93` | see spec (depends on cell width) | [fragment only](befunge93/compiler.md) | - |
+| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `lake exe malbolge` | no (bounded storage) | [planned](malbolge/compiler.md) | - |
 | [fractran](fractran/spec.md) | yes | yes | yes | yes | `lake exe fractran` | yes | [planned](fractran/compiler.md) | - |
 | [thue](thue/spec.md) | yes | yes | yes | yes | `lake exe thue` | yes | [planned](thue/compiler.md) | - |
 | [piet](piet/spec.md) | yes | yes | yes | yes | `lake exe piet` | yes | [planned](piet/compiler.md) | - |
@@ -34,11 +34,10 @@ in `Langlib/Tests/<Langname>.lean`.
 
 Every language has a `docs/<langname>/compiler.md`: for the backends that
 exist it describes what was built, and for the rest it is a concrete plan
-(or, for befunge93 and malbolge, an argument for why a general backend is
-the wrong thing to build). Planned targets and their sequencing live in
+(or, for befunge93, an argument for why a general backend is the wrong
+thing to build). Planned targets and their sequencing live in
 `PLAN.md` (Stage 4);
-`n/a` entries are explained in the language's spec page (e.g. compiling to
-malbolge is an open research problem).
+`n/a` entries are explained in the language's spec page.
 
 ## Project documents
 

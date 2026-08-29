@@ -21,7 +21,10 @@ For each language, langlib provides:
   differential tests against non-Lean reference implementations where
   available;
 * a **computational-class result**: a claim that the language is or is not
-  Turing complete, and a machine-checked proof of it.
+  Turing complete, and a machine-checked proof of it;
+* where the language can host one, a **compiler from Turpentine**, the
+  library's small readable imperative language, named because turpentine
+  dissolves a [Turing tarpit](https://en.wikipedia.org/wiki/Turing_tarpit).
 
 ## Computability is the point
 

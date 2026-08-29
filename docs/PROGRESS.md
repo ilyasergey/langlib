@@ -2,6 +2,32 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-30 (evening)
+
+* Two corrections that came out of being challenged on the claims, both
+  worth recording as findings rather than typos:
+  * **Malbolge**: I had it as an open question and its compiler as "not
+    planned". Both wrong. Malbolge is a bounded-storage machine (59049
+    words of 59049 values), so it is decidably not Turing complete; the
+    open questions are about Malbolge-T and Unshackled. And people do
+    compile to Malbolge (Iizawa et al.'s method, Lutter's HeLL), so a
+    backend is planned, via a VM written in Malbolge whose data cells
+    never execute and therefore never self-encrypt.
+  * **Befunge-93**: the classical "not Turing complete" claim is about
+    `bef.c`, whose playfield is `char pg[80*25]` and whose stack is an
+    unbounded-depth list of `signed long`: finite control plus a
+    finite-alphabet stack, which is a pushdown automaton. Our
+    implementation stores unbounded `Int` in both, which makes the
+    playfield 2000 unbounded registers and the language Turing complete.
+    The deviation was documented; its consequence was not. Both claims are
+    now stated, and Stage 8 plans to prove the pair.
+* Stage 8 gains a uniform interface: an `Esolang` class, a
+  `TuringComplete` structure bundling compiler and simulation, and a
+  `BoundedStorage` structure with the decidability theorem proved once, so
+  the negative results are short instances rather than separate
+  developments. The cslib connection is staged: mirror its URM now, bridge
+  in a `proofs/` package later, keep `Langlib` dependency-free.
+
 ## 2026-08-30 (later)
 
 * Toolchain pinned to **Lean 4.33.0** (down from 4.33.1). Everything

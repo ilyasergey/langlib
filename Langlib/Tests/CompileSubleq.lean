@@ -21,7 +21,8 @@ The subleq backend has no arithmetic divergence at all (its `divmod` routine
 is Euclidean by construction, and byte output already reduces mod 256 the
 way Turpentine does), and even `readByte` agrees at end of input, since both
 languages answer `-1` there. The one thing subleq cannot reproduce is a
-runtime error *message*, so the cases at the end assert the trap. See
+runtime error *message*, so the cases labelled "trap" assert the single
+error the machine can raise; out-of-bounds indexing arrives there too. See
 `docs/subleq/compiler.md`.
 -/
 
@@ -158,6 +159,63 @@ def suite : Suite where
     , { name := "printByte reduces mod 256 like Turpentine",
         source := .inline "printByte(321); printByte(-191); printByte(65);",
         expect := .outputs "AAA" }
+      -- Arrays, via self-modifying address patching
+    , { name := "array write then read",
+        source := .inline "var a : int[3]; a[0] := 7; a[2] := 9; println(a[0] + a[2]);",
+        expect := .outputs "16\n" }
+    , { name := "array elements start at zero",
+        source := .inline "var a : int[3]; println(a[0]); println(a[1] + a[2]);",
+        expect := .outputs "0\n0\n" }
+    , { name := "len is a literal",
+        source := .inline "var a : int[5]; var b : bool[2]; println(len(a)); println(len(b) * 3);",
+        expect := .outputs "5\n6\n" }
+    , { name := "computed indices in a loop",
+        source := .inline
+          "var a : int[4]; var i : int := 0; while i < len(a) { a[i] := i * i; i := i + 1; } i := 0; while i < 4 { print(a[i]); print(\",\"); i := i + 1; } println();",
+        expect := .outputs "0,1,4,9,\n" }
+    , { name := "bool array",
+        source := .inline "var b : bool[3]; b[1] := true; println(b[0]); println(b[1]); println(b[2]);",
+        expect := .outputs "false\ntrue\nfalse\n" }
+    , { name := "index by an arbitrary expression",
+        source := .inline "var a : int[5]; a[2 + 1] := 42; println(a[6 / 2]);",
+        expect := .outputs "42\n" }
+    , { name := "an array element indexes another array",
+        source := .inline
+          "var a : int[3]; var b : int[3]; a[0] := 2; b[2] := 99; println(b[a[0]]);",
+        expect := .outputs "99\n" }
+    , { name := "two arrays do not overlap",
+        source := .inline
+          "var a : int[3]; var b : int[3]; var i : int := 0; while i < 3 { a[i] := i + 1; b[i] := 10 * (i + 1); i := i + 1; } println(a[0] + a[1] + a[2]); println(b[0] + b[1] + b[2]);",
+        expect := .outputs "6\n60\n" }
+    , { name := "short-circuit && keeps a bad index unevaluated",
+        source := .inline
+          "var a : int[3]; var j : int := -1; if j >= 0 && a[j] > 0 { println(1); } else { println(2); }",
+        expect := .outputs "2\n" }
+    , { name := "readInt into an element",
+        source := .inline "var a : int[3]; a[1] := readInt(); println(a[1] * 2);",
+        input := "21\n", expect := .outputs "42\n" }
+    , { name := "readByte into an element",
+        source := .inline "var a : int[2]; a[0] := readByte(); println(a[0]);",
+        input := "A", expect := .outputs "65\n" }
+    , { name := "readByte into an element at end of input yields -1",
+        source := .inline "var a : int[2]; a[0] := readByte(); println(a[0]);",
+        expect := .outputs "-1\n" }
+      -- Out of bounds reaches the same trap as every other runtime error
+    , { name := "trap: negative index, read",
+        source := .inline "var a : int[3]; println(a[-1]);",
+        expect := .runtimeError "negative address -2 in operand A" }
+    , { name := "trap: index past the end, read",
+        source := .inline "var a : int[3]; println(a[3]);",
+        expect := .runtimeError "negative address -2 in operand A" }
+    , { name := "trap: negative index, write",
+        source := .inline "var a : int[3]; a[-2] := 1;",
+        expect := .runtimeError "negative address -2 in operand A" }
+    , { name := "trap: index past the end, write",
+        source := .inline "var a : int[3]; a[9] := 1;",
+        expect := .runtimeError "negative address -2 in operand A" }
+    , { name := "rejects indexing a scalar",
+        source := .inline "var x : int; println(x[0]);",
+        expect := .parseError "cannot be indexed" }
       -- Example programs, compiled and run on the target
     , { name := "hello example", source := ex "hello",
         expect := .outputs "Hello, Turpentine!\n" }
@@ -179,6 +237,12 @@ def suite : Suite where
         expect := .outputs "111\n" }
     , { name := "primes example (30)", source := ex "primes", input := "30\n",
         expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n" }
+    , { name := "maxelem example", source := ex "maxelem",
+        input := "3\n1\n4\n1\n5\n6\n9\n2\n", expect := .outputs "9\n" }
+    , { name := "sort example", source := ex "sort",
+        input := "5\n2\n9\n1\n5\n6\n", expect := .outputs "1\n2\n5\n5\n6\n9\n" }
+    , { name := "sieve example", source := ex "sieve",
+        expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n31\n37\n41\n43\n47\n" }
       -- Every Turpentine runtime error becomes the one trap subleq can raise
     , { name := "trap: division by zero",
         source := .inline "var x : int := 0; println(1 / x);",
@@ -220,10 +284,15 @@ def roundTripSuite : Suite where
   name := "turpentine -> subleq (assembler round trip)"
   run := roundTrip
   cases :=
-    ( ["hello", "isqrt", "sumdigits", "gcd", "fib", "cat", "collatz", "primes"].map
+    ( ["hello", "isqrt", "sumdigits", "gcd", "fib", "cat", "collatz", "primes",
+       "maxelem", "sort", "sieve"].map
         fun f => { name := s!"{f} example", source := ex f,
                    expect := .outputs "round trip ok" : TestCase } ) ++
-    [ { name := "every routine at once",
+    [ { name := "arrays, patched addressing and a padded data block",
+        source := .inline
+          "var a : int[9]; var b : bool[1]; a[3] := readInt(); b[0] := a[3] > 0; println(a[len(a) - 6]); println(b[0]);",
+        expect := .outputs "round trip ok" }
+    , { name := "every routine at once",
         source := .inline
           "var x : int; x := readInt(); println(x * x / 3 % 7); printByte(x); println(\"done\");",
         expect := .outputs "round trip ok" }
