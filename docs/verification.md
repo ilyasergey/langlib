@@ -108,6 +108,32 @@ composition scaffolding, and the trace algebra that says "same bytes")
 live in `Langlib/Common/` and are proved once. What each backend author
 writes is `R_T` and the per-construct lemmas.
 
+## Intermediate representations split the obligation
+
+`docs/PLAN.md` (Stage 4) introduces one IR per target family: StackIR for
+whitespace and piet, TapeIR for brainfuck and its re-encodings, RegIR for
+subleq and the other OISCs. That refactor changes the shape of the proof
+obligation, for the better.
+
+Without an IR, each backend needs its own state relation and its own set
+of per-construct lemmas, and the expensive part (representing unbounded
+integers in bounded cells, decimal printing, bounds-checked indexing) is
+re-proved every time. With an IR, the obligation factors:
+
+```
+Turpentine --[hard: encoding lives here]--> IR --[easy: often 1:1]--> target
+```
+
+and the composition of two simulations is a simulation, which is a lemma
+worth proving once in `Langlib/Common/`. The brainfuck family then costs
+one hard proof (Turpentine to TapeIR) plus three nearly mechanical ones
+(TapeIR to brainfuck, ook, brainloller), instead of three hard ones.
+
+RegIR is also where this document meets Stage 8: the URM simulation that
+establishes Turing completeness for the OISC family and the compiler that
+targets it are the same construction, so proving one should discharge
+most of the other.
+
 ## Recommended order
 
 1. **Turpentine → whitespace.** The relation is nearly the identity: whitespace

@@ -19,7 +19,32 @@ For each language, langlib provides:
   written in Lean, under `Langlib/Languages/<Langname>/`;
 * **examples** you can run for fun, and a **test suite**, including
   differential tests against non-Lean reference implementations where
-  available.
+  available;
+* a **computational-class result**: a claim that the language is or is not
+  Turing complete, and a machine-checked proof of it.
+
+## Computability is the point
+
+Esolang folklore is full of confident claims. This language is Turing
+complete; that one is not; this other one is complete only if you assume
+an unbounded stack. The arguments are usually a paragraph on a wiki and a
+translation sketch that nobody has checked. Since langlib already has the
+semantics written down formally, it can do better: every language in the
+library gets a claim about its computational class and a proof to go with
+it, stated against the Turing machine and unlimited register machine from
+[cslib](https://github.com/leanprover/cslib).
+
+Turing completeness is proved by exhibiting a compiler from a universal
+model and proving it simulates faithfully. Incompleteness is proved by
+bounding the state space, which is the more entertaining direction:
+Deadfish is famous precisely for not being able to compute anything, and
+Befunge-93's fixed 80 by 25 playfield makes its halting problem
+decidable. The claims and the plan for each language are in
+[docs/README.md](docs/README.md) and [docs/PLAN.md](docs/PLAN.md).
+
+Completeness also drives the compilers: every language proved Turing
+complete is a language Turpentine should compile to, and a completeness
+proof by machine simulation is most of a compiler already.
 
 On top of the interpreters, langlib develops **Turpentine** (`.turp`), a
 small imperative language deeply embedded in Lean and inspired by

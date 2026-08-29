@@ -13,7 +13,7 @@ arbitrary-precision signed integers; Turpentine is a small imperative
 language with a flat variable store, structured control flow, and
 arbitrary-precision signed integers. The two halves fit together with
 almost no shims, so this backend compiles **the whole language**: every
-statement form, every operator, both I/O styles.
+statement form, every operator, both I/O styles, and fixed-size arrays.
 
 ## Why the integers match exactly
 
@@ -28,17 +28,26 @@ work for a living; this one gets the arithmetic for free.
 
 ## Memory layout
 
-The heap is addressed from 0 and used as a flat frame:
+The heap is addressed from 0 and used as a flat frame. Declarations are laid
+out consecutively: a scalar takes one cell, and an array of length `n` takes
+`n` consecutive cells, with the variable's recorded address being element 0.
+Call the total `W`:
 
 | Address | Contents |
 |---------|----------|
-| `0 .. n-1` | the program's `n` declared variables, in declaration order |
-| `n` | `tmpA`, the dividend scratch cell |
-| `n+1` | `tmpB`, the divisor scratch cell |
+| `0 .. W-1` | the declarations, in declaration order |
+| `W` | `tmpA`, the dividend scratch cell |
+| `W+1` | `tmpB`, the divisor scratch cell |
+| `W+2` | `tmpI`, holding a freshly read number or byte during an indexed read |
 
 Nothing else touches the heap. Booleans live in one cell each as `0`
 (false) or `1` (true), so `==`/`!=` on booleans are the same code as on
-integers.
+integers, and a `bool[n]` is `n` cells of `0`/`1`.
+
+Arrays cost this backend almost nothing, because the whitespace heap is
+already integer-addressed: `a[i]` is `base + i` computed on the stack and
+then `retrieve` or `store`, and `len(a)` is a `push` of a literal, since the
+length is fixed at declaration.
 
 Expression values live on the stack, which is empty between statements and
 holds exactly one value when an expression finishes. Whitespace's own
@@ -49,8 +58,20 @@ produces.
 ## Code generation
 
 * **Program**: one store per declaration (initialiser expression, or the
-  `0`/`false` default), then the body, then `[LF][LF][LF]` (end program).
+  `0`/`false` default; an array gets one store per element), then the body,
+  then `[LF][LF][LF]` (end program), then the shared out-of-bounds trap if
+  the program declares any array.
 * **`x := e`**: `push addr; <e>; store`.
+* **`a[i]`**: `<i>; <bounds check>; push base; add; retrieve`.
+* **`a[i] := e`**: `<e>; <i>; <bounds check>; push base; add; swap; store`.
+  The right-hand side is evaluated first, then the index, matching the
+  reference semantics; the `swap` is there because `store` pops the value
+  before the address.
+* **`a[i] := readInt()`** (and `readByte`): read into `tmpI` first, then
+  evaluate and check the index, then copy `tmpI` into the element. The
+  reference consumes and parses the line before it looks at the index, so
+  reading first is what keeps a bad line reporting a bad line.
+* **`len(a)`**: `push n`.
 * **`if c { a } else { b }`**: `<c>; jz else; <a>; jump end; else: <b>; end:`.
   Whitespace has no jump-if-nonzero, but booleans are `0`/`1` and `jz` is
   exactly the false test.
@@ -76,9 +97,9 @@ produces.
 
 ## Semantic gaps and how they are handled
 
-There are exactly three places where the two languages disagree. Two are
-repaired in the generated code; the third is a genuine, documented
-divergence forced by the target.
+There are four places where the two languages disagree. Three are repaired
+in the generated code, two of those at the cost of a different error
+message; the last is a genuine divergence forced by the target.
 
 ### 1. Division and modulo: floor versus Euclidean (repaired)
 
@@ -164,6 +185,11 @@ structure Frame where
   types : Types
   tmpA : Int
   tmpB : Int
+  /-- Scratch cell holding a freshly read number or byte until the index of
+  an indexed read has been evaluated and bounds-checked. -/
+  tmpI : Int
+  /-- Shared out-of-bounds trap. -/
+  oob : Label
 
 /-- Code-generation state: the instructions emitted so far and the label
 counter. -/
@@ -196,6 +222,18 @@ private def addrOf (ctx : Frame) (x : String) : M Int :=
   | some a => pure a
   | none => throw s!"unknown variable '{x}' (was the program type-checked?)"
 
+/-- How many heap cells a declaration occupies. -/
+def slotSize : Ty → Nat
+  | .array _ n => n
+  | _ => 1
+
+/-- The declared length of an array variable. -/
+private def arrayLen (ctx : Frame) (x : String) : M Nat :=
+  match ctx.types[x]? with
+  | some (.array _ n) => pure n
+  | some _ => throw s!"'{x}' is not an array (was the program type-checked?)"
+  | none => throw s!"unknown variable '{x}' (was the program type-checked?)"
+
 /-- Push every UTF-8 byte of `s` and print it as a character. -/
 private def emitStr (s : String) : M Unit :=
   s.toUTF8.toList.forM fun b => do
@@ -207,6 +245,24 @@ every faithful interpreter, and the only way whitespace has of saying "this
 program was wrong". -/
 private def emitTrap : M Unit :=
   emits [.push (-1), .retrieve]
+
+/-- The out-of-bounds trap, emitted once per program and jumped to from
+every index check. It stores to heap address `-2`, a different forbidden
+address from the assert trap's `-1`, so the two failures are told apart by
+their messages. -/
+private def emitOobTrap (ctx : Frame) : M Unit :=
+  emits [.label ctx.oob, .push (-2), .push 0, .store]
+
+/-- Bounds-check the index on top of the stack against an array of length
+`n`, leaving the index in place. Whitespace has jump-if-negative and
+nothing else, and both halves of `0 <= i < n` are sign tests: `i < 0`
+directly, and `i < n` as `i - n < 0`. -/
+private def emitBounds (ctx : Frame) (n : Nat) : M Unit := do
+  let ok ← fresh
+  emits [ .dup, .jn ctx.oob
+        , .dup, .push (n : Int), .sub, .jn ok
+        , .jump ctx.oob
+        , .label ok ]
 
 /-- Stash the two operands of a division from the stack into `tmpA`
 (dividend) and `tmpB` (divisor). Stack `... a b` becomes `...`. -/
@@ -250,10 +306,16 @@ private def emitBool (mk : Label → M Unit) : M Unit := do
 
 /-- Compile an expression; it leaves exactly one value on the stack. -/
 private def compileExpr (ctx : Frame) : Expr → M Unit
-  | .index x _ =>
-    throw s!"arrays are not supported by this backend yet ({x}[i])"
-  | .len x =>
-    throw s!"arrays are not supported by this backend yet (len({x}))"
+  | .index x i => do
+    let n ← arrayLen ctx x
+    let base ← addrOf ctx x
+    compileExpr ctx i
+    emitBounds ctx n
+    emits [.push base, .add, .retrieve]
+  | .len x => do
+    -- The length is fixed at declaration, so this is a literal.
+    let n ← arrayLen ctx x
+    emit (.push (n : Int))
   | .intLit n => emit (.push n)
   | .boolLit b => emit (.push (if b then 1 else 0))
   | .var x => do
@@ -308,12 +370,32 @@ private def compileExpr (ctx : Frame) : Expr → M Unit
 
 /-- Compile a statement; the stack is empty before and after. -/
 private def compileStmt (ctx : Frame) : Stmt → M Unit
-  | .assignIndex x _ _ =>
-    throw s!"arrays are not supported by this backend yet ({x}[i] := ...)"
-  | .readIntIndex x _ =>
-    throw s!"arrays are not supported by this backend yet ({x}[i] := readInt())"
-  | .readByteIndex x _ =>
-    throw s!"arrays are not supported by this backend yet ({x}[i] := readByte())"
+  | .assignIndex x i e => do
+    let n ← arrayLen ctx x
+    let base ← addrOf ctx x
+    -- The reference evaluates the right-hand side first, then the index,
+    -- so a failing `e` reports its own error even when `i` is out of range.
+    compileExpr ctx e
+    compileExpr ctx i
+    emitBounds ctx n
+    -- Stack is `value, base+i`; `store` wants `address, value`.
+    emits [.push base, .add, .swap, .store]
+  | .readIntIndex x i => do
+    let n ← arrayLen ctx x
+    let base ← addrOf ctx x
+    -- Read into scratch first: the reference consumes and parses the line
+    -- before it looks at the index, so a bad line beats a bad index.
+    emits [.push ctx.tmpI, .readNum]
+    compileExpr ctx i
+    emitBounds ctx n
+    emits [.push base, .add, .push ctx.tmpI, .retrieve, .store]
+  | .readByteIndex x i => do
+    let n ← arrayLen ctx x
+    let base ← addrOf ctx x
+    emits [.push ctx.tmpI, .readChar]
+    compileExpr ctx i
+    emitBounds ctx n
+    emits [.push base, .add, .push ctx.tmpI, .retrieve, .store]
   | .skip => pure ()
   | .seq a b => do compileStmt ctx a; compileStmt ctx b
   | .assign x e => do
@@ -379,21 +461,37 @@ def compileChecked (p : Program) (types : Types) :
     Except String Prog := do
   let mut addrs : Std.HashMap String Int := {}
   let mut i : Int := 0
-  for (x, _, _) in p.decls do
+  -- Declarations are laid out consecutively: a scalar takes one cell, an
+  -- array of length n takes n, and its recorded address is element 0.
+  for (x, t, _) in p.decls do
     addrs := addrs.insert x i
-    i := i + 1
-  let ctx : Frame := { addrs, types, tmpA := i, tmpB := i + 1 }
+    i := i + (slotSize t : Int)
+  let hasArrays := p.decls.any fun (_, t, _) => match t with
+    | .array _ _ => true
+    | _ => false
+  -- `"S"` is a single [Space] token. `labelOf` only ever produces labels
+  -- whose first token is [Tab], so this one cannot collide.
+  let ctx : Frame :=
+    { addrs, types, tmpA := i, tmpB := i + 1, tmpI := i + 2, oob := "S" }
   let gen : M Unit := do
-    for (x, _, init) in p.decls do
+    for (x, t, init) in p.decls do
       let a ← addrOf ctx x
-      emit (.push a)
-      -- `int` defaults to 0 and `bool` to false, which is the same cell value.
-      match init with
-      | some e => compileExpr ctx e
-      | none => emit (.push 0)
-      emit .store
+      match t, init with
+      -- Array elements all start at 0 (`int`) or false (`bool`), which is
+      -- the same cell value. Our heap defaults to 0 anyway, but the
+      -- reference interpreter crashes on cells that were never stored, so
+      -- the prologue writes them all.
+      | .array _ n, _ =>
+        for k in [0:n] do
+          emits [.push (a + (k : Int)), .push 0, .store]
+      | _, some e => do
+        emit (.push a)
+        compileExpr ctx e
+        emit .store
+      | _, none => emits [.push a, .push 0, .store]
     compileStmt ctx p.body
     emit .halt
+    if hasArrays then emitOobTrap ctx
   let (_, st) ← gen.run {}
   return st.out
 

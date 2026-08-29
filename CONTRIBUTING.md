@@ -36,6 +36,32 @@ A complete language contribution consists of:
 4. **Tests**: golden tests wired into `Langlib/Tests/` (run by `lake test`), and, if
    a non-Lean reference implementation exists, a differential test entry in
    `scripts/difftest.sh` that skips when the reference is not installed.
+5. **A computational-class claim.** State in the spec page whether the
+   language is Turing complete, and say what the argument is. This is a
+   requirement for the documentation, not for the first pull request: the
+   claim must be stated and sourced, the proof may land later. What is not
+   acceptable is silence, or an unsourced assertion copied from a wiki.
+
+   The criterion, spelled out:
+
+   * **Turing complete** means you can exhibit a total translation from a
+     universal model (we use the unlimited register machine from
+     [cslib](https://github.com/leanprover/cslib)) into the language, and
+     prove that it simulates: whenever the source machine halts, the
+     translated program halts with output encoding the same result. A
+     translation sketch in prose is enough for the spec page; the proof
+     belongs in the `proofs/` package and is tracked in `docs/PLAN.md`,
+     Stage 8.
+   * **Not Turing complete** means you can exhibit a bound: a finite state
+     space, an absent construct (no loops, no unbounded storage), or a
+     decidable halting argument. Say which, and prove it if you can. These
+     proofs are usually short and are the most fun in the library.
+   * **Open** is an acceptable answer when the question genuinely is open,
+     as for Malbolge. Say so and cite the discussion; do not guess.
+
+   A language proved Turing complete is also a language Turpentine should
+   compile to, so a completeness proof and a compiler are worth writing
+   together.
 
 ## Adding a compiler from Turpentine
 
