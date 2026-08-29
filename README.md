@@ -347,20 +347,20 @@ Emit the target program instead, and note that the message says which
 compiler produced it.
 
 ```
-lake exe turpentine compile --to subleq --bespoke -o isqrt.sq Langlib/Examples/Turpentine/isqrt.turp
+lake exe turpentine compile --to subleq --bespoke -o /tmp/isqrt.sq Langlib/Examples/Turpentine/isqrt.turp
 ```
 
 Output:
 
 ```
-turpentine: wrote 22615 bytes to isqrt.sq [bespoke, hand-written and unverified]
+turpentine: wrote 22615 bytes to /tmp/isqrt.sq [bespoke, hand-written and unverified]
 ```
 
 That file is an ordinary subleq program, so run it with subleq's own
 runner.
 
 ```
-echo 17 | lake exe subleq isqrt.sq
+echo 17 | lake exe subleq /tmp/isqrt.sq
 ```
 
 Output:
@@ -369,17 +369,18 @@ Output:
 4
 ```
 
-The certified compiler needs a program in its fragment: no I/O, and the
-result left in a variable called `answer`.
+The certified compiler needs a program in its fragment: no I/O, no
+subtraction or division, and the result left in a variable called
+`answer`. `sumsq.turp` is written that way, and sums the squares below 5.
 
 ```
-lake exe turpentine exec --via whitespace --tc sum.turp
+lake exe turpentine exec --via whitespace --tc Langlib/Examples/Turpentine/sumsq.turp
 ```
 
 Output:
 
 ```
-10
+30
 ```
 
 Outside that fragment it says which construct is the problem rather than

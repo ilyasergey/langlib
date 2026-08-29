@@ -58,6 +58,7 @@ output.
 | `maxelem.turp` | largest of 8 numbers (ported from Velvet) |
 | `sort.turp` | insertion sort of 6 numbers (ported from Velvet) |
 | `sieve.turp` | primes below 50, via a bool array |
+| `sumsq.turp` | sums the squares below 5; written inside the certified fragment, so `--tc` accepts it |
 
 ## Tests
 

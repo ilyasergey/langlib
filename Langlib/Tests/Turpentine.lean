@@ -45,6 +45,8 @@ def suite : Suite where
     , { name := "sort example", source := ex "sort.turp",
         input := "5\n2\n9\n1\n5\n6\n",
         expect := .outputs "1\n2\n5\n5\n6\n9\n" }
+    , { name := "sumsq example (certified fragment)", source := ex "sumsq.turp",
+        expect := .outputs "" }
     , { name := "sieve example", source := ex "sieve.turp",
         expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n31\n37\n41\n43\n47\n" }
     , { name := "array elements start at zero", source := .inline

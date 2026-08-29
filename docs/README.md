@@ -3,83 +3,10 @@
 Per-language specifications live in `docs/<langname>/spec.md`; compiler notes
 (once a Turpentine compiler exists for the language) in `docs/<langname>/compiler.md`.
 
-## Turpentine, and why it is in the table
-
-Most rows below are esoteric languages: someone else's joke, implemented
-here with a specification, an interpreter and a computational-class claim.
-The last row is different. **Turpentine** is LangLib's own language, a
-small readable imperative one, and it is the *source* the others are
-compilation targets for. Write a program once in Turpentine and compile it
-to brainfuck, whitespace or subleq rather than writing brainfuck by hand.
-
-It appears in the same table because it is held to the same standard: it
-has a [spec](turpentine/spec.md), a parser, an interpreter, examples and
-tests, and it gets a computational-class claim like everything else. What
-differs is the compiler columns, which read "(source)" for it, since a
-compiler *from* Turpentine to itself is not a thing.
-
-## The URM
-
-The universal model everything here is measured against: finitely many
-registers holding arbitrary naturals, and four instructions (zero,
-increment, copy, jump-if-equal). Small enough that simulating it is
-tractable, and enough to compute every partial computable function
-(Shepherdson and Sturgis, 1963).
-
-We take it from [cslib](https://github.com/leanprover/cslib) rather than
-defining our own, so the claims are stated in a vocabulary others already
-trust; our [additions](../Langlib/Computability/URM.lean) are only helper
-lemmas. A **Turing complete** claim below means the language simulates any
-URM program; a compiler **via TC** composes that simulation with the shared
-[Turpentine-to-URM pass](../Langlib/Turpentine/Compile/URM.lean).
-
 ## Status matrix
 
-The **Runner** column gives each language's executable name. Run a program
-with:
-
-```
-lake exe <runner> [--fuel N] [--verbose] <file>
-```
-
-Input comes from stdin, output goes to stdout, and every runner takes
-`--help`. Some add their own flags, documented on the language's spec page.
-
-Turpentine, in the last row, is the source language rather than a target,
-so its runner also compiles. The **Bespoke compiler** and **Correct via TC**
-columns say which of the two schemes each language has:
-
-```
-lake exe turpentine run <file.turp>                          # interpret
-lake exe turpentine check <file.turp>                        # type-check only
-lake exe turpentine compile --to <lang> [--bespoke|--tc] [-o out] <file.turp>
-lake exe turpentine exec --via <lang> [--bespoke|--tc] <file.turp>
-```
-
-`exec` compiles in memory and immediately runs the result on that
-language's own interpreter, so its output should match `run` exactly.
-`--bespoke` is the default and accepts the whole language; `--tc`
-uses the compiler derived from the target's completeness proof and accepts
-only an I/O-free fragment. Worked examples of every mode, with real output,
-are in [certified-compilation.md](certified-compilation.md).
-
-
-Legend: `yes` done, `wip` in progress, `-` not started, `n/a` not applicable
-(with the reason in the language's spec page).
-
-**TC** is Turing completeness: whether the language can compute
-everything a Turing machine can. It gets two columns on purpose, because
-the difference between them is the whole point of this library:
-
-* **Turing complete** is the claim: what the literature or our spec page
-  argues, linked whenever the answer is not a plain yes. Prose can be
-  wrong, and two of ours were: [befunge93](befunge93/spec.md) and
-  [malbolge](malbolge/spec.md).
-* **TC proved** is whether a machine-checked theorem exists here: a
-  compiler from the URM into the language and a proof that it simulates,
-  audited by [scripts/axioms.lean](../scripts/axioms.lean). `yes` links to
-  the theorem; `no` means nobody has proved it here, whatever the
-  literature believes.
+Legend: `yes` done, `wip` in progress, `-` not started, `n/a` not applicable.
+Everything the columns mean is explained below the table.
 
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved | Bespoke compiler | Bespoke correct | Correct via TC |
 |----------|------|--------|-------------|------------------|--------|-----------------|-----------|------------------|-----------------|----------------|
@@ -97,6 +24,81 @@ the difference between them is the whole point of this library:
 | [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `deadfish` | [no, finite state](deadfish/spec.md) | no | [planned, output-only](deadfish/compiler.md) | planned | n/a |
 | unlambda / SKI | wip | wip | wip | wip | `unlambda` | yes | no | planned | planned | planned |
 | [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `turpentine` | yes | no | (source) | (source) | (source) |
+
+## Reading the table
+
+### Running a language
+
+The **Runner** column gives each language's executable name:
+
+```
+lake exe <runner> [--fuel N] [--verbose] <file>
+```
+
+Input comes from stdin, output goes to stdout, and every runner takes
+`--help`. Some add their own flags, documented on the language's spec page.
+
+Turpentine, in the last row, is the source language rather than a target,
+so its runner also compiles:
+
+```
+lake exe turpentine run <file.turp>                          # interpret
+lake exe turpentine check <file.turp>                        # type-check only
+lake exe turpentine compile --to <lang> [--bespoke|--tc] [-o out] <file.turp>
+lake exe turpentine exec --via <lang> [--bespoke|--tc] <file.turp>
+```
+
+`exec` compiles in memory and immediately runs the result on that
+language's own interpreter, so its output should match `run` exactly.
+Worked examples of every mode, with real output, are in
+[certified-compilation.md](certified-compilation.md).
+
+### Turpentine, and why it is in the table
+
+Most rows below are esoteric languages: someone else's joke, implemented
+here with a specification, an interpreter and a computational-class claim.
+The last row is different. **Turpentine** is LangLib's own language, a
+small readable imperative one, and it is the *source* the others are
+compilation targets for. Write a program once in Turpentine and compile it
+to brainfuck, whitespace or subleq rather than writing brainfuck by hand.
+
+It appears in the same table because it is held to the same standard: it
+has a [spec](turpentine/spec.md), a parser, an interpreter, examples and
+tests, and it gets a computational-class claim like everything else. What
+differs is the compiler columns, which read "(source)" for it, since a
+compiler *from* Turpentine to itself is not a thing.
+
+### The URM
+
+The universal model everything here is measured against: finitely many
+registers holding arbitrary naturals, and four instructions (zero,
+increment, copy, jump-if-equal). Small enough that simulating it is
+tractable, and enough to compute every partial computable function
+(Shepherdson and Sturgis, 1963).
+
+We take it from [cslib](https://github.com/leanprover/cslib) rather than
+defining our own, so the claims are stated in a vocabulary others already
+trust; our [additions](../Langlib/Computability/URM.lean) are only helper
+lemmas. A **Turing complete** claim below means the language simulates any
+URM program; a compiler **via TC** composes that simulation with the shared
+[Turpentine-to-URM pass](../Langlib/Turpentine/Compile/URM.lean).
+
+### The two computational-class columns
+
+**TC** is Turing completeness: whether the language can compute everything
+a Turing machine can. It gets two columns on purpose, because the
+difference between them is the whole point of this library.
+
+* **Turing complete** is the claim: what the literature or our spec page
+  argues, linked whenever the answer is not a plain yes. Prose can be
+  wrong, and two of ours were: [befunge93](befunge93/spec.md) and
+  [malbolge](malbolge/spec.md).
+* **TC proved** is whether a machine-checked theorem exists here: a
+  compiler from the URM into the language and a proof that it simulates,
+  audited by [scripts/axioms.lean](../scripts/axioms.lean). `yes` links to
+  the theorem; `no` means nobody has proved it here, whatever the
+  literature believes.
+
 
 When a proof lands, its `no` becomes a `yes` linking to the theorem in
 `computability.md`, and the claim in the known column stops being the last

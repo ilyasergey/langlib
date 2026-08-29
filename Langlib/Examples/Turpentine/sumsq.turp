@@ -1,0 +1,15 @@
+// Sum of the squares below 5: 0 + 1 + 4 + 9 + 16 = 30.
+//
+// This example exists to be compiled by the *certified* compiler, so it
+// stays inside the fragment that one accepts: no input or output, no
+// subtraction, division or modulo, no arrays, and the result left in a
+// variable named `answer`, because a register machine has no output and
+// the correctness theorem reads register 0.
+//
+// Usage: lake exe turpentine exec --via whitespace --tc Langlib/Examples/Turpentine/sumsq.turp
+var answer : int;
+var i : int;
+while i < 5 {
+  answer := answer + i * i;
+  i := i + 1;
+}
