@@ -99,6 +99,19 @@ exists. Golden tests are the story: they include the wiki's three
 mandatory interpreter test cases plus both accumulator resets, squaring
 past 256, and the newline-on-unknown-character rule.
 
+## befunge93
+
+Reference situation: excellent. Pressey's own `bef.c` (v2.25, the original
+interpreter, maintained in the Befunge-93 reference distribution at
+https://github.com/catseye/Befunge-93) builds everywhere and Homebrew
+packages it: `brew install befunge93` installs the `bef` binary. From
+source: `cc -std=c89 -O2 -o bef src/bef.c`. Invoke as `bef -q file.b93`
+(`-q` suppresses the version banner, which otherwise goes to stdout).
+Programs using `?` are excluded from comparison: bef seeds its PRNG from
+the clock, while our runner takes `--seed`. Everything else, including the
+division-by-zero prompt-and-answer dance, matches bef byte for byte and is
+also pinned by golden tests.
+
 ## Languages without a canonical interpreter
 
 For these, golden unit tests on programs are the reference story, and their

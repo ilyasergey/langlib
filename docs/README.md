@@ -19,7 +19,7 @@ Legend: `yes` done, `wip` in progress, `-` not started, `n/a` not planned
 | [ook](ook/spec.md) | yes | yes | yes | yes | `lake exe ook` | - | - |
 | [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `lake exe deadfish` | - | - |
 | [thue](thue/spec.md) | wip | wip | wip | wip | `lake exe thue` | n/a | n/a |
-| [befunge93](befunge93/spec.md) | wip | wip | wip | wip | `lake exe befunge93` | - | - |
+| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `lake exe befunge93` | - | - |
 | [piet](piet/spec.md) | wip | wip | wip | wip | `lake exe piet` | - | - |
 | [brainloller](brainloller/spec.md) | wip | wip | wip | wip | `lake exe brainloller` | - | - |
 

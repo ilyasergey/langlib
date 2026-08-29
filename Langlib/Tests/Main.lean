@@ -1,4 +1,5 @@
 import Langlib.Common.TestHarness
+import Langlib.Tests.Befunge93
 import Langlib.Tests.Brainfuck
 import Langlib.Tests.Deadfish
 import Langlib.Tests.Fractran
@@ -17,7 +18,8 @@ Each language contributes suites from `Langlib/Tests/<Langname>.lean`.
 open Langlib.Common in
 def main : IO UInt32 :=
   runSuites <| List.flatten
-    [ Langlib.Tests.Brainfuck.suites
+    [ Langlib.Tests.Befunge93.suites
+    , Langlib.Tests.Brainfuck.suites
     , Langlib.Tests.Deadfish.suites
     , Langlib.Tests.Fractran.suites
     , Langlib.Tests.Ook.suites

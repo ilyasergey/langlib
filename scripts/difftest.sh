@@ -87,6 +87,31 @@ else
   fi
 fi
 
+# ---------------------------------------------------------------- befunge93
+# Reference: Pressey's bef v2.25 (brew install befunge93, or build from
+# https://github.com/catseye/Befunge-93). -q suppresses the stdout banner.
+# random.b93 is excluded: bef seeds '?' from the clock.
+B93_LANGLIB=.lake/build/bin/befunge93
+if [ ! -x "$B93_LANGLIB" ]; then
+  note "befunge93: build first (lake build befunge93); skipping"
+else
+  if ! command -v bef >/dev/null 2>&1; then
+    SKIP=$((SKIP+1))
+    note "befunge93: 'bef' not installed (try: brew install befunge93); skipping"
+  else
+    note "befunge93 vs bef:"
+    for ex in hello cat quine factorial; do
+      f=Langlib/Examples/Befunge93/$ex.b93
+      input=""
+      case $ex in
+        cat) input="differential" ;;
+        factorial) input="6" ;;
+      esac
+      compare "$ex.b93" "$input" "$B93_LANGLIB" "$f" -- bef -q "$f"
+    done
+  fi
+fi
+
 # Languages with no comparable reference binary (see docs/TESTING.md for
 # why): ook, deadfish, fractran, subleq, thue. Golden tests cover them.
 

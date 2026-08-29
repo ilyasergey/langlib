@@ -1,4 +1,5 @@
 import Langlib.Common
+import Langlib.Languages.Befunge93
 import Langlib.Languages.Brainfuck
 import Langlib.Languages.Deadfish
 import Langlib.Languages.Fractran

@@ -38,3 +38,7 @@ root = "Langlib.Languages.Ook.Main"
 [[lean_exe]]
 name = "deadfish"
 root = "Langlib.Languages.Deadfish.Main"
+
+[[lean_exe]]
+name = "befunge93"
+root = "Langlib.Languages.Befunge93.Main"
