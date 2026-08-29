@@ -3,9 +3,21 @@
 An open-source library of the semantics of esoteric and fun programming
 languages, written in [Lean 4](https://lean-lang.org/).
 
-Esoteric languages are not meant for realistic software. They exist to make a point, to win a bet, to parody a committee, or simply to be difficult. Over the last fifty years they have accumulated into a large body of design knowledge: single-instruction machines, programs that are string-rewriting rules, programs laid out on a grid that wraps at every edge, programs that encrypt themselves as they run. This knowledge is scattered across personal pages, wikis, and long-dead FTP servers, and a good deal of it is folklore: claims repeated confidently and checked by nobody.
+Esoteric languages are not meant for realistic software. They exist to make
+a point, to win a bet, to parody a committee, or simply to be difficult.
+Over the last fifty years they have accumulated into a large body of design
+knowledge: single-instruction machines, programs that are string-rewriting
+rules, programs laid out on a grid that wraps at every edge, programs that
+encrypt themselves as they run. This knowledge is scattered across personal
+pages, wikis, and long-dead FTP servers, and a good deal of it is folklore:
+claims repeated confidently and checked by nobody.
 
-The goal of this project is to archive that knowledge in a form that cannot rot. Every language gets a written specification, an executable reference semantics, and machine-checked answers to the questions people actually argue about, starting with what each language can compute. On top of that sits a certified compiler from a language a human would willingly write in, so the collection is not only a museum: the claim that these machines are programmable is backed by a compiler whose correctness is proved rather than tested.
+This project archives that knowledge in a form that cannot rot. Every
+language gets a written specification, an executable reference semantics,
+and machine-checked answers to the questions people actually argue about,
+starting with what each language can compute. On top of that sits a
+compiler from a language a human would willingly write in, whose
+correctness is proved rather than tested.
 
 For each language, LangLib provides:
 
@@ -54,25 +66,97 @@ The roadmap of languages still to be implemented lives in
 [docs/ROADMAP.md](docs/ROADMAP.md), and a survey of related efforts in
 [docs/RELATED.md](docs/RELATED.md).
 
+Where each one stands. The first column is the claim, from the literature
+or our own spec page; the second is whether a machine-checked theorem in
+this repository settles it, in either direction, with a link to the
+theorem. A `no` is as much a result as a `yes`: it means the language
+provably cannot compute everything, which for these three is decided
+halting.
+
+The last column names the Turpentine compilers a target has and links each
+to its source. A **bespoke** one is hand-written for that target: it emits
+compact, readable code and supports the whole language. Every one of them
+is marked *(trusted)*, meaning tested rather than proved; when a bespoke
+correctness theorem lands, that marker becomes *(certified)* and links the
+theorem. A **derived** one comes out of that language's completeness proof,
+so it is *(certified)* already, at the price of a restricted source
+fragment and enormous output.
+[Verified compilers](#verified-compilers) below explains why the library
+keeps both kinds.
+
+| Language | Turing complete? | Proven here | Turpentine compiler |
+|----------|------------------|-------------|---------------------|
+| [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L2888)** | [bespoke](Langlib/Turpentine/Compile/Brainfuck.lean#L1317) (trusted), and [derived](Langlib/Computability/Derived.lean#L110) (certified) |
+| [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1117)** | [bespoke](Langlib/Turpentine/Compile/Whitespace.lean#L530) (trusted), and [derived](Langlib/Computability/Derived.lean#L102) (certified) |
+| [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1201)** | [bespoke](Langlib/Turpentine/Compile/Subleq.lean#L1125) (trusted), and [derived](Langlib/Computability/Derived.lean#L106) (certified) |
+| [fractran](docs/fractran/spec.md) | yes | [in progress](docs/computability-fractran.md) | [planned](docs/fractran/compiler.md) |
+| [piet](docs/piet/spec.md) | yes | [in progress](docs/computability-piet.md) | [planned](docs/piet/compiler.md) |
+| [thue](docs/thue/spec.md) | yes | open | [planned](docs/thue/compiler.md) |
+| [ook](docs/ook/spec.md) | yes, via brainfuck | open | [planned, free via brainfuck](docs/ook/compiler.md) |
+| [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | open | [planned, free via brainfuck](docs/brainloller/compiler.md) |
+| [befunge93](docs/befunge93/spec.md) | [no with byte cells, yes with ours](docs/befunge93/spec.md#computational-class-and-why-our-deviations-matter) | **[no](Langlib/Computability/Befunge93.lean#L326)**, for the byte core | [none: 2000 cells](docs/befunge93/compiler.md) |
+| [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[no](Langlib/Computability/Malbolge.lean#L743)** | [none: bounded](docs/malbolge/compiler.md) |
+| [deadfish](docs/deadfish/spec.md) | no, every program halts | **[no](Langlib/Computability/Deadfish.lean#L89)** | [planned, output only](docs/deadfish/compiler.md) |
+| [Turpentine](docs/turpentine/spec.md) | yes | open | [(it is the source)](docs/turpentine/spec.md) |
+
+The full matrix, with per-stage columns and links to every theorem, is in
+[docs/README.md](docs/README.md).
+
 ## Computability
 
 Esolang folklore is full of claims nobody has checked. Every language here
-gets a claim about its computational class and a machine-checked proof,
-stated against the Turing machine and register machine from
-[cslib](https://github.com/leanprover/cslib), which the project depends on.
-Completeness is proved by compiling a universal machine into the language;
-incompleteness by bounding its state space.
-
-All of it lands in one interface,
-[`Class.lean`](Langlib/Computability/Class.lean), which defines `ProgLang`,
-`TuringComplete` and `BoundedStorage`, so every result is an instance of the
-same two definitions rather than a bespoke theorem. The proofs are stated
-against [our helpers](Langlib/Computability/URM.lean) over cslib's register
-machine, and each one is audited by
+gets a claim about its computational class and a machine-checked proof of
+it. Completeness is proved by compiling a universal machine into the
+language; incompleteness by bounding the machine's state space and deciding
+its halting problem. Per-language status is in the
+[status matrix](docs/README.md), and every result is audited by
 [`scripts/axioms.lean`](scripts/axioms.lean), because a proof resting on
-`sorry` type-checks exactly like a real one. Per-language status is in the
-[status matrix](docs/README.md) and the plan is
-[Stage 8](docs/PLAN.md).
+`sorry` type-checks exactly like a real one.
+
+### The four definitions everything is stated with
+
+They live in [`Class.lean`](Langlib/Computability/Class.lean), so a claim
+means the same thing for every language.
+
+**The URM** is the yardstick, and it comes from
+[cslib](https://github.com/leanprover/cslib) rather than being defined here,
+so the claims are phrased in a vocabulary others already use. It is
+Shepherdson and Sturgis's unlimited register machine: countably many
+registers holding natural numbers, and four instructions — zero a register,
+increment it, copy one to another, and jump if two are equal. That is
+enough to compute every computable function, and it is small enough that
+simulating it inside a toy language is a day's work rather than a career.
+[Our additions](Langlib/Computability/URM.lean) are an executable
+interpreter, which cslib's relational semantics deliberately is not, and
+the lemmas tying the two together.
+
+**`ProgLang L`** is what every language in the library supplies: a program
+type, a parser, and a pure fuel-based interpreter. `L` is an empty tag type
+that names the language, so `BoundedByteBefunge93` and `Befunge93` can be
+two languages with two different answers.
+
+**`TuringComplete L`** is the positive claim, and it is a *witness* rather
+than a proposition: a compiler from URM programs into `L`, an encoding of
+the machine's input, a decoding of its answer, and the proof that a
+compiled program halts with the right answer whenever the machine does.
+Writing that term down is what "we proved it complete" means here. It also
+pays for itself, because a compiler from a register machine is exactly what
+a certified Turpentine backend needs (see below).
+
+**`BoundedStorage L`** is the negative claim: a configuration type, a bound
+on it per program and input, an injection into `{0, …, bound - 1}`, and two
+laws saying the machine is deterministic and that halting depends only on
+the configuration. From those, `halting_decidable` derives once and for all
+that halting is decidable — a run that has not halted within `bound` steps
+has repeated a configuration and never will. A language with this witness
+cannot be Turing complete.
+
+**`BoundedRun L`** asks for the same laws only where the pigeonhole
+argument uses them: at configurations a run actually reaches. That is the
+weaker form, and every `BoundedStorage` gives one. It exists because a
+language can have a state *type* that is wide (an unbounded array, an
+output that grows, an input cursor whose range depends on the input) while
+its reachable states are few, which is exactly Malbolge's situation.
 
 [Befunge-93](docs/befunge93/spec.md) shows why this is worth doing. It is
 usually called incomplete because of its 80 by 25 playfield, but the real
@@ -83,7 +167,7 @@ noticed until the claim had to be written down precisely enough to prove.
 
 ## Verified compilers
 
-Two schemes, and LangLib keeps both, because neither subsumes the other.
+A Turpentine program reaches a target two ways, and the library keeps both.
 
 **Bespoke** compilers are hand-written per target. They accept the whole of
 Turpentine, produce compact output, and are what
@@ -91,52 +175,55 @@ Turpentine, produce compact output, and are what
 [brainfuck](Langlib/Turpentine/Compile/Brainfuck.lean),
 [whitespace](Langlib/Turpentine/Compile/Whitespace.lean) and
 [subleq](Langlib/Turpentine/Compile/Subleq.lean). None is verified yet;
-verifying one is real per-language proof work.
+verifying one is per-language proof work.
 
-**Via the URM**, a compiler costs nothing to write. A completeness proof
-already *contains* a verified compiler from a register machine, so
-composing it with a single shared Turpentine-to-register-machine pass,
-[`Compile/URM.lean`](Langlib/Turpentine/Compile/URM.lean), yields a
-correct-by-construction compiler into any language proved Turing complete.
-Choose between them explicitly: `compile` and `exec` each take `--bespoke`
-or `--tc`, they refuse both at once, and each names the scheme it
-used in its output, so a build log says which compiler made the artifact.
-The certified fragment is I/O-free and names its result in a variable
-called `answer`.
-Both schemes produce instances of one `TurpentineCompiler` interface, and
-the composition that builds the derived instance is proved once for an
-arbitrary target rather than per language (in
-[`Langlib/Computability/`](Langlib/Computability/), alongside the
-completeness proofs). Derived compilers are enormous and restricted to an
-I/O-free fragment, so they are for proving things, not for running
-programs.
+**Via the URM**, a compiler costs nothing to write. A `TuringComplete`
+witness already contains a verified compiler from a register machine, so
+composing it with one shared Turpentine-to-register-machine pass,
+[`Compile/URM.lean`](Langlib/Turpentine/Compile/URM.lean), gives a
+correct-by-construction compiler into any language proved complete. The
+composition is proved once for an arbitrary target, so a new language costs
+one line. The catch is that everything runs through a machine simulation:
+the output is enormous, and the fragment is I/O-free.
 
-One interface for both schemes buys a theorem rather than a hope: where a
-language has both compilers, they provably produce the same observable
+Both are instances of one `TurpentineCompiler` interface, which pays off
+where a target has both: they provably produce the same observable
 behaviour on programs both accept. Until a bespoke compiler is verified,
 the derived one is the strongest available check on it.
 
-**The bespoke compilers are not a stopgap**, and it is worth being clear
-why, because "we proved one, so throw the other away" is the obvious wrong
-conclusion.
+Choose explicitly. `compile` and `exec` each take `--bespoke` or `--tc`,
+refuse both at once, and name the scheme they used, so a build log says
+which compiler made the artifact.
+
+### Why the bespoke compilers stay
+
+"We proved one, so throw the other away" is the obvious wrong conclusion.
 
 *Some programs cannot go through a register machine at all.* A URM takes
 its input before it runs and yields one number when it halts, so nothing
 that interleaves reading and writing can be expressed however far the
 certified fragment is widened. `cat.turp` will never compile that way.
-That is a property of the model, not a gap in the work.
+That is a property of the model rather than a gap in the work.
 
 *The output is not comparable.* Compiling `answer := 3` to brainfuck
 through the register machine produces 64 kilobytes and runs in billions of
 steps, because arithmetic becomes unary counting on a byte tape. The
 bespoke brainfuck backend compiles real programs into something that
-finishes. Both facts are true at once, and neither compiler is wrong.
+finishes.
 
 *The fragment is still narrowing in.* Initialisers, `&&`, `||`, `/` and
 `%` have landed; subtraction and arrays have not, and subtraction turned
 out to be harder than planned (the obvious `Nat`-valued semantics bridges
 the wrong way). Meanwhile the bespoke compilers accept the whole language
 today.
+
+*A verified bespoke compiler needs a stronger theorem than the derived one
+has.* The certified statement observes a single number on runs that halt,
+which is adequate only because that fragment has no I/O. A backend for the
+whole language has to preserve a byte stream, consume input, and say what
+happens when a program prints and then diverges. That is
+[a larger obligation](docs/certified-compilation.md), not the same one at
+higher effort.
 
 The pipeline, the diagrams and the theorem that makes the composition work
 are in [certified-compilation.md](docs/certified-compilation.md); what
@@ -392,8 +479,8 @@ Output:
 ```
 
 The certified compiler needs a program in its fragment: no I/O, no
-subtraction or division, and the result left in a variable called
-`answer`. `sumsq.turp` is written that way, and sums the squares below 5.
+subtraction, no arrays, and the result left in a variable called `answer`.
+`sumsq.turp` is written that way, and sums the squares below 5.
 
 ```
 lake exe turpentine exec --via whitespace --tc Langlib/Examples/Turpentine/sumsq.turp
@@ -415,7 +502,7 @@ echo 17 | lake exe turpentine exec --via whitespace --tc Langlib/Examples/Turpen
 Output:
 
 ```
-turpentine exec: 'x' has an initialiser; the certified URM fragment declares variables without one, since every register starts at zero
+turpentine exec: the certified URM fragment needs a variable named 'answer' to hold the answer: a URM has no output, so register 0 at halt is all there is
 ```
 
 Every mode, including emitting to stdout and what the two schemes cost, is

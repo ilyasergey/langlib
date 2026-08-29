@@ -4,18 +4,18 @@
 
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC (dis)proved | Correct via TC | Hosts full Turpentine | Bespoke compiler | Bespoke correct |
 | ---------- | ------ | -------- | ------------- | ------------------ | -------- | ----------------- | ----------- | ---------------- | ----------------------- | ------------------ | ----------------- |
-| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | [**yes**](../Langlib/Computability/Brainfuck.lean#L2888) | [**yes**](../Langlib/Computability/Derived.lean#L110) | yes | [yes](brainfuck/compiler.md) | wip |
-| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [**yes**](../Langlib/Computability/Derived.lean#L102) | yes | [yes](whitespace/compiler.md) | wip |
-| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [**yes**](../Langlib/Computability/Derived.lean#L106) | yes | [yes](subleq/compiler.md) | wip |
+| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | [**yes**](../Langlib/Computability/Brainfuck.lean#L2888) | [**yes**](../Langlib/Computability/Derived.lean#L110) | yes | [yes](../Langlib/Turpentine/Compile/Brainfuck.lean#L1317), [notes](brainfuck/compiler.md) | wip |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [**yes**](../Langlib/Computability/Derived.lean#L102) | yes | [yes](../Langlib/Turpentine/Compile/Whitespace.lean#L530), [notes](whitespace/compiler.md) | wip |
+| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [**yes**](../Langlib/Computability/Derived.lean#L106) | yes | [yes](../Langlib/Turpentine/Compile/Subleq.lean#L1125), [notes](subleq/compiler.md) | wip |
 | [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | [**no**, byte core](../Langlib/Computability/Befunge93.lean#L326) | n/a | no, 2000 code cells | [no](befunge93/compiler.md) | n/a |
-| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [no, bounded storage](malbolge/spec.md) | wip; [control counted, transitions open](computability-malbolge.md) | n/a | no, bounded storage | [no](malbolge/compiler.md) | n/a |
+| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [no, bounded storage](malbolge/spec.md) | [**no**, halting decidable](../Langlib/Computability/Malbolge.lean#L743) | n/a | no, bounded storage | [no](malbolge/compiler.md) | n/a |
 | malbolge-unshackled | wip | wip | wip | wip | `malbolge-unshackled` | yes | open | planned | expected yes | planned | planned |
-| [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | wip; [URM compiler, simulation open](computability-fractran.md) | planned | no I/O at all | [planned](fractran/compiler.md) | planned |
-| [thue](thue/spec.md) | yes | yes | yes | yes | `thue` | yes | open | planned | expected, unary output | [planned](thue/compiler.md) | planned |
-| [piet](piet/spec.md) | yes | yes | yes | yes | `piet` | yes | wip; [straight-line only](computability-piet.md) | planned | expected yes | [planned](piet/compiler.md) | planned |
-| [ook](ook/spec.md) | yes | yes | yes | yes | `ook` | yes (via brainfuck) | open | planned | yes, via brainfuck | [wip, free via brainfuck](ook/compiler.md) | planned |
-| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `brainloller` | yes (via brainfuck) | open | planned | yes, via brainfuck | [wip, free via brainfuck](brainloller/compiler.md) | planned |
-| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `deadfish` | [no, every program halts](deadfish/spec.md) | [**no**, halting decidable](../Langlib/Computability/Deadfish.lean#L89) | n/a | no, output only | [planned, output-only](deadfish/compiler.md) | planned |
+| [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | wip; [URM compiler, simulation open](computability-fractran.md) | [planned](fractran/compiler.md) | no I/O at all | [planned](fractran/compiler.md) | [planned](fractran/compiler.md) |
+| [thue](thue/spec.md) | yes | yes | yes | yes | `thue` | yes | open | [planned](thue/compiler.md) | expected, unary output | [planned](thue/compiler.md) | [planned](thue/compiler.md) |
+| [piet](piet/spec.md) | yes | yes | yes | yes | `piet` | yes | wip; [straight-line only](computability-piet.md) | [planned](piet/compiler.md) | expected yes | [planned](piet/compiler.md) | [planned](piet/compiler.md) |
+| [ook](ook/spec.md) | yes | yes | yes | yes | `ook` | yes (via brainfuck) | open | [planned](ook/compiler.md) | yes, via brainfuck | [wip, free via brainfuck](ook/compiler.md) | [planned](ook/compiler.md) |
+| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `brainloller` | yes (via brainfuck) | open | [planned](brainloller/compiler.md) | yes, via brainfuck | [wip, free via brainfuck](brainloller/compiler.md) | [planned](brainloller/compiler.md) |
+| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `deadfish` | [no, every program halts](deadfish/spec.md) | [**no**, halting decidable](../Langlib/Computability/Deadfish.lean#L89) | n/a | no, output only | [planned, output-only](deadfish/compiler.md) | [planned](deadfish/compiler.md) |
 | unlambda / SKI | wip | wip | wip | wip | `unlambda` | yes | open | planned | expected yes | planned | planned |
 | [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `turpentine` | yes | open | (source) | (source) | (source) | (source) |
 | [URM](#the-urm) (yardstick) | [here](#the-urm) | n/a | [yes](../Langlib/Computability/URM.lean) | yes | n/a | yes | (yardstick) | (the route itself) | no I/O at all | [yes, certified fragment](../Langlib/Turpentine/Compile/URM.lean) | [**yes**](../Langlib/Turpentine/Compile/URM.lean#L2989) |
@@ -24,7 +24,7 @@
 
 Legend: `yes` done, `wip` in progress, `-` not started, `n/a` not
 applicable, and, in the completeness column only, `open` for a question
-nobody has settled here either way. Per-language specifications live in
+nobody has proven here either way. Per-language specifications live in
 `docs/<langname>/spec.md`, and compiler notes, once a Turpentine compiler
 exists or is planned for a language, in `docs/<langname>/compiler.md`.
 
@@ -156,7 +156,7 @@ whole point of this library.
   argues, linked whenever the answer is not a plain yes. Prose can be
   wrong, and two of ours were: [befunge93](befunge93/spec.md) and
   [malbolge](malbolge/spec.md).
-* **TC (dis)proved** is whether a machine-checked theorem settles it, and
+* **TC (dis)proved** is whether a machine-checked theorem proves it here, and
   the column says so in either direction, because a proof that a language
   *cannot* compute everything is as much a result as a proof that it can.
   Every entry is audited by
@@ -164,31 +164,32 @@ whole point of this library.
   * `yes` links to a simulation: a compiler from the URM into the language,
     and the proof that it runs any URM program faithfully.
   * `no` links to a result a complete language could not have: a decided
-    halting problem. The two get there differently.
+    halting problem. The three get there differently.
     [Deadfish](deadfish/spec.md) halts on `length + 1` units of fuel for
     *every* program, which decides halting directly, and it is also the
     language that provably has *no* `BoundedStorage` witness, since its
     runs grow with the program. The bounded byte
-    [befunge93](befunge93/spec.md) core takes the other route: finitely
-    many configurations, packaged as a `BoundedStorage`, so a run that has
-    not halted by the bound never will.
-  * `wip` is a proof under way with the load-bearing step still missing,
-    and it happens on both sides. [Fractran](computability-fractran.md) has
-    a runnable URM-to-FRACTRAN compiler and its prime-exponent arithmetic
-    proved, but no whole-program simulation;
-    [piet](computability-piet.md) compiles straight-line URM programs and
-    still owes image-level control flow, which is where backward jumps
-    live. On the negative side, [malbolge](computability-malbolge.md) has
-    the static half: its control space (memory, registers, input cursor,
-    with output shown not to matter) is counted exactly for each input
-    length, and every well-formed evaluator state projects below that
-    bound. The dynamic half is missing, and it is the half that decides
-    halting: that steps preserve well-formedness, and that equal projected
-    controls have equal successors and equal halt status. Until those
-    land, no pigeonhole argument runs and nothing about Malbolge's
-    computational class is settled.
-  * `open` means nobody here has settled it in either direction, whatever
-    the literature believes.
+    [befunge93](befunge93/spec.md) core has finitely many configurations by
+    construction, packaged as a `BoundedStorage`, so a run that has not
+    halted by the bound never will.
+    [Malbolge](computability-malbolge.md) is the hard one, because its
+    state type is wide (an unbounded array, an unbounded output, a cursor
+    whose range depends on the input) while its *reachable* states are
+    few: the proof carries an invariant through every instruction, drops
+    the output that no instruction reads, and shows the 59049-word control
+    determines the run. Its witness is a `BoundedRun`, the reachable-only
+    form of `BoundedStorage`.
+  * `wip` is a proof under way with the load-bearing step still missing.
+    [Fractran](computability-fractran.md) has a runnable URM-to-FRACTRAN
+    compiler and its prime-exponent arithmetic proved, but no whole-program
+    simulation; [piet](computability-piet.md) compiles straight-line URM
+    programs and still owes image-level control flow, which is where
+    backward jumps live.
+  * `open` means nobody here has proven it in either direction, whatever
+    the literature believes. The claims themselves are in the languages'
+    spec pages; the roadmap for closing them is
+    [PLAN.md](PLAN.md) Stage 8, and the reusable brief for doing one is
+    [agent-brief-completeness.md](agent-brief-completeness.md).
 
 Two cautions on the negative side. First, a `no` is a *bound*, not a term
 of type `¬ TuringComplete L`: the library states incompleteness by
