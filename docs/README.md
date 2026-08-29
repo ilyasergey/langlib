@@ -18,7 +18,33 @@ tests, and it gets a computational-class claim like everything else. What
 differs is the compiler columns, which read "(source)" for it, since a
 compiler *from* Turpentine to itself is not a thing.
 
+## The URM
+
+The universal model everything here is measured against: finitely many
+registers holding arbitrary naturals, and four instructions (zero,
+increment, copy, jump-if-equal). Small enough that simulating it is
+tractable, and enough to compute every partial computable function
+(Shepherdson and Sturgis, 1963).
+
+We take it from [cslib](https://github.com/leanprover/cslib) rather than
+defining our own, so the claims are stated in a vocabulary others already
+trust; our [additions](../Langlib/Computability/URM.lean) are only helper
+lemmas. A **Turing complete** claim below means the language simulates any
+URM program; a compiler **via TC** composes that simulation with the shared
+[Turpentine-to-URM pass](../Langlib/Turpentine/Compile/URM.lean).
+
 ## Status matrix
+
+The **Runner** column gives each language's executable name. Run a program
+with:
+
+```
+lake exe <runner> [--fuel N] [--verbose] <file>
+```
+
+Input comes from stdin, output goes to stdout, and every runner takes
+`--help`. Some add their own flags, documented on the language's spec page.
+
 
 Legend: `yes` done, `wip` in progress, `-` not started, `n/a` not applicable
 (with the reason in the language's spec page).
@@ -50,20 +76,20 @@ claimed Turing complete is also a language Turpentine should compile to.
 
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved | Bespoke compiler | Bespoke correct | Correct via TC |
 |----------|------|--------|-------------|------------------|--------|-----------------|-----------|------------------|-----------------|----------------|
-| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `lake exe brainfuck` | yes | wip | [yes, scalars](brainfuck/compiler.md) | no | no |
-| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `lake exe whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [yes](whitespace/compiler.md) | no | no |
-| [subleq](subleq/spec.md) | yes | yes | yes | yes | `lake exe subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [yes](subleq/compiler.md) | no | no |
-| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `lake exe befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | no | [not planned](befunge93/compiler.md) | n/a | n/a |
-| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `lake exe malbolge` | [no, bounded storage](malbolge/spec.md) | no | [not planned](malbolge/compiler.md) | n/a | n/a |
-| malbolge-unshackled | wip | wip | wip | wip | `lake exe malbolge-unshackled` | yes | no | planned | no | no |
-| [fractran](fractran/spec.md) | yes | yes | yes | yes | `lake exe fractran` | yes | no | [planned](fractran/compiler.md) | no | no |
-| [thue](thue/spec.md) | yes | yes | yes | yes | `lake exe thue` | yes | no | [planned](thue/compiler.md) | no | no |
-| [piet](piet/spec.md) | yes | yes | yes | yes | `lake exe piet` | yes | no | [planned](piet/compiler.md) | no | no |
-| [ook](ook/spec.md) | yes | yes | yes | yes | `lake exe ook` | yes (via brainfuck) | no | [planned, free via brainfuck](ook/compiler.md) | no | no |
-| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `lake exe brainloller` | yes (via brainfuck) | no | [planned, free via brainfuck](brainloller/compiler.md) | no | no |
-| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `lake exe deadfish` | [no, finite state](deadfish/spec.md) | no | [planned, output-only](deadfish/compiler.md) | no | no |
-| unlambda / SKI | wip | wip | wip | wip | `lake exe unlambda` | yes | no | planned | no | no |
-| [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `lake exe turpentine` | yes | no | (source) | (source) | (source) |
+| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | wip | [yes, scalars](brainfuck/compiler.md) | no | no |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [yes](whitespace/compiler.md) | no | [**yes**](../Langlib/Computability/Derived.lean) |
+| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [yes](subleq/compiler.md) | no | [**yes**](../Langlib/Computability/Derived.lean) |
+| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | no | [not planned](befunge93/compiler.md) | n/a | n/a |
+| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [no, bounded storage](malbolge/spec.md) | no | [not planned](malbolge/compiler.md) | n/a | n/a |
+| malbolge-unshackled | wip | wip | wip | wip | `malbolge-unshackled` | yes | no | planned | no | no |
+| [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | no | [planned](fractran/compiler.md) | no | no |
+| [thue](thue/spec.md) | yes | yes | yes | yes | `thue` | yes | no | [planned](thue/compiler.md) | no | no |
+| [piet](piet/spec.md) | yes | yes | yes | yes | `piet` | yes | no | [planned](piet/compiler.md) | no | no |
+| [ook](ook/spec.md) | yes | yes | yes | yes | `ook` | yes (via brainfuck) | no | [planned, free via brainfuck](ook/compiler.md) | no | no |
+| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `brainloller` | yes (via brainfuck) | no | [planned, free via brainfuck](brainloller/compiler.md) | no | no |
+| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `deadfish` | [no, finite state](deadfish/spec.md) | no | [planned, output-only](deadfish/compiler.md) | no | no |
+| unlambda / SKI | wip | wip | wip | wip | `unlambda` | yes | no | planned | no | no |
+| [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `turpentine` | yes | no | (source) | (source) | (source) |
 
 When a proof lands, its `no` becomes a `yes` linking to the theorem in
 `computability.md`, and the claim in the known column stops being the last
@@ -101,9 +127,13 @@ The three columns follow from that.
 * **Bespoke correct**: whether *that* backend has a machine-checked
   correctness theorem. Real per-language proof work.
 * **Correct via TC**: whether the derived compiler exists for this
-  language, which requires only its completeness proof plus the shared
-  pipeline. An instance of one `derived_correct`, so it is cheap once per
-  language.
+  language. It needs only the language's completeness proof plus the shared
+  Turpentine-to-URM pass
+  ([`Compile/URM.lean`](../Langlib/Turpentine/Compile/URM.lean), proved by
+  `compileToURM_correct`); applying
+  [`derived`](../Langlib/Computability/Derived.lean) to the completeness
+  proof does the rest. Cheap once per language, because the composition is
+  proved for an arbitrary target rather than per language.
 
 `no` in either correctness column means no theorem exists here, whatever
 the tests say; when one lands the cell links to it.

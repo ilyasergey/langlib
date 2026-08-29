@@ -2,6 +2,22 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-09-02: the first certified compilers
+
+`compileToURM` and its correctness theorem landed, which was the piece
+everything else waited on, and with it `Langlib/Computability/Derived.lean`:
+the `TurpentineCompiler` interface, the `derived` construction, `agree`,
+and `derivedWhitespace`. All axiom-clean.
+
+The payoff is the one the design promised. `derived` takes any
+`TuringComplete L` and returns a verified compiler, so applying it to
+`subleqComplete` gives a certified Turpentine-to-subleq compiler with no
+subleq-specific work at all; checked by instantiating it and auditing the
+axioms. Two languages now have a certified compiler, and any language
+proved complete from here gets one for free.
+
+668 tests.
+
 ## 2026-09-02: Subleq proved Turing complete
 
 The second completeness proof, and the easy one, exactly as predicted: a

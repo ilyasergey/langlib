@@ -23,6 +23,14 @@ engineering.
 | its `simulation` theorem | [Whitespace.lean:1048](../Langlib/Computability/Whitespace.lean#L1048) |
 | our URM helpers over cslib's | [URM.lean](../Langlib/Computability/URM.lean) |
 | cslib's `Instr` and `Program` | `Cslib/Computability/URM/Defs.lean` |
+| **`compileToURM`**, Turpentine to the URM | [Compile/URM.lean:404](../Langlib/Turpentine/Compile/URM.lean#L404) |
+| **`compileToURM_correct`**, its simulation | [Compile/URM.lean:2075](../Langlib/Turpentine/Compile/URM.lean#L2075) |
+| `TurpentineHaltsWith`, the answer convention | [Compile/URM.lean:2060](../Langlib/Turpentine/Compile/URM.lean#L2060) |
+| `TurpentineCompiler`, the interface | [Derived.lean:54](../Langlib/Computability/Derived.lean#L54) |
+| `derived`, one construction for every target | [Derived.lean:82](../Langlib/Computability/Derived.lean#L82) |
+| `derivedWhitespace` | [Derived.lean:100](../Langlib/Computability/Derived.lean#L100) |
+| `agree`, two compilers give one answer | [Derived.lean:110](../Langlib/Computability/Derived.lean#L110) |
+| its tests | [Tests/DerivedWhitespace.lean](../Langlib/Tests/DerivedWhitespace.lean) |
 | the axiom audit | [scripts/axioms.lean](../scripts/axioms.lean) |
 
 The bespoke backends, for contrast, are
@@ -48,8 +56,8 @@ The second arrow is free. It is not a new compiler: it is the `compile`
 field of that language's `TuringComplete` instance, which exists because
 somebody proved the language Turing complete. Whitespace already has one
 ([`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L1117)),
-so the only missing piece for a verified Turpentine-to-Whitespace compiler
-is the first arrow.
+so the only work for a verified Turpentine-to-Whitespace compiler was the
+first arrow. `derivedWhitespace` is the composition.
 
 ## The interface it plugs into
 
@@ -71,9 +79,9 @@ stream, because a URM has no I/O: it starts with registers set and halts
 with registers set. That choice is what makes the composition below
 type-check, and it is also what bounds the fragment.
 
-## What has to be built
+## What is built
 
-### 1. `compileToURM` (the only real work)
+### 1. `compileToURM`
 
 [`Langlib/Turpentine/Compile/URM.lean`](../Langlib/Turpentine/Compile/URM.lean):
 
@@ -83,85 +91,122 @@ def compileToURM : Turpentine.Program → Except String (URM.Program × List Nat
 
 The URM instruction set is four instructions: `Z n` (zero a register),
 `S n` (increment), `T m n` (copy), `J m n k` (jump to `k` if registers `m`
-and `n` are equal). Everything else is a macro:
+and `n` are equal). Everything else is a macro.
 
-* **Registers**: one per Turpentine variable, plus scratch. Arrays get a
-  contiguous block, which is where this compiler is easier than the subleq
-  backend: register indices are compile-time constants, so there is no
-  computed addressing and no operand patching. A computed index needs a
-  dispatch chain, or the fragment excludes it (see below).
-* **Arithmetic**: addition is a copy loop, subtraction is truncated
-  subtraction by counting up, multiplication is repeated addition,
-  division and modulo are repeated subtraction. All standard, all
-  quadratic, all fine because this compiler is not for speed.
-* **Comparison and booleans**: `J` tests equality only, so `<` is built
-  from truncated subtraction and a test against zero.
-* **Control flow**: `if` and `while` are jumps to computed labels, which
-  means a resolution pass, exactly as in the whitespace and subleq
-  backends.
+* **Registers.** Register 0 is the answer, register 1 is a permanent zero so
+  that `J r 1 k` reads as "jump if `r` is zero", registers 2 upward hold one
+  Turpentine variable each in declaration order, and the block above them is
+  scratch for the arithmetic macros.
+* **Arithmetic.** Addition counts a scratch register up to the second operand
+  while incrementing the accumulator; multiplication is that loop nested
+  inside another. Both are quadratic, which is fine because this compiler is
+  not for speed.
+* **Comparison and booleans.** `J` tests equality only, so `<`, `<=`, `>` and
+  `>=` all count a scratch register up from zero and see which operand it
+  meets first. `==` and `!=` are one `J` and a two-instruction tail. `!`
+  tests against the permanent zero.
+* **Control flow.** `if` and `while` are jumps, and the targets are absolute
+  from the moment the code is emitted: `compileExpr slots q e d` places the
+  code for `e` *at position `q`*, so there is no label-resolution pass. The
+  price is a pair of size functions, `exprSize` and `stmtSize`, that have to
+  agree with the emitted length; `length_compileExpr` and `length_compileStmt`
+  prove that they do.
+
+The output has no I/O and no input vector: `compileToURM` always returns
+`[]` for the input (`compileToURM_inputs`), because the fragment is I/O-free
+and every value the machine needs is built from zero.
+
+**The answer convention.** A URM has no output. It starts with registers set
+and halts with registers set, and `Cslib.URM.HaltsWithResult` reads the
+answer out of register 0. So the answer is named by a variable rather than
+printed: a compilable program declares a scalar `int` variable **`answer`**,
+and the compiled machine's last instruction copies it into register 0. This
+is why every printing statement is rejected: with `print` in the language
+there is a *stream* of answers and no single `Nat` for the theorem to name.
 
 ### 2. `TurpentineCompiler`: one interface, many instances
 
-Make "a verified compiler from Turpentine into `L`" a first-class thing,
-the way `TuringComplete L` is, so that the derived compiler and the
+[`Langlib/Computability/Derived.lean`](../Langlib/Computability/Derived.lean)
+makes "a verified compiler from Turpentine into `L`" a first-class thing, the
+way `TuringComplete L` is, so that the derived compiler and a future verified
 hand-written one are two inhabitants of one interface rather than two
 unrelated definitions:
 
 ```lean
 structure TurpentineCompiler (L : Type) [ProgLang L] where
-  /-- Total; `Except.error` names the constructs outside this compiler's
-  fragment, so the fragment is part of the data rather than prose. -/
   compile : Turpentine.Program → Except String (ProgLang.Prog L)
-  /-- Whenever Turpentine halts on `p` with some observable behaviour, and
-  `compile p` succeeds, the compiled program halts with the same
-  observable behaviour. -/
-  correct : ∀ p prog input, compile p = .ok prog → …
+  encodeInput : Input
+  decodeOutput : ByteArray → Option Nat
+  correct : ∀ (p : Turpentine.Program) (prog : ProgLang.Prog L) (result n : Nat),
+    compile p = .ok prog → TurpentineHaltsWith p n result →
+      ∃ m,
+        (ProgLang.run prog encodeInput m).exit = Exit.halted ∧
+        decodeOutput (ProgLang.run prog encodeInput m).output = some result
 ```
+
+`compile` is total, and `Except.error` names the constructs outside the
+fragment, so the fragment is part of the data rather than prose. Because
+`correct` quantifies over *everything* `compile` accepts, `compileToURM`
+accepts exactly the fragment it can prove itself correct on.
+
+`encodeInput` is a single stream rather than a function of the program
+because `TurpentineHaltsWith` is I/O-free: the source reads nothing, so
+there is nothing for a caller to supply.
 
 **A structure, not a `class`.** The point of the exercise is to have
 *several* compilers for the same target at once (a derived one and an
 effective one for Whitespace, today), and instance resolution is built to
-pick exactly one. A `class` would either be ambiguous or silently choose
-for you, which is the opposite of what is wanted. So this is bundled data
-with named inhabitants, exactly like `TuringComplete`, and callers say
-which compiler they mean. `ProgLang L` stays a real class, because there is
-only ever one way to run a given language.
+pick exactly one. A `class` would either be ambiguous or silently choose for
+you, which is the opposite of what is wanted. So this is bundled data with
+named inhabitants, exactly like `TuringComplete`, and callers say which
+compiler they mean. `ProgLang L` stays a real class, because there is only
+ever one way to run a given language.
 
 What the interface buys:
 
-* **The derived construction becomes one function**, not one per language:
+* **The derived construction is one function**, not one per language:
 
   ```lean
   def derived [ProgLang L] (tc : TuringComplete L) : TurpentineCompiler L
   ```
 
-  Every completeness proof yields a verified compiler by applying it.
+  `L` and `tc` are arbitrary, so it is proved once and every completeness
+  proof that lands afterwards yields a verified Turpentine compiler by
+  applying it. `derivedWhitespace := derived whitespaceComplete` is the first
+  end-to-end certified compiler in the library.
 
 * **Agreement is a theorem about the interface**, proved once for all
-  instances and all targets, rather than per pair:
+  instances and all targets rather than per pair:
 
   ```lean
-  theorem agree [ProgLang L] (c₁ c₂ : TurpentineCompiler L) (p) (input) :
-      -- both accept p ⇒ both produce the same observable behaviour
+  theorem agree [ProgLang L] (c₁ c₂ : TurpentineCompiler L)
+      (p : Turpentine.Program) (prog₁ prog₂ : ProgLang.Prog L) (result n : Nat)
+      (h₁ : c₁.compile p = .ok prog₁) (h₂ : c₂.compile p = .ok prog₂)
+      (hp : TurpentineHaltsWith p n result) :
+      ∃ m₁ m₂,
+        (ProgLang.run prog₁ c₁.encodeInput m₁).exit = Exit.halted ∧
+        (ProgLang.run prog₂ c₂.encodeInput m₂).exit = Exit.halted ∧
+        c₁.decodeOutput (ProgLang.run prog₁ c₁.encodeInput m₁).output =
+          c₂.decodeOutput (ProgLang.run prog₂ c₂.encodeInput m₂).output
   ```
 
-  It follows from both `correct` fields against the same specification.
+  It follows from the two `correct` fields against the one specification.
   That is the formal version of "the derived compiler is an oracle for the
   effective one": once the effective backend has an instance, the oracle
   claim stops being a testing practice and becomes a corollary.
 
 * **A verified effective backend slots in without disturbing anything.**
   Proving `Langlib/Turpentine/Compile/Whitespace.lean` correct means
-  producing a second `TurpentineCompiler Whitespace`, and every consumer
+  producing a second `TurpentineCompiler WhitespaceLang`, and every consumer
   keeps working.
 
-### 3. The theorem `compileToURM` must prove, and why it composes
+### 3. The theorem, and why it composes
 
 The whole design rests on one statement lining up with `TuringComplete`'s
-`simulates` field, so write it to match that field's shape exactly.
+`simulates` field, so it is written to match that field's shape exactly.
 
-`TuringComplete L` gives, for any URM program `P`, input vector `inputs`
-and answer `result`:
+`TuringComplete L` gives, for any URM program `P`, input vector `inputs` and
+answer `result`:
 
 ```lean
 HaltsWithResult P inputs result →
@@ -169,79 +214,108 @@ HaltsWithResult P inputs result →
        tc.decodeOutput (…).output = some result
 ```
 
-So `compileToURM` should discharge the *hypothesis* of that implication.
-Its theorem is:
+`compileToURM` discharges the *hypothesis* of that implication:
 
 ```lean
 theorem compileToURM_correct
-    (p : Turpentine.Program) (P : URM.Program) (inputs : List Nat)
-    (result : Nat) (n : Nat)
+    (p : Turpentine.Program) (P : UProg) (inputs : List Nat)
+    (result n : Nat)
     (hc : compileToURM p = .ok (P, inputs))
     (hp : TurpentineHaltsWith p n result) :
-    URM.HaltsWithResult P inputs result
+    Cslib.URM.HaltsWithResult P inputs result
 ```
 
-where `TurpentineHaltsWith p n result` says the Turpentine program halts
-within fuel `n` having computed `result` as its answer. The two then
-compose without any glue: feed the conclusion of the first into the
-hypothesis of the second and the URM program disappears from the
-statement, leaving
+where the source-side convention is named explicitly:
 
 ```lean
-theorem derived_correct [ProgLang L] (tc : TuringComplete L)
-    (p : Turpentine.Program) (prog : ProgLang.Prog L)
-    (result n : Nat)
-    (hc : derivedCompile tc p = .ok prog)
-    (hp : TurpentineHaltsWith p n result) :
-    ∃ m, (ProgLang.run prog (tc.encodeInput …) m).exit = .halted ∧
-         tc.decodeOutput (…).output = some result
+def TurpentineHaltsWith (p : Turpentine.Program) (n : Nat) (result : Nat) : Prop :=
+  ∃ (env₀ : Std.HashMap String Value) (st : Turpentine.State),
+    Turpentine.initEnv p = .ok env₀ ∧
+    Turpentine.exec n p.body { env := env₀, input := Input.ofString "" } =
+      (st, Exit.halted) ∧
+    st.env[answerVar]? = some (Value.int (result : Int))
 ```
 
-which is exactly a `TurpentineCompiler L` correctness field. Note what is
-quantified: `L` and `tc` are arbitrary, so **this is proved once and holds
-for every backend anyone ever proves Turing complete.** That is the sense
-in which a completeness proof yields a verified compiler.
+`Turpentine.exec` and `Turpentine.initEnv` are the *reference interpreter*
+from `Langlib/Turpentine/Semantics.lean`, unmodified: the theorem is about
+the language as the rest of the library defines it, not about a second
+semantics written to be convenient.
 
-Three details that make the composition work, and are easy to get wrong:
+The two then compose without glue, which is what `derived` does: feed the
+conclusion of the first into the hypothesis of the second, the URM program
+disappears from the statement, and what is left is exactly a
+`TurpentineCompiler L` correctness field.
 
-* **The answer must be a single `Nat` in register 0**, because that is
-  what `HaltsWithResult` says and what `decodeOutput` returns. So
-  `compileToURM` must fix an answer convention and the fragment must
-  guarantee one exists. This is why the fragment is I/O-free: with
-  `println` in the language there is a *stream* of answers, and the
-  statement above cannot express that.
+Three details make the composition work, and all three are in the statements
+above:
+
+* **The answer is a single `Nat` in register 0**, because that is what
+  `HaltsWithResult` says and what `decodeOutput` returns. Hence the `answer`
+  variable and the I/O-free fragment.
 * **`inputs` is produced by the compiler, not supplied by the caller.**
-  `compileToURM` returns the pair, so a program's initial register vector
-  comes from its declarations. The caller passes nothing.
-* **Fuel is existential on the target side and universal on the source
-  side.** Turpentine halting within *some* `n` gives a target run halting
-  within *some* `m`, with no relation between them. Anything tighter would
-  leak the cost model of the target into the statement.
+  `compileToURM` returns the pair; a program's initial register vector comes
+  from its declarations, and here it is always empty.
+* **Fuel is universal on the source side and existential on the target
+  side.** `n` is given, `m` is produced, and nothing relates them. The proof
+  is phrased through `Langlib.Common.Reaches`, which carries an exact target
+  cost and composes by `Reaches.trans`, so no fuel monotonicity lemma is
+  needed and no cost model of the target leaks into the statement.
 
-### 4. The fragment
+**The shape of the proof.** `Agree slots env regs` relates a Turpentine
+environment to the registers: each declared variable's value is the content
+of its register. `Frame d regs regs'` says a macro at destination `d` touches
+no register below `d`, which is what lets an operator's left operand survive
+while its right operand is computed. `reaches_compileExpr` is a structural
+induction on expressions; `reaches_compileStmt` is the induction `exec`
+itself is defined by, outer on the fuel and inner on the statement, because
+`seq` recurses on the statement at the same fuel and everything else drops
+the fuel by one.
 
-A URM computes a function from a vector of naturals to a natural. So the
-derived pipeline accepts the Turpentine fragment that is:
+### 4. The fragment, exactly
 
-* **I/O-free**: no `readInt`, `readByte`, `print`, `println`, `printByte`.
-  Inputs arrive as the initial register vector; the answer is register 0
-  at halt.
-* **Non-negative**: URM registers hold naturals, so a program that can go
-  negative is out unless the compiler picks a sign encoding (two registers
-  per variable). Start without it.
-* **Statically indexed** for arrays, unless the dispatch chain is built.
+A URM computes a function from a vector of naturals to a natural, and the
+fragment is what survives that. `compileToURM` **accepts**:
 
-That is a real restriction and it must be checked, not assumed: `compile`
-returns `Except.error` naming the offending construct, as the other
-backends do. Stage 9 of `PLAN.md` records the alternative (extend the
-model to `URM+IO`) and why it is preferred later rather than now.
+* declarations of `int` and `bool` variables **without initialisers**, one of
+  them named `answer`. Every variable starts at `0` / `false`, which is what
+  the registers start at;
+* expressions: non-negative integer literals, boolean literals, variables,
+  `!`, `+`, `*`, `==`, `!=`, `<`, `<=`, `>`, `>=`;
+* statements: `skip`, sequencing, assignment, `if`, `while`, `assert`.
+
+and **rejects**, each with a message naming the construct:
+
+| rejected | why |
+|---|---|
+| `-`, unary minus, negative literals | Turpentine's integers are `Int` and a register is a `Nat`. `a - b` can be negative where the machine can only saturate at zero, so `Agree` would break on the intermediate value. |
+| `/`, `%` | the same, plus `Int.ediv`/`Int.emod` reasoning. |
+| `&&`, `\|\|` | Turpentine short-circuits them and the emitted code evaluates both operands. The two agree only when the right operand is total, which is a semantic side condition, not a syntactic one. |
+| arrays, in declarations and expressions | a computed index needs a dispatch chain; a static one needs the block layout lemmas generalised past one register per variable. |
+| `readInt`, `readByte`, `print`, `println`, `printByte` | a URM has neither an input stream nor an output stream. |
+
+`assert` **is** compiled, and a failing assert becomes a one-instruction
+self-loop: `J sb 1 q` at position `q`, taken exactly when the asserted
+expression is false. So an assertion failure, which the reference
+interpreter reports as a runtime error, becomes divergence in the target.
+That is sound for the theorem, whose hypothesis requires the source to halt,
+and it is the behaviour the whitespace and subleq backends already have.
+
+**Lifting the restrictions.** Subtraction and division are the interesting
+ones, and they need the same thing: a `Nat`-valued reference semantics for
+the fragment, with `a - b` defined only when `b ≤ a`, plus a bridge theorem
+saying it agrees with `Turpentine.exec` wherever it is defined. Then the
+compiler is proved against the `Nat` semantics and the bridge carries the
+result back to the real interpreter. That is a second interpreter and a
+second simulation proof, which is why it is not here yet. `&&` and `||` need
+a totality lemma for the certified expressions, which is easy once negative
+intermediates are gone. Arrays need the layout lemmas generalised.
 
 ### 5. What it is for
 
-Not for running programs. The derived compiler will emit enormous, slow
-output: a Turpentine `while` becomes a URM loop becomes a whitespace label
-block, with every arithmetic operation unrolled into unary counting. Its
-uses are:
+Not for running programs. The derived compiler emits large, slow output: a
+Turpentine `while` becomes a URM loop becomes a whitespace label block, with
+every arithmetic operation unrolled into unary counting. Measured numbers are
+below. Its uses are:
 
 * **A verified compiler exists at all**, for every language proved
   complete, the day the proof lands.
@@ -256,12 +330,20 @@ The question is whether a verified derived compiler makes the hand-written
 whitespace and subleq backends redundant. It does not, and the numbers say
 why.
 
-**Size.** The effective backend compiles `gcd.turp` to 532 bytes of
-whitespace. The derived pipeline runs the same program through a register
-machine whose only arithmetic is increment and copy, so multiplication is
-repeated addition and division is repeated subtraction, each unrolled into
-label blocks. The output will be orders of magnitude larger and slower.
-Nobody would ship that.
+**Size and speed, measured.** Both columns are the same Turpentine source
+compiled to whitespace and run on the same interpreter; the effective
+backend's version has `print(answer);` appended, since it has no `answer`
+convention. Steps are the exact smallest fuel that halts.
+
+| program | URM | derived: chars / steps | effective: chars / steps | ratio |
+|---|---|---|---|---|
+| `while i < 5 { i := i + 1; answer := answer + i; }` | 36 instrs | 1875 / 1730 | 171 / 129 | 11× / 13× |
+| factorial of 6 by repeated `*` | 48 instrs | 2863 / 29729 | 216 / 167 | 13× / 178× |
+
+Code size is about one order of magnitude. Running time is worse and gets
+worse with the operand values, because the URM's only arithmetic is increment
+and copy, so multiplication is a doubly nested counting loop and every round
+of it is a whitespace label block. Nobody would ship that.
 
 **Coverage, in the other direction.** The effective backends accept the
 *entire* Turpentine language: I/O, arrays, negative integers. The derived
@@ -279,8 +361,8 @@ So the library keeps two compilers per target and says which is which:
 |---|---|---|
 | written by | hand, per language | composition, once |
 | verified | not yet | by construction |
-| fragment | the whole language | I/O-free, non-negative |
-| output size | small | enormous |
+| fragment | the whole language | I/O-free, non-negative, no `-` `/` `%` `&&` `\|\|` or arrays |
+| output size | small | 10× to 15× larger, and much slower |
 | purpose | running programs | proving, and testing the other one |
 
 The long-term aim is to verify the effective compilers directly, against
@@ -335,11 +417,14 @@ an arbitrary `tc`. It is proved once and applies to every language anyone
 ever proves complete. That is the sense in which a completeness proof yields
 a verified compiler.
 
-For Whitespace all of this is already in place except the first hop:
-[`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L1117) is
-proved and axiom-clean, so the moment `compileToURM_correct` closes,
-`derived whitespaceComplete` is a certified Turpentine-to-Whitespace
-compiler with no further work.
+For Whitespace both hops are in place:
+[`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L1117) and
+`compileToURM_correct` are both proved and axiom-clean, and
+`derivedWhitespace := derived whitespaceComplete` is a certified
+Turpentine-to-Whitespace compiler with no further work.
+[`Langlib/Tests/DerivedWhitespace.lean`](../Langlib/Tests/DerivedWhitespace.lean)
+runs it: 37 cases, including a suite that compares every answer against the
+Turpentine reference interpreter and a suite that pins every rejection.
 
 ### What unlocks what
 
@@ -354,7 +439,7 @@ graph TD
   S7["7. SKI and Unlambda<br/>by bracket abstraction, not simulation"]
 
   S1 --> S2
-  S2 -.-> S3
+  S2 --> S3
   S3 -.-> S4
   S4 -.-> S5
   S5 -.-> S6
@@ -373,10 +458,11 @@ today, lives in the status matrix in [README.md](README.md).
 
 ## Order of work
 
-1. **`compileToURM`** plus its simulation theorem. Unlocks the whole
-   right-hand side of the graph.
-2. **Derived Turpentine to Whitespace**, by composing with the proof that
-   already exists. First end-to-end certified compiler in the library.
+1. ~~**`compileToURM`** plus its simulation theorem.~~ Done, for the
+   fragment in section 4.
+2. ~~**Derived Turpentine to Whitespace**~~, by composing with the proof
+   that already existed. Done: `derivedWhitespace`, the first end-to-end
+   certified compiler in the library.
 3. **`TuringComplete Subleq`**. Unbounded signed words, so no encoding
    pain; the URM's four instructions map onto subtract-and-branch almost
    directly. Second derived compiler, and an oracle for the effective
@@ -404,6 +490,9 @@ Output:
 
 ```
 'Langlib.Computability.whitespaceComplete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.URM.compileToURM_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Computability.derived' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Computability.agree' depends on axioms: [propext, Classical.choice, Quot.sound]
 ```
 
 Add a line to it for every new instance. Anything beyond those three
