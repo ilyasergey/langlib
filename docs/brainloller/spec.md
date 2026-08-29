@@ -17,6 +17,10 @@ author of LodePNG, a man who clearly thinks in pixels) published it in
 
 ## Decoding
 
+The ten colours that mean something, in the order of the table below:
+
+![The ten meaningful Brainloller colours](img/colours.png)
+
 | colour | RGB | means |
 |--------|-----|-------|
 | red | 255,0,0 | `>` |
@@ -37,6 +41,51 @@ Rotations take effect before the move. When the pointer walks off the
 image, decoding ends and the collected brainfuck program runs. The
 rotation colours exist so a long program can snake through a rectangle
 instead of being one endless row.
+
+### A program you can read pixel by pixel
+
+`Langlib/Examples/Brainloller/cat.ppm` is three pixels square, and it is
+the whole of `cat`: read a byte, print it, repeat until end of input.
+
+![cat.ppm, three pixels square](img/cat.png)
+
+Grid lines are drawn for legibility here and in the images below; they are
+not part of the program. Reading it: the pointer starts top left heading
+east, so it takes dark blue `,`, yellow `[`, then cyan turns it south. Down
+the right column it meets cyan again, turning west; the middle row read
+right to left is blue `.` and dark cyan, which turns it north... and the
+snake closes. The program is `,[.,]`, five commands laid out so the
+pointer walks a ring.
+
+`hello.ppm` is the same trick at 12 by 11, and the shape of the walk is
+visible at a glance: a dark cyan column down the left edge, a cyan column
+down the right, and the brainfuck between them read alternately east and
+west.
+
+![hello.ppm, 12 by 11](img/hello.png)
+
+The black pixels in the last row are no-ops padding the rectangle out, an
+illustration of the rule that every colour outside the ten means nothing.
+
+### What the compiler emits
+
+The Turpentine backend paints its output in a serpentine of fixed width,
+64 codels by default. `letter-a.turp` prints `A` and a newline, and
+compiles to two rows:
+
+![The compiled letter-a program, 64 by 2](img/compiled-letter-a.png)
+
+It decodes to `>>>[-]` then sixty-five `+`, then `>[-]<.` and the same
+again with ten `+` for the newline. The long green runs are those `+`,
+counting a cell up to the code point one increment at a time, which is
+what makes compiled Brainloller so much more repetitive than a program a
+person laid out by hand. `hello.turp` is eight rows of it:
+
+![The compiled hello program, 64 by 8](img/compiled-hello.png)
+
+Both were produced by `lake exe turpentine compile --to brainloller`, and
+the PNGs by `scripts/ppm-to-png.py` from the PPMs in
+`Langlib/Examples/Brainloller/`.
 
 ## Semantic decisions in LangLib
 
