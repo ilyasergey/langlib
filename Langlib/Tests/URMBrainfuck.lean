@@ -71,11 +71,11 @@ def run (src : String) (_input : Input) (fuel : Nat) : Except String RunResult :
     | .outOfFuel => return { exit := .error s!"compiled program ran out of fuel ({fuel})" }
     | .error msg => return { exit := .error s!"compiled program failed: {msg}" }
 
-/-- Report compiled AST size for a stable cost regression. -/
+/-- Report rendered source size for a stable cost regression. -/
 def sizeOf (src : String) (_input : Input) (_fuel : Nat) : Except String RunResult := do
   let (P, inputs) ← parseURM src
   let prog := Langlib.Computability.URMBrainfuck.compile P inputs
-  return { output := s!"{prog.length}".toUTF8, exit := .halted }
+  return { output := s!"{prog.render.length}".toUTF8, exit := .halted }
 
 private def bfFuel : Nat := 200000000
 
@@ -93,16 +93,16 @@ def suite : Suite where
         source := .inline "in 1 1\nJ 2 1 5\nS 0\nS 2\nJ 0 0 0",
         expect := .outputs "ok 2" }
     , { name := "copy loop followed by a backward J", fuel := bfFuel,
-        source := .inline "in 0 2\nJ 0 1 4\nS 0\nJ 0 0 0\nT 0 2",
+        source := .inline "in 0 2\nJ 0 1 4\nT 1 2\nS 0\nJ 0 0 0",
         expect := .outputs "ok 2" }
     ]
 
 def sizeSuite : Suite where
-  name := "urm -> brainfuck (compiled AST size)"
+  name := "urm -> brainfuck (rendered source size)"
   run := sizeOf
   cases :=
     [ { name := "two increments", source := .inline "S 0\nS 0",
-        expect := .outputs "0" }
+        expect := .outputs "10197" }
     ]
 
 def suites : List Suite := [suite, sizeSuite]
