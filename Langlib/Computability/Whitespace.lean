@@ -357,7 +357,7 @@ theorem blocks_split (n : Nat) (Q : List Cslib.URM.Instr) (k : Nat) (hk : k < Q.
     rw [List.length_take]; omega
   conv_lhs => rw [← List.take_append_drop k Q]
   rw [blocks_append, List.drop_eq_getElem_cons hk, hlen, Nat.zero_add]
-  simp only [blocks, List.cons_append, List.append_assoc]
+  simp only [blocks, List.cons_append]
 
 theorem compileList_split (P : Program) (inputs : List Nat) (k : Nat) (hk : k < P.length) :
     compileList P inputs =
@@ -370,7 +370,7 @@ theorem compileList_split_end (P : Program) (inputs : List Nat) :
     compileList P inputs =
       (prologue 0 inputs ++ blocks P.length 0 P)
         ++ Instr.label lend :: ([Instr.push 0, Instr.retrieve, Instr.outNum, Instr.halt] ++ []) := by
-  simp only [compileList, epilogue, List.append_assoc, List.cons_append, List.append_nil]
+  simp only [compileList, epilogue, List.append_assoc, List.append_nil]
 
 theorem prefix_length (P : Program) (inputs : List Nat) (k : Nat) :
     (prologue 0 inputs ++ blocks P.length 0 (P.take k)).length = blockPos P inputs k := by
@@ -397,7 +397,7 @@ theorem getElem?_at_split {prog : Prog} {pre : List Instr} {a : Instr} {suf : Li
     (h : prog = (pre ++ a :: suf).toArray) : prog[pre.length]? = some a := by
   rw [h]
   have := getElem?_split pre (a :: suf) 0
-  simpa using this
+  simp
 
 theorem codeAt_of_split {prog : Prog} {pre : List Instr} {a : Instr} {code rest : List Instr}
     (h : prog = (pre ++ a :: (code ++ rest)).toArray) :
@@ -569,7 +569,7 @@ theorem codeAt_block (P : Program) (inputs : List Nat) (k : Nat) (hk : k < P.len
           :: ((instrCode P.length P[k] ++ [Instr.label (labelAt P.length (k + 1))])
               ++ tl)).toArray := by
       rw [compile, compileList_split P inputs k hk, htl]
-      simp only [List.append_assoc, List.cons_append, List.nil_append, List.singleton_append]
+      simp only [List.append_assoc, List.cons_append, List.nil_append]
     have hc := codeAt_of_split h
     rw [prefix_length] at hc
     exact hc

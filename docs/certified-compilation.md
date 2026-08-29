@@ -550,7 +550,16 @@ Output:
 
 ```
 turpentine exec: 'x' has an initialiser; the certified URM fragment declares variables without one, since every register starts at zero
+turpentine: the certified compiler accepts only the I/O-free fragment
+  (no input or output, no subtraction, division or modulo, no arrays,
+  no && or ||, and the result in a variable named 'answer').
+turpentine: retry with --bespoke to compile the whole language.
+turpentine: nothing was run
 ```
+
+A rejection says what it did *not* do, so a failed compile cannot be
+mistaken for a quiet success: `compile` names the file it did not write,
+`exec` says nothing was run, and both exit 1.
 
 A target with no completeness proof has no certified compiler to offer:
 
