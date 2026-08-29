@@ -508,3 +508,270 @@ theorem reaches_outNum (s : Whitespace.State) (n : Int) (st : List Int)
 theorem exec_halt (s : Whitespace.State) (h : prog[s.pc]? = some Instr.halt) (f : Nat) :
     exec prog labels (f + 1) s = ({ s with pc := s.pc + 1 }, Exit.halted) := by
   simp only [exec, h]
+
+/-! ## The state relation -/
+
+/-- The heap holds each register's value at the register's own address. -/
+def HeapMatches (heap : Std.HashMap Int Int) (regs : Regs) : Prop :=
+  ∀ r : Nat, heap.getD (r : Int) 0 = (regs r : Int)
+
+theorem heapMatches_write {heap : Std.HashMap Int Int} {regs : Regs}
+    (h : HeapMatches heap regs) (r v : Nat) :
+    HeapMatches (heap.insert (r : Int) (v : Int)) (regs.write r v) := by
+  intro r'
+  rw [Std.HashMap.getD_insert]
+  by_cases hr : r' = r
+  · subst hr
+    simp [Cslib.URM.Regs.write]
+  · rw [if_neg (by simp only [beq_iff_eq]; omega), h r', Cslib.URM.Regs.write,
+      Function.update_of_ne hr]
+
+/-- The simulation invariant: empty stacks, a heap that agrees with the
+registers, and a program counter at the entry of the current block. -/
+structure Matches (P : Program) (inputs : List Nat) (s : Cslib.URM.State)
+    (w : Whitespace.State) : Prop where
+  pc : w.pc = entry P inputs (min s.pc P.length)
+  stack : w.stack = []
+  calls : w.calls = []
+  heap : HeapMatches w.heap s.regs
+
+/-! ## Reading a whole block, terminating label included -/
+
+theorem blocks_tail_head (P : Program) (k : Nat) (hk : k < P.length) :
+    ∃ tl, blocks P.length (k + 1) (P.drop (k + 1)) ++ epilogue
+      = Instr.label (labelAt P.length (k + 1)) :: tl := by
+  cases hd : P.drop (k + 1) with
+  | nil =>
+    have hlen : P.length ≤ k + 1 := by
+      have hl := congrArg List.length hd
+      rw [List.length_drop] at hl
+      simp only [List.length_nil] at hl
+      omega
+    refine ⟨[Instr.push 0, Instr.retrieve, Instr.outNum, Instr.halt], ?_⟩
+    simp only [blocks, epilogue, labelAt, if_neg (by omega : ¬ (k + 1 < P.length)),
+      List.nil_append]
+  | cons i rest =>
+    have hlen : k + 1 < P.length := by
+      have hl := congrArg List.length hd
+      rw [List.length_drop] at hl
+      simp only [List.length_cons] at hl
+      omega
+    refine ⟨instrCode P.length i ++ (blocks P.length (k + 1 + 1) rest ++ epilogue), ?_⟩
+    simp only [blocks, labelAt, if_pos hlen, List.cons_append, List.append_assoc]
+
+theorem codeAt_block (P : Program) (inputs : List Nat) (k : Nat) (hk : k < P.length) :
+    CodeAt (compile P inputs) (entry P inputs k)
+      (instrCode P.length P[k] ++ [Instr.label (labelAt P.length (k + 1))]) := by
+  cases blocks_tail_head P k hk with
+  | intro tl htl =>
+    have h : compile P inputs =
+        ((prologue 0 inputs ++ blocks P.length 0 (P.take k)) ++ Instr.label (lbl k)
+          :: ((instrCode P.length P[k] ++ [Instr.label (labelAt P.length (k + 1))])
+              ++ tl)).toArray := by
+      rw [compile, compileList_split P inputs k hk, htl]
+      simp only [List.append_assoc, List.cons_append, List.nil_append, List.singleton_append]
+    have hc := codeAt_of_split h
+    rw [prefix_length] at hc
+    exact hc
+
+theorem codeAt_epilogue (P : Program) (inputs : List Nat) :
+    CodeAt (compile P inputs) (entry P inputs P.length)
+      [Instr.push 0, Instr.retrieve, Instr.outNum, Instr.halt] := by
+  have h : compile P inputs =
+      ((prologue 0 inputs ++ blocks P.length 0 P) ++ Instr.label lend
+        :: ([Instr.push 0, Instr.retrieve, Instr.outNum, Instr.halt] ++ [])).toArray := by
+    rw [compile, compileList_split_end P inputs]
+  have hc := codeAt_of_split h
+  rw [prefix_length_end] at hc
+  exact hc
+
+theorem codeAt_prologue (P : Program) (inputs : List Nat) :
+    CodeAt (compile P inputs) 0 (prologue 0 inputs) := by
+  have h : compile P inputs =
+      (([] : List Instr) ++ (prologue 0 inputs ++ (blocks P.length 0 P ++ epilogue))).toArray := by
+    rw [compile, compileList]
+    simp only [List.nil_append, List.append_assoc]
+  intro j hj
+  rw [h]
+  simp only [List.getElem?_toArray, List.nil_append, Nat.zero_add]
+  exact List.getElem?_append_left hj
+
+theorem getElem?_first_label (P : Program) (inputs : List Nat) (hne : 0 < P.length) :
+    (compile P inputs)[base inputs]? = some (Instr.label (lbl 0)) := by
+  have h : compile P inputs =
+      ((prologue 0 inputs ++ blocks P.length 0 (P.take 0)) ++ Instr.label (lbl 0)
+        :: (instrCode P.length P[0]
+            ++ (blocks P.length (0 + 1) (P.drop (0 + 1)) ++ epilogue))).toArray := by
+    rw [compile, compileList_split P inputs 0 hne]
+  have := getElem?_at_split h
+  rw [prefix_length] at this
+  simpa [blockPos, codeSize] using this
+
+theorem getElem?_lend_label (P : Program) (inputs : List Nat) :
+    (compile P inputs)[blockPos P inputs P.length]? = some (Instr.label lend) := by
+  have h : compile P inputs =
+      ((prologue 0 inputs ++ blocks P.length 0 P) ++ Instr.label lend
+        :: ([Instr.push 0, Instr.retrieve, Instr.outNum, Instr.halt] ++ [])).toArray := by
+    rw [compile, compileList_split_end P inputs]
+  have := getElem?_at_split h
+  rw [prefix_length_end] at this
+  exact this
+
+/-! ## One URM instruction at a time -/
+
+/-- The interpreter core specialised to a compiled program. -/
+abbrev Ex (P : Program) (inputs : List Nat) :
+    Nat → Whitespace.State → Whitespace.State × Exit :=
+  exec (compile P inputs) (labelMap (compile P inputs))
+
+theorem block_Z (P : Program) (inputs : List Nat) (k r : Nat) (hk : k < P.length)
+    (hPk : P[k] = .Z r) (calls : List Nat) (heap : Std.HashMap Int Int)
+    (inp : Input) (out : ByteArray) :
+    Reaches (Ex P inputs)
+      ⟨[], calls, heap, inp, out, entry P inputs k⟩
+      ⟨[], calls, heap.insert (r : Int) 0, inp, out, entry P inputs (k + 1)⟩ := by
+  have hcode := codeAt_block P inputs k hk
+  rw [hPk] at hcode
+  simp only [instrCode, List.cons_append, List.nil_append] at hcode
+  have h0 := hcode.get 0 (by simp)
+  have h1 := hcode.get 1 (by simp)
+  have h2 := hcode.get 2 (by simp)
+  have h3 := hcode.get 3 (by simp)
+  simp only [List.getElem_cons_zero, List.getElem_cons_succ] at h0 h1 h2 h3
+  have harith : entry P inputs (k + 1) = entry P inputs k + 1 + 1 + 1 + 1 := by
+    have h := entry_succ P inputs k hk
+    rw [hPk] at h
+    simp only [instrLen] at h
+    omega
+  rw [harith]
+  refine Reaches.trans (reaches_push _ _ (by simpa using h0)) ?_
+  refine Reaches.trans (reaches_push _ _ (by simpa using h1)) ?_
+  refine Reaches.trans (reaches_store _ (r : Int) 0 [] rfl (by omega) (by simpa using h2)) ?_
+  exact reaches_label _ _ (by simpa using h3)
+
+theorem block_S (P : Program) (inputs : List Nat) (k r : Nat) (hk : k < P.length)
+    (hPk : P[k] = .S r) (calls : List Nat) (heap : Std.HashMap Int Int)
+    (inp : Input) (out : ByteArray) :
+    Reaches (Ex P inputs)
+      ⟨[], calls, heap, inp, out, entry P inputs k⟩
+      ⟨[], calls, heap.insert (r : Int) (heap.getD (r : Int) 0 + 1), inp, out,
+        entry P inputs (k + 1)⟩ := by
+  have hcode := codeAt_block P inputs k hk
+  rw [hPk] at hcode
+  simp only [instrCode, List.cons_append, List.nil_append] at hcode
+  have h0 := hcode.get 0 (by simp)
+  have h1 := hcode.get 1 (by simp)
+  have h2 := hcode.get 2 (by simp)
+  have h3 := hcode.get 3 (by simp)
+  have h4 := hcode.get 4 (by simp)
+  have h5 := hcode.get 5 (by simp)
+  have h6 := hcode.get 6 (by simp)
+  simp only [List.getElem_cons_zero, List.getElem_cons_succ] at h0 h1 h2 h3 h4 h5 h6
+  have harith : entry P inputs (k + 1) = entry P inputs k + 1 + 1 + 1 + 1 + 1 + 1 + 1 := by
+    have h := entry_succ P inputs k hk
+    rw [hPk] at h
+    simp only [instrLen] at h
+    omega
+  rw [harith]
+  refine Reaches.trans (reaches_push _ _ (by simpa using h0)) ?_
+  refine Reaches.trans (reaches_push _ _ (by simpa using h1)) ?_
+  refine Reaches.trans (reaches_retrieve _ (r : Int) [(r : Int)] rfl (by omega)
+    (by simpa using h2)) ?_
+  refine Reaches.trans (reaches_push _ _ (by simpa using h3)) ?_
+  refine Reaches.trans (reaches_add _ (heap.getD (r : Int) 0) 1 [(r : Int)] rfl
+    (by simpa using h4)) ?_
+  refine Reaches.trans (reaches_store _ (r : Int) (heap.getD (r : Int) 0 + 1) [] rfl
+    (by omega) (by simpa using h5)) ?_
+  exact reaches_label _ _ (by simpa using h6)
+
+theorem block_T (P : Program) (inputs : List Nat) (k m r : Nat) (hk : k < P.length)
+    (hPk : P[k] = .T m r) (calls : List Nat) (heap : Std.HashMap Int Int)
+    (inp : Input) (out : ByteArray) :
+    Reaches (Ex P inputs)
+      ⟨[], calls, heap, inp, out, entry P inputs k⟩
+      ⟨[], calls, heap.insert (r : Int) (heap.getD (m : Int) 0), inp, out,
+        entry P inputs (k + 1)⟩ := by
+  have hcode := codeAt_block P inputs k hk
+  rw [hPk] at hcode
+  simp only [instrCode, List.cons_append, List.nil_append] at hcode
+  have h0 := hcode.get 0 (by simp)
+  have h1 := hcode.get 1 (by simp)
+  have h2 := hcode.get 2 (by simp)
+  have h3 := hcode.get 3 (by simp)
+  have h4 := hcode.get 4 (by simp)
+  simp only [List.getElem_cons_zero, List.getElem_cons_succ] at h0 h1 h2 h3 h4
+  have harith : entry P inputs (k + 1) = entry P inputs k + 1 + 1 + 1 + 1 + 1 := by
+    have h := entry_succ P inputs k hk
+    rw [hPk] at h
+    simp only [instrLen] at h
+    omega
+  rw [harith]
+  refine Reaches.trans (reaches_push _ _ (by simpa using h0)) ?_
+  refine Reaches.trans (reaches_push _ _ (by simpa using h1)) ?_
+  refine Reaches.trans (reaches_retrieve _ (m : Int) [(r : Int)] rfl (by omega)
+    (by simpa using h2)) ?_
+  refine Reaches.trans (reaches_store _ (r : Int) (heap.getD (m : Int) 0) [] rfl
+    (by omega) (by simpa using h3)) ?_
+  exact reaches_label _ _ (by simpa using h4)
+
+theorem block_J_taken (P : Program) (inputs : List Nat) (k m r q : Nat) (hk : k < P.length)
+    (hPk : P[k] = .J m r q) (calls : List Nat) (heap : Std.HashMap Int Int)
+    (inp : Input) (out : ByteArray)
+    (heq : heap.getD (m : Int) 0 = heap.getD (r : Int) 0) :
+    Reaches (Ex P inputs)
+      ⟨[], calls, heap, inp, out, entry P inputs k⟩
+      ⟨[], calls, heap, inp, out, entry P inputs (min q P.length)⟩ := by
+  have hcode := codeAt_block P inputs k hk
+  rw [hPk] at hcode
+  simp only [instrCode, List.cons_append, List.nil_append] at hcode
+  have h0 := hcode.get 0 (by simp)
+  have h1 := hcode.get 1 (by simp)
+  have h2 := hcode.get 2 (by simp)
+  have h3 := hcode.get 3 (by simp)
+  have h4 := hcode.get 4 (by simp)
+  have h5 := hcode.get 5 (by simp)
+  simp only [List.getElem_cons_zero, List.getElem_cons_succ] at h0 h1 h2 h3 h4 h5
+  refine Reaches.trans (reaches_push _ _ (by simpa using h0)) ?_
+  refine Reaches.trans (reaches_retrieve _ (m : Int) [] rfl (by omega) (by simpa using h1)) ?_
+  refine Reaches.trans (reaches_push _ _ (by simpa using h2)) ?_
+  refine Reaches.trans (reaches_retrieve _ (r : Int) [heap.getD (m : Int) 0] rfl (by omega)
+    (by simpa using h3)) ?_
+  refine Reaches.trans (reaches_sub _ (heap.getD (m : Int) 0) (heap.getD (r : Int) 0) [] rfl
+    (by simpa using h4)) ?_
+  exact reaches_jz_taken _ [] (labelAt P.length q) (entry P inputs (min q P.length))
+    (by simp [heq]) (labels_target P inputs q) (by simpa using h5)
+
+theorem block_J_untaken (P : Program) (inputs : List Nat) (k m r q : Nat) (hk : k < P.length)
+    (hPk : P[k] = .J m r q) (calls : List Nat) (heap : Std.HashMap Int Int)
+    (inp : Input) (out : ByteArray)
+    (hne : heap.getD (m : Int) 0 ≠ heap.getD (r : Int) 0) :
+    Reaches (Ex P inputs)
+      ⟨[], calls, heap, inp, out, entry P inputs k⟩
+      ⟨[], calls, heap, inp, out, entry P inputs (k + 1)⟩ := by
+  have hcode := codeAt_block P inputs k hk
+  rw [hPk] at hcode
+  simp only [instrCode, List.cons_append, List.nil_append] at hcode
+  have h0 := hcode.get 0 (by simp)
+  have h1 := hcode.get 1 (by simp)
+  have h2 := hcode.get 2 (by simp)
+  have h3 := hcode.get 3 (by simp)
+  have h4 := hcode.get 4 (by simp)
+  have h5 := hcode.get 5 (by simp)
+  have h6 := hcode.get 6 (by simp)
+  simp only [List.getElem_cons_zero, List.getElem_cons_succ] at h0 h1 h2 h3 h4 h5 h6
+  have harith : entry P inputs (k + 1) = entry P inputs k + 1 + 1 + 1 + 1 + 1 + 1 + 1 := by
+    have h := entry_succ P inputs k hk
+    rw [hPk] at h
+    simp only [instrLen] at h
+    omega
+  rw [harith]
+  refine Reaches.trans (reaches_push _ _ (by simpa using h0)) ?_
+  refine Reaches.trans (reaches_retrieve _ (m : Int) [] rfl (by omega) (by simpa using h1)) ?_
+  refine Reaches.trans (reaches_push _ _ (by simpa using h2)) ?_
+  refine Reaches.trans (reaches_retrieve _ (r : Int) [heap.getD (m : Int) 0] rfl (by omega)
+    (by simpa using h3)) ?_
+  refine Reaches.trans (reaches_sub _ (heap.getD (m : Int) 0) (heap.getD (r : Int) 0) [] rfl
+    (by simpa using h4)) ?_
+  refine Reaches.trans (reaches_jz_untaken _ [] (labelAt P.length q)
+    (heap.getD (m : Int) 0 - heap.getD (r : Int) 0) (by omega) rfl (by simpa using h5)) ?_
+  exact reaches_label _ _ (by simpa using h6)

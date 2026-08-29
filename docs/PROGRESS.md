@@ -2,6 +2,49 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-09-01: handoff state
+
+Where things stand for whoever picks this up next. `lake build` and
+`lake test` are green (582 tests), and `./scripts/difftest.sh` passes 14
+comparisons against four reference interpreters.
+
+**Done**: eleven esoteric languages with specs, interpreters, runners,
+examples and tests (brainfuck, whitespace, malbolge, befunge93, subleq,
+fractran, thue, ook, deadfish, piet, brainloller); Turpentine with
+arrays; three compiler backends (brainfuck for scalars, whitespace and
+subleq for the whole language); the website under `site/`; cslib and
+Mathlib as dependencies; a `compiler.md` for every language.
+
+**In flight and INCOMPLETE at the time of writing.** Three agents were
+still working, so the following are partial. They compile and do not
+break the suite, but they are not finished, not wired into
+`Langlib.lean`, `Langlib/Tests/Main.lean` or `lakefile.toml`, and have no
+docs pages yet:
+
+* `Langlib/Computability/{Class,URM,Whitespace}.lean`: the uniform
+  computability interface and the Whitespace Turing-completeness proof
+  (Stage 8). Check for `sorry` before trusting anything here; the agent
+  was told never to write one, but the work was interrupted.
+* `Langlib/Languages/MalbolgeUnshackled/{Syntax,Parser,Semantics}.lean`:
+  no `Main.lean`, no aggregator, no examples, no tests, no
+  `docs/malbolge-unshackled/` yet.
+* `Langlib/Languages/Unlambda/` and `Langlib/Languages/Unlambda.lean`:
+  same, no `docs/unlambda/` yet.
+
+**To resume**: finish or discard the three items above, then continue
+with `docs/PLAN.md`. The open stages are 5 (Velvet examples), 6
+(verification proofs, nothing proved yet), 8 (computational class, the
+`TC proved` column in `docs/README.md` is all `no`) and 9 (derived
+compilers). Stage 4 still wants the IR layer (StackIR, TapeIR, RegIR),
+which is what makes the Stage 6 proofs affordable.
+
+**Known loose end**: Befunge-93 is not parametric over cell width. It
+hard-codes unbounded `Int` cells, which is why the language we implement
+is Turing complete while `bef.c`'s byte-celled one is not. Making the
+width a `Config` option would let both computational-class claims be
+proved about one implementation, and would let the differential tests run
+faithfully against `bef.c`. See `docs/befunge93/spec.md`.
+
 ## 2026-09-01
 
 * **The brainfuck backend lands**, the hard one, covering the scalar

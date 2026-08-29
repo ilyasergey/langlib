@@ -193,15 +193,21 @@ def toNat? (v : Value) : Option Nat :=
   if v.lead = .t0 then some (v.low.foldr (fun t acc => acc * 3 + t.toNat) 0)
   else none
 
-/-- Rendered as the wiki writes them: naturals as decimal, everything else
-as `...` plus the repeating trit twice plus the explicit trits, most
-significant first (`...22`, `...21`, `...1102`). -/
+/-- Naturals print as decimal; anything else prints as `...`, the repeating
+trit, then the explicit trits most significant first, which is how the
+language names its two reserved values (`...22` for end of file, `...21`
+for end of line). A width-zero value gets a second copy of the repeating
+trit so that the repetition is visible at all. Note that the wiki writes
+the same values with more copies of the repeating trit where it likes
+(`...1102` for what we print as `...102`); they denote the same 3-adic
+integer. -/
 def toString (v : Value) : String :=
   match v.toNat? with
   | some n => ToString.toString n
   | none =>
-    "..." ++ String.ofList (v.lead.toChar :: v.lead.toChar ::
-      (v.low.reverse.map Trit.toChar))
+    let repeats := if v.low.isEmpty then [v.lead.toChar, v.lead.toChar]
+                   else [v.lead.toChar]
+    "..." ++ String.ofList (repeats ++ v.low.reverse.map Trit.toChar)
 
 instance : ToString Value := ⟨toString⟩
 
@@ -428,12 +434,20 @@ example : Value.mk' .t0 [.t1, .t0, .t0] = Value.ofNat 1 := by decide
 example : (Value.ofNat 1).toString = "1" := by decide
 example : Value.eof.toString = "...22" := by decide
 example : Value.eol.toString = "...21" := by decide
-example : (Value.mk' .t1 [.t2, .t0]).toString = "...1102" := by decide
+-- the wiki's `...1102`, printed with one copy of the repeating trit
+example : (Value.mk' .t1 [.t2, .t0]).toString = "...102" := by decide
 
 -- The wiki's own example of the crazy operation on 3-adic values.
 example : Value.crz (Value.ofNat 1) (Value.ofNat 1) = Value.mk' .t1 [.t0] := by decide
--- and Malbolge's, which must agree because both values fit in ten trits.
-example : Value.crz (Value.ofNat 0) (Value.ofNat 62) = Value.ofNat 29555 := by decide
+-- Malbolge computes `crz 0 62 = 29555 = 1111112122₃`. Unshackled agrees on
+-- every trit, but does not stop at ten: the leading zeros of both operands
+-- combine to a leading run of ones, so the result is `...1112122`, which is
+-- not a natural number at all.
+example : Value.crz (Value.ofNat 0) (Value.ofNat 62)
+    = Value.mk' .t1 [.t2, .t2, .t1, .t2] := by decide
+example : (List.range 10).map (Value.crz (Value.ofNat 0) (Value.ofNat 62)).trit
+    = (List.range 10).map (Value.ofNat 29555).trit := by decide
+example : (Value.crz (Value.ofNat 0) (Value.ofNat 62)).toNat? = none := by decide
 
 -- Rotation of width 10 agrees with Malbolge's `rotR`.
 example : Value.rot 10 (Value.ofNat 39) = Value.ofNat 13 := by decide
