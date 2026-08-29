@@ -66,12 +66,13 @@ The roadmap of languages still to be implemented lives in
 [docs/ROADMAP.md](docs/ROADMAP.md), and a survey of related efforts in
 [docs/RELATED.md](docs/RELATED.md).
 
-Where each one stands. The first column is the claim, from the literature
-or our own spec page; the second is whether a machine-checked theorem in
-this repository settles it, in either direction, with a link to the
-theorem. A `no` is as much a result as a `yes`: it means the language
-provably cannot compute everything, which for these three is decided
-halting.
+Where each one stands. Both of the middle columns answer the same
+question, "is this language Turing complete?", first as the literature or
+our own spec page claims it and then as a machine-checked theorem in this
+repository settles it. So a **no** in the second column is a proof that
+the language is *not* complete, linked to the theorem, and not a note that
+no proof exists; `open` is what that would say. For the three languages
+that carry one, that proof is a decided halting problem.
 
 The last column names the Turpentine compilers a target has and links each
 to its source. A **bespoke** one is hand-written for that target: it emits
@@ -84,8 +85,8 @@ fragment and enormous output.
 [Verified compilers](#verified-compilers) below explains why the library
 keeps both kinds.
 
-| Language | Turing complete? | Proven here | Turpentine compiler |
-|----------|------------------|-------------|---------------------|
+| Language | Turing complete: claimed | Turing complete: proven here | Turpentine compiler |
+|----------|--------------------------|------------------------------|---------------------|
 | [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L2888)** | [bespoke](Langlib/Turpentine/Compile/Brainfuck.lean#L1317) (trusted), and [derived](Langlib/Computability/Derived.lean#L110) (certified) |
 | [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1117)** | [bespoke](Langlib/Turpentine/Compile/Whitespace.lean#L530) (trusted), and [derived](Langlib/Computability/Derived.lean#L102) (certified) |
 | [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1201)** | [bespoke](Langlib/Turpentine/Compile/Subleq.lean#L1125) (trusted), and [derived](Langlib/Computability/Derived.lean#L106) (certified) |
