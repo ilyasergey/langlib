@@ -289,33 +289,56 @@ compile the same source both ways, run both, compare. That is two
 independent implementations of one specification, which is a much better
 test than a golden file.
 
-## Dependency graph
+## Two diagrams
 
-Two views, both reading top to bottom. Solid arrows are built and checked
-in; dashed arrows are planned.
+The first shows how a certified compiler is *obtained* for one target: the
+arrows are the steps of the composition. The second shows the *order of
+work* across targets, where dashed arrows mark what is still planned.
 
-### The pipeline, for any one target language
+### How a certified compiler is obtained
+
+A Turpentine program reaches the target in two hops, and **each hop already
+has a correctness theorem**. Composing the two theorems is what produces the
+certified compiler; no third proof is written.
 
 ```mermaid
 graph TD
-  TURP["Turpentine program"]
-  URM["URM program<br/>(cslib, universal model)"]
-  TC["TuringComplete L<br/>the completeness proof"]
-  DER["derived compiler<br/>TurpentineCompiler L"]
-  EFF["effective compiler<br/>hand-written, per language"]
-  AGREE["theorem agree<br/>both produce the same behaviour"]
+  T["Turpentine program p"]
+  U["URM program P<br/>plus input vector"]
+  L["program in the target language L"]
+  C["derived tc : TurpentineCompiler L<br/>a certified compiler"]
 
-  TURP -. "compileToURM<br/>the one missing piece" .-> URM
-  URM --> TC
-  TC --> DER
-  DER --> AGREE
-  EFF --> AGREE
+  T -->|"compileToURM<br/>correct by compileToURM_correct"| U
+  U -->|"tc.compile, a field of TuringComplete L<br/>correct by tc.simulates"| L
+  L -->|"the two theorems compose<br/>into derived_correct"| C
 ```
 
-Every target follows this shape. The only per-language work is the
-`TuringComplete L` proof: the derived compiler below it is a composition,
-and `agree` is a theorem about the interface rather than about any
-particular language.
+Read the hops as follows.
+
+**First hop, written once.** `compileToURM` turns a Turpentine program into
+a URM program plus the initial register vector. Its theorem says that if the
+Turpentine program halts with an answer, the URM halts with the same answer
+in register 0. This is the only compiler anyone writes by hand for this
+pipeline, and it is shared by every target.
+
+**Second hop, free per target.** `tc.compile` is not new code either: it is
+a *field* of `tc : TuringComplete L`, the completeness proof for `L`. Its
+theorem, `tc.simulates`, says that a halting URM run becomes a halting `L`
+run whose output decodes to the same answer. Anyone who proves `L` Turing
+complete has, without intending to, supplied this hop.
+
+**The composition.** `compileToURM_correct` concludes exactly what
+`tc.simulates` assumes (`URM.HaltsWithResult P inputs result`), so the two
+fit with no glue, and `derived_correct` quantifies over an arbitrary `L` and
+an arbitrary `tc`. It is proved once and applies to every language anyone
+ever proves complete. That is the sense in which a completeness proof yields
+a verified compiler.
+
+For Whitespace all of this is already in place except the first hop:
+[`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L1117) is
+proved and axiom-clean, so the moment `compileToURM_correct` closes,
+`derived whitespaceComplete` is a certified Turpentine-to-Whitespace
+compiler with no further work.
 
 ### What unlocks what
 
