@@ -56,6 +56,40 @@ else
   fi
 fi
 
+# --------------------------------------------------------------- whitespace
+# References tried in order: wspace (original Haskell), wsc (whitespace-rs),
+# wsjq. Only cleanly halting examples are compared; EOF and error cases are
+# covered by golden tests (see docs/TESTING.md).
+WS_LANGLIB=.lake/build/bin/whitespace
+if [ ! -x "$WS_LANGLIB" ]; then
+  note "whitespace: build first (lake build whitespace); skipping"
+else
+  WS_REF=""
+  for cand in wspace wsc wsjq; do
+    if command -v "$cand" >/dev/null 2>&1; then WS_REF=$cand; break; fi
+  done
+  if [ -z "$WS_REF" ]; then
+    SKIP=$((SKIP+1))
+    note "whitespace: no reference interpreter installed (try: cargo install whitespace-rs); skipping"
+  else
+    note "whitespace vs $WS_REF:"
+    for ex in hello count add fact greet truth; do
+      f=Langlib/Examples/Whitespace/$ex.ws
+      input=""
+      case $ex in
+        add) input=$'3\n4\n' ;;
+        fact) input=$'5\n' ;;
+        greet) input=$'Ada\n' ;;
+        truth) input=$'0\n' ;;
+      esac
+      compare "$ex.ws" "$input" "$WS_LANGLIB" "$f" -- "$WS_REF" "$f"
+    done
+  fi
+fi
+
+# Languages with no comparable reference binary (see docs/TESTING.md for
+# why): ook, deadfish, fractran, subleq, thue. Golden tests cover them.
+
 note ""
 note "difftest: $PASS passed, $FAIL failed, $SKIP sections skipped"
 [ "$FAIL" -eq 0 ]

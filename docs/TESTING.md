@@ -61,6 +61,44 @@ Golden unit tests are the reference story; the semantic choices (the `-1`
 I/O convention, EOF stores -1, mod-256 output, clean halts) are pinned
 down in `docs/subleq/spec.md` and by the golden tests.
 
+## whitespace
+
+Reference situation: the authors' `wspace` 0.3 (Haskell, GPL) is canonical
+but was written for 2003-era GHC; a modernized build lives at
+https://github.com/wspace/whitespace-haskell (clone, `make`, gives a
+`wspace` binary; needs GHC, e.g. `brew install ghc`). No package manager
+ships it. Practical modern references:
+
+* **whitespace-rs**: `cargo install whitespace-rs` (installs `wsc`).
+* **wsjq**: needs only `jq`; clone https://github.com/thaliaarchi/wsjq
+  and put `wsjq` on PATH.
+
+Our difftest section tries `wspace`, then `wsc`, then `wsjq`. Only programs
+that halt cleanly are compared: programs that read until EOF (like
+`cat.ws`) end in a runtime error in every faithful implementation, and
+implementations phrase the error differently. Heap-default and EOF corner
+cases are pinned by golden tests instead (see `docs/whitespace/spec.md`).
+
+## ook
+
+Reference situation: there is no canonical interpreter. Morgan-Mar's page
+defines the language but ships no implementation (it links third-party
+ones, none packaged for brew or apt). Golden unit tests are the reference
+story: the Ook!-specific surface is the parser, whose error classes are
+pinned by unit tests, while the runtime is the brainfuck core, which is
+already differentially tested. A round-trip suite runs brainfuck sources
+through render and parse to pin down the isomorphism.
+
+## deadfish
+
+Reference situation: the original C interpreter is preserved on the
+esolangs wiki (CC0), but it is an interactive shell whose stdout
+interleaves a `>> ` prompt before every input character, so byte-for-byte
+comparison with a batch runner fails by design, and no packaged binary
+exists. Golden tests are the story: they include the wiki's three
+mandatory interpreter test cases plus both accumulator resets, squaring
+past 256, and the newline-on-unknown-character rule.
+
 ## Languages without a canonical interpreter
 
 For these, golden unit tests on programs are the reference story, and their

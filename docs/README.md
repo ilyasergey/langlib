@@ -14,10 +14,10 @@ Legend: `yes` done, `wip` in progress, `-` not started, `n/a` not planned
 | [fractran](fractran/spec.md) | yes | yes | yes | yes | `lake exe fractran` | n/a | n/a |
 | [subleq](subleq/spec.md) | yes | yes | yes | yes | `lake exe subleq` | - | - |
 | [WTF](wtf/spec.md) (front end) | yes | yes | yes | yes | `lake exe wtf` | (source) | (source) |
-| [whitespace](whitespace/spec.md) | wip | wip | wip | wip | `lake exe whitespace` | - | - |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `lake exe whitespace` | - | - |
 | [malbolge](malbolge/spec.md) | wip | wip | wip | wip | `lake exe malbolge` | n/a | n/a |
-| [ook](ook/spec.md) | wip | wip | wip | wip | `lake exe ook` | - | - |
-| [deadfish](deadfish/spec.md) | wip | wip | wip | wip | `lake exe deadfish` | - | - |
+| [ook](ook/spec.md) | yes | yes | yes | yes | `lake exe ook` | - | - |
+| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `lake exe deadfish` | - | - |
 | [thue](thue/spec.md) | wip | wip | wip | wip | `lake exe thue` | n/a | n/a |
 | [befunge93](befunge93/spec.md) | wip | wip | wip | wip | `lake exe befunge93` | - | - |
 | [piet](piet/spec.md) | wip | wip | wip | wip | `lake exe piet` | - | - |

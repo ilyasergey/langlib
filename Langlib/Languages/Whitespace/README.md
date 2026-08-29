@@ -1,0 +1,56 @@
+# Whitespace in langlib
+
+Edwin Brady and Chris Morris's 2003 stack machine, written entirely in
+spaces, tabs, and linefeeds; everything visible is a comment. The full
+specification, history, and the exact semantic choices are in
+[docs/whitespace/spec.md](../../../docs/whitespace/spec.md).
+
+## Modules
+
+* `Syntax.lean`: the instruction AST (`Instr`, `Prog`, `Label`), plus a
+  renderer back to concrete syntax (used to generate the examples and, in
+  time, by the WTF compiler).
+* `Parser.lean`: tokeniser (space/tab/LF; all else is a comment) and IMP
+  parser, with errors reporting line, column, and the offending tokens as
+  `[Space]`/`[Tab]`/`[LF]`.
+* `Semantics.lean`: the pure, fuel-based reference evaluator: value stack,
+  call stack, heap, program counter, labels resolved in a pre-pass.
+* `Main.lean`: the standalone runner.
+
+## Running
+
+```
+lake exe whitespace [--fuel N] file.ws
+```
+
+Input is read from stdin, output written to stdout. Exit codes: 0 halt,
+1 runtime error, 2 out of fuel, 3 parse or usage error. Note that a program
+that reads until end of input (like `cat.ws`) ends with a runtime error,
+because Whitespace has no way to test for EOF; the reference interpreter
+behaves the same way.
+
+## Examples ([Langlib/Examples/Whitespace/](../../Examples/Whitespace/))
+
+Whitespace files cannot carry attribution comments (prose contains spaces,
+and spaces are code), so it lives here instead. All examples are langlib
+originals, generated from ASTs via `Prog.render`; `cat` and the
+truth-machine follow the classic folklore structure also found on the
+esolangs wiki (CC0).
+
+| File | What it does | Origin |
+|------|--------------|--------|
+| `hello.ws` | prints `Hello, World!` | langlib original |
+| `cat.ws` | copies input to output, then errors at EOF | langlib original (folklore structure) |
+| `count.ws` | prints 1 to 10, one per line | langlib original |
+| `add.ws` | reads two numbers, prints their sum | langlib original |
+| `fact.ws` | reads a number, prints its factorial | langlib original |
+| `greet.ws` | reads a name, prints `Hello, <name>!` | langlib original |
+| `truth.ws` | truth-machine: 0 halts, 1 prints 1 forever | langlib original (folklore structure) |
+
+## Tests
+
+Golden tests live in [Langlib/Tests/Whitespace.lean](../../Tests/Whitespace.lean)
+(run with `lake test` from the repository root): all examples, number and
+label encodings, floor division and modulo on negatives, `copy`/`slide`
+edge cases, heap access, subroutines, conditional jumps, char and numeric
+I/O, EOF and error behaviour, parse errors, and divergence.

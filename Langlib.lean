@@ -1,7 +1,10 @@
 import Langlib.Common
 import Langlib.Languages.Brainfuck
+import Langlib.Languages.Deadfish
 import Langlib.Languages.Fractran
+import Langlib.Languages.Ook
 import Langlib.Languages.Subleq
+import Langlib.Languages.Whitespace
 import Langlib.WTF
 
 /-!

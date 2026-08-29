@@ -26,3 +26,15 @@ root = "Langlib.Languages.Fractran.Main"
 [[lean_exe]]
 name = "subleq"
 root = "Langlib.Languages.Subleq.Main"
+
+[[lean_exe]]
+name = "whitespace"
+root = "Langlib.Languages.Whitespace.Main"
+
+[[lean_exe]]
+name = "ook"
+root = "Langlib.Languages.Ook.Main"
+
+[[lean_exe]]
+name = "deadfish"
+root = "Langlib.Languages.Deadfish.Main"

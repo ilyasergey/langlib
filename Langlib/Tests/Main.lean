@@ -1,7 +1,10 @@
 import Langlib.Common.TestHarness
 import Langlib.Tests.Brainfuck
+import Langlib.Tests.Deadfish
 import Langlib.Tests.Fractran
+import Langlib.Tests.Ook
 import Langlib.Tests.Subleq
+import Langlib.Tests.Whitespace
 import Langlib.Tests.WTF
 
 /-!
@@ -15,7 +18,10 @@ open Langlib.Common in
 def main : IO UInt32 :=
   runSuites <| List.flatten
     [ Langlib.Tests.Brainfuck.suites
+    , Langlib.Tests.Deadfish.suites
     , Langlib.Tests.Fractran.suites
+    , Langlib.Tests.Ook.suites
     , Langlib.Tests.Subleq.suites
+    , Langlib.Tests.Whitespace.suites
     , Langlib.Tests.WTF.suites
     ]
