@@ -116,6 +116,28 @@ language has both compilers, they provably produce the same observable
 behaviour on programs both accept. Until a bespoke compiler is verified,
 the derived one is the strongest available check on it.
 
+**The bespoke compilers are not a stopgap**, and it is worth being clear
+why, because "we proved one, so throw the other away" is the obvious wrong
+conclusion.
+
+*Some programs cannot go through a register machine at all.* A URM takes
+its input before it runs and yields one number when it halts, so nothing
+that interleaves reading and writing can be expressed however far the
+certified fragment is widened. `cat.turp` will never compile that way.
+That is a property of the model, not a gap in the work.
+
+*The output is not comparable.* Compiling `answer := 3` to brainfuck
+through the register machine produces 64 kilobytes and runs in billions of
+steps, because arithmetic becomes unary counting on a byte tape. The
+bespoke brainfuck backend compiles real programs into something that
+finishes. Both facts are true at once, and neither compiler is wrong.
+
+*The fragment is still narrowing in.* Initialisers, `&&`, `||`, `/` and
+`%` have landed; subtraction and arrays have not, and subtraction turned
+out to be harder than planned (the obvious `Nat`-valued semantics bridges
+the wrong way). Meanwhile the bespoke compilers accept the whole language
+today.
+
 The pipeline, the diagrams and the theorem that makes the composition work
 are in [certified-compilation.md](docs/certified-compilation.md); what
 correctness means here, including how `assert` compiles, is in

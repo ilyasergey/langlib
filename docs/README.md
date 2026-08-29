@@ -225,7 +225,31 @@ its fragment is I/O-free.
 
 So: bespoke compilers are for running programs, derived ones are for
 proving things, and until a bespoke compiler is verified the derived one is
-the strongest check on it. Both are instances of a single
+the strongest check on it.
+
+Neither replaces the other, and three facts keep it that way.
+
+* **The register machine cannot interleave.** It takes its input before it
+  runs and yields one number at halt, so a program that reads and writes in
+  turn cannot be compiled that way at all. `cat.turp` has no certified
+  version and never will; `cat-tc.turp` exists only to say so. This is a
+  property of the model, not an unfinished feature.
+* **The output is not of comparable size.** `answer := 3` through the
+  certified route becomes 64 kilobytes of brainfuck that runs for billions
+  of steps, because arithmetic turns into unary counting on a byte tape.
+  The bespoke backend compiles the same thing into something that
+  finishes. Neither compiler is wrong; they are answering different
+  questions.
+* **The fragment is real but partial.** Initialisers, `&&`, `||`, `/` and
+  `%` have landed. Subtraction and arrays have not, and subtraction proved
+  harder than planned: the recommended `Nat`-valued reference semantics
+  bridges the wrong way, since `answer := (2 - 5) + 10` halts with `7` in
+  the reference and has no `Nat` run at all. See
+  [certified-compilation.md](certified-compilation.md) section 4b.
+
+The honest summary is that a proof buys certainty about a fragment, and a
+hand-written compiler buys a program you can actually run. The library
+wants both, and the `agree` theorem is what stops them drifting apart. Both are instances of a single
 `TurpentineCompiler` interface, so a language with both gets `agree` for
 free: the two provably produce the same observable behaviour on programs
 both accept.
