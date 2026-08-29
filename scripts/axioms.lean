@@ -21,6 +21,8 @@ incompleteness instance lands.
 -/
 import Langlib.Computability.Whitespace
 import Langlib.Computability.Subleq
+import Langlib.Computability.Derived
+import Langlib.Computability.Brainfuck
 
 open Langlib.Computability
 
@@ -41,3 +43,22 @@ open Langlib.Computability
 #print axioms subleqComplete
 #print axioms URMSubleq.simulation
 #print axioms URMSubleq.compile
+
+-- The certified compilation pipeline: Turpentine to the unlimited register
+-- machine, and the composition with any completeness witness.
+#print axioms Langlib.Turpentine.Compile.URM.compileToURM_correct
+#print axioms Langlib.Turpentine.Compile.URM.reaches_compileStmt
+#print axioms Langlib.Turpentine.Compile.URM.reaches_compileExpr
+#print axioms Langlib.Turpentine.Compile.URM.compileToURM
+
+#print axioms derived
+#print axioms derivedWhitespace
+#print axioms derivedSubleq
+#print axioms agree
+
+-- Brainfuck: Turing complete via paired unary tape columns. The compiler
+-- embeds inputs, simulates a structured counter dispatcher, and encodes the
+-- answer as the number of output bytes.
+#print axioms brainfuckComplete
+#print axioms URMBrainfuck.simulation
+#print axioms URMBrainfuck.compile
