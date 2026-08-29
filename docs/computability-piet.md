@@ -2,11 +2,15 @@
 
 LangLib contains a total runnable URM-to-Piet compiler that accepts arbitrary
 `J` instructions, including backward jumps. Its stack translation and the
-main dispatcher arithmetic are proved against `Langlib.Piet.execOp`. The
+whole dispatcher are proved against `Langlib.Piet.execOp`: one dispatcher
+pass performs exactly one `Cslib.URM.Step`
+([`dispatchUpdate_step`](../Langlib/Computability/Piet.lean#L1272),
+[`runCode_dispatcherCode`](../Langlib/Computability/Piet.lean#L1482)). The
 generated images are exercised through the reference `evalGrid` evaluator.
 
-The generic image-level simulation theorem remains open, so the module does
-not assert `pietComplete : TuringComplete PietLang`.
+What is still open is **geometric**, and only geometric: that `evalGrid`
+walking the generated codel grid follows those command traces. So the module
+does not assert `pietComplete : TuringComplete PietLang` yet.
 
 ## Register representation
 
@@ -90,27 +94,60 @@ runCode (unitize code) s = runCode code s
 shows that normalization preserves the abstract command trace. Singleton
 blocks remove variable-area literals from the main geometric obligation.
 
-## Proved statements and remaining obligation
+## What is proved, and what the geometry still needs
 
-The strongest end-to-end executable fact currently comes from differential
-testing: grids produced by `compile` run through the same `computeBlocks`,
-DP/CC movement, white sliding, and `execOp` implementation used for all Piet
-programs. Tests cover a taken forward jump, an untaken forward jump, and a
-backward-loop addition program.
+Two of the three layers are done.
 
-A test run is not a quantified Lean theorem. To prove `simulation`, the
-module still needs a theorem characterizing `computeBlocks (loopGrid p b)`
-for arbitrary generated traces. That theorem must establish the singleton
-block ids and exits, the fixed terminal block, all `tryFrom` transitions,
-and the four white-corridor slides. `computeBlocks` is an imperative
-row-major pass around a private fuel-bounded flood fill, and `tryFrom` and
-`slide` are also private definitions. They can be unfolded locally, but no
-public semantic lemma currently exposes the needed parameterized facts.
+**The stack layer.** `runCode` is defined against Piet's real `execOp`, so
+the macros check the details a paper proof would skip: the source-block size
+`push` reads, the operand order of `roll` and `subtract`, and which
+operations touch DP and CC. The proved macros are listed above.
 
-Until that bridge and the dispatcher induction are proved, there is no
-`simulation` theorem and no `pietComplete`. Consequently the certified
-Turpentine-to-Piet compiler described in `certified-compilation.md` remains
-unavailable.
+**The arithmetic layer.**
+[`stackOf`](../Langlib/Computability/Piet.lean#L968) models the dispatcher's
+stack as a URM register file followed by the three control slots, and
+[`dispatchUpdate_step`](../Langlib/Computability/Piet.lean#L1272) proves that
+one pass over the whole program performs exactly one `Cslib.URM.Step`. The
+proof is the masking argument the design rests on: instructions whose guard
+is zero are identity
+([`guardedUpdate_of_flag_zero`](../Langlib/Computability/Piet.lean#L1086)),
+the one instruction the program counter selects applies its arithmetic, and
+`J` sets the fall-through counter to its target exactly when both the guard
+and the register comparison hold.
+[`runCode_dispatcherCode`](../Langlib/Computability/Piet.lean#L1482) lifts
+that to a whole iteration: the register file advances by one step, the
+answer is left on top for the pivot, and the direction pointer turns exactly
+when the run continues.
+
+**The geometric layer, still open.** The bridge from a command trace to the
+image is
+[`exec_unitCorridor`](../Langlib/Computability/Piet.lean#L445): a run of
+isolated singleton blocks along a row is executed by the real evaluator in
+order. Building those runs from row lookups is
+[`unitCorridor_of_row`](../Langlib/Computability/Piet.lean#L1912), which
+needs only that consecutive corridor colours differ (every Piet command
+changes the colour, so they do) and that the row below is black. What is
+missing:
+
+* the three white transits — the start slide, the separator before the
+  dispatcher body, and the three-turn return corridor — stated against
+  `Langlib.Piet.slide`;
+* the pivot, where `pointer` consumes the running flag and either turns down
+  through the ignored `pop` or continues right through `outNum`;
+* the terminal block. This is the only multi-codel block in a generated
+  image, and it has to be: a *singleton* block can never halt, because
+  whatever codel the program arrived from is an unblocked neighbour and one
+  of the eight exits will step back into it. The terminal is therefore an
+  L-shaped region whose eight selected exits are all blocked while its entry
+  codel is not among them, and establishing that means reasoning about
+  `Langlib.Piet.flood` on a region with more than one member.
+  `flood_singleton` covers the one-member case that every corridor codel
+  uses;
+* the induction that composes iterations over `Cslib.URM.Steps`.
+
+Until those land there is no `simulation` theorem and no `pietComplete`, and
+the certified Turpentine-to-Piet compiler described in
+`certified-compilation.md` remains unavailable.
 
 A future `TuringComplete PietLang` term would constrain halting URM runs
 only. It would not prove divergence preservation. The passage from URM
@@ -133,29 +170,61 @@ command sources, which simplifies the pending flood-fill proof.
 
 ## Reproducing the checks
 
-The module and test target build with targeted commands:
+The module builds on its own.
 
-```text
+```
 lake build Langlib.Computability.Piet
-lake build Langlib.Tests.URMPiet
 ```
 
-The scratch runner executes the dedicated suites:
+Output:
 
 ```text
-lake env lean --run /private/tmp/run-urm-piet.lean
+Build completed successfully (616 jobs).
 ```
 
-It reports 15 passing tests across the proved straight corridor, the full
-dispatcher, and size checks. The full suite includes both outcomes of a
-forward `J`, a transfer inside a backward copy loop, and a terminating
-addition loop.
+The generated images are run through the reference evaluator as part of the
+test suite: the straight corridor, the full dispatcher with both outcomes of
+a forward `J`, a transfer inside a backward loop, a terminating addition
+loop, and the compiled sizes.
 
-The standalone axiom audit for the Piet declarations is:
+```
+lake test
+```
+
+Output, showing the four Piet sections of that run:
 
 ```text
-lake env lean /private/tmp/audit-piet.lean
+── urm -> piet (verified stack macros, straight corridor) (6 tests)
+  ok   empty program preserves register zero
+  ok   a constant built by increments
+  ok   zero clears the answer register
+  ok   transfer copies into the answer register
+  ok   successor at depth then transfer
+  ok   the straight compiler rejects J explicitly
+── urm -> piet (partial corridor size) (2 tests)
+  ok   three increments
+  ok   one transfer with two inputs
+── urm -> piet (branchless dispatcher, real evaluator) (5 tests)
+  ok   empty program preserves register zero
+  ok   a taken forward jump halts immediately
+  ok   an untaken forward jump falls through
+  ok   transfer inside a backward copy loop
+  ok   backward jumps implement addition
+── urm -> piet (singleton dispatcher size) (2 tests)
+  ok   three increments
+  ok   backward-loop addition
 ```
 
-Every listed theorem reports only Lean's standard logical axioms. In
-particular, none depends on `sorryAx`.
+Every theorem on this page is listed in
+[`scripts/axioms.lean`](../scripts/axioms.lean). None of them depends on
+`sorryAx`.
+
+```
+lake env lean scripts/axioms.lean | grep URMPiet.dispatchUpdate_step
+```
+
+Output:
+
+```text
+'Langlib.Computability.URMPiet.dispatchUpdate_step' depends on axioms: [propext, Quot.sound]
+```

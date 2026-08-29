@@ -1011,21 +1011,21 @@ theorem stackOf_getD_pc (base : Nat) (regs : Nat → Nat)
     (pc next flag : Int) : (stackOf base regs pc next flag).getD base 0 = pc := by
   rw [List.getD_eq_getElem?_getD,
     List.getElem?_eq_getElem (i := base) (by simp only [stackOf_length]; omega)]
-  simpa using stackOf_getElem_pc base regs pc next flag
+  simp
 
 theorem stackOf_getD_next (base : Nat) (regs : Nat → Nat)
     (pc next flag : Int) :
     (stackOf base regs pc next flag).getD (base + 1) 0 = next := by
   rw [List.getD_eq_getElem?_getD,
     List.getElem?_eq_getElem (i := base + 1) (by simp only [stackOf_length]; omega)]
-  simpa using stackOf_getElem_next base regs pc next flag
+  simp
 
 theorem stackOf_getD_flag (base : Nat) (regs : Nat → Nat)
     (pc next flag : Int) :
     (stackOf base regs pc next flag).getD (base + 2) 0 = flag := by
   rw [List.getD_eq_getElem?_getD,
     List.getElem?_eq_getElem (i := base + 2) (by simp only [stackOf_length]; omega)]
-  simpa using stackOf_getElem_flag base regs pc next flag
+  simp
 
 theorem stackOf_set_reg (base : Nat) (regs : Nat → Nat) (pc next flag : Int)
     (r v : Nat) (hr : r < base) :
@@ -1141,7 +1141,7 @@ theorem dispatchUpdate_append (pc next flag : Nat) :
   | x :: a, b, i, regs => by
       simp only [List.cons_append, dispatchUpdate]
       rw [dispatchUpdate_append pc next flag a b (i + 1) _]
-      simp [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+      simp [Nat.add_comm, Nat.add_left_comm]
 
 /-- A run of instructions none of which the program counter selects leaves
 the register file, the program counter and the fall-through counter alone. -/
@@ -1534,7 +1534,7 @@ theorem threeRowGrid_get_middle (top middle bottom : List Codel) (x : Nat)
     (hx : x < top.length) (hmiddle : middle.length = top.length) :
     (threeRowGrid top middle bottom).get x 1 = middle[x]'(by omega) := by
   simp [threeRowGrid, Grid.get, hx, List.getElem?_append, hmiddle]
-  split <;> simp_all <;> omega
+  split <;> (simp_all; try omega)
 
 theorem threeRowGrid_get_bottom (top middle bottom : List Codel) (x : Nat)
     (hx : x < top.length) (hmiddle : middle.length = top.length)
@@ -1616,7 +1616,7 @@ theorem loopGrid_get_prologue (prologue body : List BlockCmd) (j : Nat)
     omega
   rw [loopGrid, threeRowGrid_get_top rows.top rows.middle rows.bottom (j + 1) hx]
   simp only [rows, loopRows]
-  simp [List.getElem_append, hj]
+  simp [hj]
 
 theorem loopGrid_get_body (prologue body : List BlockCmd) (j : Nat)
     (hj : j < (coloredRuns Hue.red Lightness.normal
@@ -1654,7 +1654,7 @@ theorem loopGrid_get_body (prologue body : List BlockCmd) (j : Nat)
   have heq : (coloredRuns Hue.red Lightness.normal prologue).length + 2 + j -
       ([Codel.white] ++ prologuePath ++ [Codel.white]).length = j := by
     simp [prologuePath]
-  simpa only [heq]
+  simp only [heq]
 
 theorem loopGrid_get_prologue_down (prologue body : List BlockCmd) (j : Nat)
     (hj : j < (coloredRuns Hue.red Lightness.normal prologue).length) :
@@ -1666,7 +1666,7 @@ theorem loopGrid_get_prologue_down (prologue body : List BlockCmd) (j : Nat)
   rw [loopGrid, threeRowGrid_get_middle rows.top rows.middle rows.bottom
     (j + 1) hx (loopRows_middle_length prologue body)]
   simp only [rows, loopRows]
-  simp [List.getElem_append, hj]
+  simp [hj]
 
 theorem loopGrid_get_body_down (prologue body : List BlockCmd) (j : Nat)
     (hj : j + 1 < (coloredRuns Hue.red Lightness.normal
@@ -1842,6 +1842,124 @@ theorem runCode_unitize (code : List BlockCmd) (s : MState) :
     rw [show unitize (c :: cs) = unitizeCmd c ++ unitize cs from rfl,
       runCode_append, runCode_unitizeCmd, ih]
     rfl
+
+/-! ## Corridor geometry
+
+`exec_unitCorridor` turns a `UnitCorridor` derivation into a statement about
+the real evaluator.  This section builds those derivations from row lookups:
+a run of singleton colour blocks along row zero, with black underneath, is a
+corridor. -/
+
+/-- Two colour blocks with different colours are different codels. -/
+theorem chromatic_bne {h₁ h₂ : Hue} {l₁ l₂ : Lightness}
+    (hne : (h₁, l₁) ≠ (h₂, l₂)) :
+    (Codel.chromatic h₁ l₁ != Codel.chromatic h₂ l₂) = true := by
+  cases h₁ <;> cases h₂ <;> cases l₁ <;> cases l₂ <;>
+    first
+      | rfl
+      | exact absurd rfl hne
+
+@[simp] theorem black_bne_chromatic (h : Hue) (l : Lightness) :
+    (Codel.black != Codel.chromatic h l) = true := rfl
+
+@[simp] theorem white_bne_chromatic (h : Hue) (l : Lightness) :
+    (Codel.white != Codel.chromatic h l) = true := rfl
+
+/-- The colour a unit corridor shows at offset `j`. -/
+def colourAt (h : Hue) (l : Lightness) (code : List BlockCmd) (j : Nat) :
+    Hue × Lightness := endColor h l (code.take j)
+
+@[simp] theorem colourAt_zero (h : Hue) (l : Lightness) (code : List BlockCmd) :
+    colourAt h l code 0 = (h, l) := by
+  simp [colourAt, endColor]
+
+theorem colourAt_cons_succ (h : Hue) (l : Lightness) (c : BlockCmd)
+    (cs : List BlockCmd) (j : Nat) :
+    colourAt h l (c :: cs) (j + 1) =
+      colourAt (advance h l c.op).1 (advance h l c.op).2 cs j := by
+  simp [colourAt, endColor]
+
+/-- The codel a unit corridor shows at offset `j`. -/
+theorem coloredRuns_getElem?_unit (h : Hue) (l : Lightness) (code : List BlockCmd)
+    (hu : UnitCode code) (j : Nat) (hj : j ≤ code.length) :
+    (coloredRuns h l code)[j]? =
+      some (.chromatic (colourAt h l code j).1 (colourAt h l code j).2) := by
+  induction code generalizing h l j with
+  | nil =>
+      have hj0 : j = 0 := by simpa using hj
+      subst hj0
+      simp [coloredRuns, colourAt, endColor]
+  | cons c cs ih =>
+      have hc : c.blockSize = 1 := hu c (by simp)
+      have hcs : UnitCode cs := fun c' hc' => hu c' (by simp [hc'])
+      cases j with
+      | zero => simp [coloredRuns, hc, colourAt, endColor]
+      | succ j =>
+          have hj' : j ≤ cs.length := by simpa using hj
+          simp only [colourAt_cons_succ, coloredRuns, hc, List.replicate_one,
+            List.cons_append, List.getElem?_cons_succ, List.nil_append]
+          exact ih (advance h l c.op).1 (advance h l c.op).2 hcs j hj'
+
+/-- The neighbours of a codel on the top row. -/
+theorem mem_neighbours_row0 (g : Grid) (x : Nat) (q : Nat × Nat)
+    (hq : q ∈ neighbours g (x, 0)) :
+    q = (x + 1, 0) ∨ q = (x, 1) ∨ (0 < x ∧ q = (x - 1, 0)) := by
+  by_cases hr : x + 1 < g.width <;> by_cases hd : (0 : Nat) + 1 < g.height <;>
+    by_cases hl : 0 < x <;>
+    simp [neighbours, pushStep, step?, hr, hd, hl] at hq <;> tauto
+
+/-- A row of singleton colour blocks with black underneath is a corridor. -/
+theorem unitCorridor_of_row (g : Grid) (code : List BlockCmd) (hu : UnitCode code)
+    (x : Nat) (h : Hue) (l : Lightness) (hheight : 1 < g.height)
+    (hwidth : x + code.length < g.width)
+    (hcolor : ∀ j, j ≤ code.length →
+      g.get (x + j) 0 =
+        .chromatic (colourAt h l code j).1 (colourAt h l code j).2)
+    (hbelow : ∀ j, j < code.length → g.get (x + j) 1 = .black)
+    (hleft : 0 < x → (g.get (x - 1) 0 != Codel.chromatic h l) = true) :
+    UnitCorridor g x h l code := by
+  induction code generalizing x h l with
+  | nil => exact .nil x h l
+  | cons c cs ih =>
+      have hc : c.blockSize = 1 := hu c (by simp)
+      have hcs : UnitCode cs := fun c' hc' => hu c' (by simp [hc'])
+      have hcur : g.get x 0 = .chromatic h l := by
+        simpa using hcolor 0 (by simp)
+      have hnext : g.get (x + 1) 0 =
+          .chromatic (advance h l c.op).1 (advance h l c.op).2 := by
+        have hone := hcolor 1 (by simp)
+        simpa [colourAt_cons_succ] using hone
+      have hlenw : x + (c :: cs).length < g.width := hwidth
+      have hxw : x + 1 < g.width := by simp only [List.length_cons] at hlenw; omega
+      have hstep : step? g (x, 0) .right = some (x + 1, 0) := by
+        simp [step?, hxw]
+      have hdown : g.get x 1 = .black := by simpa using hbelow 0 (by simp)
+      have hinfo : localInfoAt? g (x, 0) = some (singletonInfo (x, 0)) := by
+        apply localInfoAt?_isolated g h l (x, 0) (by omega) (by omega) hcur
+        intro q hq
+        rcases mem_neighbours_row0 g x q hq with rfl | rfl | ⟨hx0, rfl⟩
+        · rw [show ((x + 1, 0) : Nat × Nat).1 = x + 1 from rfl,
+            show ((x + 1, 0) : Nat × Nat).2 = 0 from rfl, hnext]
+          exact chromatic_bne (advance_ne h l c.op)
+        · rw [show ((x, 1) : Nat × Nat).1 = x from rfl,
+            show ((x, 1) : Nat × Nat).2 = 1 from rfl, hdown]
+          rfl
+        · exact hleft hx0
+      refine .cons c cs hc hinfo hcur hstep hnext ?_
+      apply ih hcs (x + 1) (advance h l c.op).1 (advance h l c.op).2
+      · simp only [List.length_cons] at hlenw
+        omega
+      · intro j hj
+        have hj1 := hcolor (j + 1) (by simpa using hj)
+        simpa [colourAt_cons_succ, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+          using hj1
+      · intro j hj
+        have hj1 := hbelow (j + 1) (by simpa using hj)
+        simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hj1
+      · intro _
+        simp only [Nat.add_sub_cancel]
+        rw [hcur]
+        exact chromatic_bne (Ne.symm (advance_ne h l c.op))
 
 /-- Full compiler with singleton command blocks. -/
 def compile (P : Program) (inputs : List Nat) : Grid :=

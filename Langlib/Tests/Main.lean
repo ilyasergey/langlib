@@ -20,7 +20,10 @@ import Langlib.Tests.Ook
 import Langlib.Tests.Piet
 import Langlib.Tests.Subleq
 import Langlib.Tests.URMFractran
+import Langlib.Tests.URMBrainfuck
+import Langlib.Tests.URMPiet
 import Langlib.Tests.URMSubleq
+import Langlib.Tests.URMThue
 import Langlib.Tests.DerivedThue
 import Langlib.Tests.Thue
 import Langlib.Tests.Whitespace
@@ -57,7 +60,10 @@ def main : IO UInt32 :=
     , Langlib.Tests.Ook.suites
     , Langlib.Tests.Piet.suites
     , Langlib.Tests.Subleq.suites
+    , Langlib.Tests.URMBrainfuck.suites
     , Langlib.Tests.URMFractran.suites
+    , Langlib.Tests.URMPiet.suites
+    , Langlib.Tests.URMThue.suites
     , Langlib.Tests.URMSubleq.suites
     , Langlib.Tests.Thue.suites
     , Langlib.Tests.Whitespace.suites
