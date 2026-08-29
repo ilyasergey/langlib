@@ -775,3 +775,73 @@ theorem block_J_untaken (P : Program) (inputs : List Nat) (k m r q : Nat) (hk : 
   refine Reaches.trans (reaches_jz_untaken _ [] (labelAt P.length q)
     (heap.getD (m : Int) 0 - heap.getD (r : Int) 0) (by omega) rfl (by simpa using h5)) ?_
   exact reaches_label _ _ (by simpa using h6)
+
+/-! ## Reading the answer back
+
+The compiled program prints register 0 with Whitespace's `outnum`, so the
+observable output is the decimal rendering of a natural number. These
+definitions are the decoder, and `decodeOutput_encode` is the round-trip
+lemma that makes the simulation theorem say what it should. -/
+
+/-- The value of a decimal digit. -/
+def digitVal (c : Char) : Option Nat :=
+  if c.isDigit then some (c.toNat - '0'.toNat) else none
+
+/-- Horner's rule over a list of decimal digits. -/
+def foldDigits (cs : List Char) : Option Nat :=
+  cs.foldl (fun acc c => acc.bind fun n => (digitVal c).map fun d => n * 10 + d) (some 0)
+
+/-- Decimal parsing of a character list; `none` on an empty or non-numeric
+list. -/
+def decodeDecimal (cs : List Char) : Option Nat :=
+  if cs.isEmpty then none else foldDigits cs
+
+/-- The decoder of the simulation theorem: read the output bytes as a
+decimal natural number. -/
+def decodeOutput (b : ByteArray) : Option Nat :=
+  match String.fromUTF8? b with
+  | none => none
+  | some s => decodeDecimal s.toList
+
+theorem foldDigits_append_singleton (cs : List Char) (c : Char) :
+    foldDigits (cs ++ [c]) =
+      (foldDigits cs).bind fun n => (digitVal c).map fun d => n * 10 + d := by
+  simp only [foldDigits, List.foldl_append, List.foldl_cons, List.foldl_nil]
+
+theorem digitVal_digitChar {d : Nat} (h : d < 10) : digitVal (Nat.digitChar d) = some d := by
+  simp only [digitVal, Nat.isDigit_digitChar, decide_eq_true_eq, if_pos h,
+    Option.some.injEq]
+  have : ('0' : Char).toNat = 48 := by decide
+  rw [this, Nat.toNat_digitChar_sub_48_of_lt_ten h]
+
+theorem foldDigits_toDigits (n : Nat) : foldDigits (Nat.toDigits 10 n) = some n := by
+  induction n using Nat.strong_induction_on with
+  | _ n ih =>
+    rw [Nat.toDigits_eq_if (by omega)]
+    split
+    · rename_i hlt
+      simp only [foldDigits, List.foldl_cons, List.foldl_nil, Option.bind_some,
+        digitVal_digitChar hlt, Option.map_some]
+    · rename_i hge
+      have hn : 10 ≤ n := by omega
+      have hdiv : n / 10 < n := Nat.div_lt_self (by omega) (by omega)
+      rw [foldDigits_append_singleton, ih (n / 10) hdiv,
+        digitVal_digitChar (Nat.mod_lt n (by omega))]
+      simp only [Option.bind_some, Option.map_some, Option.some.injEq]
+      omega
+
+theorem decodeDecimal_toDigits (n : Nat) : decodeDecimal (Nat.toDigits 10 n) = some n := by
+  simp only [decodeDecimal, List.isEmpty_iff, Nat.toDigits_ne_nil, if_neg,
+    foldDigits_toDigits]
+
+theorem fromUTF8?_toUTF8 (s : String) : String.fromUTF8? s.toUTF8 = some s := by
+  simp only [String.toUTF8_eq_toByteArray, String.fromUTF8?, dif_pos s.isValidUTF8,
+    Option.some.injEq, ← String.toByteArray_inj]
+  simp [String.fromUTF8]
+
+/-- The decoder inverts what the compiled program prints. -/
+theorem decodeOutput_encode (n : Nat) :
+    decodeOutput ((toString ((n : Nat) : Int)).toUTF8) = some n := by
+  have hstr : toString ((n : Nat) : Int) = Nat.repr n := by simp [Int.repr_eq_if]
+  simp only [decodeOutput, fromUTF8?_toUTF8, hstr]
+  rw [Nat.toList_repr, decodeDecimal_toDigits]
