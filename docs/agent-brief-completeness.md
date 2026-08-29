@@ -137,20 +137,23 @@ proved, not to be run.
 
 ## Which languages remain
 
-From the status matrix in [README.md](README.md), claimed complete but
-unproved: **subleq** (unbounded signed words, maps almost directly onto the
-URM, so this is the easiest next one), **brainfuck** (8-bit cells, needs
-unary; hardest), **piet**, **fractran** (arithmetic rather than
-operational, so the proof looks different), **thue** (string rewriting;
-confluence of the generated rule set is the main obligation),
+From the status matrix in [README.md](README.md), the `open` rows: claimed
+complete but settled neither way. **piet**, **fractran** (arithmetic rather
+than operational, so the proof looks different), **thue** (string
+rewriting; confluence of the generated rule set is the main obligation),
 **malbolge-unshackled**, and **unlambda/SKI** (bracket abstraction rather
 than machine simulation, the one genuinely different route).
 
-**ook** and **brainloller** are free once brainfuck is done, by composing
-with `parse ∘ render = id`.
+Whitespace, subleq and brainfuck are done, in that order of difficulty;
+read those three as worked examples before starting a fourth. **ook** and
+**brainloller** are free now that brainfuck is proved, by composing with
+`parse ∘ render = id`, and nobody has collected them yet.
 
-For the negative side, use `BoundedStorage` instead: **deadfish** (finite
-accumulator, no input), **malbolge** (59049 words of 59049 values), and
-**byte-celled befunge93**. The decidability consequence is proved once in
-`halting_decidable`, so each language supplies only its bound. Those briefs
-are shorter and the proofs are usually an afternoon.
+For the negative side, use `BoundedStorage` instead. **deadfish** (finite
+accumulator, no input) and **byte-celled befunge93** are done; **malbolge**
+is half done, with its finite control counted exactly but no
+`BoundedStorage` witness, because the interface takes a fixed `Config` and
+malbolge's cursor type depends on the input length. Widening the interface
+to cover it is the open piece. The decidability consequence is proved once
+in `halting_decidable`, so each language supplies only its bound. Those
+briefs are shorter and the proofs are usually an afternoon.

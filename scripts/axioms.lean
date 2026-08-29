@@ -23,6 +23,9 @@ import Langlib.Computability.Whitespace
 import Langlib.Computability.Subleq
 import Langlib.Computability.Derived
 import Langlib.Computability.Brainfuck
+import Langlib.Computability.Deadfish
+import Langlib.Computability.Malbolge
+import Langlib.Computability.Befunge93
 
 open Langlib.Computability
 
@@ -51,9 +54,22 @@ open Langlib.Computability
 #print axioms Langlib.Turpentine.Compile.URM.reaches_compileExpr
 #print axioms Langlib.Turpentine.Compile.URM.compileToURM
 
+-- The pieces the widened fragment rests on: initialisers (the declarations
+-- run as a prelude, and the lemma saying evaluation ignores names it does
+-- not read), `&&` and `||` (the emitted code evaluates the right operand
+-- even where the source short-circuits), and `/` and `%`.
+#print axioms Langlib.Turpentine.Compile.URM.exec_declPrelude
+#print axioms Langlib.Turpentine.Compile.URM.evalExpr_mono
+#print axioms Langlib.Turpentine.Compile.URM.reaches_compileExpr_total
+#print axioms Langlib.Turpentine.Compile.URM.reaches_andCode
+#print axioms Langlib.Turpentine.Compile.URM.reaches_orCode
+#print axioms Langlib.Turpentine.Compile.URM.reaches_divModCode
+#print axioms Langlib.Turpentine.Compile.URM.binCode_correct
+
 #print axioms derived
 #print axioms derivedWhitespace
 #print axioms derivedSubleq
+#print axioms derivedBrainfuck
 #print axioms agree
 
 -- Brainfuck: Turing complete via paired unary tape columns. The compiler
@@ -62,3 +78,44 @@ open Langlib.Computability
 #print axioms brainfuckComplete
 #print axioms URMBrainfuck.simulation
 #print axioms URMBrainfuck.compile
+
+-- Deadfish: exact straight-line termination and direct decidable halting.
+-- The fixed-Config BoundedStorage interface cannot represent its arbitrarily
+-- long program-dependent executions; no such witness exists.
+#print axioms Deadfish.exec_exit_eq_halted_iff
+#print axioms Deadfish.evalProg_exit_eq_halted_iff
+#print axioms Deadfish.isHalted_eq_true_iff
+#print axioms Deadfish.halts
+#print axioms Deadfish.haltingDecidable
+#print axioms Deadfish.no_boundedStorage
+
+-- Malbolge: exact finite-control cardinality for each fixed input length.
+-- The current BoundedStorage interface cannot package the input-dependent
+-- cursor type, so this audit covers the proved finite-core fallback only.
+#print axioms malbolgeCore_card
+#print axioms malbolgeControlBound_eq
+#print axioms malbolgeControlIndex_lt
+#print axioms malbolgeControlIndex_inj
+#print axioms malbolgeControl_ignores_output
+#print axioms malbolgeInitialState_wellFormed
+#print axioms malbolgeStateControl_index_lt
+
+-- Bounded byte Befunge-93 core: the playfield and stack alphabet are bytes,
+-- stack depth is fixed at 16, and input, output, and random direction are
+-- excluded. These claims do not apply to bef.c or LangLib's Int semantics.
+#print axioms BoundedByteBefunge93.exec_succ
+#print axioms BoundedByteBefunge93.boundedStorage
+#print axioms BoundedByteBefunge93.haltingDecidable
+
+-- Piet: axiom-clean stack and colour-transition foundations for the partial
+-- straight-corridor compiler. Arbitrary J routing and pietComplete remain open.
+#print axioms URMPiet.push_uses_source_block_size
+#print axioms URMPiet.runCode_rollNat_prefix
+#print axioms URMPiet.runCode_storeTop
+#print axioms URMPiet.runCode_copyAt
+#print axioms URMPiet.runCode_Z
+#print axioms URMPiet.runCode_S
+#print axioms URMPiet.runCode_T
+#print axioms URMPiet.opFor_advance
+#print axioms URMPiet.compileStraight
+#print axioms URMPiet.advance_ne

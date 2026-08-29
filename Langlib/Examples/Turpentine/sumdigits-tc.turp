@@ -2,7 +2,8 @@
 //
 // TC-friendly twin of sumdigits.turp. Input baked in, result in `answer`.
 //
-// Still blocked on: `/` and `%`. See docs/certified-compilation.md 4b.
+// Compiles with --tc: `/` and `%` are in the fragment now. See
+// docs/certified-compilation.md 4b.
 var answer : int;
 var n : int;
 n := 9045;

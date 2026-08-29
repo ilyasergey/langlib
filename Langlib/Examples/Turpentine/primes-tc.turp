@@ -4,7 +4,8 @@
 // cannot do: it yields one number at halt. Counting them is the same
 // computation reduced to a single answer.
 //
-// Still blocked on: `%`. See docs/certified-compilation.md section 4b.
+// Compiles with --tc: `%` is in the fragment now. See
+// docs/certified-compilation.md section 4b.
 var answer : int;
 var candidate : int;
 var d : int;

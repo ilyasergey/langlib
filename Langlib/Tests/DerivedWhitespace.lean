@@ -127,6 +127,58 @@ def pipeline : Suite where
     , { name := "assert that holds",
         source := .inline "var answer : int; answer := 3; assert answer == 3;",
         expect := .outputs "3" }
+    , { name := "declaration with an initialiser",
+        source := .inline "var answer : int := 7;", expect := .outputs "7" }
+    , { name := "an initialiser in scope of the earlier declarations",
+        source := .inline "var x : int := 3; var answer : int := x * x;",
+        expect := .outputs "9" }
+    , { name := "a boolean initialiser",
+        source := .inline ("var b : bool := true; var answer : int; " ++
+          "if b { answer := 5; } else { answer := 6; }"),
+        expect := .outputs "5" }
+    , { name := "an initialiser overwritten by the body",
+        source := .inline "var answer : int := 2; answer := answer + 40;",
+        expect := .outputs "42" }
+    , { name := "conjunction",
+        source := .inline ("var answer : int; var b : bool := 1 < 2 && 3 < 4; " ++
+          "if b { answer := 1; } else { answer := 0; }"),
+        expect := .outputs "1" }
+    , { name := "conjunction that is false on the left",
+        source := .inline ("var answer : int; var b : bool := 2 < 1 && 3 < 4; " ++
+          "if b { answer := 1; } else { answer := 0; }"),
+        expect := .outputs "0" }
+    , { name := "disjunction",
+        source := .inline ("var answer : int; var b : bool := 2 < 1 || 3 < 4; " ++
+          "if b { answer := 1; } else { answer := 0; }"),
+        expect := .outputs "1" }
+    , { name := "disjunction that is true on the left",
+        source := .inline ("var answer : int; var b : bool := 1 < 2 || 4 < 3; " ++
+          "if b { answer := 1; } else { answer := 0; }"),
+        expect := .outputs "1" }
+    , { name := "division",
+        source := .inline "var answer : int; answer := 17 / 5;", expect := .outputs "3" }
+    , { name := "modulo",
+        source := .inline "var answer : int; answer := 17 % 5;", expect := .outputs "2" }
+    , { name := "division with a zero quotient",
+        source := .inline "var answer : int; answer := 3 / 5;", expect := .outputs "0" }
+    , { name := "modulo that divides exactly",
+        source := .inline "var answer : int; answer := 12 % 4;", expect := .outputs "0" }
+      -- Division by zero is a runtime error in the reference semantics, so
+      -- `TurpentineHaltsWith` never holds and the theorem says nothing about
+      -- these two. The macro still halts, and must: `&&` compiles its right
+      -- operand unconditionally, so a diverging `/` would break short-circuit
+      -- programs the source runs happily. These pin what it settles on.
+    , { name := "a zero divisor yields a zero quotient, outside the theorem",
+        source := .inline "var answer : int; var z : int; answer := 5 / z;",
+        expect := .outputs "0" }
+    , { name := "a zero divisor yields the dividend as remainder",
+        source := .inline "var answer : int; var z : int; answer := 5 % z;",
+        expect := .outputs "5" }
+    , { name := "the right operand is evaluated even when short-circuited away",
+        source := .inline ("var answer : int; var x : int := 3; " ++
+          "var b : bool := false && x * x * x > 0; " ++
+          "if b { answer := 1; } else { answer := 2; }"),
+        expect := .outputs "2" }
     , { name := "assert that fails traps in a URM loop",
         source := .inline "var answer : int; answer := 3; assert answer == 4;",
         expect := .diverges, fuel := 200_000 }
@@ -146,6 +198,24 @@ def differential : Suite where
     , { name := "if and comparison",
         source := .inline ("var answer : int; var i : int; " ++
           "while i < 7 { i := i + 1; if i < 4 { answer := answer + i; } else { } }"),
+        expect := .outputs "6" }
+    , { name := "initialisers, in declaration order",
+        source := .inline ("var a : int := 2; var b : int := a + 3; " ++
+          "var answer : int := a * b;"),
+        expect := .outputs "10" }
+    , { name := "short-circuit && against the reference interpreter",
+        source := .inline ("var answer : int; var i : int; " ++
+          "while i < 6 { i := i + 1; " ++
+          "if i > 2 && i < 5 { answer := answer + i; } else { } }"),
+        expect := .outputs "7" }
+    , { name := "digit sum by / and %, against the reference interpreter",
+        source := .inline ("var n : int := 9045; var answer : int; " ++
+          "while n > 0 { answer := answer + n % 10; n := n / 10; }"),
+        expect := .outputs "18" }
+    , { name := "short-circuit || against the reference interpreter",
+        source := .inline ("var answer : int; var i : int; " ++
+          "while i < 6 { i := i + 1; " ++
+          "if i == 1 || i == 5 { answer := answer + i; } else { } }"),
         expect := .outputs "6" }
     ]
 
@@ -167,16 +237,6 @@ def rejections : Suite where
         expect := .parseError "readByte is outside" }
     , { name := "subtraction", source := .inline "var answer : int; answer := 5 - 2;",
         expect := .parseError "'-' is outside" }
-    , { name := "division", source := .inline "var answer : int; answer := 6 / 2;",
-        expect := .parseError "'/' is outside" }
-    , { name := "modulo", source := .inline "var answer : int; answer := 6 % 4;",
-        expect := .parseError "'%' is outside" }
-    , { name := "conjunction",
-        source := .inline "var answer : int; var b : bool; b := true && false;",
-        expect := .parseError "'&&' is outside" }
-    , { name := "disjunction",
-        source := .inline "var answer : int; var b : bool; b := true || false;",
-        expect := .parseError "'||' is outside" }
       -- the parser desugars `-3` to a unary minus, so the negative-literal
       -- guard in `compileExpr` is only reachable from a hand-built AST
     , { name := "negated literal", source := .inline "var answer : int; answer := 0 + -3;",
@@ -188,8 +248,6 @@ def rejections : Suite where
     , { name := "array declaration",
         source := .inline "var answer : int; var a : int[3];",
         expect := .parseError "arrays are outside" }
-    , { name := "initialiser", source := .inline "var answer : int := 5;",
-        expect := .parseError "has an initialiser" }
     , { name := "no answer variable", source := .inline "var x : int; x := 1;",
         expect := .parseError "needs a variable named 'answer'" }
     ]

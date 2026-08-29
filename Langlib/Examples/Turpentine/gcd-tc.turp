@@ -3,7 +3,8 @@
 // TC-friendly twin of gcd.turp, which reads two numbers and prints the
 // result. Here the inputs are baked in and the result is left in `answer`.
 //
-// Still blocked on: `%`. See docs/certified-compilation.md section 4b.
+// Compiles with --tc: `%` is in the fragment now. See
+// docs/certified-compilation.md section 4b.
 var answer : int;
 var b : int;
 var t : int;

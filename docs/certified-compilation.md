@@ -14,11 +14,11 @@ engineering.
 |---|---|
 | `ProgLang`, the class of runnable languages | [Class.lean:40](../Langlib/Computability/Class.lean#L40) |
 | `computes_of_turingComplete`, the bridge to cslib | [Class.lean](../Langlib/Computability/Class.lean) |
-| `TurpentineCompiler`, a compiler bundled with its proof | [Derived.lean:55](../Langlib/Computability/Derived.lean#L55) |
-| **`derived`**, the general correctness theorem | [Derived.lean:83](../Langlib/Computability/Derived.lean#L83) |
-| `derivedWhitespace`, `derivedSubleq`, the instances | [Derived.lean:101](../Langlib/Computability/Derived.lean#L101) |
-| `agree`, two compilers give one answer | [Derived.lean:115](../Langlib/Computability/Derived.lean#L115) |
-| `compileToURM_correct`, the shared first hop | [Compile/URM.lean:2075](../Langlib/Turpentine/Compile/URM.lean#L2075) |
+| `TurpentineCompiler`, a compiler bundled with its proof | [Derived.lean:55](../Langlib/Computability/Derived.lean#L56) |
+| **`derived`**, the general correctness theorem | [Derived.lean:83](../Langlib/Computability/Derived.lean#L84) |
+| `derivedWhitespace`, `derivedSubleq`, the instances | [Derived.lean:101](../Langlib/Computability/Derived.lean#L102) |
+| `agree`, two compilers give one answer | [Derived.lean:115](../Langlib/Computability/Derived.lean#L120) |
+| `compileToURM_correct`, the shared first hop | [Compile/URM.lean:2989](../Langlib/Turpentine/Compile/URM.lean#L2989) |
 | **`TuringComplete`**, the completeness claim | [Class.lean:80](../Langlib/Computability/Class.lean#L80) |
 | `BoundedStorage`, the incompleteness claim | [Class.lean:134](../Langlib/Computability/Class.lean#L134) |
 | `halts_iff_search`, decidability from a bound | [Class.lean:162](../Langlib/Computability/Class.lean#L162) |
@@ -28,14 +28,14 @@ engineering.
 | its `simulation` theorem | [Whitespace.lean:1048](../Langlib/Computability/Whitespace.lean#L1048) |
 | our URM helpers over cslib's | [URM.lean](../Langlib/Computability/URM.lean) |
 | cslib's `Instr` and `Program` | `Cslib/Computability/URM/Defs.lean` |
-| **`compileToURM`**, Turpentine to the URM | [Compile/URM.lean:404](../Langlib/Turpentine/Compile/URM.lean#L404) |
-| **`compileToURM_correct`**, its simulation | [Compile/URM.lean:2075](../Langlib/Turpentine/Compile/URM.lean#L2075) |
-| `TurpentineHaltsWith`, the answer convention | [Compile/URM.lean:2060](../Langlib/Turpentine/Compile/URM.lean#L2060) |
-| `TurpentineCompiler`, the interface | [Derived.lean:55](../Langlib/Computability/Derived.lean#L55) |
-| `derived`, one construction for every target | [Derived.lean:83](../Langlib/Computability/Derived.lean#L83) |
-| `derivedWhitespace` | [Derived.lean:101](../Langlib/Computability/Derived.lean#L101) |
-| `derivedSubleq` | [Derived.lean:105](../Langlib/Computability/Derived.lean#L105) |
-| `agree`, two compilers give one answer | [Derived.lean:115](../Langlib/Computability/Derived.lean#L115) |
+| **`compileToURM`**, Turpentine to the URM | [Compile/URM.lean:468](../Langlib/Turpentine/Compile/URM.lean#L468) |
+| **`compileToURM_correct`**, its simulation | [Compile/URM.lean:2989](../Langlib/Turpentine/Compile/URM.lean#L2989) |
+| `TurpentineHaltsWith`, the answer convention | [Compile/URM.lean:2974](../Langlib/Turpentine/Compile/URM.lean#L2974) |
+| `TurpentineCompiler`, the interface | [Derived.lean:55](../Langlib/Computability/Derived.lean#L56) |
+| `derived`, one construction for every target | [Derived.lean:83](../Langlib/Computability/Derived.lean#L84) |
+| `derivedWhitespace` | [Derived.lean:101](../Langlib/Computability/Derived.lean#L102) |
+| `derivedSubleq` | [Derived.lean:105](../Langlib/Computability/Derived.lean#L106) |
+| `agree`, two compilers give one answer | [Derived.lean:115](../Langlib/Computability/Derived.lean#L120) |
 | its tests | [Tests/DerivedWhitespace.lean](../Langlib/Tests/DerivedWhitespace.lean) |
 | the axiom audit | [scripts/axioms.lean](../scripts/axioms.lean) |
 
@@ -279,27 +279,105 @@ itself is defined by, outer on the fuel and inner on the statement, because
 `seq` recurses on the statement at the same fuel and everything else drops
 the fuel by one.
 
+### 3b. Why a bespoke compiler needs a stronger theorem
+
+`TurpentineCompiler.correct` observes one thing: a single `Nat`, read out
+of register 0 by `decodeOutput`, on runs the source is *assumed* to finish.
+That is adequate here, and only here, because the fragment has no I/O. A
+run of an I/O-free program has nothing else to show for itself: it consumes
+no input, emits no bytes, and its entire result is the final value of
+`answer`. So answer equality *is* observational equality, and the halting
+hypothesis costs nothing, since a program with no output that never halts
+was never going to be observed at all.
+
+A bespoke backend compiles the whole language, `readInt`, `readByte`,
+`print`, `println` and `printByte` included, and every one of those
+assumptions fails at once.
+
+* **The observation is a byte stream, not a number.** Two runs can agree on
+  every variable at halt and still print different things in different
+  orders. The theorem has to compare `output` sequences, which is what
+  [verification.md](verification.md) states for the bespoke backends:
+  same bytes, in the same order, for every input.
+* **Input is a parameter, not compiler data.** `encodeInput : Input` is a
+  fixed field precisely because the certified fragment reads nothing. With
+  `readInt` in the language the theorem must quantify over the input stream
+  and pin down *how much of it is consumed*, which drags each target's EOF
+  convention into the statement (brainfuck's `--eof` choice, whitespace's
+  read instructions), rather than leaving it as a runner flag.
+* **Divergence becomes observable.** Under the halting hypothesis a
+  non-terminating compiled program is unconstrained, which is why turning a
+  failed `assert` into a self-loop is sound for the derived route (section
+  4). Once a program can print, a run that prints and then loops forever
+  has emitted real bytes, so the statement needs a divergence clause: if
+  the source diverges, the target diverges and their outputs agree on every
+  finite prefix. That is a coinductive obligation, not a corollary of the
+  terminating one.
+* **Value representation stops being invisible.** A URM register is an
+  arbitrary `Nat`, so nothing overflows. A bespoke target has its own cell
+  width, and the theorem needs either a representability side condition in
+  the fragment predicate or a wrapping source semantics to match.
+
+None of this is wrong with the current statement; it is what the current
+statement was scoped to. The two are not in competition either: the
+stream-level theorem, restricted to programs that read nothing and print
+nothing and carry the `answer` convention, *implies* the answer-level
+field, so a verified bespoke backend still yields a `TurpentineCompiler`
+instance and the [`agree`](../Langlib/Computability/Derived.lean#L120)
+corollary still fires. It fires on the overlap, which is the I/O-free
+fragment, and says nothing about the programs that made the stronger
+theorem necessary.
+
+The practical reading: **the derived route is cheap partly because it
+declined the I/O problem**, and the per-language proof work in the "bespoke
+correct" column of [the status matrix](README.md) is not the same proof at
+higher effort, it is a larger statement about a larger language.
+
 ### 4. The fragment, exactly
 
 A URM computes a function from a vector of naturals to a natural, and the
-fragment is what survives that. `compileToURM` **accepts**:
+fragment is what survives that. This is the fragment as the current widening
+of `compileToURM` leaves it; section 4b says what moved and what is left.
 
-* declarations of `int` and `bool` variables **without initialisers**, one of
-  them named `answer`. Every variable starts at `0` / `false`, which is what
-  the registers start at;
+`compileToURM` **accepts**:
+
+* declarations of `int` and `bool` variables, **with or without
+  initialisers**, one of them named `answer`. Declarations are desugared
+  into a prelude of assignments (`declPrelude`) at the head of the body,
+  which is what `Turpentine.initEnv` does anyway: initialisers in
+  declaration order, each in scope of the earlier ones, and `0` / `false`
+  for the rest, which is where the registers start;
 * expressions: non-negative integer literals, boolean literals, variables,
-  `!`, `+`, `*`, `==`, `!=`, `<`, `<=`, `>`, `>=`;
+  `!`, `+`, `*`, `/`, `%`, `&&`, `||`, `==`, `!=`, `<`, `<=`, `>`, `>=`;
 * statements: `skip`, sequencing, assignment, `if`, `while`, `assert`.
 
 and **rejects**, each with a message naming the construct:
 
 | rejected | why |
 |---|---|
-| `-`, unary minus, negative literals | Turpentine's integers are `Int` and a register is a `Nat`. `a - b` can be negative where the machine can only saturate at zero, so `Agree` would break on the intermediate value. |
-| `/`, `%` | the same, plus `Int.ediv`/`Int.emod` reasoning. |
-| `&&`, `\|\|` | Turpentine short-circuits them and the emitted code evaluates both operands. The two agree only when the right operand is total, which is a semantic side condition, not a syntactic one. |
-| arrays, in declarations and expressions | a computed index needs a dispatch chain; a static one needs the block layout lemmas generalised past one register per variable. |
+| `-`, unary minus, negative literals | Turpentine's integers are `Int` and a register is a `Nat`. Subtraction is the one operation on non-negative operands whose result can be negative, and the machine can only saturate at zero, so the relation between a variable and its register has no value to hold on the intermediate. |
+| arrays, in declarations, expressions and assignments | one register per variable is baked into the slot layout and its lemmas. A static index needs those generalised; a computed one needs a dispatch chain on top. |
 | `readInt`, `readByte`, `print`, `println`, `printByte` | a URM has neither an input stream nor an output stream. |
+| a program with no `answer` variable | for the same reason: register 0 at halt is the entire result, so something has to name it. |
+
+Two things the widened fragment does that are worth stating, because both
+look like they should be unsound and are not:
+
+* **`/` and `%` are in.** `Int.ediv` and `Int.emod` of non-negative
+  operands are non-negative, so nothing leaves the range a register can
+  hold, and `divModCode` computes both with one counting loop. A **zero
+  divisor does not trap**: the loop settles on a quotient of `0` and a
+  remainder equal to the dividend. That is junk on purpose. The reference
+  semantics calls division by zero a runtime error, so the theorem's
+  hypothesis (the source halts) never holds there and nothing is claimed;
+  the macro must nevertheless *halt* on every input, for the next reason.
+* **`&&` and `||` evaluate both operands.** The source short-circuits them
+  and the emitted code does not, which is sound because every compiled
+  expression runs to its own end from any register state
+  (`reaches_compileExpr_total`): evaluating a right operand the source
+  skipped costs instructions and changes no answer. This is why a zero
+  divisor may not diverge. `b != 0 && a / b == 1` is a program the source
+  runs happily with `b = 0`, and the compiled code has to reach the `&&`.
 
 `assert` **is** compiled, and a failing assert becomes a one-instruction
 self-loop: `J sb 1 q` at position `q`, taken exactly when the asserted
@@ -308,54 +386,45 @@ interpreter reports as a runtime error, becomes divergence in the target.
 That is sound for the theorem, whose hypothesis requires the source to halt,
 and it is the behaviour the whitespace and subleq backends already have.
 
-**Lifting the restrictions.** Subtraction and division are the interesting
-ones, and they need the same thing: a `Nat`-valued reference semantics for
-the fragment, with `a - b` defined only when `b ≤ a`, plus a bridge theorem
-saying it agrees with `Turpentine.exec` wherever it is defined. Then the
-compiler is proved against the `Nat` semantics and the bridge carries the
-result back to the real interpreter. That is a second interpreter and a
-second simulation proof, which is why it is not here yet. `&&` and `||` need
-a totality lemma for the certified expressions, which is easy once negative
-intermediates are gone. Arrays need the layout lemmas generalised.
-
 ### 4b. Widening the fragment, in order
 
-The restrictions are not equally expensive to lift, and they are not
-equally often hit. Compiling every example in
-`Langlib/Examples/Turpentine/` with `--tc` and recording the *first*
-complaint gives the real ranking:
+The restrictions are not equally expensive to lift, and they are not equally
+often hit. Compiling every example in `Langlib/Examples/Turpentine/` with
+`--tc` and recording the *first* complaint gives the real ranking, and it is
+the ranking the work followed.
+
+**Landed.** Initialisers, `&&` and `||`, and division and modulo are now in
+the fragment. The first two went as predicted: initialisers desugar to a
+prelude of assignments, and the booleans needed a totality lemma rather than
+a redesign. Division was the surprise. It was filed with subtraction as "the
+real work", needing a `Nat`-valued reference semantics or a sign
+representation, and it turned out to need neither: Euclidean division of
+non-negative operands is non-negative, so it stays inside the existing
+relation and only wanted a macro that halts on a zero divisor.
+
+Every `-tc` example in `Langlib/Examples/Turpentine/` now compiles with
+`--tc`, except the three that use arrays. Recompiling them all gives:
 
 | first blocker | examples |
 |---|---|
-| a declaration has an initialiser | collatz, fib, isqrt, primes, sumdigits |
-| no variable named `answer` | cat, gcd, hello |
-| an array | maxelem, sieve, sort |
+| an array | maxelem-tc, sieve-tc, sort-tc |
+| no variable named `answer` | the I/O originals: cat, collatz, fib, gcd, hello, isqrt, primes, sumdigits |
 
-Subtraction, division, `&&` and `||` never come first: something cheaper
-stops the program before the compiler reaches them. So the order to widen
-in is:
+Subtraction never comes first. So what is left, in order:
 
-1. **Initialisers.** `var x : int := e;` is a declaration followed by an
-   assignment, and the reference semantics agrees: `initEnv` evaluates
-   initialisers in order, in scope of the earlier ones. Desugaring them to
-   assignments at the head of the body should be a small change to
-   `compileToURM` and a correspondingly small change to the proof, and it
-   unblocks five of the eleven examples. Do this first.
-2. **`&&` and `||`.** The emitted code evaluates both operands where the
-   source short-circuits, so they agree exactly when the right operand is
-   total. Every in-fragment expression is total once negatives are gone,
-   so this is a lemma rather than a redesign.
-3. **Subtraction, division and modulo.** The real work: a URM register is
-   a `Nat` and Turpentine's integers are `Int`, so this needs either a
-   `Nat`-valued reference semantics for the fragment plus a bridge to
-   `Turpentine.exec`, or a sign representation costing two registers per
-   variable. Choose deliberately; the bridge is probably cheaper to prove
-   and the sign encoding is certainly cheaper to explain.
-4. **Arrays.** Generalise the slot layout past one register per variable.
+1. **Arrays.** Generalise the slot layout past one register per variable.
    The addressing is easier here than in any esolang backend, because
    register indices are compile-time constants, so a computed index needs
-   a dispatch chain rather than self-modifying code.
-5. **I/O, by convention rather than by changing the model.** A URM has no
+   a dispatch chain rather than self-modifying code. This unblocks the only
+   three `-tc` examples that still fail.
+2. **Subtraction.** The genuinely hard one, and now the only arithmetic
+   restriction left: a URM register is a `Nat` and Turpentine's integers are
+   `Int`, so this needs either a `Nat`-valued reference semantics for the
+   fragment plus a bridge to `Turpentine.exec`, or a sign representation
+   costing two registers per variable. Choose deliberately; the bridge is
+   probably cheaper to prove and the sign encoding is certainly cheaper to
+   explain.
+3. **I/O, by convention rather than by changing the model.** A URM has no
    input or output, but it does not need any: it *starts* with registers
    set and *halts* with registers set, which is enough if Turpentine
    agrees to say so.
@@ -379,7 +448,7 @@ in is:
    program that prints and then loops forever prints nothing. Input is
    fixed before the run, so nothing can be read that depends on what was
    printed. Programs needing genuine streaming stay with the bespoke
-   compilers.
+   compilers, and with the stronger theorem of section 3b.
 
    This is preferred over extending the model to `URM+IO` with `read` and
    `write` instructions. That extension would force every completeness
@@ -621,10 +690,10 @@ echo 17 | lake exe turpentine exec --via whitespace --tc Langlib/Examples/Turpen
 Output:
 
 ```
-turpentine exec: 'x' has an initialiser; the certified URM fragment declares variables without one, since every register starts at zero
+turpentine exec: the certified URM fragment needs a variable named 'answer' to hold the answer: a URM has no output, so register 0 at halt is all there is
 turpentine: the certified compiler accepts only the I/O-free fragment
-  (no input or output, no subtraction, division or modulo, no arrays,
-  no && or ||, and the result in a variable named 'answer').
+  (no input or output, no subtraction, no arrays,
+  and the result in a variable named 'answer').
 turpentine: retry with --bespoke to compile the whole language.
 turpentine: nothing was run
 ```
