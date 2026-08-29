@@ -76,19 +76,19 @@ claimed Turing complete is also a language Turpentine should compile to.
 
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved | Bespoke compiler | Bespoke correct | Correct via TC |
 |----------|------|--------|-------------|------------------|--------|-----------------|-----------|------------------|-----------------|----------------|
-| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | wip | [yes, scalars](brainfuck/compiler.md) | no | no |
-| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [yes](whitespace/compiler.md) | no | [**yes**](../Langlib/Computability/Derived.lean) |
-| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [yes](subleq/compiler.md) | no | [**yes**](../Langlib/Computability/Derived.lean) |
+| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | wip | [yes, scalars](brainfuck/compiler.md) | planned | planned |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [yes](whitespace/compiler.md) | planned | [**yes**](../Langlib/Computability/Derived.lean) |
+| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [yes](subleq/compiler.md) | planned | [**yes**](../Langlib/Computability/Derived.lean) |
 | [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | no | [not planned](befunge93/compiler.md) | n/a | n/a |
 | [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [no, bounded storage](malbolge/spec.md) | no | [not planned](malbolge/compiler.md) | n/a | n/a |
-| malbolge-unshackled | wip | wip | wip | wip | `malbolge-unshackled` | yes | no | planned | no | no |
-| [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | no | [planned](fractran/compiler.md) | no | no |
-| [thue](thue/spec.md) | yes | yes | yes | yes | `thue` | yes | no | [planned](thue/compiler.md) | no | no |
-| [piet](piet/spec.md) | yes | yes | yes | yes | `piet` | yes | no | [planned](piet/compiler.md) | no | no |
-| [ook](ook/spec.md) | yes | yes | yes | yes | `ook` | yes (via brainfuck) | no | [planned, free via brainfuck](ook/compiler.md) | no | no |
-| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `brainloller` | yes (via brainfuck) | no | [planned, free via brainfuck](brainloller/compiler.md) | no | no |
-| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `deadfish` | [no, finite state](deadfish/spec.md) | no | [planned, output-only](deadfish/compiler.md) | no | no |
-| unlambda / SKI | wip | wip | wip | wip | `unlambda` | yes | no | planned | no | no |
+| malbolge-unshackled | wip | wip | wip | wip | `malbolge-unshackled` | yes | no | planned | planned | planned |
+| [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | no | [planned](fractran/compiler.md) | planned | planned |
+| [thue](thue/spec.md) | yes | yes | yes | yes | `thue` | yes | no | [planned](thue/compiler.md) | planned | planned |
+| [piet](piet/spec.md) | yes | yes | yes | yes | `piet` | yes | no | [planned](piet/compiler.md) | planned | planned |
+| [ook](ook/spec.md) | yes | yes | yes | yes | `ook` | yes (via brainfuck) | no | [planned, free via brainfuck](ook/compiler.md) | planned | planned |
+| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `brainloller` | yes (via brainfuck) | no | [planned, free via brainfuck](brainloller/compiler.md) | planned | planned |
+| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `deadfish` | [no, finite state](deadfish/spec.md) | no | [planned, output-only](deadfish/compiler.md) | planned | n/a |
+| unlambda / SKI | wip | wip | wip | wip | `unlambda` | yes | no | planned | planned | planned |
 | [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `turpentine` | yes | no | (source) | (source) | (source) |
 
 When a proof lands, its `no` becomes a `yes` linking to the theorem in
@@ -135,8 +135,11 @@ The three columns follow from that.
   proof does the rest. Cheap once per language, because the composition is
   proved for an arbitrary target rather than per language.
 
-`no` in either correctness column means no theorem exists here, whatever
-the tests say; when one lands the cell links to it.
+`planned` in either correctness column means no theorem exists here yet,
+whatever the tests say; when one lands the cell links to it. `n/a` means
+there is nothing to prove: either no compiler is planned for that target,
+or the language is not Turing complete, so no derived compiler can exist
+for it.
 
 Note the pattern in the compiler column: **a language cannot host a full
 compiler unless it is Turing complete.** A bounded-storage language can
