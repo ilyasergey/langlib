@@ -1,3 +1,4 @@
+import Langlib.Common.Fuel
 import Langlib.Computability.Class
 import Langlib.Computability.URM
 import Langlib.Languages.Piet.Semantics
@@ -3449,6 +3450,244 @@ def compile (P : Program) (inputs : List Nat) : Grid :=
   let base := registerDepth P inputs
   let N := base + 3
   loopGrid (unitize (initialCode N inputs)) (unitize (dispatcherCode P base))
+
+/-! ## The loop, and the run
+
+One iteration of the compiled loop performs one `Cslib.URM.Step`, and the
+iteration whose committed program counter falls off the end of the source
+prints the answer and halts.  `exec_run` composes those over the machine's
+own steps. -/
+
+/-- An exact-cost `exec` fact is a `Reaches`. -/
+theorem reaches_of_exec {g : Grid} {bl : Blocks} {k : Nat} {s t : MState}
+    (h : ∀ fuel, exec g bl (fuel + k) s = exec g bl fuel t) :
+    Reaches (exec g bl) s t :=
+  ⟨k, fun f => by rw [Nat.add_comm]; exact h f⟩
+
+/-- The compiled image of a URM program, named once. -/
+def image (P : Program) (inputs : List Nat) : Grid := compile P inputs
+
+theorem image_eq (P : Program) (inputs : List Nat) :
+    image P inputs =
+      loopGrid (unitize (initialCode (registerDepth P inputs + 3) inputs))
+        (unitize (dispatcherCode P (registerDepth P inputs))) := rfl
+
+/-- One whole iteration of the compiled loop, while the run continues. -/
+theorem reaches_iteration (P : Program) (inputs : List Nat)
+    {u u' : Cslib.URM.State} (hstep : Cslib.URM.Step P u u')
+    (hbelow : ∀ x ∈ P, InstrBelow (registerDepth P inputs) x)
+    (hbase : 0 < registerDepth P inputs)
+    (hrun : (u'.pc : Int) < (P.length : Int))
+    (bl : Blocks) (s : MState) (next flag : Int)
+    (hpos : s.pos =
+      (pw (unitize (initialCode (registerDepth P inputs + 3) inputs)) + 2, 0))
+    (hdp : s.dp = .right)
+    (hstack : s.stack =
+      stackOf (registerDepth P inputs) u.regs (u.pc : Int) next flag) :
+    ∃ (f : Int) (s' : MState),
+      Reaches (exec (image P inputs) bl) s s' ∧
+      s'.pos =
+        (pw (unitize (initialCode (registerDepth P inputs + 3) inputs)) + 2, 0) ∧
+      s'.dp = .right ∧
+      s'.stack =
+        stackOf (registerDepth P inputs) u'.regs (u'.pc : Int) (u'.pc : Int) f ∧
+      s'.output = s.output ∧ s'.input = s.input := by
+  set base := registerDepth P inputs with hbaseDef
+  set prologue := unitize (initialCode (base + 3) inputs) with hpro
+  set body := unitize (dispatcherCode P base) with hbody
+  obtain ⟨stable, hsplit, hstable⟩ := loopCode_dispatcher_split P base
+  have hu : UnitCode (loopCode body) := unitCode_loopCode _
+  have hlong : 2 ≤ (loopCode body).length := by
+    rw [hsplit]
+    simp
+  -- the corridor, the switch and the pointer
+  have h1 : Reaches (exec (image P inputs) bl) s
+      { runCode (loopCode body) s with
+        pos := (pw prologue + bw body + 1, 0) } := by
+    apply reaches_of_exec
+    intro fuel
+    exact exec_toPivot prologue body hu stable hsplit hstable bl fuel s hpos hdp
+  -- what the body computed
+  have hnoop : runCode (loopCode body) s = runCode (dispatcherCode P base) s := by
+    rw [loopCode, runCode_append, runCode_append, runCode_unitize,
+      runCode_pushNat]
+    simp [runCode, op, execOp]
+  obtain ⟨f, hdisp⟩ := runCode_dispatcherCode base P hstep hbelow hbase s next flag
+    hstack
+  -- the looping branch
+  have hpivdp : ({ runCode (loopCode body) s with
+      pos := (pw prologue + bw body + 1, 0) } : MState).dp = .down := by
+    simp only [hnoop, hdisp, if_pos hrun, hdp, clockwise_right]
+  have h2 := reaches_of_exec (fun fuel =>
+    exec_loop_branch prologue body hu hlong bl fuel
+      ({ runCode (loopCode body) s with
+        pos := (pw prologue + bw body + 1, 0) } : MState) rfl hpivdp)
+  refine ⟨f, _, Reaches.trans h1 h2, ?_, ?_, ?_, ?_, ?_⟩
+  all_goals simp [hnoop, hdisp, hdp, execOp]
+
+set_option maxHeartbeats 1000000 in
+/-- A dispatcher pass from a halted program counter changes nothing but the
+counters it always writes. -/
+theorem runCode_dispatcherCode_halted (base : Nat) (P : Program)
+    (u : Cslib.URM.State) (hhalt : P.length ≤ u.pc)
+    (hbelow : ∀ x ∈ P, InstrBelow base x) (hbase : 0 < base) (s : MState)
+    (next flag : Int)
+    (hstack : s.stack = stackOf base u.regs (u.pc : Int) next flag) :
+    ∃ f, runCode (dispatcherCode P base) s =
+      { s with
+        cc := s.cc.toggle,
+        stack := ((u.regs 0 : Nat) : Int) ::
+          stackOf base u.regs ((u.pc : Int) + 1) ((u.pc : Int) + 1) f } := by
+  obtain ⟨f, hmiss⟩ := dispatchUpdate_miss base P 0 u.regs ((u.pc : Int))
+    ((u.pc : Int) + 1) flag hbelow (by intro j hj; omega)
+  refine ⟨f, ?_⟩
+  simp only [dispatcherCode, runCode_append]
+  rw [runCode_beginDispatch_stackOf base u.regs (u.pc : Int) next flag s hstack]
+  rw [runCode_dispatchFrom_stackOf base P u.regs (u.pc : Int) ((u.pc : Int) + 1)
+    flag _ hbelow rfl]
+  rw [hmiss]
+  rw [runCode_endDispatch_stackOf base u.regs (u.pc : Int) ((u.pc : Int) + 1) f _ rfl]
+  rw [runCode_prepareBranch_stackOf base u.regs ((u.pc : Int) + 1) ((u.pc : Int) + 1)
+    f P.length hbase _ rfl]
+  rw [if_neg (by omega)]
+  rw [runCode_steerBranch_zero ((u.regs 0 : Nat) : Int)
+    (stackOf base u.regs ((u.pc : Int) + 1) ((u.pc : Int) + 1) f) _ rfl]
+
+set_option maxHeartbeats 1000000 in
+/-- Reaching the pivot with the direction pointer still right ends the run,
+with the answer printed. -/
+theorem exec_halt_at_pivot (P : Program) (inputs : List Nat) (bl : Blocks)
+    (s : MState) (answer : Int) (rest : List Int)
+    (hpos : s.pos =
+      (pw (unitize (initialCode (registerDepth P inputs + 3) inputs)) + 2, 0))
+    (hdp : s.dp = .right)
+    (hpivot : (runCode (loopCode (unitize (dispatcherCode P (registerDepth P inputs))))
+      s).stack = answer :: rest)
+    (hpivotdp : (runCode (loopCode (unitize
+      (dispatcherCode P (registerDepth P inputs)))) s).dp = .right) :
+    ∃ (m : Nat) (s' : MState),
+      exec (image P inputs) bl m s = (s', Exit.halted) ∧
+      s'.output = (runCode (loopCode (unitize
+        (dispatcherCode P (registerDepth P inputs)))) s).output ++
+        (toString answer).toUTF8 := by
+  set base := registerDepth P inputs with hbaseDef
+  set prologue := unitize (initialCode (base + 3) inputs) with hpro
+  set body := unitize (dispatcherCode P base) with hbody
+  obtain ⟨stable, hsplit, hstable⟩ := loopCode_dispatcher_split P base
+  have hu : UnitCode (loopCode body) := unitCode_loopCode _
+  have h1 : Reaches (exec (image P inputs) bl) s
+      { runCode (loopCode body) s with
+        pos := (pw prologue + bw body + 1, 0) } := by
+    apply reaches_of_exec
+    intro fuel
+    exact exec_toPivot prologue body hu stable hsplit hstable bl fuel s hpos hdp
+  obtain ⟨c, hc⟩ := h1
+  have hfin := exec_halt_branch prologue body hu bl 0
+    ({ runCode (loopCode body) s with
+      pos := (pw prologue + bw body + 1, 0) } : MState) rfl hpivotdp
+  refine ⟨c + 3, _, by rw [hc 3]; exact hfin, ?_⟩
+  simp [execOp, hpivot]
+
+/-- The last iteration: the step that lands on a halted program counter
+prints the answer and stops. -/
+theorem exec_halt_of_step (P : Program) (inputs : List Nat) (bl : Blocks)
+    {u u' : Cslib.URM.State} (hstep : Cslib.URM.Step P u u')
+    (hbelow : ∀ x ∈ P, InstrBelow (registerDepth P inputs) x)
+    (hbase : 0 < registerDepth P inputs)
+    (hhalt : ¬((u'.pc : Int) < (P.length : Int)))
+    (s : MState) (next flag : Int)
+    (hpos : s.pos =
+      (pw (unitize (initialCode (registerDepth P inputs + 3) inputs)) + 2, 0))
+    (hdp : s.dp = .right)
+    (hstack : s.stack =
+      stackOf (registerDepth P inputs) u.regs (u.pc : Int) next flag) :
+    ∃ (m : Nat) (s' : MState),
+      exec (image P inputs) bl m s = (s', Exit.halted) ∧
+      s'.output = s.output ++ (toString ((u'.regs 0 : Nat) : Int)).toUTF8 := by
+  set base := registerDepth P inputs with hbaseDef
+  set body := unitize (dispatcherCode P base) with hbody
+  have hnoop : runCode (loopCode body) s = runCode (dispatcherCode P base) s := by
+    rw [loopCode, runCode_append, runCode_append, runCode_unitize,
+      runCode_pushNat]
+    simp [runCode, op, execOp]
+  obtain ⟨f, hdisp⟩ := runCode_dispatcherCode base P hstep hbelow hbase s next flag
+    hstack
+  obtain ⟨m, s', hexec, hout⟩ := exec_halt_at_pivot P inputs bl s
+    ((u'.regs 0 : Nat) : Int)
+    (stackOf base u'.regs (u'.pc : Int) (u'.pc : Int) f) hpos hdp
+    (by rw [hnoop, hdisp])
+    (by rw [hnoop, hdisp]; simp only [if_neg hhalt]; exact hdp)
+  exact ⟨m, s', hexec, by rw [hout, hnoop, hdisp]⟩
+
+/-- A program whose counter is already past its end halts on the first
+iteration, with register zero unchanged. -/
+theorem exec_halt_of_halted (P : Program) (inputs : List Nat) (bl : Blocks)
+    (u : Cslib.URM.State) (hhalt : P.length ≤ u.pc)
+    (hbelow : ∀ x ∈ P, InstrBelow (registerDepth P inputs) x)
+    (hbase : 0 < registerDepth P inputs)
+    (s : MState) (next flag : Int)
+    (hpos : s.pos =
+      (pw (unitize (initialCode (registerDepth P inputs + 3) inputs)) + 2, 0))
+    (hdp : s.dp = .right)
+    (hstack : s.stack =
+      stackOf (registerDepth P inputs) u.regs (u.pc : Int) next flag) :
+    ∃ (m : Nat) (s' : MState),
+      exec (image P inputs) bl m s = (s', Exit.halted) ∧
+      s'.output = s.output ++ (toString ((u.regs 0 : Nat) : Int)).toUTF8 := by
+  set base := registerDepth P inputs with hbaseDef
+  set body := unitize (dispatcherCode P base) with hbody
+  have hnoop : runCode (loopCode body) s = runCode (dispatcherCode P base) s := by
+    rw [loopCode, runCode_append, runCode_append, runCode_unitize,
+      runCode_pushNat]
+    simp [runCode, op, execOp]
+  obtain ⟨f, hdisp⟩ := runCode_dispatcherCode_halted base P u hhalt hbelow hbase s
+    next flag hstack
+  obtain ⟨m, s', hexec, hout⟩ := exec_halt_at_pivot P inputs bl s
+    ((u.regs 0 : Nat) : Int)
+    (stackOf base u.regs ((u.pc : Int) + 1) ((u.pc : Int) + 1) f) hpos hdp
+    (by rw [hnoop, hdisp])
+    (by rw [hnoop, hdisp]; exact hdp)
+  exact ⟨m, s', hexec, by rw [hout, hnoop, hdisp]⟩
+
+/-- The whole run: every iteration of the compiled loop, composed over the
+URM's own steps, ending in the halt that prints register zero. -/
+theorem exec_run (P : Program) (inputs : List Nat) (bl : Blocks)
+    (hbelow : ∀ x ∈ P, InstrBelow (registerDepth P inputs) x)
+    (hbase : 0 < registerDepth P inputs) :
+    ∀ {u u' : Cslib.URM.State}, Cslib.URM.Steps P u u' → u'.isHalted P →
+    ∀ (s : MState) (next flag : Int),
+      s.pos =
+        (pw (unitize (initialCode (registerDepth P inputs + 3) inputs)) + 2, 0) →
+      s.dp = .right →
+      s.stack = stackOf (registerDepth P inputs) u.regs (u.pc : Int) next flag →
+      ∃ (m : Nat) (s' : MState),
+        exec (image P inputs) bl m s = (s', Exit.halted) ∧
+        s'.output = s.output ++ (toString ((u'.regs 0 : Nat) : Int)).toUTF8 := by
+  intro u u' hsteps
+  induction hsteps using Relation.ReflTransGen.head_induction_on with
+  | refl =>
+      intro hhalt s next flag hpos hdp hstack
+      exact exec_halt_of_halted P inputs bl u' hhalt hbelow hbase s next flag
+        hpos hdp hstack
+  | @head v w hstep hrest ih =>
+      intro hhalt s next flag hpos hdp hstack
+      by_cases hw : (w.pc : Int) < (P.length : Int)
+      · obtain ⟨f, s₁, hreach, hpos₁, hdp₁, hstack₁, hout₁, hin₁⟩ :=
+          reaches_iteration P inputs hstep hbelow hbase hw bl s next flag hpos hdp
+            hstack
+        obtain ⟨m, s₂, hexec, hout₂⟩ := ih hhalt s₁ _ _ hpos₁ hdp₁ hstack₁
+        obtain ⟨c, hc⟩ := hreach
+        exact ⟨c + m, s₂, by rw [hc m, hexec], by rw [hout₂, hout₁]⟩
+      · have hvh : w.isHalted P := by
+          simp only [Cslib.URM.State.isHalted]
+          omega
+        have hwu : w = u' := by
+          rcases Relation.ReflTransGen.cases_head hrest with h | ⟨z, hz, _⟩
+          · exact h
+          · exact absurd hz (Cslib.URM.Step.no_step_of_halted hvh)
+        subst hwu
+        exact exec_halt_of_step P inputs bl hstep hbelow hbase hw s next flag
+          hpos hdp hstack
 
 end Langlib.Computability.URMPiet
 

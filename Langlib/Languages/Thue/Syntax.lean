@@ -47,4 +47,11 @@ def Rhs.render : Rhs → String
 def Rule.render (r : Rule) : String :=
   r.lhs ++ "::=" ++ r.rhs.render
 
+/-- Render a program back to concrete syntax: the rules one per line, the
+canonical lone `::=` terminator, then the initial state. `parse` reads this
+back as the same program whenever no rule's lhs is blank and the initial
+state contains no newline, which holds for anything a compiler emits. -/
+def Prog.render (p : Prog) : String :=
+  String.intercalate "\n" (p.rules.map Rule.render ++ ["::=", p.initial])
+
 end Langlib.Thue

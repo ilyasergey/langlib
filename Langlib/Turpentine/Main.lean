@@ -3,9 +3,15 @@ import Langlib.Turpentine.Semantics
 import Langlib.Turpentine.Compile.Brainfuck
 import Langlib.Turpentine.Compile.Subleq
 import Langlib.Turpentine.Compile.Whitespace
+import Langlib.Turpentine.Compile.Ook
+import Langlib.Turpentine.Compile.Brainloller
 import Langlib.Languages.Brainfuck.Semantics
 import Langlib.Languages.Subleq.Semantics
 import Langlib.Languages.Whitespace.Semantics
+import Langlib.Languages.Ook.Semantics
+import Langlib.Languages.Brainloller.Semantics
+import Langlib.Languages.Fractran.Semantics
+import Langlib.Languages.Thue.Semantics
 import Langlib.Computability.Derived
 
 /-!
@@ -43,49 +49,152 @@ namespace Langlib.Turpentine
 
 open Langlib.Common
 
-/-- A compilation backend: how to emit the target's source text, and how
-to run that text on the target's own reference interpreter. Adding a
-backend is one entry here. -/
+/-- What a compiler produced: the target's source text, a run of exactly
+that text on the target's own reference interpreter, and, when the file is
+not enough to say how to run it, the command that is.
+
+`run` closes over the emitted text on purpose, so `exec` exercises the
+renderer and the target's parser rather than only the code generator. It
+also lets a target whose file does not carry the whole artifact still be
+executed: FRACTRAN's compiled program is a fraction list *and* a starting
+value, and only the fractions go in the file. -/
+structure Artifact where
+  /-- The target program, as the target's own source text. -/
+  text : String
+  /-- Run that text on the target's interpreter. -/
+  run : Input → Nat → Except String RunResult
+  /-- How to run the emitted file by hand, when `lake exe <target> <file>`
+  is not the whole story. `<file>` in it is replaced by the path written. -/
+  runNote : Option String := none
+
+/-- A compiler into some target: Turpentine source text to an `Artifact`,
+or an error naming what it refused. -/
+abbrev Compiler := String → Except String Artifact
+
+/-- The common case: emit source text, and run it with the target's
+parse-and-run. -/
+def compilerOfSource (emit : String → Except String String)
+    (run : String → Input → Nat → Except String RunResult) : Compiler :=
+  fun src => do
+    let text ← emit src
+    return { text, run := run text }
+
+/-- The certified route for a target: parse, compile through the shared
+URM pass and the target's completeness witness, then render. One line per
+target, because `derived` did the work. -/
+def compilerOfCertified {α : Type} (compile : Program → Except String α)
+    (render : α → String)
+    (run : String → Input → Nat → Except String RunResult) : Compiler :=
+  compilerOfSource (fun src => do return render (← compile (← parse src))) run
+
+/-- FRACTRAN's certified backend, which needs its own entry because a `.ft`
+file holds only the fractions: the starting value is a command-line flag or
+the first line of stdin. The emitted file records it in a comment, the note
+repeats the command, and `exec` supplies it the way the note says to. -/
+def fractranCertified : Compiler := fun src => do
+  let cp ← Langlib.Computability.derivedFractran.compile (← parse src)
+  let text :=
+    s!"# Compiled by turpentine, certified route: derived from FRACTRAN's\n\
+       # Turing-completeness proof. FRACTRAN has no I/O, so the answer is the\n\
+       # exponent of 2 in the final value.\n\
+       # Starting value: {cp.start}\n\
+       # Run with: lake exe fractran --out final --n {cp.start} <this file>\n"
+      ++ Langlib.Fractran.Prog.render cp.code ++ "\n"
+  return { text
+         , runNote := some s!"lake exe fractran --out final --n {cp.start} <file>"
+         , run := Langlib.Fractran.run { out := .final, n? := some cp.start } text }
+
+/-- A compilation target: the name accepted after `--to` and `--via`, and
+the compilers that reach it. Adding a target is one entry here.
+
+Neither compiler is guaranteed to exist. `bespoke` is hand-written, accepts
+the whole language and is unverified; FRACTRAN and Thue have none, because
+neither is a language anybody would hand-write a backend for. `certified`
+is derived from the target's Turing-completeness proof and accepts only the
+I/O-free fragment; a language whose completeness is still open has none. -/
 structure Backend where
   /-- Name accepted after `--to` and `--via`. -/
   name : String
-  /-- Turpentine source text to target source text. -/
-  compileSource : String → Except String String
-  /-- The target language's parse-and-run, for `exec`. -/
-  runTarget : String → Input → Nat → Except String RunResult
-  /-- The *certified* compiler for this target, when one exists: obtained
-  from the language's Turing-completeness proof rather than written by
-  hand, and correct by construction. Accepts only the I/O-free fragment
-  described in `docs/certified-compilation.md`. -/
-  certified : Option (String → Except String String) := none
+  /-- The hand-written backend, if there is one. -/
+  bespoke : Option Compiler := none
+  /-- The compiler derived from the completeness proof, if there is one.
+  See `docs/certified-compilation.md`. -/
+  certified : Option Compiler := none
 
 def backends : List Backend :=
   [ { name := "brainfuck"
-    , compileSource := Compile.Brainfuck.compileSource
       -- The backend emits programs that expect `--eof zero`: its
       -- `readByte` reports -1 for a zero byte or end of input alike.
-    , runTarget := Langlib.Brainfuck.run { eof := .zero }
-    , certified := some fun src => do
-        let p ← parse src
-        let prog ← Langlib.Computability.derivedBrainfuck.compile p
-        return Langlib.Brainfuck.Prog.render prog }
+    , bespoke := some (compilerOfSource Compile.Brainfuck.compileSource
+        (Langlib.Brainfuck.run { eof := .zero }))
+    , certified := some (compilerOfCertified
+        Langlib.Computability.derivedBrainfuck.compile
+        Langlib.Brainfuck.Prog.render
+        (Langlib.Brainfuck.run { eof := .zero })) }
   , { name := "whitespace"
-    , compileSource := Compile.Whitespace.compileSource
-    , runTarget := Langlib.Whitespace.run
-    , certified := some fun src => do
-        let p ← parse src
-        let prog ← Langlib.Computability.derivedWhitespace.compile p
-        return Langlib.Whitespace.Prog.render prog }
+    , bespoke := some (compilerOfSource Compile.Whitespace.compileSource
+        Langlib.Whitespace.run)
+    , certified := some (compilerOfCertified
+        Langlib.Computability.derivedWhitespace.compile
+        Langlib.Whitespace.Prog.render
+        Langlib.Whitespace.run) }
   , { name := "subleq"
-    , compileSource := Compile.Subleq.compileSource
-    , runTarget := Langlib.Subleq.run
-    , certified := some fun src => do
-        let p ← parse src
-        let prog ← Langlib.Computability.derivedSubleq.compile p
-        return Langlib.Subleq.Prog.render prog } ]
+    , bespoke := some (compilerOfSource Compile.Subleq.compileSource
+        Langlib.Subleq.run)
+    , certified := some (compilerOfCertified
+        Langlib.Computability.derivedSubleq.compile
+        Langlib.Subleq.Prog.render
+        Langlib.Subleq.run) }
+  , { name := "ook"
+      -- Ook! is brainfuck under a different concrete syntax, so both
+      -- compilers are brainfuck's with a different renderer, and the
+      -- emitted code wants the same `--eof zero` convention.
+    , bespoke := some (compilerOfSource Compile.Ook.compileSource
+        (Langlib.Ook.run { eof := .zero }))
+    , certified := some (compilerOfCertified
+        Langlib.Computability.derivedOok.compile
+        Langlib.Ook.render
+        (Langlib.Ook.run { eof := .zero })) }
+  , { name := "brainloller"
+      -- The target text is an ASCII PPM image, which is what
+      -- `lake exe brainloller` reads.
+    , bespoke := some (compilerOfSource Compile.Brainloller.compileSource
+        (Langlib.Brainloller.run { eof := .zero }))
+    , certified := some (compilerOfCertified
+        Langlib.Computability.derivedBrainloller.compile
+        (fun prog =>
+          (Langlib.Brainloller.encode (Langlib.Brainfuck.Prog.render prog)
+            Compile.Brainloller.defaultWidth).toPpm3)
+        (Langlib.Brainloller.run { eof := .zero })) }
+  , { name := "fractran"
+    , certified := some fractranCertified }
+  , { name := "thue"
+      -- `finalState` is what makes the answer visible: Thue's only output
+      -- primitive is `~`, and the compiled program does not use it, so the
+      -- halted state string is the result.
+    , certified := some (compilerOfCertified
+        Langlib.Computability.derivedThue.compile
+        Langlib.Thue.Prog.render
+        (Langlib.Thue.run { finalState := true })) } ]
+
+/-- Which compilers a target has, for the help text and for the message a
+refused `--bespoke` or `--tc` prints. -/
+def Backend.schemes (b : Backend) : String :=
+  match b.bespoke, b.certified with
+  | some _, some _ => "bespoke and certified"
+  | some _, none => "bespoke only"
+  | none, some _ => "certified only (--tc)"
+  | none, none => "none"
 
 def backendNames : String :=
   String.intercalate "|" (backends.map (·.name))
+
+/-- One line per target, naming the compilers it has, for the help text.
+Padded so the second column lines up. -/
+def backendTable : List String :=
+  let width := backends.foldl (fun w b => max w b.name.length) 0
+  backends.map fun b =>
+    s!"  {b.name}{String.ofList (List.replicate (width + 2 - b.name.length) ' ')}{b.schemes}"
 
 def findBackend? (n : String) : Option Backend :=
   backends.find? (·.name == n)
@@ -98,11 +207,13 @@ def runner : Runner where
     [ "subcommands:"
     , "  run <file.turp>                    parse, type-check, and run (the default)"
     , "  check <file.turp>                  parse and type-check only"
-    , s!"  compile --to <{backendNames}> [-o out] <file.turp>"
+    , s!"  compile --to <target> [-o out] <file.turp>"
     , "                                     emit the target program"
-    , s!"  exec --via <{backendNames}> <file.turp>"
+    , s!"  exec --via <target> <file.turp>"
     , "                                     compile, then run on that language's interpreter"
-    , "compiler choice, for compile and exec:"
+    , "targets, and the compilers each has:" ]
+    ++ backendTable ++
+    [ "compiler choice, for compile and exec:"
     , "  --bespoke    hand-written backend: whole language, compact output, unverified."
     , "               This is the default when neither flag is given."
     , "  --tc         derived from the language's Turing-completeness proof: correct by"
@@ -113,7 +224,7 @@ def runner : Runner where
 /-- The full help. Turpentine has four subcommands and two compilers, so
 the generic `Runner` usage is not enough; this replaces it. -/
 def helpText : String :=
-  String.intercalate "\n"
+  String.intercalate "\n" (
     [ "turpentine: the Well-Typed Formalism, LangLib's source language."
     , ""
     , "usage:"
@@ -133,9 +244,13 @@ def helpText : String :=
     , "            `run` exactly, so this doubles as a differential test."
     , ""
     , "choosing a target (compile and exec):"
-    , s!"  --to <lang>    for compile; one of {backendNames}"
-    , s!"  --via <lang>   for exec; one of {backendNames}"
-    , ""
+    , "  --to <lang>    for compile"
+    , "  --via <lang>   for exec"
+    , "  Targets, and the compilers each of them has. A target with no"
+    , "  hand-written backend is reachable only with --tc, and one whose"
+    , "  completeness is still open only with --bespoke:" ]
+    ++ backendTable ++
+    [ ""
     , "choosing a compiler (compile and exec):"
     , "  --bespoke  hand-written for that target. Accepts the whole language,"
     , "             emits compact code, and is not verified. This is the"
@@ -147,8 +262,8 @@ def helpText : String :=
     , "             and no && or || whose right operand indexes an array."
     , "             Arrays, division and modulo are supported. The result"
     , "             must be left in a variable named `answer`."
-    , "             Not every target has one; those that do are marked in"
-    , "             docs/README.md. See docs/certified-compilation.md."
+    , "             Not every target has one; the list above says which"
+    , "             do. See docs/certified-compilation.md."
     , "  Passing both is an error. Whichever is used is named in the message"
     , "  the command prints, so a build log records which compiler ran."
     , ""
@@ -176,7 +291,7 @@ def helpText : String :=
     , "  1  runtime error, type error, or a program outside the compiler's"
     , "     supported fragment"
     , "  2  out of fuel"
-    , "  3  parse error, or a problem with the command line" ]
+    , "  3  parse error, or a problem with the command line" ])
 
 def checkMain (file : String) : IO UInt32 := do
   let src ← try
@@ -243,14 +358,21 @@ def compileMain (args : List String) : IO UInt32 := do
     catch e =>
       IO.eprintln s!"turpentine: cannot read '{file}': {e}"
       return 3
-  let (emit, scheme) ← if useCertified then
+  let (compiler, scheme) ← if useCertified then
       match backend.certified with
       | some f => pure (f, "certified, derived from the Turing-completeness proof")
       | none =>
         IO.eprintln s!"turpentine compile: no certified compiler for '{target}' yet"
+        IO.eprintln s!"turpentine: {target} has {backend.schemes}"
         return 3
-    else pure (backend.compileSource, "bespoke, hand-written and unverified")
-  match emit src with
+    else
+      match backend.bespoke with
+      | some f => pure (f, "bespoke, hand-written and unverified")
+      | none =>
+        IO.eprintln s!"turpentine compile: no hand-written backend for '{target}'"
+        IO.eprintln s!"turpentine: it has {backend.schemes}; retry with --tc"
+        return 3
+  match compiler src with
   | .error e =>
     IO.eprintln s!"turpentine compile: {e}"
     if useCertified then
@@ -258,19 +380,24 @@ def compileMain (args : List String) : IO UInt32 := do
       IO.eprintln "  (no input or output, no subtraction, and the result in a"
       IO.eprintln "  variable named 'answer'); arrays, division and modulo are"
       IO.eprintln "  supported, and the message above names what was rejected."
-      IO.eprintln s!"turpentine: retry with --bespoke to compile the whole language."
+      if backend.bespoke.isSome then
+        IO.eprintln s!"turpentine: retry with --bespoke to compile the whole language."
     match out? with
     | some path => IO.eprintln s!"turpentine: nothing written to {path}"
     | none => IO.eprintln "turpentine: nothing emitted"
     return 1
-  | .ok target =>
+  | .ok art =>
     match out? with
     | some path =>
-      IO.FS.writeFile path target
-      IO.eprintln s!"turpentine: wrote {target.length} bytes to {path} [{scheme}]"
+      IO.FS.writeFile path art.text
+      IO.eprintln s!"turpentine: wrote {art.text.length} bytes to {path} [{scheme}]"
+      if let some note := art.runNote then
+        IO.eprintln s!"turpentine: run it with: {note.replace "<file>" path}"
     | none =>
-      IO.eprintln s!"turpentine: emitting {target.length} bytes [{scheme}]"
-      IO.print target
+      IO.eprintln s!"turpentine: emitting {art.text.length} bytes [{scheme}]"
+      if let some note := art.runNote then
+        IO.eprintln s!"turpentine: run it with: {note}"
+      IO.print art.text
     return 0
 
 /-- `exec --via <lang> [--fuel N] [--verbose] <file.turp>`: compile in
@@ -329,14 +456,21 @@ def execMain (args : List String) : IO UInt32 := do
     catch e =>
       IO.eprintln s!"turpentine: cannot read '{file}': {e}"
       return 3
-  let (emit, scheme) ← if useCertified then
+  let (compiler, scheme) ← if useCertified then
       match backend.certified with
       | some f => pure (f, "certified, derived from the Turing-completeness proof")
       | none =>
         IO.eprintln s!"turpentine exec: no certified compiler for '{target}' yet"
+        IO.eprintln s!"turpentine: {target} has {backend.schemes}"
         return 3
-    else pure (backend.compileSource, "bespoke, hand-written and unverified")
-  match emit src with
+    else
+      match backend.bespoke with
+      | some f => pure (f, "bespoke, hand-written and unverified")
+      | none =>
+        IO.eprintln s!"turpentine exec: no hand-written backend for '{target}'"
+        IO.eprintln s!"turpentine: it has {backend.schemes}; retry with --tc"
+        return 3
+  match compiler src with
   | .error e =>
     IO.eprintln s!"turpentine exec: {e}"
     if useCertified then
@@ -344,16 +478,17 @@ def execMain (args : List String) : IO UInt32 := do
       IO.eprintln "  (no input or output, no subtraction, and the result in a"
       IO.eprintln "  variable named 'answer'); arrays, division and modulo are"
       IO.eprintln "  supported, and the message above names what was rejected."
-      IO.eprintln "turpentine: retry with --bespoke to compile the whole language."
+      if backend.bespoke.isSome then
+        IO.eprintln "turpentine: retry with --bespoke to compile the whole language."
     IO.eprintln "turpentine: nothing was run"
     return 1
-  | .ok targetSrc =>
+  | .ok art =>
     if verbose then
-      IO.eprintln s!"turpentine: compiled to {targetSrc.length} bytes of {target} [{scheme}]"
+      IO.eprintln s!"turpentine: compiled to {art.text.length} bytes of {target} [{scheme}]"
     let stdinStream ← IO.getStdin
     let stdinBytes ← if ← stdinStream.isTty then pure ByteArray.empty
                      else stdinStream.readBinToEnd
-    match backend.runTarget targetSrc (Input.ofByteArray stdinBytes) fuel with
+    match art.run (Input.ofByteArray stdinBytes) fuel with
     | .error e =>
       IO.eprintln s!"turpentine exec: the emitted {target} program did not parse: {e}"
       return 1
