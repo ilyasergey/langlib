@@ -48,7 +48,7 @@ also confirmed wanted: **Piet** and **Brainloller** form the second wave
 * **Java generics subtyping** (Radu Grigore, "Java Generics are Turing
   Complete", POPL 2017, https://arxiv.org/abs/1605.05274). Not an esolang
   by intent, which is exactly the joke: the paper reduces Turing-machine
-  halting to Java subtype checking. A langlib entry would formalise the
+  halting to Java subtype checking. A LangLib entry would formalise the
   paper's subtyping machine (a fragment of Java's generic subtyping rules)
   as the language, implement its "interpreter" (the subtype checker), and
   provide the reduction as the compiler into it. Research-grade but well

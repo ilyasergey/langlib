@@ -1,4 +1,4 @@
-# Ook! in langlib
+# Ook! in LangLib
 
 David Morgan-Mar's 2001 language for orang-utans: brainfuck's eight
 commands, spelled as pairs of the words `Ook.`, `Ook?`, `Ook!`. The full
@@ -40,7 +40,7 @@ header, which has no Ook! counterpart).
 |------|--------------|----------------|
 | `hello.ook` | prints `Hello World!` | `hello.b` (esolangs wiki, CC0) |
 | `cat.ook` | copies input to output (use `--eof zero`) | `cat.b` (folklore) |
-| `alphabet.ook` | prints A to Z | `alphabet.b` (langlib original) |
+| `alphabet.ook` | prints A to Z | `alphabet.b` (LangLib original) |
 
 ## Tests
 

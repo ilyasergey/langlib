@@ -1,4 +1,4 @@
-# FRACTRAN in langlib
+# FRACTRAN in LangLib
 
 John H. Conway's 1987 language: a program is a list of positive fractions,
 the state is one positive integer, a step multiplies by the first fraction
@@ -27,7 +27,7 @@ lake exe fractran [--fuel N] [--n N] [--out trajectory|final|pow2] file.ft
 ```
 
 The starting value comes from `--n N`, or from the first line of stdin if
-the flag is absent. Output modes (a langlib convention; FRACTRAN itself has
+the flag is absent. Output modes (a LangLib convention; FRACTRAN itself has
 no I/O): `trajectory` prints every value of n, `final` only the value at the
 halt, `pow2` prints k whenever a step produces exactly 2^k. Exit codes:
 0 halt, 1 runtime error (including a rejected starting value), 2 out of
@@ -39,7 +39,7 @@ fuel, 3 parse or usage error.
 |------|--------------|--------|
 | `adder.ft` | the one-fraction adder: 2^a 3^b halts at 3^(a+b) | folklore (Conway's first example) |
 | `multiply.ft` | multiplier: 2^a 3^b halts at 5^(ab) | folklore construction in Conway's style, verified here |
-| `min.ft` | minimum: 2^a 3^b halts at 5^min(a,b) | langlib original |
+| `min.ft` | minimum: 2^a 3^b halts at 5^min(a,b) | LangLib original |
 | `primegame.ft` | Conway's PRIMEGAME: with `--out pow2` from n = 2, prints the primes in order, forever | Conway, 1987 |
 
 ```

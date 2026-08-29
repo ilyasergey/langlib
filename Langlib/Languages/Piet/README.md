@@ -1,4 +1,4 @@
-# Piet in langlib
+# Piet in LangLib
 
 David Morgan-Mar's language of abstract paintings: a program is a bitmap,
 and commands are the colour differences between adjacent colour blocks.
@@ -34,9 +34,9 @@ is available to API users via `Langlib.Common.Image.parsePpm`.
 
 | File | What it does | Origin |
 |------|--------------|--------|
-| `hi.ppm` | prints `Hi` (push 72, out(char), push 105, out(char)) | langlib original |
-| `add.ppm` | reads two numbers, prints their sum | langlib original |
-| `square.ppm` | reads a number, prints its square | langlib original |
+| `hi.ppm` | prints `Hi` (push 72, out(char), push 105, out(char)) | LangLib original |
+| `add.ppm` | reads two numbers, prints their sum | LangLib original |
+| `square.ppm` | reads a number, prints its square | LangLib original |
 
 All three are drawn in the same honest, unpainterly style: a corridor of
 colour blocks along the middle row between black walls, then a white

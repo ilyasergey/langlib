@@ -1,4 +1,4 @@
-# Thue in langlib
+# Thue in LangLib
 
 John Colagioia's 2000 string-rewriting language, named after the
 mathematician Axel Thue: a program is a semi-Thue grammar plus an initial
@@ -38,8 +38,8 @@ Exit codes: 0 halt, 1 runtime error, 2 out of fuel, 3 parse or usage error.
 |------|--------------|--------|
 | `hello.t` | prints `Hello World!` | esolangs wiki (CC0) |
 | `increment.t` | binary increment: `_1111111111_` becomes `10000000000` in the state (run with `--final-state`) | esolangs wiki (CC0) |
-| `truth.t` | truth-machine via `:::` and `~`: input `0` prints `0` and halts, input `1` prints `1` forever | langlib original |
-| `parity.t` | reads a unary number (a line of `1`s), prints `even` or `odd` | langlib original |
+| `truth.t` | truth-machine via `:::` and `~`: input `0` prints `0` and halts, input `1` prints `1` forever | LangLib original |
+| `parity.t` | reads a unary number (a line of `1`s), prints `even` or `odd` | LangLib original |
 
 Thue has no comment syntax (a rulebase line without `::=` is a parse
 error), so attributions live here rather than in the files. `parity.t` is

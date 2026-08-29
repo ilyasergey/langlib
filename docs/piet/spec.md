@@ -7,7 +7,7 @@
   https://esolangs.org/wiki/Piet (CC0). The de-facto reference
   implementation is Erik Schoenfelder's npiet
   (https://www.bertnase.de/npiet/).
-* **In langlib**: `Langlib/Languages/Piet/`, runner `lake exe piet`,
+* **In LangLib**: `Langlib/Languages/Piet/`, runner `lake exe piet`,
   examples in `Langlib/Examples/Piet/`
 
 ## History
@@ -21,7 +21,7 @@ dozens of independently written interpreters, IDEs, and even a Piet
 assembler, so implementing the language is clearly welcome. The
 specification text itself is his (his site licenses its content under a
 Creative Commons licence); this page is a summary in our own words, and
-our example images are langlib originals.
+our example images are LangLib originals.
 
 The joke has formal content: since commands are colour *differences*
 between adjacent regions, the same program can be repainted in endless
@@ -114,7 +114,7 @@ Commands that cannot be performed are **simply ignored** and execution
 continues; the specification says exactly this for insufficient operands
 and recommends it for the error cases below.
 
-## Semantic decisions in langlib
+## Semantic decisions in LangLib
 
 Our interpreter (`Langlib/Languages/Piet/Semantics.lean`) pins the
 underspecified corners down as follows, following the spec's
@@ -186,7 +186,7 @@ $ echo -n 12 | lake exe piet Langlib/Examples/Piet/square.ppm
 144
 ```
 
-Our examples are langlib originals, drawn in the least painterly Piet
+Our examples are LangLib originals, drawn in the least painterly Piet
 style there is: a straight corridor of blocks between black walls, ending
 in a white codel and a full-height bar that no (DP, CC) attempt can leave.
 Mondrian may keep his royalties.

@@ -1,5 +1,5 @@
 /-
-Axiom audit for langlib's computability results.
+Axiom audit for LangLib's computability results.
 
 A theorem resting on `sorryAx` type-checks perfectly well and looks exactly
 like a real one, so `lake build` succeeding is not evidence that a proof is

@@ -1,4 +1,4 @@
-# Brainfuck in langlib
+# Brainfuck in LangLib
 
 Urban Müller's 1993 tape machine, the library's exemplar language and
 primary compilation target. The full specification, history, and the exact
@@ -30,9 +30,9 @@ Input is read from stdin, output written to stdout. Exit codes: 0 halt,
 | `hello.b` | prints `Hello World!` | esolangs wiki (CC0) |
 | `cat.b` | copies input to output (use `--eof zero`) | folklore |
 | `rev.b` | reverses its input (use `--eof zero`) | folklore |
-| `add.b` | adds two ASCII digits | langlib original |
-| `countdown.b` | prints 9876543210 | langlib original |
-| `alphabet.b` | prints A to Z | langlib original |
+| `add.b` | adds two ASCII digits | LangLib original |
+| `countdown.b` | prints 9876543210 | LangLib original |
+| `alphabet.b` | prints A to Z | LangLib original |
 | `truth.b` | truth-machine: 0 halts, 1 prints 1 forever | esolangs wiki (CC0) |
 | `xkcd-random.b` | returns a random number (it prints 4) | esolangs wiki (CC0) |
 | `quine.b` | prints itself, byte for byte | Erik Bosman |

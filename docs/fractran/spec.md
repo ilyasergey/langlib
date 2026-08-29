@@ -6,7 +6,7 @@
   programming language for arithmetic", in T. M. Cover and B. Gopinath
   (eds.), *Open Problems in Communication and Computation*, Springer, 1987,
   pp. 4-26. Community reference: https://esolangs.org/wiki/Fractran
-* **In langlib**: `Langlib/Languages/Fractran/`, runner `lake exe fractran`,
+* **In LangLib**: `Langlib/Languages/Fractran/`, runner `lake exe fractran`,
   examples in `Langlib/Examples/Fractran/`
 
 ## History
@@ -56,7 +56,7 @@ The one-fraction program `3/2` is the classic first example: from
 n = 2^a * 3^b it moves one unit at a time from register 2 to register 3 and
 halts at 3^(a+b). An adder, in one fraction.
 
-## Concrete syntax in langlib
+## Concrete syntax in LangLib
 
 A `.ft` file is a whitespace-separated list of fractions:
 
@@ -71,7 +71,7 @@ fraction, a zero numerator, a zero denominator. Zero is rejected because
 Conway's fractions are positive rationals: a zero numerator would drive the
 state to 0 and a zero denominator is not a rational at all.
 
-## Semantic decisions in langlib
+## Semantic decisions in LangLib
 
 Recorded here per project policy; the implementation is
 `Langlib/Languages/Fractran/Semantics.lean`.
@@ -90,13 +90,13 @@ Recorded here per project policy; the implementation is
 4. **Halting** is running the scan and finding no applicable fraction. One
    step of the machine is one fraction application; the fuel parameter of
    the pure core bounds the number of steps (observing the halt itself costs
-   one further unit, as in the other langlib interpreters). The runner's
+   one further unit, as in the other LangLib interpreters). The runner's
    default budget is 200 million steps (`--fuel N` to change).
 5. **The starting value must be a positive integer.** Zero is rejected with
    a runtime error; negative values are unrepresentable (the decimal syntax
    has no sign). Conway's machine is defined on positive integers only.
 
-## I/O model (a langlib convention)
+## I/O model (a LangLib convention)
 
 FRACTRAN has no native I/O, so the runner's conventions are ours, not
 Conway's; they are part of the pure core's `Config` (like brainfuck's
@@ -116,7 +116,7 @@ is absent, it is read as a decimal integer from the first line of stdin.
   program computed, and PRIMEGAME starts at 2 = 2^1, which would otherwise
   prepend a spurious 1 to the primes. With this mode,
   `lake exe fractran --n 2 --out pow2 primegame.ft` prints 2, 3, 5, 7,
-  11, ... directly. This observation convention is langlib's; Conway's
+  11, ... directly. This observation convention is LangLib's; Conway's
   definition has no output at all.
 
 ## Trying it

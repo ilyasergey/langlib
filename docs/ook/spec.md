@@ -5,7 +5,7 @@
 * **Canonical sources**: Morgan-Mar's page,
   https://www.dangermouse.net/esoteric/ook.html; community page at
   https://esolangs.org/wiki/Ook! (CC0)
-* **In langlib**: `Langlib/Languages/Ook/`, runner `lake exe ook`,
+* **In LangLib**: `Langlib/Languages/Ook/`, runner `lake exe ook`,
   examples in `Langlib/Examples/Ook/`
 
 ## History
@@ -51,7 +51,7 @@ depending on the nuances of inflection, Ook! has no need of comments. The
 code itself serves perfectly well to describe what it does. Provided you
 are an orang-utan.
 
-## Semantic decisions in langlib
+## Semantic decisions in LangLib
 
 Parsing (`Langlib/Languages/Ook/Parser.lean`) produces a
 `Langlib.Brainfuck.Prog`; there is no separate Ook! AST. Our decisions:
@@ -96,7 +96,7 @@ available: its resources section happily links third-party Ook!
 interpreters, compilers, converters, and even a Palm OS IDE, in Ruby,
 Python, .NET, Perl, and Java. The language has been reimplemented dozens of
 times since 2001. The specification is a page of ideas (three words and a
-pairing table); langlib implements those ideas in its own words and code
+pairing table); LangLib implements those ideas in its own words and code
 and pastes none of the page's text.
 
 ## Trying it

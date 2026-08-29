@@ -115,7 +115,7 @@ def shell (page : Page) : String :=
   "</nav>\n</div>\n</header>\n" ++
   s!"<main class=\"page\" id=\"main\">\n{content}</main>\n" ++
   "<footer class=\"footer\">\n<div class=\"footer-inner\">\n" ++
-  "<div>langlib is Apache 2.0. The languages belong to the people who " ++
+  "<div>LangLib is Apache 2.0. The languages belong to the people who " ++
   "thought of them, and are credited on their pages.</div>\n" ++
   s!"<div><a href=\"{repoURL}\">Source on GitHub</a></div>\n" ++
   "</div>\n</footer>\n</body>\n</html>\n"

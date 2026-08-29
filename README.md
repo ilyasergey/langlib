@@ -1,4 +1,4 @@
-# langlib
+# LangLib: Esoteric Programming Languages, Formally
 
 An open-source library of the semantics of esoteric and fun programming
 languages, written in [Lean 4](https://lean-lang.org/).
@@ -20,7 +20,7 @@ collection is not only a museum: the claim that these machines are
 programmable is backed by a compiler whose correctness is proved rather
 than tested.
 
-For each language, langlib provides:
+For each language, LangLib provides:
 
 * a **specification** in `docs/<langname>/`, summarising the language's
   history, semantics, and quirks, with credits to its authors;
@@ -60,15 +60,16 @@ machine, and each one is audited by
 [status matrix](docs/README.md) and the plan is
 [Stage 8](docs/PLAN.md).
 
-Precision here has already paid. [Befunge-93](docs/befunge93/spec.md) is
-called incomplete because of its 80 by 25 playfield, but the real argument
-is that the reference implementation gives it byte-sized cells, making it
-a pushdown automaton. Our cells hold unbounded integers, so the language
-we implement *is* complete. Same name, two languages.
+[Befunge-93](docs/befunge93/spec.md) shows why this is worth doing. It is
+usually called incomplete because of its 80 by 25 playfield, but the real
+argument is that the reference implementation gives it byte-sized cells,
+making it a pushdown automaton. Our cells hold unbounded integers, so the
+language we implement *is* complete. Same name, two languages, and nobody
+noticed until the claim had to be written down precisely enough to prove.
 
 ## Verified compilers
 
-Two schemes, and langlib keeps both, because neither subsumes the other.
+Two schemes, and LangLib keeps both, because neither subsumes the other.
 
 **Bespoke** compilers are hand-written per target. They accept the whole of
 Turpentine, produce compact output, and are what
@@ -293,7 +294,7 @@ library expects from a submission.
 
 ## License
 
-langlib is distributed under the Apache 2.0 license (see [LICENSE](LICENSE)).
+LangLib is distributed under the Apache 2.0 license (see [LICENSE](LICENSE)).
 The library only implements languages whose designs are in the public domain
 or otherwise freely implementable; all example programs are either original,
 in the public domain, or credited to their authors under permissive terms.

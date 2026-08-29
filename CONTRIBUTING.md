@@ -1,4 +1,4 @@
-# Contributing to langlib
+# Contributing to LangLib
 
 Contributions are welcome: new languages, better docs, more examples, more
 tests, and proofs. This file explains what a contribution should look like.

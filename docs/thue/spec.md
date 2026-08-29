@@ -7,7 +7,7 @@
   preserved in Cat's Eye Technologies' distribution at
   https://github.com/catseye/Thue; the community reference point is
   https://esolangs.org/wiki/Thue
-* **In langlib**: `Langlib/Languages/Thue/`, runner `lake exe thue`,
+* **In LangLib**: `Langlib/Languages/Thue/`, runner `lake exe thue`,
   examples in `Langlib/Examples/Thue/`
 
 ## History: Axel Thue and semi-Thue systems
@@ -56,7 +56,7 @@ Output can only ever print strings that appear literally in the program, so
 a general-purpose `cat` is impossible in Thue. Programs that react to input
 compare it against fixed strings instead; the examples do exactly that.
 
-## Semantic decisions in langlib
+## Semantic decisions in LangLib
 
 Colagioia's C interpreter is the reference implementation, and our
 interpreter (`Langlib/Languages/Thue/Semantics.lean`) follows it except
@@ -109,7 +109,7 @@ where noted. Line references are to `thue.c` rev. 1.5.
    final line; we do not reproduce that bug.)
 9. **No size limits.** The original caps rules at 64 bytes, the rulebase at
    128 rules, and the state at 16KB. Ours are unbounded.
-10. **`--final-state` (langlib extension).** On a normal halt, the final
+10. **`--final-state` (LangLib extension).** On a normal halt, the final
     state and a newline are appended to the output. Many Thue programs,
     including the classic binary-increment example, compute in the state
     and never print; this flag (off by default, and pinned by its own test

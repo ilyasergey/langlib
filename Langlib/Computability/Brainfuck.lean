@@ -250,11 +250,10 @@ def toReg (r : Nat) : List Brainfuck.Op := rights (2 * r)
 def fromReg (r : Nat) : List Brainfuck.Op := lefts (2 * r)
 
 /-- Brainfuck code for incrementing the unary counter under the pointer.
-It first finds the zero just after the run.  The excursion to the following
-guide cell allocates enough zero tape for the next increment. -/
+It first finds the zero just after the run, fills the data and guide cells,
+then follows the guide column back to the guard row. -/
 def incAt (R : Nat) : List Brainfuck.Op :=
-  [.loop (rights (stride R)), .inc, .right, .inc] ++
-  rights (stride R) ++ lefts (stride R) ++ [.loop (lefts (stride R))] ++
+  [.loop (rights (stride R)), .inc, .right, .inc, .loop (lefts (stride R))] ++
   rights (stride R) ++ [.left]
 
 /-- Brainfuck code for decrementing a nonzero unary counter under the
@@ -473,6 +472,156 @@ theorem right_left_roundtrip (n : Nat) (s : Brainfuck.State) :
   refine ⟨t, ht, ?_, ?_⟩
   · have := ht.pointer; rw [moveRightN_pointer] at this; omega
   · intro p; rw [ht.tapeAt, moveRightN_tapeAt]
+
+theorem moveRightN_add (a b : Nat) (s : Brainfuck.State) :
+    moveRightN (a + b) s = moveRightN b (moveRightN a s) := by
+  induction a generalizing s with
+  | zero => simp [moveRightN]
+  | succ a ih =>
+    rw [Nat.succ_add]
+    simp only [moveRightN]
+    exact ih s.moveRight
+
+theorem tapeAt_setCell_self (s : Brainfuck.State) (v : UInt8) :
+    tapeAt { s with cell := v } s.left.length = v := by
+  simpa using tapeAt_pointer ({ s with cell := v } : Brainfuck.State)
+
+theorem tapeAt_setCell_of_ne (s : Brainfuck.State) (v : UInt8) (p : Nat)
+    (h : p ≠ s.left.length) :
+    tapeAt { s with cell := v } p = tapeAt s p := by
+  unfold tapeAt tapeCells
+  rw [List.getD_eq_getElem?_getD, List.getD_eq_getElem?_getD]
+  by_cases hp : p < s.left.length
+  · rw [List.getElem?_append_left (by simpa using hp),
+      List.getElem?_append_left (by simpa using hp)]
+  · have hgt : s.left.length < p := by omega
+    rw [List.getElem?_append_right (by simpa using (Nat.le_of_lt hgt) :
+        s.left.reverse.length ≤ p),
+      List.getElem?_append_right (by simpa using (Nat.le_of_lt hgt) :
+        s.left.reverse.length ≤ p)]
+    have heq : p - s.left.reverse.length = (p - s.left.length - 1) + 1 := by
+      simp only [List.length_reverse]
+      omega
+    rw [heq]
+    simp only [List.getElem?_cons_succ]
+
+/-- The Brainfuck tape and output represent a counter-machine state at the
+fixed base pointer. -/
+def Matches (R : Nat) (c : CState) (s : Brainfuck.State) : Prop :=
+  0 < R ∧
+  s.left.length = stride R ∧
+  s.output.size = c.out ∧
+  ∀ r, r < R → ∀ row,
+    tapeAt s (dataPos R row r) = (if row < c.regs r then 1 else 0) ∧
+    tapeAt s (guidePos R row r) = (if row < c.regs r then 1 else 0)
+
+theorem Matches.cell_at_reg {R : Nat} {c : CState} {s : Brainfuck.State}
+    (h : Matches R c s) {r : Nat} (hr : r < R) :
+    (moveRightN (2 * r) s).cell = (if 0 < c.regs r then 1 else 0) := by
+  rw [moveRightN_cell, h.2.1]
+  simpa [dataPos] using (h.2.2.2 r hr 0).1
+
+theorem Matches.output_push {R : Nat} {c : CState} {s : Brainfuck.State}
+    (h : Matches R c s) :
+    Matches R c.emitOne { s with output := s.output.push s.cell } := by
+  refine ⟨h.1, h.2.1, ?_, ?_⟩
+  · simp [CState.emitOne, h.2.2.1]
+  · exact h.2.2.2
+
+/-! ### Scanning a unary column -/
+
+theorem reaches_scan_right (step n : Nat) (s : Brainfuck.State) (k : List Brainfuck.Op)
+    (hcell : ∀ j, j ≤ n →
+      (moveRightN (step * j) s).cell = (if j < n then 1 else 0)) :
+    Reaches (bfExec cfg) (.loop (rights step) :: k, s)
+      (k, moveRightN (step * n) s) := by
+  induction n generalizing s with
+  | zero =>
+    have hz : s.cell = 0 := by
+      have hz₀ := hcell 0 (by omega)
+      simpa [moveRightN] using hz₀
+    simpa [moveRightN] using (reaches_bf_loop_zero (cfg := cfg) (k := k)
+      (body := rights step) hz)
+  | succ n ih =>
+    have hone : s.cell ≠ 0 := by
+      have := hcell 0 (by omega)
+      simp only [Nat.mul_zero, moveRightN, if_pos (by omega : 0 < n + 1)] at this
+      rw [this]
+      decide
+    have hshift : ∀ j, j ≤ n →
+        (moveRightN (step * j) (moveRightN step s)).cell =
+          (if j < n then 1 else 0) := by
+      intro j hj
+      rw [← moveRightN_add,
+        show step + step * j = step * (j + 1) by simp [Nat.mul_add, Nat.add_comm]]
+      have hs := hcell (j + 1) (by omega)
+      simpa only [Nat.add_lt_add_iff_right] using hs
+    have hloop := reaches_bf_loop_nonzero (cfg := cfg) (k := k)
+      (body := rights step) hone
+    have hmove := reaches_rights (cfg := cfg) step (.loop (rights step) :: k) s
+    have hrest := ih (moveRightN step s) hshift
+    have hchain := Reaches.trans hloop (Reaches.trans hmove hrest)
+    rw [← moveRightN_add] at hchain
+    simpa [Nat.mul_add, Nat.add_comm] using hchain
+
+theorem MoveLeftN.trans {a b : Nat} {s t u : Brainfuck.State}
+    (h₁ : MoveLeftN a s t) (h₂ : MoveLeftN b t u) : MoveLeftN (a + b) s u := by
+  induction h₁ with
+  | zero => simpa using h₂
+  | succ hm _ ih =>
+    rw [Nat.succ_add]
+    exact .succ hm (ih h₂)
+
+theorem reaches_scan_left (step n : Nat) (s : Brainfuck.State) (k : List Brainfuck.Op)
+    (hptr : step * n ≤ s.left.length)
+    (hcell : ∀ j, j ≤ n →
+      tapeAt s (s.left.length - step * j) = (if j < n then 1 else 0)) :
+    ∃ t, Reaches (bfExec cfg) (.loop (lefts step) :: k, s) (k, t) ∧
+      MoveLeftN (step * n) s t := by
+  induction n generalizing s with
+  | zero =>
+    have hz : s.cell = 0 := by
+      rw [← tapeAt_pointer]
+      have hz₀ := hcell 0 (by omega)
+      simpa using hz₀
+    refine ⟨s, reaches_bf_loop_zero (cfg := cfg) (k := k) (body := lefts step) hz, ?_⟩
+    simpa using MoveLeftN.zero s
+  | succ n ih =>
+    have hone : s.cell ≠ 0 := by
+      rw [← tapeAt_pointer]
+      have h₁ := hcell 0 (by omega)
+      simp only [Nat.mul_zero, Nat.sub_zero, if_pos (by omega : 0 < n + 1)] at h₁
+      rw [h₁]
+      decide
+    have hsle : step ≤ s.left.length := by
+      have : step * (n + 1) = step * n + step := Nat.mul_succ step n
+      omega
+    obtain ⟨s₁, hm⟩ := exists_moveLeftN hsle
+    have hp₁ : s₁.left.length + step = s.left.length := hm.pointer
+    have hptr₁ : step * n ≤ s₁.left.length := by
+      have htotal : step * (n + 1) ≤ s.left.length := hptr
+      rw [Nat.mul_succ] at htotal
+      omega
+    have hcell₁ : ∀ j, j ≤ n →
+        tapeAt s₁ (s₁.left.length - step * j) = (if j < n then 1 else 0) := by
+      intro j hj
+      rw [hm.tapeAt]
+      have hindex : s₁.left.length - step * j =
+          s.left.length - step * (j + 1) := by
+        have hjle : step * j ≤ s₁.left.length := by
+          exact Nat.le_trans (Nat.mul_le_mul_left step hj) hptr₁
+        rw [Nat.mul_succ]
+        omega
+      rw [hindex]
+      have hs := hcell (j + 1) (by omega)
+      simpa only [Nat.add_lt_add_iff_right] using hs
+    obtain ⟨t, hreach, htail⟩ := ih s₁ hptr₁ hcell₁
+    have hloop := reaches_bf_loop_nonzero (cfg := cfg) (k := k)
+      (body := lefts step) hone
+    have hmove := reaches_lefts (cfg := cfg) hm (.loop (lefts step) :: k)
+    refine ⟨t, Reaches.trans hloop (Reaches.trans hmove hreach), ?_⟩
+    rw [Nat.mul_succ, Nat.add_comm]
+    exact MoveLeftN.trans hm htail
 
 
 end Langlib.Computability.URMBrainfuck

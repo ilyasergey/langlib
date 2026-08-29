@@ -5,7 +5,7 @@
 * **Canonical sources**: Müller's original distribution (`bf.tar.gz`, Aminet,
   1993, including a 240-byte Amiga compiler); the community reference point
   today is https://esolangs.org/wiki/Brainfuck
-* **In langlib**: `Langlib/Languages/Brainfuck/`, runner `lake exe brainfuck`,
+* **In LangLib**: `Langlib/Languages/Brainfuck/`, runner `lake exe brainfuck`,
   examples in `Langlib/Examples/Brainfuck/`
 
 ## History
@@ -16,7 +16,7 @@ compiler he could manage. The Amiga compiler in the original distribution was
 (Corrado Böhm, 1964) had already shown sufficient for computability, though
 Müller reportedly did not know of P'' at the time. Brainfuck went on to
 become the fruit fly of esoteric programming: the language everything else
-is compared to, translated into, and compiled through. langlib is no
+is compared to, translated into, and compiled through. LangLib is no
 exception; it is our primary compilation target.
 
 ## The machine
@@ -45,7 +45,7 @@ bracket. Idiomatic prose comments are wrapped in `[ ]` at a point where the
 current cell is known to be zero, e.g. at the very start of a program, so
 the loop body never runs; our example files do this.
 
-## Semantic decisions in langlib
+## Semantic decisions in LangLib
 
 The original distribution left corners underspecified, and implementations
 have disagreed ever since (see the "Implementation issues" section of the

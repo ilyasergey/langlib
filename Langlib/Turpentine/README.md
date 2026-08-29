@@ -1,6 +1,6 @@
 # Turpentine
 
-The front-end language of langlib: a small, Dafny-flavoured imperative
+The front-end language of LangLib: a small, Dafny-flavoured imperative
 language that type-checks, runs on a reference interpreter, and compiles to
 the esolangs of the library. It is named for the solvent: a Turing tarpit
 is a language where everything is possible and nothing is easy, and

@@ -110,13 +110,13 @@ def homePage (langs : List Lang) (soon : List Lang) (bfData bfPlayground : Strin
   let cards := String.join (langs.map card) ++ String.join (soon.map soonCard)
   let body :=
     "<section class=\"hero\">\n" ++
-    "<h1>langlib</h1>\n" ++
+    "<h1>LangLib</h1>\n" ++
     "<p class=\"tagline\">The semantics of esoteric programming languages, written down " ++
     "precisely and made to run. In Lean 4.</p>\n" ++
     "<p class=\"lead\">Esoteric languages are not meant for realistic software. They exist " ++
     "to make a point, to win a bet, to parody a committee, or simply to be difficult. Fifty " ++
     "years of them have accumulated into a real body of design knowledge, scattered across " ++
-    "personal pages, wikis and long-dead FTP servers. langlib collects the designs, pins down " ++
+    "personal pages, wikis and long-dead FTP servers. LangLib collects the designs, pins down " ++
     "what each one actually means, and ships an interpreter you can run.</p>\n" ++
     "<p>Every language here has a specification with sources and credits, a parser, a pure " ++
     "fuel-based reference interpreter, a standalone runner, example programs, and golden " ++
@@ -161,7 +161,7 @@ def homePage (langs : List Lang) (soon : List Lang) (bfData bfPlayground : Strin
     "proved, language by language.</p></a>\n" ++
     "<a class=\"card\" href=\"/related/\"><span class=\"card-title\">Related work</span>" ++
     "<p class=\"card-note\">Other people have formalised esolangs too. Here is who, and how " ++
-    "langlib differs.</p></a>\n" ++
+    "LangLib differs.</p></a>\n" ++
     "<a class=\"card\" href=\"/roadmap/\"><span class=\"card-title\">Roadmap</span>" ++
     "<p class=\"card-note\">Languages we want next, and what makes a good candidate.</p></a>\n" ++
     "<a class=\"card\" href=\"/contributing/\"><span class=\"card-title\">Contributing</span>" ++
@@ -170,7 +170,7 @@ def homePage (langs : List Lang) (soon : List Lang) (bfData bfPlayground : Strin
     "</div>\n" ++
     playgroundScripts ["brainfuck"]
   { url := "/", file := "index.html"
-    title := "langlib — the semantics of esoteric programming languages, in Lean 4"
+    title := "LangLib — the semantics of esoteric programming languages, in Lean 4"
     description :=
       "A Lean 4 library of esoteric programming language semantics: specifications, " ++
       "reference interpreters and runnable examples for brainfuck, whitespace, malbolge, " ++
@@ -193,7 +193,7 @@ def languagePage (published : List Published) (all : List Lang) (l : Lang)
     sourceNote path ++
     scripts
   { url := s!"/{l.slug}/", file := s!"{l.slug}/index.html"
-    title := s!"{l.name} — langlib"
+    title := s!"{l.name} — LangLib"
     description := l.blurb
     body := body, toc := doc.toc }
 
@@ -257,15 +257,15 @@ def playgroundPage (bfData bfPg wsData wsPg dfData dfPg : String) : Page :=
     "library's own example programs and checks the documented edge cases.</p>\n" ++
     playgroundScripts ["brainfuck", "whitespace", "deadfish"]
   { url := "/playground/", file := "playground/index.html"
-    title := "Playground — langlib"
+    title := "Playground — LangLib"
     description :=
       "Run brainfuck, whitespace and Deadfish in your browser, one step at a time, on the " ++
-      "example programs from the langlib library."
+      "example programs from the LangLib library."
     body := body, wide := true }
 
 def notFoundPage : Page :=
   { url := "/404.html", file := "404.html"
-    title := "Not found — langlib"
+    title := "Not found — LangLib"
     description := "No such page."
     body :=
       "<h1>Nothing here</h1>\n" ++
@@ -382,29 +382,29 @@ def main (args : List String) : IO UInt32 := do
     [ homePage allLangs stillSoon bfData bfPg turpExample ] ++
     languagePages ++
     [ docPage published "/turpentine/" "turpentine/index.html" "docs/turpentine/spec.md"
-        "Turpentine — langlib" turpSource
+        "Turpentine — LangLib" turpSource
         (lead :=
           "<p class=\"muted\"><code>lake exe turpentine</code> · " ++
           s!"<a href=\"{repoURL}/tree/{repoBranch}/Langlib/Examples/Turpentine/\">examples</a> · " ++
           s!"<a href=\"{repoURL}/tree/{repoBranch}/Langlib/Turpentine/\">Lean source</a></p>\n")
         (kick := "Front end")
     , docPage published "/status/" "status/index.html" "docs/README.md"
-        "Status matrix — langlib" statusSource
+        "Status matrix — LangLib" statusSource
         (lead := "<p>What exists, per language: the specification, the parser, the " ++
           "interpreter, the examples and tests, the runner, the compiler from Turpentine, " ++
           "and the proof that the compiler is correct. The last column is the long game.</p>\n")
         (kick := "Where things stand")
         (transform := colourStatus) (wide := true)
     , docPage published "/related/" "related/index.html" "docs/RELATED.md"
-        "Related work — langlib" relatedSource (kick := "Elsewhere")
+        "Related work — LangLib" relatedSource (kick := "Elsewhere")
     , docPage published "/roadmap/" "roadmap/index.html" "docs/ROADMAP.md"
-        "Roadmap — langlib" roadmapSource (kick := "What is next")
+        "Roadmap — LangLib" roadmapSource (kick := "What is next")
     , docPage published "/testing/" "testing/index.html" "docs/TESTING.md"
-        "Testing — langlib" testingSource (kick := "How we know")
+        "Testing — LangLib" testingSource (kick := "How we know")
     , docPage published "/verification/" "verification/index.html" "docs/verification.md"
-        "Verification pipeline — langlib" verifySource (kick := "The long game")
+        "Verification pipeline — LangLib" verifySource (kick := "The long game")
     , docPage published "/contributing/" "contributing/index.html" "CONTRIBUTING.md"
-        "Contributing — langlib" contribSource (kick := "Join in")
+        "Contributing — LangLib" contribSource (kick := "Join in")
     , playgroundPage bfData bfPg wsData wsPg dfData dfPg
     , notFoundPage
     ]

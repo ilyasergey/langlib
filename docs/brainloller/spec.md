@@ -3,7 +3,7 @@
 * **Author**: Lode Vandevenne
 * **Year**: 2005
 * **Canonical source**: https://esolangs.org/wiki/Brainloller (CC0)
-* **In langlib**: `Langlib/Languages/Brainloller/`, runner
+* **In LangLib**: `Langlib/Languages/Brainloller/`, runner
   `lake exe brainloller`, examples in `Langlib/Examples/Brainloller/`
 
 ## The idea
@@ -38,7 +38,7 @@ image, decoding ends and the collected brainfuck program runs. The
 rotation colours exist so a long program can snake through a rectangle
 instead of being one endless row.
 
-## Semantic decisions in langlib
+## Semantic decisions in LangLib
 
 1. **Colours match exactly.** Only the ten RGB values above mean
    anything; all 16777206 others are no-ops (that is the spec, and it is
@@ -100,6 +100,6 @@ Hello World!
 ```
 
 Both shipped examples were produced by our own encoder from the brainfuck
-examples, which makes them langlib originals of programs that were
+examples, which makes them LangLib originals of programs that were
 already CC0 or folklore.
 

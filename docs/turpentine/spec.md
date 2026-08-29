@@ -1,11 +1,11 @@
 # Turpentine
 
-* **Role**: the human-readable front end of langlib; not an esoteric
+* **Role**: the human-readable front end of LangLib; not an esoteric
   language itself, but the language that compiles to them
 * **File extension**: `.turp`
 * **Inspiration**: [Velvet](https://github.com/verse-lab/velvet), a
   Dafny-flavoured verification language shallowly embedded in Lean
-* **In langlib**: `Langlib/Turpentine/`, runner `lake exe turpentine`, examples in
+* **In LangLib**: `Langlib/Turpentine/`, runner `lake exe turpentine`, examples in
   `Langlib/Examples/Turpentine/`
 
 ## The name

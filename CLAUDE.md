@@ -1,6 +1,6 @@
-# langlib project policies
+# LangLib project policies
 
-langlib is a Lean 4 library of esoteric programming language semantics, with a
+LangLib is a Lean 4 library of esoteric programming language semantics, with a
 human-readable front-end language (Turpentine) and verified compilers from it.
 
 ## Toolchain and layout

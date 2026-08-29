@@ -15,7 +15,7 @@
   ("This interpreter isn't even Copylefted; I hereby place it in the public
   domain"). Scheffer likewise placed all his Malbolge work in the public
   domain.
-* **In langlib**: `Langlib/Languages/Malbolge/`, runner `lake exe malbolge`,
+* **In LangLib**: `Langlib/Languages/Malbolge/`, runner `lake exe malbolge`,
   examples in `Langlib/Examples/Malbolge/`
 
 ## History
@@ -53,7 +53,7 @@ words of storage Malbolge is a bounded-storage machine, so Turing
 completeness is off the table; Scheffer's thought experiment "Malbolge-T"
 (let the machine re-read its own output) and Ørjan Johansen's 2007 dialect
 Malbolge Unshackled remove the bound. Unshackled is Turing complete, which
-was settled in 2020 by MalbolgeLisp, and langlib implements it too; see
+was settled in 2020 by MalbolgeLisp, and LangLib implements it too; see
 `docs/malbolge-unshackled/spec.md`.
 
 ## The machine
@@ -137,7 +137,7 @@ translation table, `xlat1`: the dispatch is written there as
 .v%{gJh4G\-=O@5`_3i<?Z';FNQuY]szf$!BS/|t:Pn6^Ha
 ```
 
-which is the same function as the numeric dispatch in the table (langlib
+which is the same function as the numeric dispatch in the table (LangLib
 uses the numbers; `xlat1` is that permutation written out). The encryption
 table `xlat2`, applied in step 3, maps the printable characters
 `!` .. `~` (33..126), in order, to
@@ -152,7 +152,7 @@ you write stays written: every instruction executes at most once before
 turning into something else, and programming becomes a question of which
 `xlat2` cycles you can live in.
 
-## Semantic decisions in langlib
+## Semantic decisions in LangLib
 
 Malbolge's printed specification and its reference interpreter disagree in
 several places. The community convention, stated explicitly by Scheffer and

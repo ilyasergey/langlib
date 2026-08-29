@@ -9,7 +9,7 @@
   O. Mazonka and A. Kolodin, *A Simple Multi-Processor Computer Based on
   Subleq*, arXiv:1106.2593 (2011); Mazonka's tool page at
   http://mazonka.com/subleq/
-* **In langlib**: `Langlib/Languages/Subleq/`, runner `lake exe subleq`,
+* **In LangLib**: `Langlib/Languages/Subleq/`, runner `lake exe subleq`,
   examples in `Langlib/Examples/Subleq/`
 
 ## History
@@ -25,7 +25,7 @@ subleq does arrays, pointers, and everything else a grown-up instruction
 set would have opcodes for. Oleg Mazonka built the standard toolchain (the
 `sqasm` assembler and `sqrun` interpreter), a C compiler targeting subleq,
 and, with Alex Kolodin, an FPGA board running 28 subleq processors, on the
-theory that a processor this small is worth having many of. langlib wants
+theory that a processor this small is worth having many of. LangLib wants
 subleq as a compilation target: code generation for a machine with one
 instruction is refreshingly free of instruction selection.
 
@@ -53,7 +53,7 @@ The machine halts when `pc` goes negative (the idiomatic exit is
 end of memory. Negative operands other than the `-1` I/O addresses are
 errors. That is the whole language.
 
-## Semantic decisions in langlib
+## Semantic decisions in LangLib
 
 Subleq has no owner and therefore no single spec; the esolangs page and
 Mazonka's tools are the de-facto references, and where they are silent we

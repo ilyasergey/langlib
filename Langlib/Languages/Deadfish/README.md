@@ -1,4 +1,4 @@
-# Deadfish in langlib
+# Deadfish in LangLib
 
 Jonathan Todd Skinner's 2006 public-domain language: one integer
 accumulator, the four commands `i` `d` `s` `o`, output only, no control
@@ -39,7 +39,7 @@ line of a `.df` file is itself a noise character and prints a newline.
 |------|--------------|--------|
 | `hello.df` | prints the ASCII codes of `Hello, world!`, one per line | esolangs wiki (CC0) |
 | `xkcd-random.df` | `iiso`: prints the random number 4 | esolangs wiki (CC0) |
-| `powers.df` | prints 2, 4, 16, then 0, 0: squaring lands on 256 and resets | langlib original |
+| `powers.df` | prints 2, 4, 16, then 0, 0: squaring lands on 256 and resets | LangLib original |
 
 ## Tests
 

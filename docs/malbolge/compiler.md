@@ -61,5 +61,5 @@ Deadfish's and Befunge-93's.
 The bound is lifted by Lou Scheffer's Malbolge-T (the program may re-read
 its own output) and by Ørjan Johansen's Malbolge Unshackled (2007), which
 makes values and addresses unbounded. Unshackled is Turing complete,
-settled in 2020 by MalbolgeLisp, and langlib implements it, which is why
+settled in 2020 by MalbolgeLisp, and LangLib implements it, which is why
 it, and not this language, is where the compiler effort goes.

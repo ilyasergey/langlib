@@ -6,7 +6,7 @@
   (Haskell, GPL), written at the University of Durham; preserved at
   https://github.com/wspace/whitespace-haskell. Community reference point:
   https://esolangs.org/wiki/Whitespace
-* **In langlib**: `Langlib/Languages/Whitespace/`, runner `lake exe whitespace`,
+* **In LangLib**: `Langlib/Languages/Whitespace/`, runner `lake exe whitespace`,
   examples in `Langlib/Examples/Whitespace/`
 
 ## History
@@ -24,7 +24,7 @@ dependently typed language Idris, which handles whitespace more
 conventionally.
 
 Under the invisible syntax sits a friendly little stack machine with a heap
-and subroutines, which is why langlib wants it: of all our esolangs it is
+and subroutines, which is why LangLib wants it: of all our esolangs it is
 the most pleasant compilation target (see `docs/PLAN.md`, Stage 4).
 
 ## The machine
@@ -114,7 +114,7 @@ result: the value pushed earlier is the left operand.
 Note that both read commands write to the heap, not the stack, and pop the
 target address first.
 
-## Semantic decisions in langlib
+## Semantic decisions in LangLib
 
 The tutorial pins down the instruction set but not the failure modes. Our
 reference for those is the behaviour of `wspace` 0.3, the authors' Haskell
@@ -165,7 +165,7 @@ Our interpreter (`Langlib/Languages/Whitespace/Semantics.lean`) does the followi
     and stores its value; `outchar` requires a value in 0..255 and emits
     that byte, anything else being a runtime error. The reference is
     `Char`-based, and 2003-era GHC wrote the low byte of the character;
-    byte orientation matches langlib's shared I/O model and keeps `cat`
+    byte orientation matches LangLib's shared I/O model and keeps `cat`
     byte-exact.
 11. **`readnum` reads one line** (up to and excluding `\n`; a final
     unterminated line counts) and parses it as a base-10 integer: optional
@@ -218,7 +218,7 @@ reference implementation has no way to test for EOF either (see decision
 
 ```
 $ lake exe whitespace Langlib/Examples/Whitespace/cat.ws < README.md
-# langlib
+# LangLib: Turing Tarpits, Formally
 ...
 whitespace: runtime error: read char at end of input
 ```

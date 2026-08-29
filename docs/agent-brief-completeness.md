@@ -6,7 +6,7 @@ explains why the task is shaped the way it is; read it before adapting.
 
 ## Why these two jobs are one job
 
-A Turing-completeness proof in langlib is not a certificate filed away.
+A Turing-completeness proof in LangLib is not a certificate filed away.
 `TuringComplete L` ([Class.lean:80](../Langlib/Computability/Class.lean#L80))
 is a *witness*: it carries a real compiler from the unlimited register
 machine into `L`, plus a proof that the compiled program simulates. So the
@@ -51,10 +51,10 @@ proved, not to be run.
 
 ## The brief
 
-> You are proving **<LANG>** Turing complete in langlib, a Lean 4 library of
+> You are proving **<LANG>** Turing complete in LangLib, a Lean 4 library of
 > esoteric programming language semantics at
 > `/Users/ilyasergey/Work/Misc/langlib`. Toolchain **Lean 4.33.0**. Run
-> everything from the repo root. langlib depends on cslib and Mathlib
+> everything from the repo root. LangLib depends on cslib and Mathlib
 > (already wired; do not touch `lakefile.toml`).
 >
 > This proof also gates a verified Turpentine-to-<LANG> compiler: see

@@ -524,4 +524,528 @@ theorem length_compileStmt (slots : List Slot) (sb : Nat) :
   | readIntIndex x i => intro q code h; rw [compileStmt] at h; simp at h
   | readByteIndex x i => intro q code h; rw [compileStmt] at h; simp at h
 
+/-! ## Running the compiled machine
+
+`Langlib.Computability.URM.run` is a fuel-indexed interpreter, which is
+exactly the shape `Langlib.Common.Reaches` is stated over, so the fuel
+bookkeeping below is the same exact-cost algebra the Whitespace completeness
+proof uses: `Reaches (Ex P) s t` says a run from `s` costs a fixed number of
+steps and then continues as a run from `t`, and the costs compose by
+`Reaches.trans`. -/
+
+/-- The URM interpreter as a fuel-indexed function. -/
+abbrev Ex (P : UProg) : Nat → Cslib.URM.State → Cslib.URM.State :=
+  fun f s => Langlib.Computability.URM.run P s f
+
+/-- `code` occupies consecutive positions of `P` from `p`. -/
+def CodeAt (P : UProg) (p : Nat) (code : List UInstr) : Prop :=
+  ∀ j, j < code.length → P[p + j]? = code[j]?
+
+theorem CodeAt.get {P : UProg} {p : Nat} {code : List UInstr} (h : CodeAt P p code)
+    (j : Nat) (hj : j < code.length) : P[p + j]? = some code[j] := by
+  rw [h j hj, List.getElem?_eq_getElem hj]
+
+theorem CodeAt.head {P : UProg} {p : Nat} {code : List UInstr} (h : CodeAt P p code)
+    (hj : 0 < code.length) : P[p]? = some code[0] := by
+  have := h.get 0 hj
+  simpa using this
+
+theorem CodeAt.left {P : UProg} {p : Nat} {c₁ c₂ : List UInstr}
+    (h : CodeAt P p (c₁ ++ c₂)) : CodeAt P p c₁ := by
+  intro j hj
+  rw [h j (by simp; omega), List.getElem?_append_left hj]
+
+theorem CodeAt.right {P : UProg} {p : Nat} {c₁ c₂ : List UInstr}
+    (h : CodeAt P p (c₁ ++ c₂)) : CodeAt P (p + c₁.length) c₂ := by
+  intro j hj
+  rw [show p + c₁.length + j = p + (c₁.length + j) from by omega,
+    h (c₁.length + j) (by simp; omega),
+    List.getElem?_append_right (Nat.le_add_right _ _)]
+  simp
+
+theorem codeAt_of_eq {P : UProg} {p : Nat} {c₁ c₂ : List UInstr}
+    (h : CodeAt P p c₁) (he : c₂ = c₁) : CodeAt P p c₂ := he ▸ h
+
+/-- Peel one instruction off the front of a placed block. -/
+theorem CodeAt.cons {P : UProg} {p : Nat} {a : UInstr} {c : List UInstr}
+    (h : CodeAt P p (a :: c)) : P[p]? = some a ∧ CodeAt P (p + 1) c := by
+  have h0 := h.head (by simp)
+  rw [List.getElem_cons_zero] at h0
+  refine ⟨h0, ?_⟩
+  have h' : CodeAt P p ([a] ++ c) := by simpa using h
+  simpa using h'.right (c₁ := [a])
+
+/-! ### Single instructions -/
+
+theorem reaches_step {P : UProg} {s s' : Cslib.URM.State}
+    (h : Langlib.Computability.URM.step P s = some s') : Reaches (Ex P) s s' :=
+  Reaches.one fun f => by
+    show Langlib.Computability.URM.run P s (f + 1) = _
+    simp only [Langlib.Computability.URM.run, h]
+
+theorem reaches_Z {P : UProg} {p n : Nat} {regs : Cslib.URM.Regs}
+    (h : P[p]? = some (.Z n)) :
+    Reaches (Ex P) ⟨p, regs⟩ ⟨p + 1, regs.write n 0⟩ :=
+  reaches_step (by simp only [Langlib.Computability.URM.step, h])
+
+theorem reaches_S {P : UProg} {p n : Nat} {regs : Cslib.URM.Regs}
+    (h : P[p]? = some (.S n)) :
+    Reaches (Ex P) ⟨p, regs⟩ ⟨p + 1, regs.write n (regs n + 1)⟩ :=
+  reaches_step (by simp only [Langlib.Computability.URM.step, h]; rfl)
+
+theorem reaches_T {P : UProg} {p m n : Nat} {regs : Cslib.URM.Regs}
+    (h : P[p]? = some (.T m n)) :
+    Reaches (Ex P) ⟨p, regs⟩ ⟨p + 1, regs.write n (regs m)⟩ :=
+  reaches_step (by simp only [Langlib.Computability.URM.step, h]; rfl)
+
+theorem reaches_J_eq {P : UProg} {p m n t : Nat} {regs : Cslib.URM.Regs}
+    (h : P[p]? = some (.J m n t)) (heq : regs m = regs n) :
+    Reaches (Ex P) ⟨p, regs⟩ ⟨t, regs⟩ :=
+  reaches_step (by
+    simp only [Langlib.Computability.URM.step, h]
+    rw [if_pos (show regs.read m = regs.read n from heq)])
+
+theorem reaches_J_ne {P : UProg} {p m n t : Nat} {regs : Cslib.URM.Regs}
+    (h : P[p]? = some (.J m n t)) (hne : regs m ≠ regs n) :
+    Reaches (Ex P) ⟨p, regs⟩ ⟨p + 1, regs⟩ :=
+  reaches_step (by
+    simp only [Langlib.Computability.URM.step, h]
+    rw [if_neg (show ¬ (regs.read m = regs.read n) from hne)])
+
+/-- An unconditional jump: `J 0 0 t` compares register 0 with itself. -/
+theorem reaches_jump {P : UProg} {p t : Nat} {regs : Cslib.URM.Regs}
+    (h : P[p]? = some (.J 0 0 t)) : Reaches (Ex P) ⟨p, regs⟩ ⟨t, regs⟩ :=
+  reaches_J_eq h rfl
+
+/-! ### Registers -/
+
+theorem write_self (σ : Cslib.URM.Regs) (n v : Nat) : σ.write n v n = v := by
+  simp [Cslib.URM.Regs.write]
+
+theorem write_ne (σ : Cslib.URM.Regs) {n k : Nat} (h : k ≠ n) (v : Nat) :
+    σ.write n v k = σ k := by
+  simp [Cslib.URM.Regs.write, Function.update_of_ne h]
+
+/-- `regs'` agrees with `regs` on every register below `d`: the frame
+condition every macro satisfies, since a macro at destination `d` writes only
+`d` and its scratch registers above it. -/
+def Frame (d : Nat) (regs regs' : Cslib.URM.Regs) : Prop :=
+  ∀ k, k < d → regs' k = regs k
+
+theorem Frame.rfl' (d : Nat) (regs : Cslib.URM.Regs) : Frame d regs regs :=
+  fun _ _ => rfl
+
+theorem Frame.trans {d : Nat} {a b c : Cslib.URM.Regs} (h₁ : Frame d a b)
+    (h₂ : Frame d b c) : Frame d a c := fun k hk => (h₂ k hk).trans (h₁ k hk)
+
+theorem Frame.mono {d e : Nat} {a b : Cslib.URM.Regs} (h : Frame d a b) (he : e ≤ d) :
+    Frame e a b := fun k hk => h k (Nat.lt_of_lt_of_le hk he)
+
+theorem Frame.write {d n : Nat} (regs : Cslib.URM.Regs) (v : Nat) (hn : d ≤ n) :
+    Frame d regs (regs.write n v) := fun k hk => write_ne regs (by omega) v
+
+/-! ### Loading a constant -/
+
+theorem reaches_incs (P : UProg) (d : Nat) : ∀ (n q : Nat) (regs : Cslib.URM.Regs),
+    CodeAt P q (List.replicate n (Cslib.URM.Instr.S d)) →
+    ∃ regs', Reaches (Ex P) ⟨q, regs⟩ ⟨q + n, regs'⟩ ∧ regs' d = regs d + n ∧
+      ∀ k, k ≠ d → regs' k = regs k := by
+  intro n
+  induction n with
+  | zero => intro q regs _; exact ⟨regs, by simpa using Reaches.refl _ _, by simp, fun _ _ => rfl⟩
+  | succ n ih =>
+    intro q regs hcode
+    have h0 : P[q]? = some (Cslib.URM.Instr.S d) := by
+      have := hcode.head (by simp)
+      simpa using this
+    have hrest : CodeAt P (q + 1) (List.replicate n (Cslib.URM.Instr.S d)) := by
+      intro j hj
+      have := hcode (j + 1) (by simp only [List.length_replicate] at hj ⊢; omega)
+      rw [show q + (j + 1) = q + 1 + j from by omega] at this
+      rw [this]
+      simp [List.replicate]
+    obtain ⟨regs', hr, hd, hk⟩ := ih (q + 1) (regs.write d (regs d + 1)) hrest
+    refine ⟨regs', ?_, ?_, ?_⟩
+    · rw [show q + (n + 1) = q + 1 + n from by omega]
+      exact Reaches.trans (reaches_S h0) hr
+    · rw [hd, write_self]; omega
+    · intro k hkd; rw [hk k hkd, write_ne _ hkd]
+
+theorem reaches_constCode (P : UProg) (q d n : Nat) (regs : Cslib.URM.Regs)
+    (hcode : CodeAt P q (constCode d n)) :
+    ∃ regs', Reaches (Ex P) ⟨q, regs⟩ ⟨q + n + 1, regs'⟩ ∧ regs' d = n ∧
+      Frame d regs regs' := by
+  have h0 : P[q]? = some (Cslib.URM.Instr.Z d) := by
+    have := hcode.head (by simp [constCode])
+    simpa [constCode] using this
+  have hrest : CodeAt P (q + 1) (List.replicate n (Cslib.URM.Instr.S d)) := by
+    intro j hj
+    have := hcode (j + 1) (by simp [constCode] at hj ⊢; omega)
+    rw [show q + (j + 1) = q + 1 + j from by omega] at this
+    rw [this]
+    simp [constCode]
+  obtain ⟨regs', hr, hd, hk⟩ := reaches_incs P d n (q + 1) (regs.write d 0) hrest
+  refine ⟨regs', ?_, ?_, ?_⟩
+  · rw [show q + n + 1 = q + 1 + n from by omega]
+    exact Reaches.trans (reaches_Z h0) hr
+  · rw [hd, write_self]; omega
+  · intro k hk'
+    rw [hk k (by omega), write_ne _ (by omega)]
+
+/-! ### Addition
+
+The loop at `q+1 … q+4` counts the scratch register `d+2` up to the second
+operand, incrementing `d` each time. The induction is on how far the counter
+still has to go. -/
+
+theorem reaches_addLoop (P : UProg) (q d : Nat) (hcode : CodeAt P q (addCode q d)) :
+    ∀ (n : Nat) (regs : Cslib.URM.Regs), regs (d+2) + n = regs (d+1) →
+      ∃ regs', Reaches (Ex P) ⟨q+1, regs⟩ ⟨q+5, regs'⟩ ∧ regs' d = regs d + n ∧
+        ∀ k, k ≠ d → k ≠ d+2 → regs' k = regs k := by
+  have h1 : P[q+1]? = some (Cslib.URM.Instr.J (d+2) (d+1) (q+5)) := by
+    have := hcode.get 1 (by simp [addCode]); simpa [addCode] using this
+  have h2 : P[q+2]? = some (Cslib.URM.Instr.S d) := by
+    have := hcode.get 2 (by simp [addCode]); simpa [addCode] using this
+  have h3 : P[q+3]? = some (Cslib.URM.Instr.S (d+2)) := by
+    have := hcode.get 3 (by simp [addCode]); simpa [addCode] using this
+  have h4 : P[q+4]? = some (Cslib.URM.Instr.J 0 0 (q+1)) := by
+    have := hcode.get 4 (by simp [addCode]); simpa [addCode] using this
+  intro n
+  induction n with
+  | zero =>
+    intro regs h
+    exact ⟨regs, reaches_J_eq h1 (by omega), by omega, fun _ _ _ => rfl⟩
+  | succ n ih =>
+    intro regs h
+    have hne : regs (d+2) ≠ regs (d+1) := by omega
+    have e1 : (regs.write d (regs d + 1)) (d+2) = regs (d+2) := write_ne _ (by omega) _
+    have e2 : (regs.write d (regs d + 1)) (d+1) = regs (d+1) := write_ne _ (by omega) _
+    obtain ⟨regs', hr, hv, hk⟩ := ih
+      (((regs.write d (regs d + 1)).write (d+2)
+        ((regs.write d (regs d + 1)) (d+2) + 1))) (by
+        rw [write_self, write_ne _ (show d+1 ≠ d+2 from by omega), e1, e2]; omega)
+    refine ⟨regs', ?_, ?_, ?_⟩
+    · refine Reaches.trans (reaches_J_ne h1 hne) ?_
+      refine Reaches.trans (reaches_S h2) ?_
+      refine Reaches.trans (reaches_S h3) ?_
+      exact Reaches.trans (reaches_jump h4) hr
+    · rw [hv, write_ne _ (show d ≠ d+2 from by omega), write_self]; omega
+    · intro k hkd hk2
+      rw [hk k hkd hk2, write_ne _ hk2, write_ne _ hkd]
+
+theorem reaches_addCode (P : UProg) (q d : Nat) (regs : Cslib.URM.Regs)
+    (hcode : CodeAt P q (addCode q d)) :
+    ∃ regs', Reaches (Ex P) ⟨q, regs⟩ ⟨q + 5, regs'⟩ ∧
+      regs' d = regs d + regs (d+1) ∧ Frame d regs regs' := by
+  have h0 : P[q]? = some (Cslib.URM.Instr.Z (d+2)) := by
+    have := hcode.head (by simp [addCode]); simpa [addCode] using this
+  obtain ⟨regs', hr, hv, hk⟩ := reaches_addLoop P q d hcode (regs (d+1))
+    (regs.write (d+2) 0) (by rw [write_self, write_ne _ (show d+1 ≠ d+2 from by omega)]; omega)
+  refine ⟨regs', Reaches.trans (reaches_Z h0) hr, ?_, ?_⟩
+  · rw [hv, write_ne _ (show d ≠ d+2 from by omega)]
+  · intro k hkd
+    rw [hk k (by omega) (by omega), write_ne _ (by omega)]
+
+/-! ### Multiplication
+
+Two nested counting loops: the outer one at `q+2 … q+9` runs `a` times, and
+each round the inner one at `q+4 … q+7` adds `b` to the accumulator `d+2`. -/
+
+private theorem reaches_mulInner (P : UProg) (q d : Nat)
+    (h4 : P[q+4]? = some (Cslib.URM.Instr.J (d+4) (d+1) (q+8)))
+    (h5 : P[q+5]? = some (Cslib.URM.Instr.S (d+2)))
+    (h6 : P[q+6]? = some (Cslib.URM.Instr.S (d+4)))
+    (h7 : P[q+7]? = some (Cslib.URM.Instr.J 0 0 (q+4))) :
+    ∀ (n : Nat) (regs : Cslib.URM.Regs), regs (d+4) + n = regs (d+1) →
+      ∃ regs', Reaches (Ex P) ⟨q+4, regs⟩ ⟨q+8, regs'⟩ ∧
+        regs' (d+2) = regs (d+2) + n ∧
+        ∀ k, k ≠ d+2 → k ≠ d+4 → regs' k = regs k := by
+  intro n
+  induction n with
+  | zero =>
+    intro regs h
+    exact ⟨regs, reaches_J_eq h4 (by omega), by omega, fun _ _ _ => rfl⟩
+  | succ n ih =>
+    intro regs h
+    have hne : regs (d+4) ≠ regs (d+1) := by omega
+    have e4 : (regs.write (d+2) (regs (d+2) + 1)) (d+4) = regs (d+4) :=
+      write_ne _ (by omega) _
+    have e1 : (regs.write (d+2) (regs (d+2) + 1)) (d+1) = regs (d+1) :=
+      write_ne _ (by omega) _
+    obtain ⟨regs', hr, hv, hk⟩ := ih
+      ((regs.write (d+2) (regs (d+2) + 1)).write (d+4)
+        ((regs.write (d+2) (regs (d+2) + 1)) (d+4) + 1))
+      (by rw [write_self, write_ne _ (show d+1 ≠ d+4 from by omega), e4, e1]; omega)
+    refine ⟨regs', ?_, ?_, ?_⟩
+    · refine Reaches.trans (reaches_J_ne h4 hne) ?_
+      refine Reaches.trans (reaches_S h5) ?_
+      refine Reaches.trans (reaches_S h6) ?_
+      exact Reaches.trans (reaches_jump h7) hr
+    · rw [hv, write_ne _ (show d+2 ≠ d+4 from by omega), write_self]; omega
+    · intro k hk2 hk4
+      rw [hk k hk2 hk4, write_ne _ hk4, write_ne _ hk2]
+
+private theorem reaches_mulOuter (P : UProg) (q d : Nat)
+    (h2 : P[q+2]? = some (Cslib.URM.Instr.J (d+3) d (q+10)))
+    (h3 : P[q+3]? = some (Cslib.URM.Instr.Z (d+4)))
+    (h4 : P[q+4]? = some (Cslib.URM.Instr.J (d+4) (d+1) (q+8)))
+    (h5 : P[q+5]? = some (Cslib.URM.Instr.S (d+2)))
+    (h6 : P[q+6]? = some (Cslib.URM.Instr.S (d+4)))
+    (h7 : P[q+7]? = some (Cslib.URM.Instr.J 0 0 (q+4)))
+    (h8 : P[q+8]? = some (Cslib.URM.Instr.S (d+3)))
+    (h9 : P[q+9]? = some (Cslib.URM.Instr.J 0 0 (q+2))) :
+    ∀ (n : Nat) (regs : Cslib.URM.Regs), regs (d+3) + n = regs d →
+      ∃ regs', Reaches (Ex P) ⟨q+2, regs⟩ ⟨q+10, regs'⟩ ∧
+        regs' (d+2) = regs (d+2) + n * regs (d+1) ∧
+        ∀ k, k ≠ d+2 → k ≠ d+3 → k ≠ d+4 → regs' k = regs k := by
+  intro n
+  induction n with
+  | zero =>
+    intro regs h
+    exact ⟨regs, reaches_J_eq h2 (by omega), by simp, fun _ _ _ _ => rfl⟩
+  | succ n ih =>
+    intro regs h
+    have hne : regs (d+3) ≠ regs d := by omega
+    have e0 : (regs.write (d+4) 0) d = regs d := write_ne _ (by omega) _
+    have e1 : (regs.write (d+4) 0) (d+1) = regs (d+1) := write_ne _ (by omega) _
+    have e2 : (regs.write (d+4) 0) (d+2) = regs (d+2) := write_ne _ (by omega) _
+    have e3 : (regs.write (d+4) 0) (d+3) = regs (d+3) := write_ne _ (by omega) _
+    obtain ⟨r1, hin, hv1, hk1⟩ := reaches_mulInner P q d h4 h5 h6 h7 (regs (d+1))
+      (regs.write (d+4) 0) (by rw [write_self, e1]; omega)
+    have f0 : r1 d = regs d := by rw [hk1 _ (by omega) (by omega), e0]
+    have f1 : r1 (d+1) = regs (d+1) := by rw [hk1 _ (by omega) (by omega), e1]
+    have f3 : r1 (d+3) = regs (d+3) := by rw [hk1 _ (by omega) (by omega), e3]
+    obtain ⟨regs', hr, hv, hk⟩ := ih (r1.write (d+3) (r1 (d+3) + 1))
+      (by rw [write_self, write_ne _ (show d ≠ d+3 from by omega), f3, f0]; omega)
+    refine ⟨regs', ?_, ?_, ?_⟩
+    · refine Reaches.trans (reaches_J_ne h2 hne) ?_
+      refine Reaches.trans (reaches_Z h3) ?_
+      refine Reaches.trans hin ?_
+      exact Reaches.trans (reaches_S h8) (Reaches.trans (reaches_jump h9) hr)
+    · rw [hv, write_ne _ (show d+2 ≠ d+3 from by omega),
+        write_ne _ (show d+1 ≠ d+3 from by omega), hv1, e2, f1, Nat.succ_mul]
+      omega
+    · intro k hk2 hk3 hk4
+      rw [hk k hk2 hk3 hk4, write_ne _ hk3, hk1 k hk2 hk4, write_ne _ hk4]
+
+theorem reaches_mulCode (P : UProg) (q d : Nat) (regs : Cslib.URM.Regs)
+    (hcode : CodeAt P q (mulCode q d)) :
+    ∃ regs', Reaches (Ex P) ⟨q, regs⟩ ⟨q + 11, regs'⟩ ∧
+      regs' d = regs d * regs (d+1) ∧ Frame d regs regs' := by
+  have h0 := hcode.get 0 (by simp [mulCode])
+  have h1 := hcode.get 1 (by simp [mulCode])
+  have h2 := hcode.get 2 (by simp [mulCode])
+  have h3 := hcode.get 3 (by simp [mulCode])
+  have h4 := hcode.get 4 (by simp [mulCode])
+  have h5 := hcode.get 5 (by simp [mulCode])
+  have h6 := hcode.get 6 (by simp [mulCode])
+  have h7 := hcode.get 7 (by simp [mulCode])
+  have h8 := hcode.get 8 (by simp [mulCode])
+  have h9 := hcode.get 9 (by simp [mulCode])
+  have h10 := hcode.get 10 (by simp [mulCode])
+  simp only [mulCode, List.getElem_cons_zero,
+    List.getElem_cons_succ] at h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 h10
+  simp only [Nat.add_zero] at h0
+  have e0 : ((regs.write (d+2) 0).write (d+3) 0) d = regs d := by
+    rw [write_ne _ (show d ≠ d+3 from by omega), write_ne _ (show d ≠ d+2 from by omega)]
+  have e1 : ((regs.write (d+2) 0).write (d+3) 0) (d+1) = regs (d+1) := by
+    rw [write_ne _ (show d+1 ≠ d+3 from by omega),
+      write_ne _ (show d+1 ≠ d+2 from by omega)]
+  have e2 : ((regs.write (d+2) 0).write (d+3) 0) (d+2) = 0 := by
+    rw [write_ne _ (show d+2 ≠ d+3 from by omega), write_self]
+  obtain ⟨r1, hr, hv, hk⟩ := reaches_mulOuter P q d h2 h3 h4 h5 h6 h7 h8 h9 (regs d)
+    ((regs.write (d+2) 0).write (d+3) 0) (by rw [write_self, e0]; omega)
+  refine ⟨r1.write d (r1 (d+2)), ?_, ?_, ?_⟩
+  · refine Reaches.trans (reaches_Z h0) ?_
+    refine Reaches.trans (reaches_Z h1) ?_
+    refine Reaches.trans hr ?_
+    rw [show q + 11 = q + 10 + 1 from by omega]
+    exact reaches_T (P := P) (p := q + 10) (m := d+2) (n := d) (regs := r1) h10
+  · rw [write_self, hv, e1, e2, Nat.zero_add]
+  · intro k hkd
+    rw [write_ne _ (by omega), hk k (by omega) (by omega) (by omega),
+      write_ne _ (by omega), write_ne _ (by omega)]
+
+/-! ### Equality, inequality, negation
+
+These are branch-free enough to need no induction: one `J`, then a two- or
+three-instruction tail that writes `0` or `1`. -/
+
+theorem reaches_eqCode (P : UProg) (q d : Nat) (regs : Cslib.URM.Regs)
+    (hcode : CodeAt P q (eqCode q d)) :
+    ∃ regs', Reaches (Ex P) ⟨q, regs⟩ ⟨q + 5, regs'⟩ ∧
+      regs' d = (if regs d = regs (d+1) then 1 else 0) ∧ Frame d regs regs' := by
+  have h0 : P[q]? = some (Cslib.URM.Instr.J d (d+1) (q+3)) := by
+    have := hcode.head (by simp [eqCode]); simpa [eqCode] using this
+  have h1 : P[q+1]? = some (Cslib.URM.Instr.Z d) := by
+    have := hcode.get 1 (by simp [eqCode]); simpa [eqCode] using this
+  have h2 : P[q+2]? = some (Cslib.URM.Instr.J 0 0 (q+5)) := by
+    have := hcode.get 2 (by simp [eqCode]); simpa [eqCode] using this
+  have h3 : P[q+3]? = some (Cslib.URM.Instr.Z d) := by
+    have := hcode.get 3 (by simp [eqCode]); simpa [eqCode] using this
+  have h4 : P[q+4]? = some (Cslib.URM.Instr.S d) := by
+    have := hcode.get 4 (by simp [eqCode]); simpa [eqCode] using this
+  by_cases heq : regs d = regs (d+1)
+  · refine ⟨(regs.write d 0).write d ((regs.write d 0) d + 1), ?_, ?_, ?_⟩
+    · refine Reaches.trans (reaches_J_eq h0 heq) ?_
+      exact Reaches.trans (reaches_Z h3) (reaches_S h4)
+    · rw [if_pos heq, write_self, write_self]
+    · intro k hk
+      rw [write_ne _ (by omega), write_ne _ (by omega)]
+  · refine ⟨regs.write d 0, ?_, ?_, ?_⟩
+    · refine Reaches.trans (reaches_J_ne h0 heq) ?_
+      exact Reaches.trans (reaches_Z h1) (reaches_jump h2)
+    · rw [if_neg heq, write_self]
+    · intro k hk; rw [write_ne _ (by omega)]
+
+theorem reaches_neCode (P : UProg) (q d : Nat) (regs : Cslib.URM.Regs)
+    (hcode : CodeAt P q (neCode q d)) :
+    ∃ regs', Reaches (Ex P) ⟨q, regs⟩ ⟨q + 5, regs'⟩ ∧
+      regs' d = (if regs d = regs (d+1) then 0 else 1) ∧ Frame d regs regs' := by
+  have h0 : P[q]? = some (Cslib.URM.Instr.J d (d+1) (q+4)) := by
+    have := hcode.head (by simp [neCode]); simpa [neCode] using this
+  have h1 : P[q+1]? = some (Cslib.URM.Instr.Z d) := by
+    have := hcode.get 1 (by simp [neCode]); simpa [neCode] using this
+  have h2 : P[q+2]? = some (Cslib.URM.Instr.S d) := by
+    have := hcode.get 2 (by simp [neCode]); simpa [neCode] using this
+  have h3 : P[q+3]? = some (Cslib.URM.Instr.J 0 0 (q+5)) := by
+    have := hcode.get 3 (by simp [neCode]); simpa [neCode] using this
+  have h4 : P[q+4]? = some (Cslib.URM.Instr.Z d) := by
+    have := hcode.get 4 (by simp [neCode]); simpa [neCode] using this
+  by_cases heq : regs d = regs (d+1)
+  · refine ⟨regs.write d 0, ?_, ?_, ?_⟩
+    · exact Reaches.trans (reaches_J_eq h0 heq) (reaches_Z h4)
+    · rw [if_pos heq, write_self]
+    · intro k hk; rw [write_ne _ (by omega)]
+  · refine ⟨(regs.write d 0).write d ((regs.write d 0) d + 1), ?_, ?_, ?_⟩
+    · refine Reaches.trans (reaches_J_ne h0 heq) ?_
+      refine Reaches.trans (reaches_Z h1) ?_
+      exact Reaches.trans (reaches_S h2) (reaches_jump h3)
+    · rw [if_neg heq, write_self, write_self]
+    · intro k hk; rw [write_ne _ (by omega), write_ne _ (by omega)]
+
+theorem reaches_notCode (P : UProg) (q d : Nat) (regs : Cslib.URM.Regs)
+    (hzero : regs 1 = 0) (hcode : CodeAt P q (notCode q d)) :
+    ∃ regs', Reaches (Ex P) ⟨q, regs⟩ ⟨q + 5, regs'⟩ ∧
+      regs' d = (if regs d = 0 then 1 else 0) ∧ Frame d regs regs' := by
+  have h0 : P[q]? = some (Cslib.URM.Instr.J d 1 (q+3)) := by
+    have := hcode.head (by simp [notCode]); simpa [notCode] using this
+  have h1 : P[q+1]? = some (Cslib.URM.Instr.Z d) := by
+    have := hcode.get 1 (by simp [notCode]); simpa [notCode] using this
+  have h2 : P[q+2]? = some (Cslib.URM.Instr.J 0 0 (q+5)) := by
+    have := hcode.get 2 (by simp [notCode]); simpa [notCode] using this
+  have h3 : P[q+3]? = some (Cslib.URM.Instr.Z d) := by
+    have := hcode.get 3 (by simp [notCode]); simpa [notCode] using this
+  have h4 : P[q+4]? = some (Cslib.URM.Instr.S d) := by
+    have := hcode.get 4 (by simp [notCode]); simpa [notCode] using this
+  by_cases heq : regs d = 0
+  · refine ⟨(regs.write d 0).write d ((regs.write d 0) d + 1), ?_, ?_, ?_⟩
+    · refine Reaches.trans (reaches_J_eq h0 (by omega)) ?_
+      exact Reaches.trans (reaches_Z h3) (reaches_S h4)
+    · rw [if_pos heq, write_self, write_self]
+    · intro k hk; rw [write_ne _ (by omega), write_ne _ (by omega)]
+  · refine ⟨regs.write d 0, ?_, ?_, ?_⟩
+    · refine Reaches.trans (reaches_J_ne h0 (by omega)) ?_
+      exact Reaches.trans (reaches_Z h1) (reaches_jump h2)
+    · rw [if_neg heq, write_self]
+    · intro k hk; rw [write_ne _ (by omega)]
+
+/-! ### Comparison
+
+`J` only tests equality, so `<`, `≤`, `>`, `≥` all count a scratch register
+up from zero and see which operand it meets first. Meeting `rA` first (which
+includes meeting both at once, when the operands are equal) selects the
+`firstIsYes` answer; the four operators differ only in which operand is `rA`
+and which answer that is. -/
+
+private theorem reaches_cmpTail (P : UProg) (q d : Nat)
+    (h5 : P[q+5]? = some (Cslib.URM.Instr.Z d))
+    (h6 : P[q+6]? = some (Cslib.URM.Instr.J 0 0 (q+9)))
+    (h7 : P[q+7]? = some (Cslib.URM.Instr.Z d))
+    (h8 : P[q+8]? = some (Cslib.URM.Instr.S d))
+    (b : Bool) (regs : Cslib.URM.Regs) :
+    ∃ regs', Reaches (Ex P) ⟨if b then q+7 else q+5, regs⟩ ⟨q + 9, regs'⟩ ∧
+      regs' d = (if b then 1 else 0) ∧ ∀ k, k ≠ d → regs' k = regs k := by
+  cases b
+  · refine ⟨regs.write d 0, ?_, by simp [write_self], ?_⟩
+    · simpa using Reaches.trans (reaches_Z h5) (reaches_jump h6)
+    · intro k hk; rw [write_ne _ hk]
+  · refine ⟨(regs.write d 0).write d ((regs.write d 0) d + 1), ?_, ?_, ?_⟩
+    · simpa using Reaches.trans (reaches_Z h7) (reaches_S h8)
+    · simp [write_self]
+    · intro k hk; rw [write_ne _ hk, write_ne _ hk]
+
+private theorem reaches_cmpLoop (P : UProg) (q d rA rB : Nat) (fy : Bool)
+    (h1 : P[q+1]? = some (Cslib.URM.Instr.J (d+2) rA (if fy then q+7 else q+5)))
+    (h2 : P[q+2]? = some (Cslib.URM.Instr.J (d+2) rB (if fy then q+5 else q+7)))
+    (h3 : P[q+3]? = some (Cslib.URM.Instr.S (d+2)))
+    (h4 : P[q+4]? = some (Cslib.URM.Instr.J 0 0 (q+1)))
+    (h5 : P[q+5]? = some (Cslib.URM.Instr.Z d))
+    (h6 : P[q+6]? = some (Cslib.URM.Instr.J 0 0 (q+9)))
+    (h7 : P[q+7]? = some (Cslib.URM.Instr.Z d))
+    (h8 : P[q+8]? = some (Cslib.URM.Instr.S d))
+    (hA : rA ≠ d+2) (hB : rB ≠ d+2) :
+    ∀ (n : Nat) (regs : Cslib.URM.Regs),
+      regs (d+2) + n = min (regs rA) (regs rB) →
+      ∃ regs', Reaches (Ex P) ⟨q+1, regs⟩ ⟨q + 9, regs'⟩ ∧
+        regs' d = (if regs rA ≤ regs rB then (if fy then 1 else 0) else (if fy then 0 else 1))
+        ∧ ∀ k, k ≠ d → k ≠ d+2 → regs' k = regs k := by
+  have hswap : (if fy then q+5 else q+7) = (if !fy then q+7 else q+5) := by
+    cases fy <;> rfl
+  have hswapv : (if fy then 0 else 1) = (if !fy then 1 else 0) := by cases fy <;> rfl
+  intro n
+  induction n with
+  | zero =>
+    intro regs h
+    by_cases hAeq : regs (d+2) = regs rA
+    · obtain ⟨regs', hr, hv, hf⟩ := reaches_cmpTail P q d h5 h6 h7 h8 fy regs
+      refine ⟨regs', Reaches.trans (reaches_J_eq h1 hAeq) hr, ?_, fun k hkd _ => hf k hkd⟩
+      rw [hv, if_pos (show regs rA ≤ regs rB by omega)]
+    · have hBeq : regs (d+2) = regs rB := by omega
+      obtain ⟨regs', hr, hv, hf⟩ := reaches_cmpTail P q d h5 h6 h7 h8 (!fy) regs
+      rw [← hswap] at hr
+      refine ⟨regs', ?_, ?_, fun k hkd _ => hf k hkd⟩
+      · exact Reaches.trans (reaches_J_ne h1 hAeq) (Reaches.trans (reaches_J_eq h2 hBeq) hr)
+      · rw [hv, if_neg (show ¬ (regs rA ≤ regs rB) by omega)]
+        exact hswapv.symm
+  | succ n ih =>
+    intro regs h
+    have hAne : regs (d+2) ≠ regs rA := by omega
+    have hBne : regs (d+2) ≠ regs rB := by omega
+    have e1 : (regs.write (d+2) (regs (d+2) + 1)) rA = regs rA := write_ne _ hA _
+    have e2 : (regs.write (d+2) (regs (d+2) + 1)) rB = regs rB := write_ne _ hB _
+    obtain ⟨regs', hr, hv, hf⟩ := ih (regs.write (d+2) (regs (d+2) + 1))
+      (by rw [write_self, e1, e2]; omega)
+    refine ⟨regs', ?_, ?_, ?_⟩
+    · refine Reaches.trans (reaches_J_ne h1 hAne) ?_
+      refine Reaches.trans (reaches_J_ne h2 hBne) ?_
+      exact Reaches.trans (reaches_S h3) (Reaches.trans (reaches_jump h4) hr)
+    · rw [hv, e1, e2]
+    · intro k hkd hk2; rw [hf k hkd hk2, write_ne _ hk2]
+
+theorem reaches_cmpCode (P : UProg) (q d rA rB : Nat) (fy : Bool) (regs : Cslib.URM.Regs)
+    (hA : rA ≠ d+2) (hB : rB ≠ d+2)
+    (hcode : CodeAt P q (cmpCode q d rA rB fy)) :
+    ∃ regs', Reaches (Ex P) ⟨q, regs⟩ ⟨q + 9, regs'⟩ ∧
+      regs' d = (if regs rA ≤ regs rB then (if fy then 1 else 0) else (if fy then 0 else 1))
+      ∧ Frame d regs regs' := by
+  have h0 : P[q]? = some (Cslib.URM.Instr.Z (d+2)) := by
+    have := hcode.head (by simp [cmpCode]); simpa [cmpCode] using this
+  have h1 := hcode.get 1 (by simp [cmpCode])
+  have h2 := hcode.get 2 (by simp [cmpCode])
+  have h3 := hcode.get 3 (by simp [cmpCode])
+  have h4 := hcode.get 4 (by simp [cmpCode])
+  have h5 := hcode.get 5 (by simp [cmpCode])
+  have h6 := hcode.get 6 (by simp [cmpCode])
+  have h7 := hcode.get 7 (by simp [cmpCode])
+  have h8 := hcode.get 8 (by simp [cmpCode])
+  simp only [cmpCode, List.getElem_cons_zero, List.getElem_cons_succ] at h1 h2 h3 h4 h5 h6 h7 h8
+  have e1 : (regs.write (d+2) 0) rA = regs rA := write_ne _ hA _
+  have e2 : (regs.write (d+2) 0) rB = regs rB := write_ne _ hB _
+  obtain ⟨regs', hr, hv, hf⟩ := reaches_cmpLoop P q d rA rB fy h1 h2 h3 h4 h5 h6 h7 h8 hA hB
+    (min (regs rA) (regs rB)) (regs.write (d+2) 0) (by rw [write_self, e1, e2]; omega)
+  refine ⟨regs', Reaches.trans (reaches_Z h0) hr, ?_, ?_⟩
+  · rw [hv, e1, e2]
+  · intro k hk; rw [hf k (by omega) (by omega), write_ne _ (by omega)]
+
 end Langlib.Turpentine.Compile.URM

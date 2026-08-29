@@ -1,4 +1,4 @@
-# Brainloller in langlib
+# Brainloller in LangLib
 
 Lode Vandevenne's 2005 pixel encoding of brainfuck: eight colours for the
 eight commands, cyan and dark cyan to turn the reading head, everything

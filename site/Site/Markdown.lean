@@ -3,7 +3,7 @@ import Site.Html
 /-!
 # A small Markdown renderer
 
-Enough CommonMark plus GitHub tables to render the langlib documentation
+Enough CommonMark plus GitHub tables to render the LangLib documentation
 faithfully: ATX headings, paragraphs, fenced code, bullet and numbered lists
 with nesting, pipe tables, block quotes, thematic breaks, and the inline set
 we actually use (code spans, links, bare URLs, `**strong**`, `*emphasis*`,

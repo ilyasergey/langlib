@@ -5,7 +5,7 @@
 * **Canonical sources**: Skinner's original C interpreter, released into the
   public domain and preserved (with the language page) at
   https://esolangs.org/wiki/Deadfish (CC0)
-* **In langlib**: `Langlib/Languages/Deadfish/`, runner `lake exe deadfish`,
+* **In LangLib**: `Langlib/Languages/Deadfish/`, runner `lake exe deadfish`,
   examples in `Langlib/Examples/Deadfish/`
 
 ## History
@@ -21,7 +21,7 @@ that programming in it was like eating (and having to smell) dead, rotting
 fish heads. The wiki lists well over a hundred ports, plus dozens of
 derivative languages (Deadfish~, ΙΧΘΥΣ, Deadsocket, and other cries for
 help); implementing Deadfish is a rite of passage for new languages, and
-langlib was not going to be the exception.
+LangLib was not going to be the exception.
 
 ## The machine
 
@@ -53,7 +53,7 @@ to enjoy:
 The wiki designates these (plus a 33-`d` variant of the third) as mandatory
 test cases for interpreters; ours are in `Langlib/Tests/Deadfish.lean`.
 
-## Semantic decisions in langlib
+## Semantic decisions in LangLib
 
 Skinner's original C interpreter is an interactive shell: it prints a `>> `
 prompt, reads one character with `scanf("%c", ...)`, checks the reset,
@@ -91,7 +91,7 @@ program file, faithful to that code:
    nobody. The runner ignores stdin entirely, since the language has no
    input commands.
 
-The evaluator is pure and fuel-based like every langlib core, one unit of
+The evaluator is pure and fuel-based like every LangLib core, one unit of
 fuel per command. Deadfish has no loops, so a program of n commands halts
 in exactly n steps; out-of-fuel is reachable only by asking for it, which
 one golden test does, for completeness.

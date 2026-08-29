@@ -11,7 +11,7 @@
   do not claim to *be* the definition of Befunge-93), and `bef.c` is under a
   BSD-style licence. Independent implementations are welcome, of which this
   is one. Community reference: https://esolangs.org/wiki/Befunge (CC0).
-* **In langlib**: `Langlib/Languages/Befunge93/`, runner `lake exe befunge93`,
+* **In LangLib**: `Langlib/Languages/Befunge93/`, runner `lake exe befunge93`,
   examples in `Langlib/Examples/Befunge93/`
 
 ## History
@@ -25,7 +25,7 @@ control-flow contexts. Second, programs are self-modifying: the `p` command
 writes into the very grid being executed, so the "program text" is also the
 heap. Compilers were eventually written anyway (people are stubborn), which
 partly motivated the 1998 successor Befunge-98, a generalisation to
-unbounded playfields and a large instruction set. langlib implements the
+unbounded playfields and a large instruction set. LangLib implements the
 original: Befunge-93, the 80 by 25 torus, exactly.
 
 The version split matters: -93 and -98 are different languages that happen
@@ -80,7 +80,7 @@ the skipped cell is the one across the seam, consistently (bef.c fixed this
 in v2.22; the old inconsistent edge behaviour survives there only behind the
 `-t` compatibility flag).
 
-## Semantic decisions in langlib
+## Semantic decisions in LangLib
 
 The printed specification leaves gaps, some deliberate. Where it is silent
 or joking, our interpreter (`Langlib/Languages/Befunge93/Semantics.lean`)
@@ -227,7 +227,7 @@ Befunge-93 has arithmetic besides. So **the semantics implemented here is
 Turing complete, while the semantics `bef.c` implements is not**.
 
 Neither is wrong; they are different languages, and the difference is
-invisible until you ask this question. langlib plans to prove both, since
+invisible until you ask this question. LangLib plans to prove both, since
 having the pair in one library is more instructive than either alone: see
 `docs/PLAN.md`, Stage 8. Anyone relying on the classical claim should say
 which Befunge-93 they mean.

@@ -1,4 +1,4 @@
-# Malbolge in langlib
+# Malbolge in LangLib
 
 Ben Olmstead's 1998 language, named after the eighth circle of Hell and
 designed to be nearly impossible to program in; the first program was found

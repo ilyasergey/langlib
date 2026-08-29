@@ -1,4 +1,4 @@
-# langlib workplan
+# LangLib workplan
 
 This is the staged workplan for the project. Agents: keep this file current.
 When you finish, start, or re-scope a stage, update it in the same commit, and
@@ -196,14 +196,14 @@ differential compiler tests are the current evidence, and
 ## Stage 7: website `[ ]`
 
 A Verso-based site with interactive elements, hosted on GitHub Pages under
-the domain `langlib.turp`: language index, rendered specs, runnable examples.
+the domain `langlib.wtf`: language index, rendered specs, runnable examples.
 Verso must match the pinned toolchain; check compatibility before wiring it
 into the build (keep it in a separate Lake package under `site/` if needed).
 
 ## Stage 8: computational class `[~]`
 
 Every language in the library gets a claim about its computational class,
-and the claim gets a proof. This is the point where langlib stops being a
+and the claim gets a proof. This is the point where LangLib stops being a
 collection of interpreters and starts being a collection of theorems: the
 esolang literature is full of assertions that some language is Turing
 complete, usually justified by an informal translation sketch on a wiki
@@ -243,7 +243,7 @@ exhibit the bound and conclude that its halting problem is decidable.
 ### One statement for every language
 
 The claims in the table below must not be eleven unrelated theorems. They
-should be eleven instances of two definitions, so that "langlib proves X
+should be eleven instances of two definitions, so that "LangLib proves X
 is Turing complete" means the same thing every time and the reader learns
 the shape once. Concretely, in `Langlib/Computability/`:
 

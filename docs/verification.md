@@ -1,6 +1,6 @@
 # The verification pipeline
 
-This document designs the correctness story for langlib's compilers: what
+This document designs the correctness story for LangLib's compilers: what
 "the compiler is correct" means here, why the statement is shared across
 wildly different targets, and in what order to prove it. It is the design
 input for Stage 6 of [PLAN.md](PLAN.md); proofs land incrementally, and
@@ -11,7 +11,7 @@ this page records what is proved and what is still a plan.
 The esoteric languages in this library look nothing alike. One is a tape
 of bytes, one a stack machine written in invisible characters, one a list
 of fractions, one a single instruction repeated. Yet every interpreter in
-langlib has the same shape, and that is what makes a shared statement
+LangLib has the same shape, and that is what makes a shared statement
 possible:
 
 ```lean

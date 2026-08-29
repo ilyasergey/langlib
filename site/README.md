@@ -207,7 +207,7 @@ seconds. If the site ever grows Lean code samples that want real syntax
 highlighting and hover information, that is the moment to reconsider, and the
 compatibility work above will still hold.
 
-Note also that `docs/PLAN.md` Stage 7 names the domain as `langlib.turp`. The
+Note also that `docs/PLAN.md` Stage 7 names the domain as `langlib.wtf`. The
 domain being registered is `langlib.wtf`; `.turp` is the file extension, not a
 top-level domain.
 

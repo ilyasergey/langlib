@@ -1,4 +1,4 @@
-# Befunge-93 in langlib
+# Befunge-93 in LangLib
 
 Chris Pressey's 1993 two-dimensional language: the program counter walks an
 80x25 torus of characters, and the `p` command rewrites the program under
@@ -35,11 +35,11 @@ use `.b93`; the runner accepts any filename.
 
 | File | What it does | Origin |
 |------|--------------|--------|
-| `hello.b93` | prints `Hello, World!` | langlib original |
+| `hello.b93` | prints `Hello, World!` | LangLib original |
 | `cat.b93` | copies input to output, EOF-aware | folklore (esolangs wiki, CC0) |
 | `quine.b93` | prints itself, byte for byte | Befunge folklore (esolangs wiki, CC0) |
 | `factorial.b93` | reads n (n >= 1) with `&`, prints n! | esolangs wiki (CC0) |
-| `random.b93` | rolls `?` until it prints 1 or 2 | langlib original |
+| `random.b93` | rolls `?` until it prints 1 or 2 | LangLib original |
 
 `quine.b93` is the famous 45-byte one-liner
 `01->1# +# :# 0# g# ,# :# 5# 8# *# 4# +# -# _@`, which reads its own row

@@ -1,4 +1,4 @@
-# Testing langlib
+# Testing LangLib
 
 Two layers of tests keep the interpreters honest:
 
@@ -33,7 +33,7 @@ conventions themselves are pinned down by golden tests instead.
 
 ## turpentine
 
-Turpentine is langlib's own language, so langlib's interpreter is the canonical
+Turpentine is LangLib's own language, so LangLib's interpreter is the canonical
 one by definition; golden unit tests are the whole story. Once the Stage 4
 compilers exist, every compiled example doubles as a differential test of
 interpreter pairs (Turpentine output vs target-language output).

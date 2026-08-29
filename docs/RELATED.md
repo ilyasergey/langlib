@@ -1,8 +1,8 @@
 # Alternatives and related work
 
-langlib is not the first attempt to collect esoteric languages or to give
+LangLib is not the first attempt to collect esoteric languages or to give
 them formal semantics. This page lists the efforts we know about, what they
-cover, and how langlib differs. If you know of another one, please add it.
+cover, and how LangLib differs. If you know of another one, please add it.
 
 ## The encyclopedia
 
@@ -12,7 +12,7 @@ cover, and how langlib differs. If you know of another one, please add it.
   programs, and theory pages (Turing-completeness proofs, translations
   between languages). It is the reference catalogue and the first place to
   look when choosing what to implement next. Esolangs.org documents
-  languages in prose; langlib complements it with machine-checked semantics
+  languages in prose; LangLib complements it with machine-checked semantics
   and runnable interpreters in one codebase. Wiki content is released under
   CC0, which makes it a good research source, though our specs are written
   independently.
@@ -22,9 +22,9 @@ cover, and how langlib differs. If you know of another one, please add it.
 * **esolang-semantics** (Chucky Ellison):
   https://github.com/ellisonch/esolang-semantics
 
-  The closest analog to langlib: a collection of esoteric language semantics
+  The closest analog to LangLib: a collection of esoteric language semantics
   written in the K framework, including several of the same languages. K
-  gives executable semantics from a rewriting-based definition; langlib
+  gives executable semantics from a rewriting-based definition; LangLib
   instead uses a proof assistant, so the same artifact that runs programs
   can be the subject of correctness proofs for compilers.
 
@@ -56,10 +56,10 @@ cover, and how langlib differs. If you know of another one, please add it.
   brainfuck; it motivates our choice to route verification through a small
   imperative front end (Turpentine) rather than a functional one.
 
-## How langlib differs
+## How LangLib differs
 
 Existing formalisations are either single-language (the Coq projects) or
-semantics-only (the K collections). langlib aims at the union: many
+semantics-only (the K collections). LangLib aims at the union: many
 languages, one shared execution model, documented specs with history, plus a
 common front-end language with compilers to each target and a shared
 verification pipeline, all in Lean 4.

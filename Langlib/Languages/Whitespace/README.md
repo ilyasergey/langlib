@@ -1,4 +1,4 @@
-# Whitespace in langlib
+# Whitespace in LangLib
 
 Edwin Brady and Chris Morris's 2003 stack machine, written entirely in
 spaces, tabs, and linefeeds; everything visible is a comment. The full
@@ -32,20 +32,20 @@ behaves the same way.
 ## Examples ([Langlib/Examples/Whitespace/](../../Examples/Whitespace/))
 
 Whitespace files cannot carry attribution comments (prose contains spaces,
-and spaces are code), so it lives here instead. All examples are langlib
+and spaces are code), so it lives here instead. All examples are LangLib
 originals, generated from ASTs via `Prog.render`; `cat` and the
 truth-machine follow the classic folklore structure also found on the
 esolangs wiki (CC0).
 
 | File | What it does | Origin |
 |------|--------------|--------|
-| `hello.ws` | prints `Hello, World!` | langlib original |
-| `cat.ws` | copies input to output, then errors at EOF | langlib original (folklore structure) |
-| `count.ws` | prints 1 to 10, one per line | langlib original |
-| `add.ws` | reads two numbers, prints their sum | langlib original |
-| `fact.ws` | reads a number, prints its factorial | langlib original |
-| `greet.ws` | reads a name, prints `Hello, <name>!` | langlib original |
-| `truth.ws` | truth-machine: 0 halts, 1 prints 1 forever | langlib original (folklore structure) |
+| `hello.ws` | prints `Hello, World!` | LangLib original |
+| `cat.ws` | copies input to output, then errors at EOF | LangLib original (folklore structure) |
+| `count.ws` | prints 1 to 10, one per line | LangLib original |
+| `add.ws` | reads two numbers, prints their sum | LangLib original |
+| `fact.ws` | reads a number, prints its factorial | LangLib original |
+| `greet.ws` | reads a name, prints `Hello, <name>!` | LangLib original |
+| `truth.ws` | truth-machine: 0 halts, 1 prints 1 forever | LangLib original (folklore structure) |
 | `compiled/hello.ws` | prints `Hello, Turpentine!` | compiled from `Examples/Turpentine/hello.turp` |
 | `compiled/isqrt.ws` | reads n, prints its integer square root | compiled from `Examples/Turpentine/isqrt.turp` |
 | `compiled/primes.ws` | reads n, prints every prime <= n | compiled from `Examples/Turpentine/primes.turp` |
