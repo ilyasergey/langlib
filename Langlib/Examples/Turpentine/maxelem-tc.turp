@@ -3,7 +3,8 @@
 // TC-friendly twin of maxelem.turp, which reads the numbers and prints the
 // answer. Here they are baked in and the result is left in `answer`.
 //
-// Still blocked on: arrays. See docs/certified-compilation.md section 4b.
+// Compiles with --tc: arrays are in the fragment now. See
+// docs/certified-compilation.md section 4b.
 var answer : int;
 var a : int[8];
 var i : int;

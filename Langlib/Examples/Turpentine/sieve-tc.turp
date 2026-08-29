@@ -4,7 +4,8 @@
 // cannot do: it yields one number at halt. Counting them keeps the sieve
 // and reduces the output to a single answer.
 //
-// Still blocked on: arrays. See docs/certified-compilation.md section 4b.
+// Compiles with --tc: arrays are in the fragment now. See
+// docs/certified-compilation.md section 4b.
 var answer : int;
 var composite : bool[50];
 var p : int;

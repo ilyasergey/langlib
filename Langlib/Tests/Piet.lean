@@ -146,6 +146,11 @@ def suite : Suite where
         expect := .outputs "Hi" }
     , { name := "hi-stacked example (2-D layout, arithmetic instead of big blocks)",
         source := ex "hi-stacked.ppm", expect := .outputs "Hi" }
+      -- Reaches each character from the previous one by adding or
+      -- subtracting the difference, so it is narrower than `hi.ppm`
+      -- despite printing thirteen characters instead of two.
+    , { name := "hello example (running value, differences between characters)",
+        source := ex "hello.ppm", expect := .outputs "Hello, world!" }
     , { name := "add example", source := ex "add.ppm", input := "3 4",
         expect := .outputs "7" }
     , { name := "add example, negative number", source := ex "add.ppm",

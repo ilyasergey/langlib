@@ -7,7 +7,12 @@ import Langlib.Languages.Brainloller.Semantics
 ```
 lake exe brainloller [--fuel N] [--eof unchanged|zero|minus1] file.ppm
 lake exe brainloller --encode out.ppm [--width N] file.b
+lake exe brainloller --svg out.svg [--scale N] [--grid] file.ppm
 ```
+
+`--svg` renders a program instead of running it, one square per codel, so
+a Brainloller image can be looked at on a documentation page. The pictures
+in `docs/brainloller/` are produced this way.
 
 Programs must be ASCII PPM (P3); convert anything else with
 `magick prog.png -compress none prog.ppm`. The `--encode` mode goes the
@@ -28,6 +33,8 @@ def runner (cfg : Langlib.Brainfuck.Config) : Runner where
     , "             zero, minus1 (the brainfuck core's conventions)"
     , "  --encode OUT.ppm [--width N] FILE.b"
     , "             encode brainfuck source as a Brainloller image instead"
+    , "  --svg OUT.svg [--scale N] [--grid] FILE.ppm"
+    , "             render the program as SVG instead of running it"
     , "  images must be ASCII PPM (P3); convert with e.g."
     , "    magick prog.png -compress none prog.ppm" ]
 
@@ -67,12 +74,40 @@ def encodeMain (outFile : String) (args : List String) : IO UInt32 := do
   IO.eprintln s!"brainloller: wrote {img.width}x{img.height} image to {outFile}"
   return 0
 
+/-- `--svg` mode: program image in, SVG out. Nothing is executed. -/
+def svgMain (outFile : String) (scale : Nat) (grid : Bool)
+    (args : List String) : IO UInt32 := do
+  match args with
+  | [file] =>
+    let data ← try
+        IO.FS.readBinFile file
+      catch e =>
+        IO.eprintln s!"brainloller: cannot read '{file}': {e}"
+        return 3
+    match Image.parsePpm data with
+    | .error msg =>
+      IO.eprintln s!"brainloller: {file}: {msg}"
+      return 3
+    | .ok img =>
+      IO.FS.writeFile outFile (img.toSvg scale grid)
+      IO.println s!"brainloller: wrote {img.width}x{img.height} codels to {outFile}"
+      return 0
+  | [] =>
+    IO.eprintln "brainloller: --svg needs a program file"
+    return 3
+  | _ =>
+    IO.eprintln "brainloller: --svg takes exactly one program file"
+    return 3
+
 end Langlib.Brainloller
 
 open Langlib.Brainloller in
 def main (args : List String) : IO UInt32 := do
   -- Pre-process --encode and --eof, then delegate to the shared runner.
   let mut eof : Langlib.Brainfuck.EofMode := .unchanged
+  let mut svg? : Option String := none
+  let mut scale : Nat := 12
+  let mut grid : Bool := false
   let mut rest : List String := []
   let mut args := args
   repeat
@@ -82,6 +117,21 @@ def main (args : List String) : IO UInt32 := do
     | "--encode" :: [] =>
       IO.eprintln "brainloller: --encode expects an output file"
       return 3
+    | "--svg" :: out :: rs => svg? := some out; args := rs
+    | "--svg" :: [] =>
+      IO.eprintln "brainloller: --svg expects an output file"
+      return 3
+    | "--scale" :: n :: rs =>
+      match n.toNat? with
+      | some k =>
+        if k == 0 then
+          IO.eprintln "brainloller: --scale must be at least 1"
+          return 3
+        scale := k; args := rs
+      | none =>
+        IO.eprintln s!"brainloller: --scale expects a number, got '{n}'"
+        return 3
+    | "--grid" :: rs => grid := true; args := rs
     | "--eof" :: m :: rs =>
       match m with
       | "unchanged" => eof := .unchanged; args := rs
@@ -91,4 +141,6 @@ def main (args : List String) : IO UInt32 := do
         IO.eprintln s!"brainloller: unknown --eof mode '{m}' (unchanged|zero|minus1)"
         return 3
     | a :: rs => rest := a :: rest; args := rs
-  (runner { eof }).main rest.reverse
+  match svg? with
+  | some out => svgMain out scale grid rest.reverse
+  | none => (runner { eof }).main rest.reverse

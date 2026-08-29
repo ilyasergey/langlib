@@ -546,7 +546,7 @@ Output:
 The one that still refuses, and the reason it gives:
 
 ```
-lake exe turpentine compile --to subleq --tc -o sort.sq Langlib/Examples/Turpentine/sort-tc.turp
+lake exe turpentine compile --to subleq --tc -o /tmp/sort.sq Langlib/Examples/Turpentine/sort-tc.turp
 ```
 
 Output:
@@ -554,16 +554,16 @@ Output:
 ```
 turpentine compile: '-' is outside the certified URM fragment: a register holds a natural and this operation can produce a negative value
 turpentine: the certified compiler accepts only the I/O-free fragment
-  (no input or output, no subtraction, no arrays,
-  and the result in a variable named 'answer').
+  (no input or output, no subtraction, and the result in a
+  variable named 'answer'); arrays, division and modulo are
+  supported, and the message above names what was rejected.
 turpentine: retry with --bespoke to compile the whole language.
-turpentine: nothing written to sort.sq
+turpentine: nothing written to /tmp/sort.sq
 ```
 
-The second line of that blurb is now out of date: arrays are in. It is a
-fixed string in `Langlib/Turpentine/Main.lean` and should lose its "no
-arrays" clause. The message on the first line, the one that names the actual
-construct, comes from the compiler and is right.
+The blurb is a fixed string in `Langlib/Turpentine/Main.lean` and lists what
+the fragment excludes; the first line, the one that names the construct that
+was actually rejected, comes from the compiler.
 
 **What an array access costs.** `4n + 2` instructions for an array of `n`
 elements, independent of the index, plus whatever the index expression
@@ -586,13 +586,13 @@ URM instructions**, which is 612972 bytes of whitespace and 45478 bytes of
 subleq:
 
 ```
-lake exe turpentine compile --to whitespace --tc -o sieve.ws Langlib/Examples/Turpentine/sieve-tc.turp
+lake exe turpentine compile --to whitespace --tc -o /tmp/sieve.ws Langlib/Examples/Turpentine/sieve-tc.turp
 ```
 
 Output:
 
 ```
-turpentine: wrote 612972 bytes to sieve.ws [certified, derived from the Turing-completeness proof]
+turpentine: wrote 612972 bytes to /tmp/sieve.ws [certified, derived from the Turing-completeness proof]
 ```
 
 So what is left, in order:
@@ -865,7 +865,7 @@ lake exe turpentine check Langlib/Examples/Turpentine/sum.turp
 Output:
 
 ```
-sum.turp: well typed (2 variable(s), 2 declaration(s))
+Langlib/Examples/Turpentine/sum.turp: well typed (2 variable(s), 2 declaration(s))
 ```
 
 ### Compile and run in one step, bespoke
@@ -895,19 +895,19 @@ Output:
 ### Emit the target program, then run it yourself
 
 ```
-lake exe turpentine compile --to subleq --bespoke -o isqrt.sq Langlib/Examples/Turpentine/isqrt.turp
+lake exe turpentine compile --to subleq --bespoke -o /tmp/isqrt.sq Langlib/Examples/Turpentine/isqrt.turp
 ```
 
 Output:
 
 ```
-turpentine: wrote 22615 bytes to isqrt.sq [bespoke, hand-written and unverified]
+turpentine: wrote 22615 bytes to /tmp/isqrt.sq [bespoke, hand-written and unverified]
 ```
 
 The emitted file is an ordinary program in that language:
 
 ```
-echo 17 | lake exe subleq isqrt.sq
+echo 17 | lake exe subleq /tmp/isqrt.sq
 ```
 
 Output:
@@ -927,7 +927,7 @@ lake exe turpentine compile --to subleq --tc -o /tmp/sum.sq Langlib/Examples/Tur
 Output:
 
 ```
-turpentine: wrote 1390 bytes to sum.sq [certified, derived from the Turing-completeness proof]
+turpentine: wrote 1390 bytes to /tmp/sum.sq [certified, derived from the Turing-completeness proof]
 ```
 
 ```
@@ -985,8 +985,9 @@ Output:
 ```
 turpentine exec: the certified URM fragment needs a variable named 'answer' to hold the answer: a URM has no output, so register 0 at halt is all there is
 turpentine: the certified compiler accepts only the I/O-free fragment
-  (no input or output, no subtraction, no arrays,
-  and the result in a variable named 'answer').
+  (no input or output, no subtraction, and the result in a
+  variable named 'answer'); arrays, division and modulo are
+  supported, and the message above names what was rejected.
 turpentine: retry with --bespoke to compile the whole language.
 turpentine: nothing was run
 ```

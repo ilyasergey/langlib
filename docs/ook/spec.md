@@ -99,6 +99,40 @@ times since 2001. The specification is a page of ideas (three words and a
 pairing table); LangLib implements those ideas in its own words and code
 and pastes none of the page's text.
 
+## What a program looks like
+
+`cat.ook` is the whole language in one line: read a byte, print it, repeat
+until end of input. Five brainfuck commands, ten words.
+
+```
+cat Langlib/Examples/Ook/cat.ook
+```
+
+Output:
+
+```
+Ook. Ook! Ook! Ook? Ook! Ook. Ook. Ook! Ook? Ook!
+```
+
+Reading it back against the table above: `Ook. Ook!` is `,`, `Ook! Ook?`
+opens the loop, `Ook! Ook.` prints, `Ook. Ook!` reads again, and
+`Ook? Ook!` closes the loop, so the program is `,[.,]`. Nothing else in the file matters, because everything that is
+not one of the three words is a parse error rather than a comment.
+
+The greeting is the same joke at length: 1060 bytes to say `Hello World!`,
+because every brainfuck character becomes two words and a space.
+
+```
+head -c 160 Langlib/Examples/Ook/hello.ook
+```
+
+Output:
+
+```
+Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook.
+Ook! Ook? Ook. Ook? Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook! Ook? Ook. Ook?
+```
+
 ## Trying it
 
 Hello world, spoken entirely in orangutan.

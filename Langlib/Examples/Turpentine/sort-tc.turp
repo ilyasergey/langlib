@@ -5,7 +5,8 @@
 // the maximum, in `answer`, so the sorting still happens and the result is
 // a single number.
 //
-// Still blocked on: arrays and `-`. See docs/certified-compilation.md 4b.
+// Still blocked on: `-`. Arrays are in the fragment now. See
+// docs/certified-compilation.md section 4b.
 var answer : int;
 var a : int[6];
 var i : int;

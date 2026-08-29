@@ -177,6 +177,32 @@ Output:
 Hi
 ```
 
+The customary greeting, in 166 codels. It reaches each character from the
+one before it, which is why it fits in less width than `hi.ppm` uses for
+two.
+
+```
+lake exe piet Langlib/Examples/Piet/hello.ppm
+```
+
+Output:
+
+```
+Hello, world!
+```
+
+Render any of them instead of running, one SVG rectangle per codel.
+
+```
+lake exe piet --svg /tmp/hello.svg --scale 8 Langlib/Examples/Piet/hello.ppm
+```
+
+Output:
+
+```
+piet: wrote 166x3 codels to /tmp/hello.svg
+```
+
 Addition. The program reads two numbers from stdin and prints the sum.
 
 ```
@@ -263,6 +289,22 @@ the bottom is the terminator, entered at its middle so that its outer
 codels face black upwards and all eight exits fail.
 
 ![hi-stacked.ppm, twelve codels by thirteen](img/hi-stacked.svg)
+
+**`hello.ppm`** is the customary program, and the point it makes is the
+one `hi.ppm` sets up. Printing thirteen characters the naive way, pushing
+each code point as a block of that many codels, would cost well over a
+thousand codels. Instead it prints `H`, keeps that 72 on the stack, and
+walks to each next character by adding or subtracting the difference:
+`+29` to `e`, `+7` to `l`, nothing at all for the second `l`, `-67` for
+the comma, and so on. `outChar` pops, so every character is duplicated
+before it is printed, and a final `pop` clears the stack.
+
+![hello.ppm, 166 codels by three](img/hello.svg)
+
+The result is 166 codels wide, which makes a whole Hello, world! program
+*narrower than `hi.ppm`*, a program that prints two characters. That is
+the cost of a Piet literal stated as plainly as it can be: arithmetic on a
+value you already have is nearly free, and pushing a constant is not.
 
 The pictures are SVG, regenerated from the programs themselves with
 `lake exe piet --svg`, so they cannot drift from what the interpreter

@@ -67,15 +67,15 @@ output.
 | `sumdigits-tc.turp` | digit sum of 9045 | compiles with `--tc` |
 | `collatz-tc.turp` | Collatz steps for 27 | compiles with `--tc` |
 | `primes-tc.turp` | how many primes below 30 | compiles with `--tc` |
-| `maxelem-tc.turp` | largest of eight numbers | needs arrays |
-| `sieve-tc.turp` | how many primes below 50 | needs arrays |
-| `sort-tc.turp` | sorts six numbers, reports the largest | needs arrays and `-` |
+| `maxelem-tc.turp` | largest of eight numbers | compiles with `--tc` |
+| `sieve-tc.turp` | how many primes below 50 | compiles with `--tc` |
+| `sort-tc.turp` | sorts six numbers, reports the largest | needs `-` |
 | `cat-tc.turp` | why cat has no twin | never: streaming I/O |
 
 Programs marked *certified fragment* are written for `--tc`: no input or
-output, no subtraction, no arrays, and the result left in a variable named
-`answer`. Division, modulo, `&&` and `||` are in the fragment, and so are
-initialisers on declarations. Every other example uses Turpentine's own
+output, no subtraction, and the result left in a variable named `answer`.
+Arrays, division, modulo, `&&`, `||` and initialisers on declarations are
+all in the fragment. Every other example uses Turpentine's own
 I/O and needs a bespoke compiler. See
 [docs/certified-compilation.md](../../docs/certified-compilation.md).
 

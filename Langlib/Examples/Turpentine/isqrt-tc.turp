@@ -11,7 +11,8 @@
 //   * no subtraction, because a register holds a natural number and
 //     Turpentine's integers do not. Division and modulo are fine: on
 //     non-negative operands they stay non-negative;
-//   * no arrays.
+//   * no arrays yet when this was written; they are in the fragment
+//     now, and so are division and modulo.
 //
 // Compare the two:
 //   echo 17 | lake exe turpentine run  Langlib/Examples/Turpentine/isqrt.turp

@@ -70,7 +70,7 @@ def CC.toggle : CC → CC
   | .left => .right | .right => .left
 
 /-- Coordinate one codel onward in direction `d`; `none` off the grid. -/
-private def step? (g : Grid) (p : Nat × Nat) : Dir → Option (Nat × Nat)
+def step? (g : Grid) (p : Nat × Nat) : Dir → Option (Nat × Nat)
   | .right => if p.1 + 1 < g.width then some (p.1 + 1, p.2) else none
   | .down => if p.2 + 1 < g.height then some (p.1, p.2 + 1) else none
   | .left => if p.1 > 0 then some (p.1 - 1, p.2) else none
@@ -96,7 +96,7 @@ deriving Repr, Inhabited
 /-- Does `b` beat `a` as the exit codel for this (DP, CC)? Furthest in
 the DP direction first; ties broken by the codel furthest to the CC side
 of the DP (e.g. DP right, CC left: uppermost). -/
-private def betterFor (dp : Dir) (cc : CC) (a b : Nat × Nat) : Bool :=
+def betterFor (dp : Dir) (cc : CC) (a b : Nat × Nat) : Bool :=
   match dp with
   | .right => b.1 > a.1 || (b.1 == a.1 &&
       (match cc with | .left => b.2 < a.2 | .right => b.2 > a.2))
@@ -107,7 +107,7 @@ private def betterFor (dp : Dir) (cc : CC) (a b : Nat × Nat) : Bool :=
   | .up => b.2 < a.2 || (b.2 == a.2 &&
       (match cc with | .left => b.1 < a.1 | .right => b.1 > a.1))
 
-private def mkInfo (members : List (Nat × Nat)) : BlockInfo := Id.run do
+def mkInfo (members : List (Nat × Nat)) : BlockInfo := Id.run do
   let head := members.head?.getD (0, 0)
   let mut exits : Array (Nat × Nat) := Array.mkEmpty 8
   for dp in [Dir.right, .down, .left, .up] do
@@ -122,7 +122,7 @@ private def mkInfo (members : List (Nat × Nat)) : BlockInfo := Id.run do
 from the worklist, marking `visited`. The fuel bounds the recursion (each
 codel enters the worklist at most five times: once to seed and once per
 neighbour), so `5 * width * height + 5` always suffices. -/
-private def flood (g : Grid) (color : Codel) :
+def flood (g : Grid) (color : Codel) :
     Nat → List (Nat × Nat) → Array Bool → List (Nat × Nat) →
     Array Bool × List (Nat × Nat)
   | 0, _, visited, acc => (visited, acc)
@@ -165,6 +165,19 @@ private def infoAt? (g : Grid) (bl : Blocks) (p : Nat × Nat) :
     Option BlockInfo :=
   match bl.ids[p.2 * g.width + p.1]? with
   | some (some id) => bl.infos[id]?
+  | _ => none
+
+/-- Compute the block information at one codel directly. This is the local
+counterpart of `computeBlocks`: it uses the same flood fill and `mkInfo`, but
+does not require a proof about the row-major table construction when a client
+only needs the block containing its current position. -/
+def localInfoAt? (g : Grid) (p : Nat × Nat) : Option BlockInfo :=
+  match g.get p.1 p.2 with
+  | .chromatic _ _ =>
+    let visited := Array.replicate (g.width * g.height) false
+    let (_, members) :=
+      flood g (g.get p.1 p.2) (5 * (g.width * g.height) + 5) [p] visited []
+    some (mkInfo members)
   | _ => none
 
 /-! ## Numeric input -/
@@ -269,7 +282,7 @@ def execOp (op : Op) (blockSize : Nat) (s : MState) : MState :=
   | _, _ => s
 
 /-- Result of a white slide. -/
-private inductive SlideResult where
+inductive SlideResult where
   | landed (pos : Nat × Nat) (dp : Dir) (cc : CC)
   | trapped
   | noFuel
@@ -279,7 +292,7 @@ private inductive SlideResult where
 the DP, both at once, and slides on; revisiting a (codel, DP) state means
 it can never leave, and the program halts. The state space has size
 `4 * width * height`, so the fuel passed by callers always suffices. -/
-private def slide (g : Grid) : Nat → List ((Nat × Nat) × Dir) →
+def slide (g : Grid) : Nat → List ((Nat × Nat) × Dir) →
     (Nat × Nat) → Dir → CC → SlideResult
   | 0, _, _, _, _ => .noFuel
   | fuel + 1, seen, pos, dp, cc =>
@@ -296,10 +309,10 @@ private def slide (g : Grid) : Nat → List ((Nat × Nat) × Dir) →
         | .white => slide g fuel seen next dp cc
         | .chromatic _ _ => .landed next dp cc
 
-private def slideFuel (g : Grid) : Nat := 4 * g.width * g.height + 8
+def slideFuel (g : Grid) : Nat := 4 * g.width * g.height + 8
 
 /-- Result of one interpreter step. -/
-private inductive StepResult where
+inductive StepResult where
   | ok (s : MState)
   | halt (s : MState)
   | noFuel (s : MState)
@@ -307,15 +320,15 @@ private inductive StepResult where
 /-- Try to leave the current block: up to 8 attempts, toggling the CC and
 rotating the DP alternately after each failure (CC first). `n` counts the
 attempts left, starting at 8. -/
-private def tryFrom (g : Grid) (bl : Blocks) : Nat → MState → StepResult
+def tryFrom (g : Grid) (_bl : Blocks) : Nat → MState → StepResult
   | 0, s => .halt s
   | n + 1, s =>
-    match infoAt? g bl s.pos, g.get s.pos.1 s.pos.2 with
+    match localInfoAt? g s.pos, g.get s.pos.1 s.pos.2 with
     | some info, .chromatic h1 l1 =>
       let fail : StepResult :=
         let s' := if n % 2 == 1 then { s with cc := s.cc.toggle }
                   else { s with dp := s.dp.clockwise }
-        tryFrom g bl n s'
+        tryFrom g _bl n s'
       let exit := info.exits[s.dp.toNat * 2 + s.cc.toNat]!
       match step? g exit s.dp with
       | none => fail
