@@ -137,21 +137,39 @@ proved, not to be run.
 
 ## Which languages remain
 
-From the status matrix in [README.md](README.md), the `open` rows: claimed
-complete but settled neither way. **piet**, **fractran** (arithmetic rather
-than operational, so the proof looks different), **thue** (string
-rewriting; confluence of the generated rule set is the main obligation),
-**malbolge-unshackled**, and **unlambda/SKI** (bracket abstraction rather
-than machine simulation, the one genuinely different route).
+From the status matrix in [README.md](README.md), the rows that are not
+settled. Two are `wip`, with the foundations landed and one step left, so
+take these before starting anything from scratch:
 
-Whitespace, subleq and brainfuck are done, in that order of difficulty;
-read those three as worked examples before starting a fourth. **ook** and
+* **fractran** ([status](computability-fractran.md)): a runnable
+  URM-to-FRACTRAN compiler and the prime-exponent arithmetic are proved.
+  What is missing is the whole-program simulation, and the proof looks
+  different from the others because the machine is arithmetic rather than
+  operational.
+* **piet** ([status](computability-piet.md)): straight-line URM programs
+  compile and their stack discipline is proved. What is missing is
+  image-level control flow: every `J m n q`, backward jumps included,
+  routed through a generated codel grid, with `computeBlocks` and
+  `evalGrid` shown to follow the intended route.
+
+The `open` rows, claimed complete and settled neither way, are **thue**
+(string rewriting; confluence of the generated rule set is the main
+obligation), **malbolge-unshackled**, and **unlambda/SKI** (bracket
+abstraction rather than machine simulation, the one genuinely different
+route).
+
+Whitespace, subleq and brainfuck are done, and were proved in that order;
+read all three as worked examples before starting a fourth, subleq for the
+shortest route onto the URM and brainfuck for the hardest. **ook** and
 **brainloller** are free now that brainfuck is proved, by composing with
 `parse ∘ render = id`, and nobody has collected them yet.
 
-For the negative side, use `BoundedStorage` instead. **deadfish** (finite
-accumulator, no input) and **byte-celled befunge93** are done; **malbolge**
-is half done, with its finite control counted exactly but no
+For the negative side, the target is a decided halting problem, usually
+through `BoundedStorage`. **byte-celled befunge93** is done that way, and
+**deadfish** is done the other way: it halts on `length + 1` units of fuel
+for every program, so halting is decided directly, and `no_boundedStorage`
+proves the interface could not have witnessed it. **malbolge** is half
+done, with its finite control counted exactly but no
 `BoundedStorage` witness, because the interface takes a fixed `Config` and
 malbolge's cursor type depends on the input length. Widening the interface
 to cover it is the open piece. The decidability consequence is proved once

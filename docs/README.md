@@ -8,11 +8,11 @@
 | [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [**yes**](../Langlib/Computability/Derived.lean#L102) | yes | [yes](whitespace/compiler.md) | planned |
 | [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [**yes**](../Langlib/Computability/Derived.lean#L106) | yes | [yes](subleq/compiler.md) | planned |
 | [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | [**no**, byte core](../Langlib/Computability/Befunge93.lean#L326) | n/a | no, 2000 code cells | [no](befunge93/compiler.md) | n/a |
-| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [no, bounded storage](malbolge/spec.md) | wip; [finite control counted](../Langlib/Computability/Malbolge.lean#L80) | n/a | no, bounded storage | [no](malbolge/compiler.md) | n/a |
+| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [no, bounded storage](malbolge/spec.md) | wip; [control counted, transitions open](computability-malbolge.md) | n/a | no, bounded storage | [no](malbolge/compiler.md) | n/a |
 | malbolge-unshackled | wip | wip | wip | wip | `malbolge-unshackled` | yes | open | planned | expected yes | planned | planned |
-| [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | open | planned | no I/O at all | [planned](fractran/compiler.md) | planned |
+| [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | wip; [URM compiler, simulation open](computability-fractran.md) | planned | no I/O at all | [planned](fractran/compiler.md) | planned |
 | [thue](thue/spec.md) | yes | yes | yes | yes | `thue` | yes | open | planned | expected, unary output | [planned](thue/compiler.md) | planned |
-| [piet](piet/spec.md) | yes | yes | yes | yes | `piet` | yes | open | planned | expected yes | [planned](piet/compiler.md) | planned |
+| [piet](piet/spec.md) | yes | yes | yes | yes | `piet` | yes | wip; [straight-line only](computability-piet.md) | planned | expected yes | [planned](piet/compiler.md) | planned |
 | [ook](ook/spec.md) | yes | yes | yes | yes | `ook` | yes (via brainfuck) | open | planned | yes, via brainfuck | [planned, free via brainfuck](ook/compiler.md) | planned |
 | [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `brainloller` | yes (via brainfuck) | open | planned | yes, via brainfuck | [planned, free via brainfuck](brainloller/compiler.md) | planned |
 | [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `deadfish` | [no, finite state](deadfish/spec.md) | [**no**, halting decidable](../Langlib/Computability/Deadfish.lean#L89) | n/a | no, output only | [planned, output-only](deadfish/compiler.md) | planned |
@@ -163,16 +163,30 @@ whole point of this library.
   [scripts/axioms.lean](../scripts/axioms.lean).
   * `yes` links to a simulation: a compiler from the URM into the language,
     and the proof that it runs any URM program faithfully.
-  * `no` links to a bound: a theorem about the machine's state space that
-    a complete language could not satisfy. [Deadfish](deadfish/spec.md)
-    halts on `length + 1` units of fuel for *every* program, so its halting
-    problem is decided outright, and the bounded byte
-    [befunge93](befunge93/spec.md) core is a finite-state machine with a
-    `BoundedStorage` witness, which decides halting the same way.
-  * `wip` is a bound that is partly counted. [Malbolge](malbolge/spec.md)'s
-    finite control is counted exactly, for each input length, but the
-    `BoundedStorage` interface cannot yet package its input-dependent
-    cursor, so the language is not through the same gate as the two above.
+  * `no` links to a result a complete language could not have: a decided
+    halting problem. The two get there differently.
+    [Deadfish](deadfish/spec.md) halts on `length + 1` units of fuel for
+    *every* program, which decides halting directly, and it is also the
+    language that provably has *no* `BoundedStorage` witness, since its
+    runs grow with the program. The bounded byte
+    [befunge93](befunge93/spec.md) core takes the other route: finitely
+    many configurations, packaged as a `BoundedStorage`, so a run that has
+    not halted by the bound never will.
+  * `wip` is a proof under way with the load-bearing step still missing,
+    and it happens on both sides. [Fractran](computability-fractran.md) has
+    a runnable URM-to-FRACTRAN compiler and its prime-exponent arithmetic
+    proved, but no whole-program simulation;
+    [piet](computability-piet.md) compiles straight-line URM programs and
+    still owes image-level control flow, which is where backward jumps
+    live. On the negative side, [malbolge](computability-malbolge.md) has
+    the static half: its control space (memory, registers, input cursor,
+    with output shown not to matter) is counted exactly for each input
+    length, and every well-formed evaluator state projects below that
+    bound. The dynamic half is missing, and it is the half that decides
+    halting: that steps preserve well-formedness, and that equal projected
+    controls have equal successors and equal halt status. Until those
+    land, no pigeonhole argument runs and nothing about Malbolge's
+    computational class is settled.
   * `open` means nobody here has settled it in either direction, whatever
     the literature believes.
 

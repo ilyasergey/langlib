@@ -105,12 +105,24 @@ and `n` are equal). Everything else is a macro.
   scratch for the arithmetic macros.
 * **Arithmetic.** Addition counts a scratch register up to the second operand
   while incrementing the accumulator; multiplication is that loop nested
-  inside another. Both are quadratic, which is fine because this compiler is
-  not for speed.
+  inside another; division and modulo share one loop, which counts up to the
+  dividend and rolls the running remainder into the quotient every time it
+  reaches the divisor. All are quadratic or worse, which is fine because this
+  compiler is not for speed.
 * **Comparison and booleans.** `J` tests equality only, so `<`, `<=`, `>` and
   `>=` all count a scratch register up from zero and see which operand it
   meets first. `==` and `!=` are one `J` and a two-instruction tail. `!`
-  tests against the permanent zero.
+  tests against the permanent zero, and `&&` and `||` are branch-free
+  selects over two operands that have both already been computed.
+* **Declarations.** A declaration list *is* a sequence of assignments, which
+  is what `Turpentine.initEnv` computes: initialisers in declaration order,
+  each in scope of the earlier ones, and `0` / `false` for the rest.
+  `declPrelude` builds that statement and `compileToURM` runs it at the head
+  of the body, so initialisers need no machinery of their own. Variables
+  without an initialiser are assigned their default explicitly rather than
+  skipped; two instructions each, and it makes the desugaring match `initEnv`
+  step for step whatever the declaration list looks like, duplicate names
+  included.
 * **Control flow.** `if` and `while` are jumps, and the targets are absolute
   from the moment the code is emitted: `compileExpr slots q e d` places the
   code for `e` *at position `q`*, so there is no label-resolution pass. The
@@ -407,10 +419,29 @@ Every `-tc` example in `Langlib/Examples/Turpentine/` now compiles with
 
 | first blocker | examples |
 |---|---|
-| an array | maxelem-tc, sieve-tc, sort-tc |
+| an array | maxelem, sieve, sort, and their `-tc` twins |
 | no variable named `answer` | the I/O originals: cat, collatz, fib, gcd, hello, isqrt, primes, sumdigits |
 
-Subtraction never comes first. So what is left, in order:
+Subtraction never comes first. The nine that do compile were run end to end
+through whitespace (`turpentine exec --via whitespace --tc`) and checked
+against what the source computes:
+
+| example | answer | needed |
+|---|---|---|
+| `sumsq.turp` | 30 | — |
+| `fact-tc.turp` | 120 | — |
+| `fib-tc.turp` | 55 | initialisers |
+| `isqrt-tc.turp` | 4 | initialisers |
+| `hello-tc.turp` | 18537 | — |
+| `gcd-tc.turp` | 21 | `%` |
+| `collatz-tc.turp` | 111 | `/`, `%` |
+| `primes-tc.turp` | 10 | `%` |
+| `sumdigits-tc.turp` | 18 | `/`, `%` |
+
+`cat-tc.turp` compiles and is deliberately trivial: it records that a
+streaming echo cannot be expressed at all in this model.
+
+So what is left, in order:
 
 1. **Arrays.** Generalise the slot layout past one register per variable.
    The addressing is easier here than in any esolang backend, because
@@ -418,12 +449,56 @@ Subtraction never comes first. So what is left, in order:
    a dispatch chain rather than self-modifying code. This unblocks the only
    three `-tc` examples that still fail.
 2. **Subtraction.** The genuinely hard one, and now the only arithmetic
-   restriction left: a URM register is a `Nat` and Turpentine's integers are
-   `Int`, so this needs either a `Nat`-valued reference semantics for the
-   fragment plus a bridge to `Turpentine.exec`, or a sign representation
-   costing two registers per variable. Choose deliberately; the bridge is
-   probably cheaper to prove and the sign encoding is certainly cheaper to
-   explain.
+   restriction left. The two candidates were a `Nat`-valued reference
+   semantics plus a bridge to `Turpentine.exec`, and a sign
+   representation. **The bridge does not work, and this is worth writing
+   down, because it was the recommended option.**
+
+   The bridge runs the wrong way. Give the fragment a `Nat` semantics in
+   which `a - b` is undefined when `b > a`, and what you can prove is
+   `Nat ⟹ Int`: wherever the `Nat` semantics produces an answer,
+   `Turpentine.exec` produces the same one. What
+   `compileToURM_correct` needs is the converse, because its *hypothesis*
+   is `TurpentineHaltsWith`, that is, `Turpentine.exec` halting. And the
+   converse is false. `answer := (2 - 5) + 10;` halts in the reference
+   semantics with `7` and has no `Nat`-semantics run at all, so the
+   bridge says nothing about it while the theorem still has to.
+
+   The hypothesis cannot be weakened to dodge that.
+   `TurpentineHaltsWith`'s shape is fixed by
+   [`TurpentineCompiler.correct`](../Langlib/Computability/Derived.lean),
+   so a side condition like "no intermediate goes negative" cannot be
+   added to it without changing that field, and restating it over a
+   second interpreter would quietly change what the theorem claims about
+   the language.
+
+   Two cheaper-looking codings fail on the same example. **Truncated
+   subtraction** computes `0 + 10 = 10` where the source says `7`.
+   **Trapping** on `b > a`, the way a failed `assert` self-loops, makes
+   the target diverge where the source halts; it also collides with `&&`,
+   which compiles its right operand unconditionally, so
+   `b >= a || a - b > 0` would hang on inputs the source runs.
+
+   So the only design that keeps the theorem is one that can *represent*
+   negative values, and the choice is which:
+
+   * **A pos/neg or magnitude-and-sign pair, two registers per
+     variable.** Easy to explain and to reason about per operation;
+     changes `Slot.size` from `1` to `2`, which touches `scratchBase`,
+     `GoodSlots`, `Agree` and every layout lemma.
+   * **A zigzag encoding in one register** (`n ↦ 2n` for `n ≥ 0`,
+     `n ↦ -2n-1` otherwise). Leaves the layout and the `Agree` / `Frame`
+     machinery exactly as they are, at the price of a decode and an
+     encode inside every macro.
+
+   The recommendation is the **pair**, done *after* arrays. Arrays force
+   the layout lemmas to be generalised past one register per variable
+   anyway, which is most of the pair representation's cost; doing them in
+   that order pays it once. Either way the work is the whole arithmetic
+   half of `Compile/URM.lean`: `addCode` needs a comparison and a
+   truncated subtraction inside it, `mulCode` needs a sign, and
+   `divModCode` has to match `Int.ediv` and `Int.emod` at mixed signs,
+   which is the part with no shortcut.
 3. **I/O, by convention rather than by changing the model.** A URM has no
    input or output, but it does not need any: it *starts* with registers
    set and *halts* with registers set, which is enough if Turpentine
@@ -434,7 +509,46 @@ Subtraction never comes first. So what is left, in order:
    but today the compiler always returns `[]`
    (`compileToURM_inputs`). Designate variables, `input0`, `input1` and so
    on, map them to the initial register vector, and input works with no
-   change to the model, the interface, or any completeness proof.
+   change to the model, to `TuringComplete`, or to any completeness proof.
+
+   **One interface does have to change first, and it is not the model.**
+   `TurpentineCompiler.encodeInput : Input` is a *constant* field, and
+   `derived` sets it to `tc.encodeInput []` and then closes its proof with
+   `compileToURM_inputs`, using `inputs = []` to line the two streams up:
+
+   ```lean
+   exact tc.simulates P [] result (compileToURM_correct p P [] result n hcu hp)
+   ```
+
+   With a non-empty vector the compiled program is run on
+   `tc.encodeInput inputs` and the interface offers only
+   `tc.encodeInput []`, so the two are different streams and `derived` no
+   longer type-checks. The fix is one field: make `encodeInput` a function
+   of the program,
+
+   ```lean
+   encodeInput : Turpentine.Program → Input
+   ```
+
+   set it in `derived` to `fun p => match compileToURM p with
+   | .ok (_, inputs) => tc.encodeInput inputs | .error _ => tc.encodeInput []`,
+   and thread the same `inputs` through `correct` and through `agree`. That
+   is a change to
+   [`Derived.lean`](../Langlib/Computability/Derived.lean) and to its two
+   consumers' call sites, not to the register machine and not to any
+   completeness witness. Until it lands, `compileToURM` keeps returning
+   `[]` and `compileToURM_inputs` stays true, which is why the input half
+   of this item is designed and not yet built.
+
+   The order matters the other way too: a program's input values have to
+   come from the program, because `TurpentineCompiler.compile` takes
+   nothing else. So `input0` is a compile-time constant however it is
+   supplied, and the vector's real payoff is *size*, not expressiveness.
+   That payoff is large. `constCode` builds a literal by counting, so
+   `n := 9045` is 9046 URM instructions; `Langlib/Examples/Turpentine/`'s
+   `sumdigits-tc.turp` compiles to 42 MB of whitespace for that one line,
+   and would compile to a few kilobytes with the literal in the register
+   vector instead.
 
    **Output** stays the single `Nat` in `answer`. To print a string, the
    program builds its base-256 encoding in `answer` and the runner renders
@@ -442,6 +556,24 @@ Subtraction never comes first. So what is left, in order:
    theorem: the theorem still says the compiled program's answer equals
    the source program's, and rendering that number as text changes
    nothing about what was proved.
+
+   Stated exactly, so that the runner and the example programs agree. The
+   answer `n` denotes the byte string that is its **big-endian base-256
+   numeral with no leading zero digit**, and `n = 0` denotes the empty
+   string. Rendering is therefore: while `n > 0`, prepend the byte
+   `n % 256` and replace `n` with `n / 256`. `"Hi"` is `'H' = 72` then
+   `'i' = 105`, so `answer = 72 * 256 + 105 = 18537`, which is what
+   [`hello-tc.turp`](../Langlib/Examples/Turpentine/hello-tc.turp)
+   computes. Two consequences to write down rather than discover: a byte
+   string beginning with `NUL` has no encoding, because a leading zero
+   digit is not recoverable; and the empty string and the string `"\x00"`
+   would collide, which is why the encoding of `0` is fixed as empty.
+
+   The rendering belongs to the runner and must be **opt-in**, because the
+   answer is a number in every other program: something like
+   `--answer bytes` alongside the present decimal default, applied after
+   the target's own `decodeOutput` has produced the `Nat`. Nothing in
+   `compileToURM` or in `TurpentineCompiler` changes for it.
 
    What this cannot do, and the docs must say so: there is no
    interleaving. Output is observable only at halt, not as a stream, so a
@@ -486,8 +618,8 @@ convention. Steps are the exact smallest fuel that halts.
 
 | program | URM | derived: chars / steps | effective: chars / steps | ratio |
 |---|---|---|---|---|
-| `while i < 5 { i := i + 1; answer := answer + i; }` | 36 instrs | 1875 / 1730 | 171 / 129 | 11× / 13× |
-| factorial of 6 by repeated `*` | 48 instrs | 2863 / 29729 | 216 / 167 | 13× / 178× |
+| `while i < 5 { i := i + 1; answer := answer + i; }` | 40 instrs | 2153 / 1748 | 171 / 129 | 13× / 14× |
+| factorial of 6 by repeated `*` | 54 instrs | 3371 / 29756 | 216 / 167 | 16× / 178× |
 
 Code size is about one order of magnitude. Running time is worse and gets
 worse with the operand values, because the URM's only arithmetic is increment
@@ -510,8 +642,8 @@ So the library keeps two compilers per target and says which is which:
 |---|---|---|
 | written by | hand, per language | composition, once |
 | verified | not yet | by construction |
-| fragment | the whole language | I/O-free, non-negative, no `-` `/` `%` `&&` `\|\|` or arrays |
-| output size | small | 10× to 15× larger, and much slower |
+| fragment | the whole language | I/O-free, non-negative, no `-` and no arrays |
+| output size | small | 13× to 16× larger, and much slower |
 | purpose | running programs | proving, and testing the other one |
 
 The long-term aim is to verify the effective compilers directly, against
@@ -634,7 +766,7 @@ lake exe turpentine compile --to subleq --tc -o sum.sq sum.turp
 Output:
 
 ```
-turpentine: wrote 1286 bytes to sum.sq [certified, derived from the Turing-completeness proof]
+turpentine: wrote 1390 bytes to sum.sq [certified, derived from the Turing-completeness proof]
 ```
 
 ```
@@ -668,8 +800,8 @@ The same program, both compilers, one target:
 
 | | bespoke | certified |
 |---|---|---|
-| whitespace | 159 bytes | 1873 bytes |
-| subleq | 2874 bytes | 1286 bytes |
+| whitespace | 159 bytes | 2151 bytes |
+| subleq | 2874 bytes | 1390 bytes |
 
 Subleq is the surprise: the certified output is *smaller*, because the
 bespoke backend carries runtime routines for multiplication, division and
@@ -702,16 +834,19 @@ A rejection says what it did *not* do, so a failed compile cannot be
 mistaken for a quiet success: `compile` names the file it did not write,
 `exec` says nothing was run, and both exit 1.
 
-A target with no completeness proof has no certified compiler to offer:
+A target with no completeness proof has no certified compiler to offer, and
+says so rather than falling back to the bespoke one. Every target the CLI
+knows now has a proof, so that path has no witness left to show; what is
+reachable is an unknown name:
 
 ```
-lake exe turpentine compile --to brainfuck --tc sum.turp
+lake exe turpentine compile --to piet --tc sum.turp
 ```
 
 Output:
 
 ```
-turpentine compile: no certified compiler for 'brainfuck' yet
+turpentine compile: unknown target 'piet' (expected brainfuck|whitespace|subleq)
 ```
 
 Running out of fuel is reported distinctly from halting, and exits 2:
@@ -777,7 +912,7 @@ For Whitespace both hops are in place:
 `derivedWhitespace := derived whitespaceComplete` is a certified
 Turpentine-to-Whitespace compiler with no further work.
 [`Langlib/Tests/DerivedWhitespace.lean`](../Langlib/Tests/DerivedWhitespace.lean)
-runs it: 41 cases, including a suite that compares every answer against the
+runs it: 55 cases, including a suite that compares every answer against the
 Turpentine reference interpreter, a suite that pins every rejection, and a
 suite that repeats the exercise through `derivedSubleq`.
 
@@ -845,10 +980,28 @@ Output:
 
 ```
 'Langlib.Computability.whitespaceComplete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Computability.subleqComplete' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Langlib.Turpentine.Compile.URM.compileToURM_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.URM.reaches_compileStmt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.URM.reaches_compileExpr' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.URM.compileToURM' depends on axioms: [propext]
+'Langlib.Turpentine.Compile.URM.exec_declPrelude' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.URM.evalExpr_mono' depends on axioms: [propext, Quot.sound]
+'Langlib.Turpentine.Compile.URM.reaches_compileExpr_total' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.URM.reaches_andCode' depends on axioms: [propext, Quot.sound]
+'Langlib.Turpentine.Compile.URM.reaches_orCode' depends on axioms: [propext, Quot.sound]
+'Langlib.Turpentine.Compile.URM.reaches_divModCode' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.URM.binCode_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Langlib.Computability.derived' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Computability.derivedWhitespace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Computability.derivedSubleq' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Langlib.Computability.agree' depends on axioms: [propext, Classical.choice, Quot.sound]
 ```
+
+The script covers every completeness result in the library; those are the
+lines for the certified pipeline. A shorter list than the three is fine and
+means only that the proof did not need the rest: `compileToURM` is a
+computation, so it uses `propext` alone.
 
 Add a line to it for every new instance. Anything beyond those three
 axioms, `sorryAx` above all, means the result is not what it claims.

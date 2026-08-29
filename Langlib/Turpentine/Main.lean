@@ -64,7 +64,11 @@ def backends : List Backend :=
     , compileSource := Compile.Brainfuck.compileSource
       -- The backend emits programs that expect `--eof zero`: its
       -- `readByte` reports -1 for a zero byte or end of input alike.
-    , runTarget := Langlib.Brainfuck.run { eof := .zero } }
+    , runTarget := Langlib.Brainfuck.run { eof := .zero }
+    , certified := some fun src => do
+        let p ← parse src
+        let prog ← Langlib.Computability.derivedBrainfuck.compile p
+        return Langlib.Brainfuck.Prog.render prog }
   , { name := "whitespace"
     , compileSource := Compile.Whitespace.compileSource
     , runTarget := Langlib.Whitespace.run
