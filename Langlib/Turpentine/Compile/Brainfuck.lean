@@ -591,9 +591,12 @@ def ediv16 (q r a b : Val) (w : Work) : M Unit := do
   let w2 := w.after 5
   let sa := w.b 0; let sb := w.b 1; let rz := w.b 2
   let adj := w.b 3; let adj2 := w.b 4; let sq := w.b 5
-  let e1 := w.b 6; let e2 := w.b 7; let t := w.b 8
+  let e1 := w.b 6; let e2 := w.b 7; let t := w.b 8; let sa2 := w.b 9
   isNeg16 sa a w2
   isNeg16 sb b w2
+  -- `sa` is consumed by the remainder correction below, so keep a copy for
+  -- the sign of the quotient.
+  cpyB sa2 sa t
   copy16 aa a w2; abs16 aa w2
   copy16 bb b w2; abs16 bb w2
   divmodU16 qq rr aa bb w2
@@ -609,7 +612,7 @@ def ediv16 (q r a b : Val) (w : Work) : M Unit := do
     set16 tv 1
     add16 qq tv w2)
   clr sq
-  ifElse sa e1
+  ifElse sa2 e1
     (ifElse sb e2 (pure ()) (inc sq 1))
     (ifElse sb e2 (inc sq 1) (pure ()))
   ifThen sq (neg16 qq w2)

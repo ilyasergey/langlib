@@ -45,9 +45,21 @@ Befunge-93's fixed 80 by 25 playfield makes its halting problem
 decidable. The claims and the plan for each language are in
 [docs/README.md](docs/README.md) and [docs/PLAN.md](docs/PLAN.md).
 
-Completeness also drives the compilers: every language proved Turing
-complete is a language Turpentine should compile to, and a completeness
-proof by machine simulation is most of a compiler already.
+Completeness also drives the compilers, and more literally than it might
+sound. A completeness proof for a language contains a compiler into it
+(from a register machine) together with a theorem that the compilation
+preserves behaviour. Composing that with a single Turpentine-to-register-machine
+compiler yields a **derived compiler** into every language proved
+complete, correct by construction, with no backend written for it. The
+catch is that derived compilers are correct and unusable: they thread
+everything through a machine simulation, so their output is enormous and
+slow. So the library keeps two per target, and says which is which: the
+derived one, free and verified, and an **effective** one, hand-written for
+the target's real strengths and separately verified. The derived compiler
+doubles as a test oracle for the effective one, which is the strongest
+test available before the effective one is proved. See
+[docs/PLAN.md](docs/PLAN.md) Stage 9 and
+[docs/verification.md](docs/verification.md).
 
 On top of the interpreters, langlib develops **Turpentine** (`.turp`), a
 small imperative language deeply embedded in Lean and inspired by

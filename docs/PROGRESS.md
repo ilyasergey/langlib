@@ -2,6 +2,24 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-31
+
+* **Stage 9 planned: derived compilers.** A completeness proof already
+  contains a verified compiler (from a register machine into the
+  language), so composing it with one Turpentine-to-register-machine
+  compiler yields a verified Turpentine compiler for every language proved
+  complete, without writing a backend. That makes Stage 8 infrastructure
+  rather than scholarship, gives the hard targets (thue, fractran, piet,
+  malbolge) a compiler at all, and provides a test oracle for the
+  hand-written backends.
+* The plan is explicit that derived compilers are correct and unusable,
+  and that **effective** compilers stay separate: hand-written, practical,
+  and separately verified, with observational agreement between the two
+  falling out as a corollary rather than a third theorem. The I/O gap (a
+  register machine has none, Turpentine does) is stated up front with the
+  preferred resolution, a `URM+IO` extension with an embedding from the
+  plain URM.
+
 ## 2026-08-30 (night)
 
 * **Array codegen** in both backends, so whitespace and subleq again

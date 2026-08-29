@@ -358,9 +358,113 @@ rest.
 
 Every language proved Turing complete is a language Turpentine should
 compile to, and the table in `docs/README.md` tracks both facts side by
-side. A completeness proof by URM simulation is most of a compiler
-already, so the two efforts feed each other: the proof forces the
-codegen to be principled, and the compiler gives the proof a tested
-implementation to relate to. Languages proved incomplete are exempt, and
-their compiler entry records the fragment they can accept instead (a
-straight-line output-only fragment for deadfish, for instance).
+side. Languages proved incomplete are exempt, and their compiler entry
+records the fragment they can accept instead (a straight-line output-only
+fragment for deadfish, for instance).
+
+The relationship is stronger than "both are worth doing", though, and
+Stage 9 is about exploiting it.
+
+## Stage 9: derived compilers, and effective ones `[ ]`
+
+### The observation
+
+A completeness proof and a compiler are the same artifact seen twice. The
+`TuringComplete L` structure of Stage 8 already *contains* a total
+function `compile : URM.Program -> Prog L` together with a theorem saying
+it preserves behaviour. That is a verified compiler into `L`. It just
+happens to take a register machine as its source language rather than
+Turpentine.
+
+So if Turpentine also compiles to the register machine, composition gives
+a verified Turpentine compiler for **every language in the library that
+has been proved complete**, without writing a backend for any of them:
+
+```
+Turpentine --[one compiler, proved once]--> URM --[from TuringComplete L]--> L
+```
+
+Call this the **derived compiler** for `L`. Its correctness is not a new
+proof obligation; it is the composition of two simulations, and
+"composition of simulations is a simulation" is a single lemma in
+`Langlib/Common/`.
+
+### What this buys, concretely
+
+* **A new language gets a working compiler the moment its completeness
+  proof lands.** That is a real incentive to do the proofs, and it turns
+  Stage 8 from a scholarly exercise into infrastructure.
+* **Hard targets get a compiler at all.** Thue, fractran, piet and
+  malbolge have no hand-written backend and each is a substantial project.
+  A derived compiler needs only their completeness proof, which is the
+  thing the literature already tells us how to do.
+* **The derived compiler is an oracle.** Any hand-written backend can be
+  differentially tested against it: same source, same input, same output.
+  That is a much stronger test than golden files, because it compares two
+  independent implementations of the same specification.
+
+### Effective compilers, and why they stay separate
+
+The derived compiler is correct and unusable. It threads every Turpentine
+operation through a register machine encoding, so a program that a direct
+backend renders in 500 bytes of whitespace becomes an interpreter's worth
+of output running orders of magnitude slower. Nobody wants to read it, and
+for bounded targets (befunge93's 2000 code cells, malbolge's 59049 words)
+it will not fit at all.
+
+So the library keeps two compilers per target, deliberately, and names
+them differently:
+
+* `Langlib/Turpentine/Derive/<Lang>.lean`: the derived compiler, obtained
+  from `TuringComplete <Lang>` by composition. Correct by construction.
+  Not expected to be practical.
+* `Langlib/Turpentine/Compile/<Lang>.lean`: the **effective compiler**,
+  hand-written against the target's real strengths, with its own
+  correctness theorem in the shape `docs/verification.md` prescribes. This
+  is what `lake exe turpentine compile --to <lang>` uses.
+
+An effective compiler is not a refinement of the derived one and should
+not be defined as one; the two produce completely different programs. What
+ties them together is the specification they share, and the theorem worth
+stating is agreement:
+
+```lean
+theorem effective_agrees_derived (p : Turpentine.Program) (i : Input) :
+    Observes (effective p) i ↔ Observes (derived p) i
+```
+
+which follows from both correctness theorems and needs no separate work.
+Until an effective compiler is proved, that agreement is checked by test
+instead, which is exactly the oracle described above.
+
+### The I/O gap, stated up front
+
+A register machine has no input or output: it starts with registers set
+and halts with registers set. Turpentine has streaming byte and line I/O.
+So a derived compiler cannot handle `readInt`, `println`, and friends
+without extending the source model.
+
+Two options, and the choice should be made before any of this is built:
+
+1. **Restrict**: derived compilers accept the I/O-free fragment of
+   Turpentine, with inputs preloaded into registers and the answer read
+   from a register at halt. Simple, honest, and enough to make the derived
+   compiler useful as an oracle for pure computations.
+2. **Extend**: define `URM+IO`, a register machine with `read` and `write`
+   instructions, prove *that* universal (trivially, it contains the URM),
+   and state `TuringComplete` against it. Every completeness proof then
+   has to say what its language does with the two extra instructions,
+   which is a small addition for languages that have I/O at all and a
+   genuine obstacle for fractran, which has none.
+
+Prefer option 2, with a `URM` to `URM+IO` embedding so that a language
+proved complete for the I/O-free model stays proved. Option 1 is the
+fallback if the extension makes the simulation proofs materially harder.
+
+### Sequencing
+
+This stage depends on Stage 8 having at least two instances and on the
+Turpentine-to-RegIR compiler from Stage 4, so it comes after both. First
+derived compiler to build: whitespace, since it is the first completeness
+instance and there is already an effective backend to test against, which
+makes the oracle claim checkable immediately rather than theoretical.

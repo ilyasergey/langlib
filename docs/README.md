@@ -48,4 +48,7 @@ thing to build). Planned targets and their sequencing live in
 * [ROADMAP.md](ROADMAP.md): candidate languages and instructions for adding
   one.
 * [RELATED.md](RELATED.md): related efforts elsewhere.
-* verification.md (Stage 6): the compiler verification pipeline design.
+* [verification.md](verification.md): the compiler verification pipeline,
+  including the split between derived compilers (correct by construction,
+  obtained from a completeness proof) and effective ones (hand-written,
+  practical, separately verified).

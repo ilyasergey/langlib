@@ -134,6 +134,42 @@ establishes Turing completeness for the OISC family and the compiler that
 targets it are the same construction, so proving one should discharge
 most of the other.
 
+## Two compilers per target, two obligations
+
+`docs/PLAN.md` Stage 9 splits each backend in two, and the split changes
+what has to be proved.
+
+A **derived** compiler is obtained by composing the Turpentine-to-register-machine
+compiler with the `compile` field of that language's `TuringComplete`
+instance. It carries no new proof obligation at all: its correctness is
+the composition of two simulations, and that composition is one lemma
+proved once in `Langlib/Common/`:
+
+```lean
+theorem simulation_trans {A B C} (f : A → B) (g : B → C)
+    (hf : Simulates f) (hg : Simulates g) : Simulates (g ∘ f)
+```
+
+An **effective** compiler is the hand-written backend, and it carries the
+full obligation described in this document: a state relation and
+per-construct simulation lemmas. It is what users actually run.
+
+The two are related only through the specification they share. Their
+outputs are entirely different programs, so no refinement statement holds
+between them; what holds is observational agreement, and that is a
+corollary of the two correctness theorems rather than a third theorem:
+
+```lean
+theorem effective_agrees_derived (p) (i) :
+    Observes (effective p) i ↔ Observes (derived p) i
+```
+
+Before an effective compiler is verified, this agreement is the strongest
+test available: two independent implementations of one specification,
+compared on every example. That is the practical value of doing Stage 8
+before finishing Stage 4, and it is why the scoreboard below tracks the
+derived column separately.
+
 ## Recommended order
 
 1. **Turpentine → whitespace.** The relation is nearly the identity: whitespace
@@ -165,13 +201,14 @@ Nothing yet: the compilers are landing first (Stage 4), and this document
 is their target. The table below is the scoreboard; update it in the same
 commit as the proof.
 
-| Backend | Compiler | Fuel monotonicity | Simulation | End-to-end theorem |
-|---------|----------|-------------------|------------|--------------------|
-| whitespace | wip | - | - | - |
-| subleq | wip | - | - | - |
-| brainfuck | wip | - | - | - |
-| ook | - | - | - | - |
-| deadfish | - | - | - | - |
+| Backend | Effective compiler | Fuel monotonicity | Simulation | End-to-end theorem | Derived compiler |
+|---------|--------------------|-------------------|------------|--------------------|------------------|
+| whitespace | yes | - | - | - | - (needs Stage 8) |
+| subleq | yes | - | - | - | - (needs Stage 8) |
+| brainfuck | wip | - | - | - | - |
+| ook | - | - | - | - | - |
+| deadfish | - | - | - | - | n/a (not complete) |
+| thue, fractran, piet, malbolge | - | - | - | - | the point of Stage 9 |
 
 Until a proof exists, the differential tests in `Langlib/Tests/Compile*`
 are the evidence: every supported example is run through the Turpentine
