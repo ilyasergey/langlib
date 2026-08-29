@@ -285,10 +285,30 @@ The three columns follow from that, in the order the table puts them.
 * **Bespoke compiler**: whether a hand-written backend exists, and for
   what fragment.
 * **Bespoke correct**: whether *that* backend has a machine-checked
-  correctness theorem. Real per-language proof work, and a strictly harder
-  statement than the derived route's, because a bespoke backend compiles
-  the I/O-bearing language (see
+  correctness theorem. Real per-language proof work, and the eventual
+  statement is harder than the derived route's, because a bespoke backend
+  compiles the I/O-bearing language (see
   [certified-compilation.md](certified-compilation.md) section 3b).
+
+  **The theorems that exist today do not reach that yet, and the gap is
+  I/O.** Both routes are proved against one specification,
+  [`TurpentineHaltsWith`](../Langlib/Turpentine/Compile/URM.lean), which
+  fixes the source's input to the empty stream and observes only the final
+  value of `answer`. `TurpentineCompiler.correct` then asks that the
+  compiled program's output *decode* to that number, so output bytes carry
+  a single answer rather than being observed as themselves, and input is
+  not related at all. A bespoke proof is therefore currently harder only
+  in compiling a real backend instead of a simulation, not in what it
+  observes.
+
+  [verification.md](verification.md), the Stage 6 design, prescribes the
+  stronger statement: observable behaviour is the byte stream plus the
+  exit, over a supplied input. Reaching it means generalising the
+  interface, since `encodeInput` is a constant field today and would have
+  to become a function of the supplied stream. It cannot be done inside
+  the shared structure alone, because a derived compiler could never
+  satisfy it: the URM it routes through has no I/O at all, which is what
+  the **Hosts full Turpentine** column records for the URM row.
 
 `planned` in either correctness column means no theorem exists here yet,
 whatever the tests say; when one lands the cell links to it. `n/a` means
