@@ -14,6 +14,11 @@ engineering.
 |---|---|
 | `ProgLang`, the class of runnable languages | [Class.lean:40](../Langlib/Computability/Class.lean#L40) |
 | `computes_of_turingComplete`, the bridge to cslib | [Class.lean](../Langlib/Computability/Class.lean) |
+| `TurpentineCompiler`, a compiler bundled with its proof | [Derived.lean:55](../Langlib/Computability/Derived.lean#L55) |
+| **`derived`**, the general correctness theorem | [Derived.lean:83](../Langlib/Computability/Derived.lean#L83) |
+| `derivedWhitespace`, `derivedSubleq`, the instances | [Derived.lean:101](../Langlib/Computability/Derived.lean#L101) |
+| `agree`, two compilers give one answer | [Derived.lean:115](../Langlib/Computability/Derived.lean#L115) |
+| `compileToURM_correct`, the shared first hop | [Compile/URM.lean:2075](../Langlib/Turpentine/Compile/URM.lean#L2075) |
 | **`TuringComplete`**, the completeness claim | [Class.lean:80](../Langlib/Computability/Class.lean#L80) |
 | `BoundedStorage`, the incompleteness claim | [Class.lean:134](../Langlib/Computability/Class.lean#L134) |
 | `halts_iff_search`, decidability from a bound | [Class.lean:162](../Langlib/Computability/Class.lean#L162) |
@@ -26,10 +31,11 @@ engineering.
 | **`compileToURM`**, Turpentine to the URM | [Compile/URM.lean:404](../Langlib/Turpentine/Compile/URM.lean#L404) |
 | **`compileToURM_correct`**, its simulation | [Compile/URM.lean:2075](../Langlib/Turpentine/Compile/URM.lean#L2075) |
 | `TurpentineHaltsWith`, the answer convention | [Compile/URM.lean:2060](../Langlib/Turpentine/Compile/URM.lean#L2060) |
-| `TurpentineCompiler`, the interface | [Derived.lean:54](../Langlib/Computability/Derived.lean#L54) |
-| `derived`, one construction for every target | [Derived.lean:82](../Langlib/Computability/Derived.lean#L82) |
-| `derivedWhitespace` | [Derived.lean:100](../Langlib/Computability/Derived.lean#L100) |
-| `agree`, two compilers give one answer | [Derived.lean:110](../Langlib/Computability/Derived.lean#L110) |
+| `TurpentineCompiler`, the interface | [Derived.lean:55](../Langlib/Computability/Derived.lean#L55) |
+| `derived`, one construction for every target | [Derived.lean:83](../Langlib/Computability/Derived.lean#L83) |
+| `derivedWhitespace` | [Derived.lean:101](../Langlib/Computability/Derived.lean#L101) |
+| `derivedSubleq` | [Derived.lean:105](../Langlib/Computability/Derived.lean#L105) |
+| `agree`, two compilers give one answer | [Derived.lean:115](../Langlib/Computability/Derived.lean#L115) |
 | its tests | [Tests/DerivedWhitespace.lean](../Langlib/Tests/DerivedWhitespace.lean) |
 | the axiom audit | [scripts/axioms.lean](../scripts/axioms.lean) |
 
@@ -173,7 +179,9 @@ What the interface buys:
   `L` and `tc` are arbitrary, so it is proved once and every completeness
   proof that lands afterwards yields a verified Turpentine compiler by
   applying it. `derivedWhitespace := derived whitespaceComplete` is the first
-  end-to-end certified compiler in the library.
+  end-to-end certified compiler in the library, and
+  `derivedSubleq := derived subleqComplete` is the second, written on one
+  line with no new proof.
 
 * **Agreement is a theorem about the interface**, proved once for all
   instances and all targets rather than per pair:
@@ -347,9 +355,9 @@ of it is a whitespace label block. Nobody would ship that.
 
 **Coverage, in the other direction.** The effective backends accept the
 *entire* Turpentine language: I/O, arrays, negative integers. The derived
-pipeline accepts the I/O-free, non-negative fragment, because that is what
-a URM is. So the verified compiler is not a superset of the practical one;
-each does something the other cannot.
+pipeline accepts the I/O-free, non-negative fragment of section 4, because
+that is what a URM is. So the verified compiler is not a superset of the
+practical one; each does something the other cannot.
 
 **Cost of keeping both** is low. They share a source language, a test
 suite, and the specification they are checked against. The derived one is
@@ -371,6 +379,85 @@ then, the derived compiler is the strongest available check on them:
 compile the same source both ways, run both, compare. That is two
 independent implementations of one specification, which is a much better
 test than a golden file.
+
+## Running it
+
+The certified compiler is behind `--certified` on the two subcommands that
+emit code. Note the fragment: the program must be I/O-free and name its
+result in a variable called `answer`, because a URM has no output and the
+theorem reads register 0.
+
+```
+cat sum.turp
+```
+
+Output:
+
+```
+var answer : int;
+var i : int;
+while i < 5 {
+  answer := answer + i;
+  i := i + 1;
+}
+```
+
+Compile and run it in one step, through the compiler derived from the
+Whitespace completeness proof:
+
+```
+lake exe turpentine exec --via whitespace --certified sum.turp
+```
+
+Output:
+
+```
+10
+```
+
+The same source through the compiler derived from the Subleq proof. Subleq
+has only a single-byte output primitive, so its `decodeOutput` counts
+bytes: ten of them here, which is the answer.
+
+```
+lake exe turpentine exec --via subleq --certified sum.turp
+```
+
+Output:
+
+```
+1111111111
+```
+
+Emit the code instead of running it, to see what a machine simulation
+costs:
+
+```
+lake exe turpentine compile --to whitespace --certified -o sum.ws sum.turp
+```
+
+Output:
+
+```
+turpentine: wrote 1873 bytes to sum.ws
+```
+
+Out of fragment, the compiler says which construct is the problem rather
+than emitting something it cannot justify:
+
+```
+lake exe turpentine compile --to whitespace --certified Langlib/Examples/Turpentine/isqrt.turp
+```
+
+Output:
+
+```
+turpentine compile: 'x' has an initialiser; the certified URM fragment declares variables without one, since every register starts at zero
+```
+
+Drop `--certified` from any of these to use the hand-written backend
+instead: it accepts the whole language and emits far smaller code, but
+nothing about it is proved.
 
 ## Two diagrams
 
@@ -423,8 +510,9 @@ For Whitespace both hops are in place:
 `derivedWhitespace := derived whitespaceComplete` is a certified
 Turpentine-to-Whitespace compiler with no further work.
 [`Langlib/Tests/DerivedWhitespace.lean`](../Langlib/Tests/DerivedWhitespace.lean)
-runs it: 37 cases, including a suite that compares every answer against the
-Turpentine reference interpreter and a suite that pins every rejection.
+runs it: 41 cases, including a suite that compares every answer against the
+Turpentine reference interpreter, a suite that pins every rejection, and a
+suite that repeats the exercise through `derivedSubleq`.
 
 ### What unlocks what
 

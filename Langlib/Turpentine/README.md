@@ -34,8 +34,11 @@ lake exe turpentine check file.turp
 
 Input comes from stdin (pipe or redirect;
 a terminal stdin means empty input); `--verbose` reports how the run ended.
-Compilation subcommands arrive with Stage 4 of
-[docs/PLAN.md](../../docs/PLAN.md).
+Add `--certified` to `compile` or `exec` to use the compiler derived from
+the target's Turing-completeness proof instead of the hand-written one. It
+is correct by construction and accepts only the I/O-free fragment
+documented in
+[docs/certified-compilation.md](../../docs/certified-compilation.md).
 
 ## Examples ([Langlib/Examples/Turpentine/](../Examples/Turpentine/))
 

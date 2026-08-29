@@ -1048,4 +1048,1123 @@ theorem reaches_cmpCode (P : UProg) (q d rA rB : Nat) (fy : Bool) (regs : Cslib.
   · rw [hv, e1, e2]
   · intro k hk; rw [hf k (by omega) (by omega), write_ne _ (by omega)]
 
+/-! ## The state relation
+
+A Turpentine state maps names to `Value`s; a URM state maps register indices
+to naturals. `Agree` is the correspondence: every declared variable's value
+is the content of its register. -/
+
+/-- A Turpentine value as a register content. `none` for the values the
+certified fragment cannot represent: negative integers and arrays. -/
+def valNat : Value → Option Nat
+  | .int n => if n < 0 then none else some n.toNat
+  | .bool b => some (if b then 1 else 0)
+  | .arr _ => none
+
+@[simp] theorem valNat_ofNat (k : Nat) : valNat (.int (k : Int)) = some k := by
+  simp [valNat]
+
+@[simp] theorem valNat_bool (b : Bool) : valNat (.bool b) = some (if b then 1 else 0) := rfl
+
+theorem valNat_int_eq {n : Int} {k : Nat} (h : valNat (.int n) = some k) : n = (k : Int) := by
+  simp only [valNat] at h
+  split at h
+  · simp at h
+  · next hn => simp only [Option.some.injEq] at h; omega
+
+private theorem exc_bind_ok {ε α β : Type} (a : α) (f : α → Except ε β) :
+    ((Except.ok a : Except ε α) >>= f) = f a := rfl
+
+private theorem exc_bind_err {ε α β : Type} (m : ε) (f : α → Except ε β) :
+    ((Except.error m : Except ε α) >>= f) = Except.error m := rfl
+
+private theorem exc_pure {ε α : Type} (a : α) : (pure a : Except ε α) = .ok a := rfl
+
+private theorem exc_throw {ε α : Type} (m : ε) : (throw m : Except ε α) = .error m := rfl
+
+/-! ### What `layoutFrom` guarantees -/
+
+private theorem le_foldl_max (f : Slot → Nat) : ∀ (l : List Slot) (acc : Nat),
+    acc ≤ l.foldl (fun a t => max a (f t)) acc := by
+  intro l
+  induction l with
+  | nil => intro acc; exact Nat.le_refl _
+  | cons a l ih => intro acc; exact Nat.le_trans (Nat.le_max_left _ _) (ih _)
+
+private theorem mem_le_foldl_max (f : Slot → Nat) : ∀ (l : List Slot) (acc : Nat) (s : Slot),
+    s ∈ l → f s ≤ l.foldl (fun a t => max a (f t)) acc := by
+  intro l
+  induction l with
+  | nil => intro acc s hs; exact absurd hs (by simp)
+  | cons a l ih =>
+    intro acc s hs
+    rcases List.mem_cons.mp hs with h | h
+    · subst h
+      exact Nat.le_trans (Nat.le_max_right acc (f s)) (le_foldl_max f l _)
+    · exact ih _ s h
+
+theorem base_add_size_le_scratchBase {slots : List Slot} {s : Slot} (h : s ∈ slots) :
+    s.base + s.size ≤ scratchBase slots :=
+  mem_le_foldl_max (fun t => t.base + t.size) slots firstVarReg s h
+
+theorem firstVarReg_le_scratchBase (slots : List Slot) :
+    firstVarReg ≤ scratchBase slots :=
+  le_foldl_max (fun t => t.base + t.size) slots firstVarReg
+
+theorem findSlot_name {slots : List Slot} {x : String} {s : Slot}
+    (h : findSlot slots x = some s) : s.name = x := by
+  have := List.find?_some h
+  simpa using this
+
+theorem findSlot_mem {slots : List Slot} {x : String} {s : Slot}
+    (h : findSlot slots x = some s) : s ∈ slots :=
+  List.mem_of_find?_eq_some h
+
+/-- The shape of a successful layout: names in declaration order, no
+initialisers, every type scalar, and one register per variable starting at
+`next`. -/
+theorem layoutFrom_spec :
+    ∀ (decls : List (String × Ty × Option Expr)) (next : Nat) (slots : List Slot),
+      layoutFrom next decls = .ok slots →
+      slots.map (·.name) = decls.map (·.1) ∧
+      (∀ d ∈ decls, d.2.2 = none ∧ valNat (Turpentine.initEnv.default d.2.1) = some 0) ∧
+      (∀ (i : Nat) (h : i < slots.length),
+        (slots[i]'h).size = 1 ∧ (slots[i]'h).base = next + i) := by
+  intro decls
+  induction decls with
+  | nil =>
+    intro next slots h
+    rw [layoutFrom] at h
+    simp only [Except.ok.injEq] at h
+    subst h
+    exact ⟨rfl, by simp, by intro i hi; simp at hi⟩
+  | cons dd rest ih =>
+    obtain ⟨x, t, init⟩ := dd
+    intro next slots h
+    simp only [layoutFrom] at h
+    cases init with
+    | some e => simp at h
+    | none =>
+      have main : ∀ (tl : List Slot), layoutFrom (next + 1) rest = .ok tl →
+          slots = { name := x, ty := t, base := next, size := 1 } :: tl →
+          (t = Ty.int ∨ t = Ty.bool) →
+          slots.map (·.name) = ((x, t, none) :: rest).map (·.1) ∧
+          (∀ d ∈ (x, t, none) :: rest, d.2.2 = none ∧
+            valNat (Turpentine.initEnv.default d.2.1) = some 0) ∧
+          (∀ (i : Nat) (hi : i < slots.length),
+            (slots[i]'hi).size = 1 ∧ (slots[i]'hi).base = next + i) := by
+        intro tl hr hs ht
+        subst hs
+        obtain ⟨hn, hd, hi⟩ := ih (next + 1) tl hr
+        refine ⟨by simpa using hn, ?_, ?_⟩
+        · intro d hd'
+          rcases List.mem_cons.mp hd' with he | he
+          · subst he
+            refine ⟨rfl, ?_⟩
+            rcases ht with ht | ht <;> subst ht <;>
+              simp [Turpentine.initEnv.default, valNat]
+          · exact hd d he
+        · intro i hi'
+          cases i with
+          | zero => exact ⟨rfl, by simp⟩
+          | succ j =>
+            have hj : j < tl.length := by simpa using hi'
+            obtain ⟨hs', hb⟩ := hi j hj
+            refine ⟨by simpa using hs', ?_⟩
+            simp only [List.getElem_cons_succ]
+            rw [hb]; omega
+      cases t with
+      | array el n => simp at h
+      | int =>
+        cases hr : layoutFrom (next + 1) rest with
+        | error m => rw [hr] at h; simp at h
+        | ok tl =>
+          simp only [hr, exc_bind_ok, exc_pure, Except.ok.injEq] at h
+          exact main tl hr h.symm (Or.inl rfl)
+      | bool =>
+        cases hr : layoutFrom (next + 1) rest with
+        | error m => rw [hr] at h; simp at h
+        | ok tl =>
+          simp only [hr, exc_bind_ok, exc_pure, Except.ok.injEq] at h
+          exact main tl hr h.symm (Or.inr rfl)
+
+/-- What the proofs need of a layout: one register per variable, above the
+two reserved registers, below the scratch area, and distinct per name. -/
+structure GoodSlots (slots : List Slot) : Prop where
+  size_one : ∀ x s, findSlot slots x = some s → s.size = 1
+  base_ge : ∀ x s, findSlot slots x = some s → firstVarReg ≤ s.base
+  base_lt : ∀ x s, findSlot slots x = some s → s.base < scratchBase slots
+  base_inj : ∀ x y s t, findSlot slots x = some s → findSlot slots y = some t →
+    s.base = t.base → x = y
+
+theorem goodSlots_of_layout {decls : List (String × Ty × Option Expr)} {slots : List Slot}
+    (h : layoutFrom firstVarReg decls = .ok slots) : GoodSlots slots := by
+  obtain ⟨_, _, hi⟩ := layoutFrom_spec decls firstVarReg slots h
+  have hidx : ∀ x s, findSlot slots x = some s →
+      ∃ i, ∃ hi' : i < slots.length, (slots[i]'hi') = s := fun x s hx =>
+    List.getElem_of_mem (findSlot_mem hx)
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · intro x s hx
+    obtain ⟨i, hi', he⟩ := hidx x s hx
+    rw [← he]; exact (hi i hi').1
+  · intro x s hx
+    obtain ⟨i, hi', he⟩ := hidx x s hx
+    rw [← he, (hi i hi').2]; omega
+  · intro x s hx
+    have h1 := base_add_size_le_scratchBase (findSlot_mem hx)
+    obtain ⟨i, hi', he⟩ := hidx x s hx
+    have h2 := (hi i hi').1
+    rw [he] at h2
+    omega
+  · intro x y s t hx hy hb
+    obtain ⟨i, hi', hei⟩ := hidx x s hx
+    obtain ⟨j, hj', hej⟩ := hidx y t hy
+    have hbi := (hi i hi').2
+    have hbj := (hi j hj').2
+    rw [hei] at hbi
+    rw [hej] at hbj
+    have hij : i = j := by omega
+    subst hij
+    have hst : s = t := by rw [← hei, ← hej]
+    rw [← findSlot_name hx, ← findSlot_name hy, hst]
+
+/-- The correspondence between a Turpentine environment and the registers. -/
+def Agree (slots : List Slot) (env : Std.HashMap String Value)
+    (regs : Cslib.URM.Regs) : Prop :=
+  ∀ x s, findSlot slots x = some s → ∃ v, env[x]? = some v ∧ valNat v = some (regs s.base)
+
+theorem Agree.frame {slots : List Slot} {env : Std.HashMap String Value}
+    {regs regs' : Cslib.URM.Regs} {d : Nat} (hg : GoodSlots slots)
+    (hd : scratchBase slots ≤ d) (hA : Agree slots env regs) (hf : Frame d regs regs') :
+    Agree slots env regs' := by
+  intro x s hx
+  obtain ⟨v, hv, hn⟩ := hA x s hx
+  refine ⟨v, hv, ?_⟩
+  rw [hf s.base (by have := hg.base_lt x s hx; omega)]
+  exact hn
+
+theorem zero_of_frame {regs regs' : Cslib.URM.Regs} {d : Nat} (hd : 2 ≤ d)
+    (h1 : regs 1 = 0) (hf : Frame d regs regs') : regs' 1 = 0 := by
+  rw [hf 1 (by omega)]; exact h1
+
+theorem Agree.update {slots : List Slot} {env : Std.HashMap String Value}
+    {regs : Cslib.URM.Regs} {x : String} {s : Slot} {v : Value} {k : Nat}
+    (hg : GoodSlots slots) (hA : Agree slots env regs)
+    (hx : findSlot slots x = some s) (hv : valNat v = some k) :
+    Agree slots (env.insert x v) (regs.write s.base k) := by
+  intro y t hy
+  by_cases hb : t.base = s.base
+  · have hxy : y = x := hg.base_inj y x t s hy hx hb
+    subst hxy
+    refine ⟨v, by simp, ?_⟩
+    rw [hb, write_self]
+    exact hv
+  · have hne : y ≠ x := by
+      intro he
+      subst he
+      rw [hx, Option.some.injEq] at hy
+      exact hb (by rw [hy])
+    obtain ⟨w, hw, hn⟩ := hA y t hy
+    refine ⟨w, ?_, ?_⟩
+    · rw [Std.HashMap.getElem?_insert, if_neg (by simp [Ne.symm hne])]; exact hw
+    · rw [write_ne _ hb]; exact hn
+
+/-! ### Inverting the reference evaluator
+
+`Langlib.Turpentine.evalExpr` evaluates the operands and then combines them.
+`evalBin` is that second half, split out so the case analysis over the
+thirteen operators happens in one place. -/
+
+/-- The value-level half of `evalExpr` for a binary operator. -/
+def evalBin (op : BinOp) (v₁ v₂ : Value) : Except String Value :=
+  match v₁, v₂ with
+  | .int a, .int b =>
+    match op with
+    | .add => return .int (a + b)
+    | .sub => return .int (a - b)
+    | .mul => return .int (a * b)
+    | .div => if b == 0 then throw "division by zero" else return .int (a.ediv b)
+    | .mod => if b == 0 then throw "modulo by zero" else return .int (a.emod b)
+    | .eq => return .bool (a == b)
+    | .ne => return .bool (a != b)
+    | .lt => return .bool (a < b)
+    | .le => return .bool (a ≤ b)
+    | .gt => return .bool (a > b)
+    | .ge => return .bool (a ≥ b)
+    | _ => throw "ill-typed operation"
+  | .bool a, .bool b =>
+    match op with
+    | .eq => return .bool (a == b)
+    | .ne => return .bool (a != b)
+    | _ => throw "ill-typed operation"
+  | _, _ => throw "ill-typed operation"
+
+theorem evalExpr_bin_eq (env : Std.HashMap String Value) (op : BinOp) (e₁ e₂ : Expr)
+    (hop : certOp op = true) :
+    evalExpr env (.bin op e₁ e₂) =
+      (evalExpr env e₁ >>= fun v₁ => evalExpr env e₂ >>= fun v₂ => evalBin op v₁ v₂) := by
+  cases op <;> first | rfl | simp [certOp] at hop
+
+theorem evalExpr_bin_inv {env : Std.HashMap String Value} {op : BinOp} {e₁ e₂ : Expr}
+    {v : Value} (hop : certOp op = true) (h : evalExpr env (.bin op e₁ e₂) = .ok v) :
+    ∃ v₁ v₂, evalExpr env e₁ = .ok v₁ ∧ evalExpr env e₂ = .ok v₂ ∧
+      evalBin op v₁ v₂ = .ok v := by
+  rw [evalExpr_bin_eq env op e₁ e₂ hop] at h
+  cases h1 : evalExpr env e₁ with
+  | error m => rw [h1, exc_bind_err] at h; simp at h
+  | ok v₁ =>
+    cases h2 : evalExpr env e₂ with
+    | error m => rw [h1, h2, exc_bind_ok, exc_bind_err] at h; simp at h
+    | ok v₂ =>
+      rw [h1, h2, exc_bind_ok, exc_bind_ok] at h
+      exact ⟨v₁, v₂, rfl, rfl, h⟩
+
+theorem evalExpr_not_inv {env : Std.HashMap String Value} {e : Expr} {v : Value}
+    (h : evalExpr env (.un .not e) = .ok v) :
+    ∃ b, evalExpr env e = .ok (.bool b) ∧ v = .bool !b := by
+  rw [evalExpr] at h
+  cases he : evalExpr env e with
+  | error m => rw [he, exc_bind_err] at h; simp at h
+  | ok w =>
+    rw [he, exc_bind_ok] at h
+    cases w with
+    | int n => simp at h
+    | arr a => simp at h
+    | bool b =>
+      simp only [exc_pure, Except.ok.injEq] at h
+      exact ⟨b, rfl, h.symm⟩
+
+theorem evalExpr_var_inv {env : Std.HashMap String Value} {x : String} {v : Value}
+    (h : evalExpr env (.var x) = .ok v) : env[x]? = some v := by
+  rw [evalExpr] at h
+  cases hw : env[x]? with
+  | none => rw [hw] at h; simp [exc_throw] at h
+  | some w =>
+    rw [hw] at h
+    simp only [exc_pure, Except.ok.injEq] at h
+    subst h
+    rfl
+
+/-! ### One binary operator
+
+The eight certified operators, each against its macro. The register `d`
+holds the left operand and `d+1` the right; the macro leaves the answer in
+`d` and touches nothing below it. -/
+
+theorem binCode_correct (P : UProg) (op : BinOp) (hop : certOp op = true)
+    (Q d : Nat) (regs : Cslib.URM.Regs) (v₁ v₂ v : Value) (k₁ k₂ : Nat)
+    (hk₁ : valNat v₁ = some k₁) (hk₂ : valNat v₂ = some k₂)
+    (hbin : evalBin op v₁ v₂ = .ok v)
+    (hd₁ : regs d = k₁) (hd₂ : regs (d+1) = k₂)
+    (hcm : CodeAt P Q (binCode Q d op)) :
+    ∃ regs' k, Reaches (Ex P) ⟨Q, regs⟩ ⟨Q + opSize op, regs'⟩ ∧
+      valNat v = some k ∧ regs' d = k ∧ Frame d regs regs' := by
+  cases op
+  case add =>
+    have hv : ∃ a b, v₁ = .int a ∧ v₂ = .int b ∧ v = .int (a + b) := by
+      cases v₁ <;> cases v₂ <;>
+        simp only [evalBin, exc_pure, exc_throw, Except.ok.injEq, reduceCtorEq] at hbin
+      exact ⟨_, _, rfl, rfl, hbin.symm⟩
+    obtain ⟨a, b, rfl, rfl, rfl⟩ := hv
+    have ha := valNat_int_eq hk₁
+    have hb := valNat_int_eq hk₂
+    subst ha; subst hb
+    obtain ⟨regs', hr, hval, hf⟩ := reaches_addCode P Q d regs (by simpa [binCode] using hcm)
+    have hcast : ((k₁ : Int) + (k₂ : Int)) = ((k₁ + k₂ : Nat) : Int) := by exact_mod_cast rfl
+    exact ⟨regs', k₁ + k₂, by simpa [opSize] using hr, by rw [hcast]; exact valNat_ofNat _,
+      by rw [hval, hd₁, hd₂], hf⟩
+  case mul =>
+    have hv : ∃ a b, v₁ = .int a ∧ v₂ = .int b ∧ v = .int (a * b) := by
+      cases v₁ <;> cases v₂ <;>
+        simp only [evalBin, exc_pure, exc_throw, Except.ok.injEq, reduceCtorEq] at hbin
+      exact ⟨_, _, rfl, rfl, hbin.symm⟩
+    obtain ⟨a, b, rfl, rfl, rfl⟩ := hv
+    have ha := valNat_int_eq hk₁
+    have hb := valNat_int_eq hk₂
+    subst ha; subst hb
+    obtain ⟨regs', hr, hval, hf⟩ := reaches_mulCode P Q d regs (by simpa [binCode] using hcm)
+    have hcast : ((k₁ : Int) * (k₂ : Int)) = ((k₁ * k₂ : Nat) : Int) := by exact_mod_cast rfl
+    exact ⟨regs', k₁ * k₂, by simpa [opSize] using hr, by rw [hcast]; exact valNat_ofNat _,
+      by rw [hval, hd₁, hd₂], hf⟩
+  case eq =>
+    obtain ⟨regs', hr, hval, hf⟩ := reaches_eqCode P Q d regs (by simpa [binCode] using hcm)
+    refine ⟨regs', if k₁ = k₂ then 1 else 0, by simpa [opSize] using hr, ?_,
+      by rw [hval, hd₁, hd₂], hf⟩
+    cases v₁ <;> cases v₂ <;>
+      simp only [evalBin, exc_pure, exc_throw, Except.ok.injEq, reduceCtorEq] at hbin
+    · next a b =>
+      have ha := valNat_int_eq hk₁
+      have hb := valNat_int_eq hk₂
+      subst ha; subst hb; subst hbin
+      by_cases hk : k₁ = k₂ <;> simp [hk]
+      omega
+    · next a b =>
+      simp only [valNat_bool, Option.some.injEq] at hk₁ hk₂
+      subst hbin
+      cases a <;> cases b <;> simp_all
+  case ne =>
+    obtain ⟨regs', hr, hval, hf⟩ := reaches_neCode P Q d regs (by simpa [binCode] using hcm)
+    refine ⟨regs', if k₁ = k₂ then 0 else 1, by simpa [opSize] using hr, ?_,
+      by rw [hval, hd₁, hd₂], hf⟩
+    cases v₁ <;> cases v₂ <;>
+      simp only [evalBin, exc_pure, exc_throw, Except.ok.injEq, reduceCtorEq] at hbin
+    · next a b =>
+      have ha := valNat_int_eq hk₁
+      have hb := valNat_int_eq hk₂
+      subst ha; subst hb; subst hbin
+      by_cases hk : k₁ = k₂ <;> simp [hk]
+      omega
+    · next a b =>
+      simp only [valNat_bool, Option.some.injEq] at hk₁ hk₂
+      subst hbin
+      cases a <;> cases b <;> simp_all
+  case lt =>
+    have hv : ∃ a b, v₁ = .int a ∧ v₂ = .int b ∧ v = .bool (decide (a < b)) := by
+      cases v₁ <;> cases v₂ <;>
+        simp only [evalBin, exc_pure, exc_throw, Except.ok.injEq, reduceCtorEq] at hbin
+      exact ⟨_, _, rfl, rfl, hbin.symm⟩
+    obtain ⟨a, b, rfl, rfl, rfl⟩ := hv
+    have ha := valNat_int_eq hk₁
+    have hb := valNat_int_eq hk₂
+    subst ha; subst hb
+    obtain ⟨regs', hr, hval, hf⟩ := reaches_cmpCode P Q d (d+1) d false regs
+      (by omega) (by omega) (by simpa [binCode] using hcm)
+    refine ⟨regs', if k₂ ≤ k₁ then 0 else 1, by simpa [opSize] using hr, ?_,
+      by rw [hval, hd₁, hd₂]; simp, hf⟩
+    by_cases hk : k₂ ≤ k₁ <;> simp [hk]
+  case le =>
+    have hv : ∃ a b, v₁ = .int a ∧ v₂ = .int b ∧ v = .bool (decide (a ≤ b)) := by
+      cases v₁ <;> cases v₂ <;>
+        simp only [evalBin, exc_pure, exc_throw, Except.ok.injEq, reduceCtorEq] at hbin
+      exact ⟨_, _, rfl, rfl, hbin.symm⟩
+    obtain ⟨a, b, rfl, rfl, rfl⟩ := hv
+    have ha := valNat_int_eq hk₁
+    have hb := valNat_int_eq hk₂
+    subst ha; subst hb
+    obtain ⟨regs', hr, hval, hf⟩ := reaches_cmpCode P Q d d (d+1) true regs
+      (by omega) (by omega) (by simpa [binCode] using hcm)
+    refine ⟨regs', if k₁ ≤ k₂ then 1 else 0, by simpa [opSize] using hr, ?_,
+      by rw [hval, hd₁, hd₂]; simp, hf⟩
+    by_cases hk : k₁ ≤ k₂ <;> simp [hk]
+  case gt =>
+    have hv : ∃ a b, v₁ = .int a ∧ v₂ = .int b ∧ v = .bool (decide (a > b)) := by
+      cases v₁ <;> cases v₂ <;>
+        simp only [evalBin, exc_pure, exc_throw, Except.ok.injEq, reduceCtorEq] at hbin
+      exact ⟨_, _, rfl, rfl, hbin.symm⟩
+    obtain ⟨a, b, rfl, rfl, rfl⟩ := hv
+    have ha := valNat_int_eq hk₁
+    have hb := valNat_int_eq hk₂
+    subst ha; subst hb
+    obtain ⟨regs', hr, hval, hf⟩ := reaches_cmpCode P Q d d (d+1) false regs
+      (by omega) (by omega) (by simpa [binCode] using hcm)
+    refine ⟨regs', if k₁ ≤ k₂ then 0 else 1, by simpa [opSize] using hr, ?_,
+      by rw [hval, hd₁, hd₂]; simp, hf⟩
+    by_cases hk : k₁ ≤ k₂ <;> simp [hk]
+  case ge =>
+    have hv : ∃ a b, v₁ = .int a ∧ v₂ = .int b ∧ v = .bool (decide (a ≥ b)) := by
+      cases v₁ <;> cases v₂ <;>
+        simp only [evalBin, exc_pure, exc_throw, Except.ok.injEq, reduceCtorEq] at hbin
+      exact ⟨_, _, rfl, rfl, hbin.symm⟩
+    obtain ⟨a, b, rfl, rfl, rfl⟩ := hv
+    have ha := valNat_int_eq hk₁
+    have hb := valNat_int_eq hk₂
+    subst ha; subst hb
+    obtain ⟨regs', hr, hval, hf⟩ := reaches_cmpCode P Q d (d+1) d true regs
+      (by omega) (by omega) (by simpa [binCode] using hcm)
+    refine ⟨regs', if k₂ ≤ k₁ then 1 else 0, by simpa [opSize] using hr, ?_,
+      by rw [hval, hd₁, hd₂]; simp, hf⟩
+    by_cases hk : k₂ ≤ k₁ <;> simp [hk]
+  all_goals simp [certOp] at hop
+
+/-! ## Expressions
+
+The invariant is `Agree`: the registers hold the variables' values. The
+conclusion says the emitted block runs from its own start to its own end,
+leaves the expression's value in `d` as a natural, and leaves every register
+below `d` alone, which is what lets an enclosing operator's left operand
+survive while its right operand is computed. -/
+
+theorem reaches_compileExpr (slots : List Slot) (hg : GoodSlots slots) (P : UProg) :
+    ∀ (e : Expr) (q d : Nat) (code : List UInstr) (env : Std.HashMap String Value)
+      (v : Value) (regs : Cslib.URM.Regs),
+      compileExpr slots q e d = .ok code →
+      CodeAt P q code →
+      evalExpr env e = .ok v →
+      Agree slots env regs → regs 1 = 0 → scratchBase slots ≤ d →
+      ∃ (regs' : Cslib.URM.Regs) (k : Nat),
+        Reaches (Ex P) ⟨q, regs⟩ ⟨q + exprSize slots e, regs'⟩ ∧
+        valNat v = some k ∧ regs' d = k ∧ Frame d regs regs' := by
+  have h2d : 2 ≤ scratchBase slots := by
+    have := firstVarReg_le_scratchBase slots; simp only [firstVarReg] at this; omega
+  intro e
+  induction e with
+  | intLit n =>
+    intro q d code env v regs hcomp hcode hev _ _ _
+    rw [compileExpr] at hcomp
+    split at hcomp
+    · simp at hcomp
+    · next hn =>
+      simp only [Except.ok.injEq] at hcomp
+      subst hcomp
+      rw [evalExpr] at hev
+      simp only [exc_pure, Except.ok.injEq] at hev
+      obtain ⟨regs', hr, hd, hf⟩ := reaches_constCode P q d n.toNat regs hcode
+      exact ⟨regs', n.toNat, by simpa [exprSize, ← Nat.add_assoc] using hr,
+        by rw [← hev]; simp [valNat, hn], hd, hf⟩
+  | boolLit b =>
+    intro q d code env v regs hcomp hcode hev _ _ _
+    rw [compileExpr] at hcomp
+    simp only [Except.ok.injEq] at hcomp
+    subst hcomp
+    rw [evalExpr] at hev
+    simp only [exc_pure, Except.ok.injEq] at hev
+    subst hev
+    cases b
+    · have h0 : P[q]? = some (Cslib.URM.Instr.Z d) := by
+        have := hcode.head (by simp); simpa using this
+      exact ⟨regs.write d 0, 0, by simpa [exprSize] using reaches_Z h0, by simp,
+        write_self _ _ _, Frame.write regs 0 (Nat.le_refl d)⟩
+    · have hc : CodeAt P q [Cslib.URM.Instr.Z d, Cslib.URM.Instr.S d] := by simpa using hcode
+      obtain ⟨h0, hc1⟩ := hc.cons
+      obtain ⟨h1, _⟩ := hc1.cons
+      refine ⟨(regs.write d 0).write d ((regs.write d 0) d + 1), 1, ?_, by simp, ?_, ?_⟩
+      · have hstep : Reaches (Ex P) ⟨q, regs⟩
+            ⟨q + 1 + 1, (regs.write d 0).write d ((regs.write d 0) d + 1)⟩ :=
+          Reaches.trans (reaches_Z h0) (reaches_S h1)
+        simpa [exprSize] using hstep
+      · rw [write_self, write_self]
+      · exact Frame.trans (Frame.write regs 0 (Nat.le_refl d))
+          (Frame.write _ _ (Nat.le_refl d))
+  | var x =>
+    intro q d code env v regs hcomp hcode hev hA _ _
+    rw [compileExpr] at hcomp
+    split at hcomp
+    · next s hs =>
+      simp only [Except.ok.injEq] at hcomp
+      subst hcomp
+      have h0 : P[q]? = some (Cslib.URM.Instr.T s.base d) := by
+        have := hcode.head (by simp); simpa using this
+      obtain ⟨w, hw, hn⟩ := hA x s hs
+      have hvw : v = w := by
+        have hx := evalExpr_var_inv hev
+        rw [hx, Option.some.injEq] at hw
+        exact hw
+      exact ⟨regs.write d (regs s.base), regs s.base,
+        by simpa [exprSize] using reaches_T (P := P) (p := q) h0,
+        by rw [hvw]; exact hn, write_self _ _ _, Frame.write regs _ (Nat.le_refl d)⟩
+    · simp at hcomp
+  | un op e ih =>
+    intro q d code env v regs hcomp hcode hev hA h1 hd
+    cases op with
+    | neg => rw [compileExpr] at hcomp; simp at hcomp
+    | not =>
+      rw [compileExpr] at hcomp
+      split at hcomp
+      · next c hc =>
+        simp only [Except.ok.injEq] at hcomp
+        subst hcomp
+        obtain ⟨b, hb, hvb⟩ := evalExpr_not_inv hev
+        have hlen : c.length = exprSize slots e := length_compileExpr slots e q d c hc
+        obtain ⟨regs₁, k₁, hr₁, hk₁, hd₁, hf₁⟩ :=
+          ih q d c env (.bool b) regs hc hcode.left hb hA h1 hd
+        have hcode₂ : CodeAt P (q + exprSize slots e) (notCode (q + exprSize slots e) d) := by
+          have := hcode.right (c₁ := c)
+          rwa [hlen] at this
+        have hz : regs₁ 1 = 0 := zero_of_frame (by omega) h1 hf₁
+        obtain ⟨regs₂, hr₂, hv₂, hf₂⟩ :=
+          reaches_notCode P (q + exprSize slots e) d regs₁ hz hcode₂
+        simp only [valNat_bool, Option.some.injEq] at hk₁
+        refine ⟨regs₂, if b then 0 else 1, ?_, ?_, ?_, Frame.trans hf₁ hf₂⟩
+        · have hstep := Reaches.trans hr₁ hr₂
+          simpa [exprSize, Nat.add_assoc] using hstep
+        · rw [hvb]; cases b <;> simp
+        · rw [hv₂, hd₁, ← hk₁]; cases b <;> simp
+      · simp at hcomp
+  | bin op e₁ e₂ ih₁ ih₂ =>
+    intro q d code env v regs hcomp hcode hev hA h1 hd
+    rw [compileExpr] at hcomp
+    split at hcomp
+    · next hop =>
+      split at hcomp
+      · next c₁ c₂ hc₁ hc₂ =>
+        simp only [Except.ok.injEq] at hcomp
+        subst hcomp
+        obtain ⟨v₁, v₂, he₁, he₂, hbin⟩ := evalExpr_bin_inv hop hev
+        have hl₁ : c₁.length = exprSize slots e₁ := length_compileExpr slots e₁ q d c₁ hc₁
+        have hl₂ : c₂.length = exprSize slots e₂ :=
+          length_compileExpr slots e₂ (q + exprSize slots e₁) (d + 1) c₂ hc₂
+        have hco : CodeAt P q (c₁ ++ c₂) := hcode.left
+        obtain ⟨regs₁, k₁, hr₁, hk₁, hd₁, hf₁⟩ :=
+          ih₁ q d c₁ env v₁ regs hc₁ hco.left he₁ hA h1 hd
+        have hz₁ : regs₁ 1 = 0 := zero_of_frame (by omega) h1 hf₁
+        have hA₁ : Agree slots env regs₁ := hA.frame hg hd hf₁
+        have hco₂ : CodeAt P (q + exprSize slots e₁) c₂ := by
+          have := hco.right (c₁ := c₁); rwa [hl₁] at this
+        obtain ⟨regs₂, k₂, hr₂, hk₂, hd₂, hf₂⟩ :=
+          ih₂ (q + exprSize slots e₁) (d + 1) c₂ env v₂ regs₁ hc₂ hco₂ he₂ hA₁ hz₁
+            (by omega)
+        have hcm : CodeAt P (q + exprSize slots e₁ + exprSize slots e₂)
+            (binCode (q + exprSize slots e₁ + exprSize slots e₂) d op) := by
+          have hrest := hcode.right (c₁ := c₁ ++ c₂)
+          rw [List.length_append, hl₁, hl₂] at hrest
+          rwa [show q + (exprSize slots e₁ + exprSize slots e₂)
+            = q + exprSize slots e₁ + exprSize slots e₂ from by omega] at hrest
+        have hdd : regs₂ d = k₁ := by rw [hf₂ d (by omega), hd₁]
+        obtain ⟨regs₃, k, hr₃, hvk, hd₃, hf₃⟩ := binCode_correct P op hop
+          (q + exprSize slots e₁ + exprSize slots e₂) d regs₂ v₁ v₂ v k₁ k₂ hk₁ hk₂ hbin
+          hdd hd₂ hcm
+        refine ⟨regs₃, k, ?_, hvk, hd₃, ?_⟩
+        · have hstep := Reaches.trans (Reaches.trans hr₁ hr₂) hr₃
+          simpa [exprSize, Nat.add_assoc] using hstep
+        · exact Frame.trans (Frame.trans hf₁ (hf₂.mono (by omega))) hf₃
+      · simp at hcomp
+      · simp at hcomp
+    · simp at hcomp
+  | index x i =>
+    intro q d code env v regs hcomp
+    rw [compileExpr] at hcomp; simp at hcomp
+  | len x =>
+    intro q d code env v regs hcomp
+    rw [compileExpr] at hcomp; simp at hcomp
+
+/-! ## Statements
+
+The induction is the one `exec` itself is defined by: outer on the fuel,
+inner on the statement, because `seq` recurses on the statement at the same
+fuel and everything else drops the fuel by one.
+
+Fuel does not appear in the conclusion. `Reaches` carries an exact target
+cost, so the source bound `n` and the target bound are unrelated, which is
+what the composition with `TuringComplete.simulates` needs. -/
+
+/-- Rewriting the target program counter of a `Reaches`, which the size
+arithmetic below needs constantly. -/
+private theorem reaches_pc {P : UProg} {a b b' : Nat} {r r' : Cslib.URM.Regs}
+    (h : Reaches (Ex P) ⟨a, r⟩ ⟨b, r'⟩) (hb : b = b') :
+    Reaches (Ex P) ⟨a, r⟩ ⟨b', r'⟩ := hb ▸ h
+
+theorem reaches_compileStmt (slots : List Slot) (hg : GoodSlots slots) (P : UProg) :
+    ∀ (n : Nat) (stm : Stmt) (q : Nat) (code : List UInstr)
+      (s s' : Turpentine.State) (regs : Cslib.URM.Regs),
+      compileStmt slots (scratchBase slots) q stm = .ok code →
+      CodeAt P q code →
+      Turpentine.exec n stm s = (s', Exit.halted) →
+      Agree slots s.env regs → regs 1 = 0 →
+      ∃ regs', Reaches (Ex P) ⟨q, regs⟩ ⟨q + stmtSize slots stm, regs'⟩ ∧
+        Agree slots s'.env regs' ∧ regs' 1 = 0 := by
+  have h2d : 2 ≤ scratchBase slots := by
+    have := firstVarReg_le_scratchBase slots; simp only [firstVarReg] at this; omega
+  intro n
+  induction n with
+  | zero =>
+    intro stm q code s s' regs _ _ hex _ _
+    rw [Turpentine.exec] at hex
+    simp at hex
+  | succ n ih =>
+    intro stm
+    induction stm with
+    | skip =>
+      intro q code s s' regs hcomp hcode hex hA h1
+      rw [compileStmt] at hcomp
+      simp only [Except.ok.injEq] at hcomp
+      subst hcomp
+      rw [Turpentine.exec] at hex
+      simp only [Prod.mk.injEq] at hex
+      obtain ⟨hs, _⟩ := hex
+      subst hs
+      exact ⟨regs, by simpa [stmtSize] using Reaches.refl (Ex P) ⟨q, regs⟩, hA, h1⟩
+    | seq a b iha ihb =>
+      intro q code s s' regs hcomp hcode hex hA h1
+      rw [compileStmt] at hcomp
+      split at hcomp
+      · next ca cb hca hcb =>
+        simp only [Except.ok.injEq] at hcomp
+        subst hcomp
+        have hla : ca.length = stmtSize slots a :=
+          length_compileStmt slots _ a q ca hca
+        rw [Turpentine.exec] at hex
+        cases hea : Turpentine.exec (n + 1) a s with
+        | mk s₂ ex =>
+          cases ex with
+          | outOfFuel => rw [hea] at hex; simp at hex
+          | error m => rw [hea] at hex; simp at hex
+          | halted =>
+            rw [hea] at hex
+            simp only at hex
+            obtain ⟨regs₂, hr₂, hA₂, hz₂⟩ := iha q ca s s₂ regs hca hcode.left hea hA h1
+            have hcb' : CodeAt P (q + stmtSize slots a) cb := by
+              have := hcode.right (c₁ := ca); rwa [hla] at this
+            obtain ⟨regs₃, hr₃, hA₃, hz₃⟩ :=
+              ih b (q + stmtSize slots a) cb s₂ s' regs₂ hcb hcb' hex hA₂ hz₂
+            exact ⟨regs₃, reaches_pc (Reaches.trans hr₂ hr₃) (by simp only [stmtSize]; omega),
+              hA₃, hz₃⟩
+      · simp at hcomp
+      · simp at hcomp
+    | assign x e =>
+      intro q code s s' regs hcomp hcode hex hA h1
+      rw [compileStmt] at hcomp
+      split at hcomp
+      · next s₀ c hs₀ hc =>
+        simp only [Except.ok.injEq] at hcomp
+        subst hcomp
+        have hlc : c.length = exprSize slots e := length_compileExpr slots e q _ c hc
+        rw [Turpentine.exec] at hex
+        cases hev : Turpentine.evalExpr s.env e with
+        | error m => rw [hev] at hex; simp at hex
+        | ok v =>
+          rw [hev] at hex
+          simp only [Prod.mk.injEq] at hex
+          obtain ⟨hs', _⟩ := hex
+          obtain ⟨regs₁, k, hr₁, hk, hd₁, hf₁⟩ :=
+            reaches_compileExpr slots hg P e q (scratchBase slots) c s.env v regs hc
+              hcode.left hev hA h1 (Nat.le_refl _)
+          have htail : CodeAt P (q + exprSize slots e)
+              [Cslib.URM.Instr.T (scratchBase slots) s₀.base] := by
+            have := hcode.right (c₁ := c); rwa [hlc] at this
+          obtain ⟨hT, _⟩ := htail.cons
+          have hbase : s₀.base ≠ 1 := by
+            have := hg.base_ge x s₀ hs₀
+            simp only [firstVarReg] at this
+            omega
+          subst hs'
+          refine ⟨regs₁.write s₀.base k, ?_, ?_, ?_⟩
+          · have hstep : Reaches (Ex P) ⟨q + exprSize slots e, regs₁⟩
+                ⟨q + exprSize slots e + 1, regs₁.write s₀.base k⟩ := by
+              have := reaches_T (P := P) (p := q + exprSize slots e) (regs := regs₁) hT
+              rwa [hd₁] at this
+            exact reaches_pc (Reaches.trans hr₁ hstep) (by simp only [stmtSize]; omega)
+          · exact Agree.update hg (hA.frame hg (Nat.le_refl _) hf₁) hs₀ hk
+          · rw [write_ne _ (Ne.symm hbase)]
+            exact zero_of_frame (by omega) h1 hf₁
+      · simp at hcomp
+      · simp at hcomp
+    | ite c a b iha ihb =>
+      intro q code s s' regs hcomp hcode hex hA h1
+      rw [compileStmt] at hcomp
+      split at hcomp
+      · next cc ca cb hcc hca hcb =>
+        simp only [Except.ok.injEq] at hcomp
+        subst hcomp
+        have hlc : cc.length = exprSize slots c := length_compileExpr slots c q _ cc hcc
+        have hla : ca.length = stmtSize slots a := length_compileStmt slots _ a _ ca hca
+        have hlb : cb.length = stmtSize slots b := length_compileStmt slots _ b _ cb hcb
+        rw [Turpentine.exec] at hex
+        cases hev : Turpentine.evalExpr s.env c with
+        | error m => rw [hev] at hex; simp at hex
+        | ok w =>
+          cases w with
+          | int m => rw [hev] at hex; simp at hex
+          | arr m => rw [hev] at hex; simp at hex
+          | bool bb =>
+            obtain ⟨regs₁, k, hr₁, hk, hd₁, hf₁⟩ :=
+              reaches_compileExpr slots hg P c q (scratchBase slots) cc s.env (.bool bb) regs
+                hcc hcode.left.left hev hA h1 (Nat.le_refl _)
+            simp only [valNat_bool, Option.some.injEq] at hk
+            have hz₁ : regs₁ 1 = 0 := zero_of_frame (by omega) h1 hf₁
+            have hA₁ : Agree slots s.env regs₁ := hA.frame hg (Nat.le_refl _) hf₁
+            -- the branch instruction and the two blocks
+            have hmid : CodeAt P (q + exprSize slots c)
+                (Cslib.URM.Instr.J (scratchBase slots) 1
+                  (q + exprSize slots c + 1 + stmtSize slots a + 1) :: ca) := by
+              have := hcode.left.right (c₁ := cc); rwa [hlc] at this
+            obtain ⟨hJ, hca'⟩ := hmid.cons
+            have htail : CodeAt P (q + (exprSize slots c + 1 + stmtSize slots a))
+                (Cslib.URM.Instr.J 0 0
+                  (q + exprSize slots c + 1 + stmtSize slots a + 1 + stmtSize slots b) :: cb) := by
+              have := hcode.right (c₁ := cc ++ (Cslib.URM.Instr.J (scratchBase slots) 1
+                (q + exprSize slots c + 1 + stmtSize slots a + 1) :: ca))
+              rw [List.length_append, List.length_cons, hlc, hla] at this
+              rwa [show exprSize slots c + (stmtSize slots a + 1)
+                = exprSize slots c + 1 + stmtSize slots a from by omega] at this
+            obtain ⟨hJ0, hcb'⟩ := htail.cons
+            rw [hev] at hex
+            cases bb
+            · -- false: the branch is taken, run the else block
+              simp only at hex
+              obtain ⟨regs₂, hr₂, hA₂, hz₂⟩ :=
+                ih b (q + exprSize slots c + 1 + stmtSize slots a + 1) cb s s' regs₁ hcb
+                  (by
+                    have := hcb'
+                    rwa [show q + (exprSize slots c + 1 + stmtSize slots a) + 1
+                      = q + exprSize slots c + 1 + stmtSize slots a + 1 from by omega] at this)
+                  hex hA₁ hz₁
+              refine ⟨regs₂, ?_, hA₂, hz₂⟩
+              have hjump : Reaches (Ex P) ⟨q + exprSize slots c, regs₁⟩
+                  ⟨q + exprSize slots c + 1 + stmtSize slots a + 1, regs₁⟩ :=
+                reaches_J_eq hJ (by rw [hd₁, hz₁]; simp at hk; omega)
+              exact reaches_pc (Reaches.trans hr₁ (Reaches.trans hjump hr₂))
+                (by simp only [stmtSize]; omega)
+            · -- true: fall through into the then block
+              simp only at hex
+              obtain ⟨regs₂, hr₂, hA₂, hz₂⟩ :=
+                ih a (q + exprSize slots c + 1) ca s s' regs₁ hca hca' hex hA₁ hz₁
+              refine ⟨regs₂, ?_, hA₂, hz₂⟩
+              have hfall : Reaches (Ex P) ⟨q + exprSize slots c, regs₁⟩
+                  ⟨q + exprSize slots c + 1, regs₁⟩ :=
+                reaches_J_ne hJ (by rw [hd₁, hz₁]; simp at hk; omega)
+              have hjump : Reaches (Ex P)
+                  ⟨q + (exprSize slots c + 1 + stmtSize slots a), regs₂⟩
+                  ⟨q + exprSize slots c + 1 + stmtSize slots a + 1 + stmtSize slots b, regs₂⟩ :=
+                reaches_jump hJ0
+              have hr₂' : Reaches (Ex P) ⟨q + exprSize slots c + 1, regs₁⟩
+                  ⟨q + (exprSize slots c + 1 + stmtSize slots a), regs₂⟩ := by
+                rwa [show q + (exprSize slots c + 1 + stmtSize slots a)
+                  = q + exprSize slots c + 1 + stmtSize slots a from by omega]
+              exact reaches_pc (Reaches.trans hr₁ (Reaches.trans hfall (Reaches.trans hr₂' hjump)))
+                (by simp only [stmtSize]; omega)
+      · simp at hcomp
+      · simp at hcomp
+      · simp at hcomp
+    | «while» c body ihb =>
+      intro q code s s' regs hcomp hcode hex hA h1
+      have hcomp' := hcomp
+      rw [compileStmt] at hcomp
+      split at hcomp
+      · next cc cb hcc hcb =>
+        simp only [Except.ok.injEq] at hcomp
+        subst hcomp
+        have hlc : cc.length = exprSize slots c := length_compileExpr slots c q _ cc hcc
+        have hlb : cb.length = stmtSize slots body := length_compileStmt slots _ body _ cb hcb
+        rw [Turpentine.exec] at hex
+        cases hev : Turpentine.evalExpr s.env c with
+        | error m => rw [hev] at hex; simp at hex
+        | ok w =>
+          cases w with
+          | int m => rw [hev] at hex; simp at hex
+          | arr m => rw [hev] at hex; simp at hex
+          | bool bb =>
+            obtain ⟨regs₁, k, hr₁, hk, hd₁, hf₁⟩ :=
+              reaches_compileExpr slots hg P c q (scratchBase slots) cc s.env (.bool bb) regs
+                hcc hcode.left.left hev hA h1 (Nat.le_refl _)
+            simp only [valNat_bool, Option.some.injEq] at hk
+            have hz₁ : regs₁ 1 = 0 := zero_of_frame (by omega) h1 hf₁
+            have hA₁ : Agree slots s.env regs₁ := hA.frame hg (Nat.le_refl _) hf₁
+            have hmid : CodeAt P (q + exprSize slots c)
+                (Cslib.URM.Instr.J (scratchBase slots) 1
+                  (q + exprSize slots c + 1 + stmtSize slots body + 1) :: cb) := by
+              have := hcode.left.right (c₁ := cc); rwa [hlc] at this
+            obtain ⟨hJ, hcb'⟩ := hmid.cons
+            have htail : CodeAt P (q + (exprSize slots c + 1 + stmtSize slots body))
+                [Cslib.URM.Instr.J 0 0 q] := by
+              have := hcode.right (c₁ := cc ++ (Cslib.URM.Instr.J (scratchBase slots) 1
+                (q + exprSize slots c + 1 + stmtSize slots body + 1) :: cb))
+              rw [List.length_append, List.length_cons, hlc, hlb] at this
+              rwa [show exprSize slots c + (stmtSize slots body + 1)
+                = exprSize slots c + 1 + stmtSize slots body from by omega] at this
+            obtain ⟨hJ0, _⟩ := htail.cons
+            rw [hev] at hex
+            cases bb
+            · -- the condition is false: leave the loop
+              simp only [Prod.mk.injEq] at hex
+              obtain ⟨hs', _⟩ := hex
+              subst hs'
+              refine ⟨regs₁, ?_, hA₁, hz₁⟩
+              have hjump : Reaches (Ex P) ⟨q + exprSize slots c, regs₁⟩
+                  ⟨q + exprSize slots c + 1 + stmtSize slots body + 1, regs₁⟩ :=
+                reaches_J_eq hJ (by rw [hd₁, hz₁]; simp at hk; omega)
+              exact reaches_pc (Reaches.trans hr₁ hjump) (by simp only [stmtSize]; omega)
+            · -- the condition is true: one round of the body, then start again
+              simp only at hex
+              cases heb : Turpentine.exec n body s with
+              | mk s₂ ex =>
+                cases ex with
+                | outOfFuel => rw [heb] at hex; simp at hex
+                | error m => rw [heb] at hex; simp at hex
+                | halted =>
+                  rw [heb] at hex
+                  simp only at hex
+                  obtain ⟨regs₂, hr₂, hA₂, hz₂⟩ :=
+                    ih body (q + exprSize slots c + 1) cb s s₂ regs₁ hcb hcb' heb hA₁ hz₁
+                  obtain ⟨regs₃, hr₃, hA₃, hz₃⟩ :=
+                    ih (.while c body) q _ s₂ s' regs₂ hcomp' hcode hex hA₂ hz₂
+                  refine ⟨regs₃, ?_, hA₃, hz₃⟩
+                  have hfall : Reaches (Ex P) ⟨q + exprSize slots c, regs₁⟩
+                      ⟨q + exprSize slots c + 1, regs₁⟩ :=
+                    reaches_J_ne hJ (by rw [hd₁, hz₁]; simp at hk; omega)
+                  have hr₂' : Reaches (Ex P) ⟨q + exprSize slots c + 1, regs₁⟩
+                      ⟨q + (exprSize slots c + 1 + stmtSize slots body), regs₂⟩ := by
+                    rwa [show q + (exprSize slots c + 1 + stmtSize slots body)
+                      = q + exprSize slots c + 1 + stmtSize slots body from by omega]
+                  have hback : Reaches (Ex P)
+                      ⟨q + (exprSize slots c + 1 + stmtSize slots body), regs₂⟩
+                      ⟨q, regs₂⟩ := reaches_jump hJ0
+                  exact Reaches.trans hr₁
+                    (Reaches.trans hfall (Reaches.trans hr₂' (Reaches.trans hback hr₃)))
+      · simp at hcomp
+      · simp at hcomp
+    | «assert» e =>
+      intro q code s s' regs hcomp hcode hex hA h1
+      rw [compileStmt] at hcomp
+      split at hcomp
+      · next ce hce =>
+        simp only [Except.ok.injEq] at hcomp
+        subst hcomp
+        have hlc : ce.length = exprSize slots e := length_compileExpr slots e q _ ce hce
+        rw [Turpentine.exec] at hex
+        cases hev : Turpentine.evalExpr s.env e with
+        | error m => rw [hev] at hex; simp at hex
+        | ok w =>
+          cases w with
+          | int m => rw [hev] at hex; simp at hex
+          | arr m => rw [hev] at hex; simp at hex
+          | bool bb =>
+            cases bb
+            · rw [hev] at hex; simp at hex
+            · rw [hev] at hex
+              simp only [Prod.mk.injEq] at hex
+              obtain ⟨hs', _⟩ := hex
+              subst hs'
+              obtain ⟨regs₁, k, hr₁, hk, hd₁, hf₁⟩ :=
+                reaches_compileExpr slots hg P e q (scratchBase slots) ce s.env (.bool true)
+                  regs hce hcode.left hev hA h1 (Nat.le_refl _)
+              simp only [valNat_bool, Option.some.injEq] at hk
+              have hz₁ : regs₁ 1 = 0 := zero_of_frame (by omega) h1 hf₁
+              have htail : CodeAt P (q + exprSize slots e)
+                  [Cslib.URM.Instr.J (scratchBase slots) 1 (q + exprSize slots e)] := by
+                have := hcode.right (c₁ := ce); rwa [hlc] at this
+              obtain ⟨hJ, _⟩ := htail.cons
+              refine ⟨regs₁, ?_, hA.frame hg (Nat.le_refl _) hf₁, hz₁⟩
+              have hfall : Reaches (Ex P) ⟨q + exprSize slots e, regs₁⟩
+                  ⟨q + exprSize slots e + 1, regs₁⟩ :=
+                reaches_J_ne hJ (by rw [hd₁, hz₁]; simp at hk; omega)
+              exact reaches_pc (Reaches.trans hr₁ hfall) (by simp only [stmtSize]; omega)
+      · simp at hcomp
+    | assignIndex x i e =>
+      intro q code s s' regs hcomp; rw [compileStmt] at hcomp; simp at hcomp
+    | printExpr e nl =>
+      intro q code s s' regs hcomp; rw [compileStmt] at hcomp; simp at hcomp
+    | printStr str nl =>
+      intro q code s s' regs hcomp; rw [compileStmt] at hcomp; simp at hcomp
+    | printByte e =>
+      intro q code s s' regs hcomp; rw [compileStmt] at hcomp; simp at hcomp
+    | readInt x =>
+      intro q code s s' regs hcomp; rw [compileStmt] at hcomp; simp at hcomp
+    | readByte x =>
+      intro q code s s' regs hcomp; rw [compileStmt] at hcomp; simp at hcomp
+    | readIntIndex x i =>
+      intro q code s s' regs hcomp; rw [compileStmt] at hcomp; simp at hcomp
+    | readByteIndex x i =>
+      intro q code s s' regs hcomp; rw [compileStmt] at hcomp; simp at hcomp
+
+/-! ## The initial state
+
+The compiled machine starts with every register at zero and the fragment
+forbids initialisers, so the source program starts with every variable at its
+type's default, which is `0` or `false`. `initEnv` builds that environment
+with a `for` loop; `declEnv` is the same function written as a recursion, so
+that it can be reasoned about. -/
+
+/-- `Turpentine.initEnv`'s loop, as a recursion over the declarations. -/
+def declEnv : Std.HashMap String Value → List (String × Ty × Option Expr) →
+    Except String (Std.HashMap String Value)
+  | env, [] => .ok env
+  | env, (x, t, init) :: rest => do
+    let v ← match init with
+      | some e => Turpentine.evalExpr env e
+      | none => pure (Turpentine.initEnv.default t)
+    declEnv (env.insert x v) rest
+
+theorem initEnv_eq (p : Turpentine.Program) :
+    Turpentine.initEnv p = declEnv ∅ p.decls := by
+  unfold Turpentine.initEnv
+  generalize (∅ : Std.HashMap String Value) = env
+  induction p.decls generalizing env with
+  | nil => rfl
+  | cons d rest ihd =>
+    obtain ⟨x, t, init⟩ := d
+    simp only [List.forIn_cons, declEnv]
+    cases init with
+    | none => exact ihd (env.insert x (Turpentine.initEnv.default t))
+    | some e =>
+      cases h : Turpentine.evalExpr env e with
+      | error m => simp only [h]; rfl
+      | ok v => simp only [h]; exact ihd (env.insert x v)
+
+private theorem insert_isSome {env : Std.HashMap String Value} {y x : String}
+    {v w : Value} (h : env[y]? = some w) : ∃ u, (env.insert x v)[y]? = some u := by
+  rw [Std.HashMap.getElem?_insert]
+  split
+  · exact ⟨v, rfl⟩
+  · exact ⟨w, h⟩
+
+/-- With no initialisers and only scalar types, the initial environment maps
+every declared name to a value whose register content is zero. -/
+theorem declEnv_zero :
+    ∀ (decls : List (String × Ty × Option Expr)) (env : Std.HashMap String Value),
+      (∀ d ∈ decls, d.2.2 = none ∧
+        valNat (Turpentine.initEnv.default d.2.1) = some 0) →
+      (∀ (y : String) (w : Value), env[y]? = some w → valNat w = some 0) →
+      ∃ env', declEnv env decls = .ok env' ∧
+        (∀ (y : String) (w : Value), env'[y]? = some w → valNat w = some 0) ∧
+        (∀ (y : String), ((∃ w : Value, env[y]? = some w) ∨ y ∈ decls.map (·.1)) →
+          ∃ w : Value, env'[y]? = some w) := by
+  intro decls
+  induction decls with
+  | nil =>
+    intro env _ hz
+    refine ⟨env, rfl, hz, ?_⟩
+    intro y hy
+    rcases hy with ⟨w, hw⟩ | hy
+    · exact ⟨w, hw⟩
+    · simp at hy
+  | cons dd rest ihd =>
+    obtain ⟨x, t, init⟩ := dd
+    intro env hall hz
+    have hd0 := hall (x, t, init) (by simp)
+    have hinit : init = none := hd0.1
+    subst hinit
+    have hdef : valNat (Turpentine.initEnv.default t) = some 0 := hd0.2
+    have hz' : ∀ (y : String) (w : Value),
+        (env.insert x (Turpentine.initEnv.default t))[y]? = some w →
+        valNat w = some 0 := by
+      intro y w hw
+      rw [Std.HashMap.getElem?_insert] at hw
+      split at hw
+      · simp only [Option.some.injEq] at hw; subst hw; exact hdef
+      · exact hz y w hw
+    obtain ⟨env', he, hz'', hp⟩ := ihd (env.insert x (Turpentine.initEnv.default t))
+      (fun d hd => hall d (by simp [hd])) hz'
+    refine ⟨env', ?_, hz'', ?_⟩
+    · rw [declEnv]; exact he
+    · intro y hy
+      apply hp
+      rcases hy with ⟨w, hw⟩ | hy
+      · exact Or.inl (insert_isSome hw)
+      · simp only [List.map_cons, List.mem_cons] at hy
+        rcases hy with hy | hy
+        · exact Or.inl ⟨Turpentine.initEnv.default t, by rw [hy]; simp⟩
+        · exact Or.inr hy
+
+/-- The compiler's input vector is always empty: the fragment is I/O-free,
+so the compiled machine builds every value it needs from zero. -/
+theorem compileToURM_inputs {p : Turpentine.Program} {P : UProg} {inputs : List Nat}
+    (h : compileToURM p = .ok (P, inputs)) : inputs = [] := by
+  rw [compileToURM] at h
+  split at h
+  · simp at h
+  · split at h
+    · simp at h
+    · split at h
+      · simp at h
+      · simp only [Except.ok.injEq, Prod.mk.injEq] at h
+        exact h.2.symm
+
+/-! ## The end-to-end theorem -/
+
+/-- The answer convention as a proposition about the source: within fuel `n`,
+`p` halts on empty input with `result` in the variable `answer`.
+
+Fuel is universal here and existential on the target side of
+`compileToURM_correct`: the two bounds are unrelated, which is what keeps the
+target's cost model out of the statement. -/
+def TurpentineHaltsWith (p : Turpentine.Program) (n : Nat) (result : Nat) : Prop :=
+  ∃ (env₀ : Std.HashMap String Value) (st : Turpentine.State),
+    Turpentine.initEnv p = .ok env₀ ∧
+    Turpentine.exec n p.body { env := env₀, input := Input.ofString "" } =
+      (st, Exit.halted) ∧
+    st.env[answerVar]? = some (Value.int (result : Int))
+
+/-- **The simulation.** Whenever the Turpentine program halts within some
+fuel bound with `result` in `answer`, the compiled URM program halts with
+`result` in register 0.
+
+This is exactly the *hypothesis* of `TuringComplete.simulates`, so
+`Langlib/Computability/Derived.lean` composes the two with no glue: the URM
+program disappears from the statement and what is left is a verified
+compiler from Turpentine into every language with a completeness witness. -/
+theorem compileToURM_correct
+    (p : Turpentine.Program) (P : UProg) (inputs : List Nat)
+    (result n : Nat)
+    (hc : compileToURM p = .ok (P, inputs))
+    (hp : TurpentineHaltsWith p n result) :
+    Cslib.URM.HaltsWithResult P inputs result := by
+  obtain ⟨env₀, st, hinit, hex, hans⟩ := hp
+  rw [compileToURM] at hc
+  split at hc
+  · simp at hc
+  · next slots hlay =>
+    split at hc
+    · simp at hc
+    · next ans hansSlot =>
+      split at hc
+      · simp at hc
+      · next body hbody =>
+        simp only [Except.ok.injEq, Prod.mk.injEq] at hc
+        obtain ⟨hP, hin⟩ := hc
+        subst hP
+        subst hin
+        have hg : GoodSlots slots := goodSlots_of_layout hlay
+        have hlen : body.length = stmtSize slots p.body :=
+          length_compileStmt slots (scratchBase slots) p.body 0 body hbody
+        obtain ⟨hnames, hdecls, _⟩ := layoutFrom_spec p.decls firstVarReg slots hlay
+        -- the initial environment
+        obtain ⟨env₁, he₁, hzero, hpres⟩ :=
+          declEnv_zero p.decls ∅ hdecls (by intro y w hw; simp at hw)
+        have henv : env₀ = env₁ := by
+          rw [initEnv_eq p, he₁] at hinit
+          simpa using hinit.symm
+        subst henv
+        -- the initial registers
+        have hz0 : (Cslib.URM.Regs.ofInputs ([] : List Nat)) 1 = 0 := by
+          simp [Cslib.URM.Regs.ofInputs]
+        have hA0 : Agree slots env₀ (Cslib.URM.Regs.ofInputs ([] : List Nat)) := by
+          intro x s hx
+          have hmem : x ∈ p.decls.map (·.1) := by
+            rw [← hnames]
+            exact List.mem_map.mpr ⟨s, findSlot_mem hx, findSlot_name hx⟩
+          obtain ⟨w, hw⟩ := hpres x (Or.inr hmem)
+          exact ⟨w, hw, by rw [hzero x w hw]; simp [Cslib.URM.Regs.ofInputs]⟩
+        -- the body
+        have hcodeAll : CodeAt (body ++ [Cslib.URM.Instr.T ans.base 0]) 0
+            (body ++ [Cslib.URM.Instr.T ans.base 0]) := by
+          intro j hj; simp
+        obtain ⟨regs', hr, hA', _⟩ :=
+          reaches_compileStmt slots hg (body ++ [Cslib.URM.Instr.T ans.base 0]) n p.body 0
+            body { env := env₀, input := Input.ofString "" } st
+            (Cslib.URM.Regs.ofInputs ([] : List Nat)) hbody hcodeAll.left hex hA0 hz0
+        -- the epilogue
+        have hepi : CodeAt (body ++ [Cslib.URM.Instr.T ans.base 0]) body.length
+            [Cslib.URM.Instr.T ans.base 0] := by
+          have := hcodeAll.right (c₁ := body)
+          simpa using this
+        obtain ⟨hT, _⟩ := hepi.cons
+        -- the answer register
+        obtain ⟨w, hw, hwv⟩ := hA' answerVar ans hansSlot
+        have hansv : regs' ans.base = result := by
+          rw [hans, Option.some.injEq] at hw
+          subst hw
+          simp only [valNat_ofNat, Option.some.injEq] at hwv
+          exact hwv.symm
+        have hfull : Reaches (Ex (body ++ [Cslib.URM.Instr.T ans.base 0]))
+            ⟨0, Cslib.URM.Regs.ofInputs ([] : List Nat)⟩
+            ⟨(body ++ [Cslib.URM.Instr.T ans.base 0]).length,
+              regs'.write 0 (regs' ans.base)⟩ := by
+          refine reaches_pc (Reaches.trans (reaches_pc hr (by omega))
+            (reaches_T (P := body ++ [Cslib.URM.Instr.T ans.base 0])
+              (p := body.length) hT)) ?_
+          simp
+        obtain ⟨cst, hcst⟩ := hfull
+        have hrun : Langlib.Computability.URM.run (body ++ [Cslib.URM.Instr.T ans.base 0])
+            ⟨0, Cslib.URM.Regs.ofInputs ([] : List Nat)⟩ cst =
+            ⟨(body ++ [Cslib.URM.Instr.T ans.base 0]).length,
+              regs'.write 0 (regs' ans.base)⟩ := by
+          have := hcst 0
+          simpa [Ex, Langlib.Computability.URM.run] using this
+        have hhalt : Langlib.Computability.URM.haltsIn
+            (body ++ [Cslib.URM.Instr.T ans.base 0]) (Cslib.URM.State.init []) cst := by
+          show ((Langlib.Computability.URM.run _ (Cslib.URM.State.init []) cst).isHalted _)
+          rw [show (Cslib.URM.State.init ([] : List Nat))
+            = ⟨0, Cslib.URM.Regs.ofInputs ([] : List Nat)⟩ from rfl, hrun]
+          exact Nat.le_refl _
+        have hres := Langlib.Computability.URM.haltsWithResult_of_haltsIn hhalt
+        have hval : Langlib.Computability.URM.result
+            (body ++ [Cslib.URM.Instr.T ans.base 0]) [] cst = result := by
+          show (Langlib.Computability.URM.run _ (Cslib.URM.State.init []) cst).regs.output = _
+          rw [show (Cslib.URM.State.init ([] : List Nat))
+            = ⟨0, Cslib.URM.Regs.ofInputs ([] : List Nat)⟩ from rfl, hrun]
+          rw [show (regs'.write 0 (regs' ans.base)).output = regs' ans.base from
+            write_self regs' 0 (regs' ans.base)]
+          exact hansv
+        rwa [hval] at hres
+
 end Langlib.Turpentine.Compile.URM

@@ -77,10 +77,10 @@ claimed Turing complete is also a language Turpentine should compile to.
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved | Bespoke compiler | Bespoke correct | Correct via TC |
 |----------|------|--------|-------------|------------------|--------|-----------------|-----------|------------------|-----------------|----------------|
 | [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | wip | [yes, scalars](brainfuck/compiler.md) | planned | planned |
-| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [yes](whitespace/compiler.md) | planned | [**yes**](../Langlib/Computability/Derived.lean) |
-| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [yes](subleq/compiler.md) | planned | [**yes**](../Langlib/Computability/Derived.lean) |
-| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | no | [not planned](befunge93/compiler.md) | n/a | n/a |
-| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [no, bounded storage](malbolge/spec.md) | no | [not planned](malbolge/compiler.md) | n/a | n/a |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [yes](whitespace/compiler.md) | planned | [**yes**](../Langlib/Computability/Derived.lean#L101) |
+| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [yes](subleq/compiler.md) | planned | [**yes**](../Langlib/Computability/Derived.lean#L105) |
+| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | no | [no](befunge93/compiler.md) | n/a | n/a |
+| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [no, bounded storage](malbolge/spec.md) | no | [no](malbolge/compiler.md) | n/a | n/a |
 | malbolge-unshackled | wip | wip | wip | wip | `malbolge-unshackled` | yes | no | planned | planned | planned |
 | [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | no | [planned](fractran/compiler.md) | planned | planned |
 | [thue](thue/spec.md) | yes | yes | yes | yes | `thue` | yes | no | [planned](thue/compiler.md) | planned | planned |
@@ -127,13 +127,22 @@ The three columns follow from that.
 * **Bespoke correct**: whether *that* backend has a machine-checked
   correctness theorem. Real per-language proof work.
 * **Correct via TC**: whether the derived compiler exists for this
-  language. It needs only the language's completeness proof plus the shared
-  Turpentine-to-URM pass
-  ([`Compile/URM.lean`](../Langlib/Turpentine/Compile/URM.lean), proved by
-  `compileToURM_correct`); applying
-  [`derived`](../Langlib/Computability/Derived.lean) to the completeness
-  proof does the rest. Cheap once per language, because the composition is
-  proved for an arbitrary target rather than per language.
+  language. A `yes` links to that language's compiler, and *the correctness
+  theorem is its `correct` field*, since a `TurpentineCompiler` bundles the
+  compiler with its proof.
+
+  The general theorem is
+  [`derived`](../Langlib/Computability/Derived.lean#L83): given any
+  `TuringComplete L` it returns a `TurpentineCompiler L`, proved once for
+  an arbitrary target. Per-language instances are one line each, for
+  example
+  [`derivedWhitespace`](../Langlib/Computability/Derived.lean#L101) and
+  [`derivedSubleq`](../Langlib/Computability/Derived.lean#L105). It rests
+  on
+  [`compileToURM_correct`](../Langlib/Turpentine/Compile/URM.lean#L2075)
+  for the shared Turpentine-to-URM pass, and
+  [`agree`](../Langlib/Computability/Derived.lean#L115) says any two
+  verified compilers for one target produce the same answers.
 
 `planned` in either correctness column means no theorem exists here yet,
 whatever the tests say; when one lands the cell links to it. `n/a` means

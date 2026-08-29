@@ -330,8 +330,19 @@ Output:
 lake exe turpentine compile --to <whitespace|subleq> [-o out] file.turp
 ```
 
-Two backends exist so far, and both accept the entire language: no
-statement form, operator, or I/O style is out of fragment. Each documents
+Three backends exist, and all accept the entire language: no statement
+form, operator, or I/O style is out of fragment.
+
+There is also a **certified** compiler, selected with `--certified`, which
+is derived from a language's Turing-completeness proof rather than written
+by hand. It is correct by construction and accepts only an I/O-free
+fragment whose result is named by a variable called `answer`; see
+[certified-compilation.md](../certified-compilation.md). For example:
+
+```
+echo | lake exe turpentine exec --via whitespace --certified sum.turp
+```
+ Each documents
 its layout and its semantic gaps in `docs/<langname>/compiler.md`, and
 each is tested by compiling every example, running it on the target's
 interpreter, and comparing against this interpreter's output.

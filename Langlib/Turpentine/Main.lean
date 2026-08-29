@@ -6,6 +6,7 @@ import Langlib.Turpentine.Compile.Whitespace
 import Langlib.Languages.Brainfuck.Semantics
 import Langlib.Languages.Subleq.Semantics
 import Langlib.Languages.Whitespace.Semantics
+import Langlib.Computability.Derived
 
 /-!
 # Turpentine: standalone runner
@@ -52,6 +53,11 @@ structure Backend where
   compileSource : String → Except String String
   /-- The target language's parse-and-run, for `exec`. -/
   runTarget : String → Input → Nat → Except String RunResult
+  /-- The *certified* compiler for this target, when one exists: obtained
+  from the language's Turing-completeness proof rather than written by
+  hand, and correct by construction. Accepts only the I/O-free fragment
+  described in `docs/certified-compilation.md`. -/
+  certified : Option (String → Except String String) := none
 
 def backends : List Backend :=
   [ { name := "brainfuck"
@@ -61,10 +67,18 @@ def backends : List Backend :=
     , runTarget := Langlib.Brainfuck.run { eof := .zero } }
   , { name := "whitespace"
     , compileSource := Compile.Whitespace.compileSource
-    , runTarget := Langlib.Whitespace.run }
+    , runTarget := Langlib.Whitespace.run
+    , certified := some fun src => do
+        let p ← parse src
+        let prog ← Langlib.Computability.derivedWhitespace.compile p
+        return Langlib.Whitespace.Prog.render prog }
   , { name := "subleq"
     , compileSource := Compile.Subleq.compileSource
-    , runTarget := Langlib.Subleq.run } ]
+    , runTarget := Langlib.Subleq.run
+    , certified := some fun src => do
+        let p ← parse src
+        let prog ← Langlib.Computability.derivedSubleq.compile p
+        return Langlib.Subleq.Prog.render prog } ]
 
 def backendNames : String :=
   String.intercalate "|" (backends.map (·.name))
@@ -83,7 +97,10 @@ def runner : Runner where
     , s!"  compile --to <{backendNames}> [-o out] <file.turp>"
     , "                                     emit the target program"
     , s!"  exec --via <{backendNames}> <file.turp>"
-    , "                                     compile, then run on that language's interpreter" ]
+    , "                                     compile, then run on that language's interpreter"
+    , "  --certified  use the compiler derived from the language's Turing-completeness"
+    , "               proof instead of the hand-written one. Correct by construction;"
+    , "               accepts only the I/O-free fragment (see docs/certified-compilation.md)" ]
 
 def checkMain (file : String) : IO UInt32 := do
   let src ← try
@@ -109,11 +126,13 @@ def compileMain (args : List String) : IO UInt32 := do
   let mut target? : Option String := none
   let mut out? : Option String := none
   let mut file? : Option String := none
+  let mut useCertified := false
   let mut rest := args
   repeat
     match rest with
     | [] => break
     | "--to" :: t :: rs => target? := some t; rest := rs
+    | "--certified" :: rs => useCertified := true; rest := rs
     | "-o" :: o :: rs => out? := some o; rest := rs
     | a :: rs =>
       if a.startsWith "-" then
@@ -138,7 +157,14 @@ def compileMain (args : List String) : IO UInt32 := do
     catch e =>
       IO.eprintln s!"turpentine: cannot read '{file}': {e}"
       return 3
-  match backend.compileSource src with
+  let emit ← if useCertified then
+      match backend.certified with
+      | some f => pure f
+      | none =>
+        IO.eprintln s!"turpentine compile: no certified compiler for '{target}' yet"
+        return 3
+    else pure backend.compileSource
+  match emit src with
   | .error e =>
     IO.eprintln s!"turpentine compile: {e}"
     return 1
@@ -159,11 +185,13 @@ def execMain (args : List String) : IO UInt32 := do
   let mut file? : Option String := none
   let mut fuel := 200_000_000
   let mut verbose := false
+  let mut useCertified := false
   let mut rest := args
   repeat
     match rest with
     | [] => break
     | "--via" :: t :: rs => target? := some t; rest := rs
+    | "--certified" :: rs => useCertified := true; rest := rs
     | "--verbose" :: rs => verbose := true; rest := rs
     | "--fuel" :: n :: rs =>
       match n.toNat? with
@@ -194,7 +222,14 @@ def execMain (args : List String) : IO UInt32 := do
     catch e =>
       IO.eprintln s!"turpentine: cannot read '{file}': {e}"
       return 3
-  match backend.compileSource src with
+  let emit ← if useCertified then
+      match backend.certified with
+      | some f => pure f
+      | none =>
+        IO.eprintln s!"turpentine exec: no certified compiler for '{target}' yet"
+        return 3
+    else pure backend.compileSource
+  match emit src with
   | .error e =>
     IO.eprintln s!"turpentine exec: {e}"
     return 1
