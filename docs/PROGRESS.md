@@ -2,6 +2,17 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-29 (late night)
+
+* Piet and Brainloller landed, the graphical pair. `Langlib/Common/Image.lean`
+  adds an RGB image type and a PPM reader (P3 and P6) shared by both.
+  Piet implements the colour wheel, DP and CC with the eight-attempt rule,
+  white sliding per the 2004 clarification, and the 17 operations; blocks
+  are flood-filled once so each step is constant time. Brainloller decodes
+  pixels into the brainfuck core and also ships an encoder, so
+  `--encode` turns any brainfuck program into a picture.
+* 340 golden tests, all passing. Eleven languages plus Turpentine.
+
 ## 2026-08-29 (night, later)
 
 * Malbolge landed: the loader with its validity check, the ternary crazy

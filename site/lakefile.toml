@@ -1,0 +1,18 @@
+# The langlib website generator.
+#
+# This is a SEPARATE Lake package from the library at the repository root. It
+# is deliberately not listed in the root lakefile.toml and has no dependency
+# on the Langlib library: `lake build` at the root neither builds nor is
+# affected by anything here, and the site is built with `cd site && lake exe
+# langlib-site`. See site/README.md.
+
+name = "site"
+version = "0.1.0"
+defaultTargets = ["langlib-site"]
+
+[[lean_lib]]
+name = "Site"
+
+[[lean_exe]]
+name = "langlib-site"
+root = "Main"

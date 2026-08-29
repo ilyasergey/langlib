@@ -1,0 +1,54 @@
+# compiled from Turpentine by Langlib.Turpentine.Compile.Subleq
+# see docs/subleq/compiler.md
+# --- variable initialisers ---
+# --- program body ---
+# print "Hello, Turpentine!\n"
+  k72       -1        ?+1       # output the byte in k72
+  k101      -1        ?+1       # output the byte in k101
+  k108      -1        ?+1       # output the byte in k108
+  k108      -1        ?+1       # output the byte in k108
+  k111      -1        ?+1       # output the byte in k111
+  k44       -1        ?+1       # output the byte in k44
+  k32       -1        ?+1       # output the byte in k32
+  k84       -1        ?+1       # output the byte in k84
+  k117      -1        ?+1       # output the byte in k117
+  k114      -1        ?+1       # output the byte in k114
+  k112      -1        ?+1       # output the byte in k112
+  k101      -1        ?+1       # output the byte in k101
+  k110      -1        ?+1       # output the byte in k110
+  k116      -1        ?+1       # output the byte in k116
+  k105      -1        ?+1       # output the byte in k105
+  k110      -1        ?+1       # output the byte in k110
+  k101      -1        ?+1       # output the byte in k101
+  k33       -1        ?+1       # output the byte in k33
+  k10       -1        ?+1       # output the byte in k10
+# --- halt ---
+  Z         Z         -1        # jump to a negative address: halt
+# --- the trap: every Turpentine runtime error lands here ---
+trap:
+  -2        -2        ?+1       # a forbidden negative address: fail loudly
+# --- data ---
+t_0:        0         # expression temporary 0
+Z:          0         # the constant zero: never changes
+sc:         0         # macro scratch
+scn:        0         # negation scratch
+scj:        0         # zero-test scratch
+w0:         0         # routine workspace
+w1:         0         # routine workspace
+w2:         0         # routine workspace
+# --- literal pool ---
+k72:        72
+k101:       101
+k108:       108
+k111:       111
+k44:        44
+k32:        32
+k84:        84
+k117:       117
+k114:       114
+k112:       112
+k110:       110
+k116:       116
+k105:       105
+k33:        33
+k10:        10

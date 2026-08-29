@@ -30,7 +30,7 @@ want() {
 
 WANTED=("$@")
 if [ ${#WANTED[@]} -eq 0 ]; then
-  WANTED=(befunge93 brainfuck malbolge)
+  WANTED=(befunge93 brainfuck malbolge piet)
 fi
 
 have_cc() { command -v cc >/dev/null 2>&1 || command -v gcc >/dev/null 2>&1; }
@@ -103,6 +103,33 @@ if want malbolge; then
       fi
     else
       echo "malbolge: download failed; skipping"
+    fi
+  fi
+fi
+
+# ---------------------------------------------------------------------- piet
+# Erik Schoenfelder's npiet, the de-facto Piet reference. Our examples are
+# P3 files, which npiet reads without any image library, so libpng and gd
+# are not needed here.
+if want piet; then
+  if [ -x "$BIN/npiet" ]; then
+    echo "piet: $BIN/npiet already built"
+  elif ! have_cc; then
+    echo "piet: no C compiler found; skipping"
+  else
+    echo "piet: fetching and building npiet..."
+    if curl -sfL https://www.bertnase.de/npiet/npiet-1.3f.tar.gz \
+         -o "$SRC/npiet.tar.gz"; then
+      ( cd "$SRC" && tar xf npiet.tar.gz ) || true
+      if ( cd "$SRC/npiet-1.3f" && ./configure >/dev/null 2>&1 \
+             && make npiet >/dev/null 2>&1 ); then
+        cp "$SRC/npiet-1.3f/npiet" "$BIN/npiet"
+        echo "piet: built $BIN/npiet"
+      else
+        echo "piet: build failed; skipping"
+      fi
+    else
+      echo "piet: download failed; skipping"
     fi
   fi
 fi

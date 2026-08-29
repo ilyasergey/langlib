@@ -53,12 +53,18 @@ status matrix, including compilers):
 * [whitespace](docs/whitespace/spec.md) (Edwin Brady & Chris Morris, 2003)
 * [ook](docs/ook/spec.md) (David Morgan-Mar, 2001)
 * [deadfish](docs/deadfish/spec.md) (Jonathan Todd Skinner, 2006)
+* [befunge93](docs/befunge93/spec.md) (Chris Pressey, 1993)
+* [malbolge](docs/malbolge/spec.md) (Ben Olmstead, 1998)
+* [thue](docs/thue/spec.md) (John Colagioia, 2000)
+* [piet](docs/piet/spec.md) (David Morgan-Mar, 2002), whose programs are
+  abstract paintings
+* [brainloller](docs/brainloller/spec.md) (Lode Vandevenne, 2005),
+  brainfuck encoded in pixels
 * [Turpentine](docs/turpentine/spec.md): the library's own human-readable
   front end, named for what dissolves a Turing tarpit
 
-In progress: malbolge, thue, befunge93, piet, brainloller, and the
-compilers from Turpentine to each target. The roadmap of languages still to be
-implemented lives in
+In progress: the compilers from Turpentine to each target. The roadmap of
+languages still to be implemented lives in
 [docs/ROADMAP.md](docs/ROADMAP.md), and a survey of related efforts in
 [docs/RELATED.md](docs/RELATED.md).
 
@@ -130,6 +136,28 @@ $ lake exe fractran --n 2 --out pow2 --fuel 2000000 Langlib/Examples/Fractran/pr
 5
 7
 ...
+```
+
+Piet says hi, using a program that is an abstract painting.
+
+```
+$ lake exe piet Langlib/Examples/Piet/hi.ppm
+Hi
+```
+
+Brainloller runs a brainfuck program encoded as coloured pixels.
+
+```
+$ lake exe brainloller Langlib/Examples/Brainloller/hello.ppm
+Hello World!
+```
+
+Malbolge prints the hello world that a search program found in 2000,
+because no human could write one. The capitalisation is not a typo.
+
+```
+$ lake exe malbolge Langlib/Examples/Malbolge/hello.mal
+HEllO WORld
 ```
 
 Turpentine, the readable front end, computes an integer square root.

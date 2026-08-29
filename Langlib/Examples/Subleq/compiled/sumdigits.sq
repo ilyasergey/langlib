@@ -1,0 +1,568 @@
+# compiled from Turpentine by Langlib.Turpentine.Compile.Subleq
+# see docs/subleq/compiler.md
+# --- variable initialisers ---
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  v_sum     v_sum     ?+1       # v_sum := 0
+  sc        v_sum     ?+1       # v_sum := t_0
+# --- program body ---
+# n := readInt()
+# call readint
+  sc        sc        ?+1       # sc := 0
+  rL0       sc        ?+1       # sc -= rL0
+  readint_exit+2 readint_exit+2 ?+1       # readint_exit+2 := 0
+  sc        readint_exit+2 ?+1       # readint_exit+2 := rL0
+  Z         Z         readint   # goto readint
+L0:
+  sc        sc        ?+1       # sc := 0
+  ri_v      sc        ?+1       # sc -= ri_v
+  v_n       v_n       ?+1       # v_n := 0
+  sc        v_n       ?+1       # v_n := ri_v
+# assert
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        sc        ?+1       # sc := 0
+  v_n       sc        ?+1       # sc -= v_n
+  t_1       t_1       ?+1       # t_1 := 0
+  sc        t_1       ?+1       # t_1 := v_n
+  t_1       t_0       ?+1       # t_0 -= t_1
+  Z         t_0       L1        # if t_0 <= 0 goto L1
+  t_0       t_0       ?+1       # t_0 := 0
+  Z         Z         L2        # goto L2
+L1:
+  t_0       t_0       ?+1       # t_0 := 0
+  km1       t_0       ?+1       # t_0 := 1
+L2:
+  Z         t_0       trap      # if t_0 <= 0 goto trap
+# while
+L3:
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        sc        ?+1       # sc := 0
+  v_n       sc        ?+1       # sc -= v_n
+  t_1       t_1       ?+1       # t_1 := 0
+  sc        t_1       ?+1       # t_1 := v_n
+  t_1       t_0       ?+1       # t_0 -= t_1
+  km1       t_0       ?+1       # t_0 += 1
+  Z         t_0       L5        # if t_0 <= 0 goto L5
+  t_0       t_0       ?+1       # t_0 := 0
+  Z         Z         L6        # goto L6
+L5:
+  t_0       t_0       ?+1       # t_0 := 0
+  km1       t_0       ?+1       # t_0 := 1
+L6:
+  Z         t_0       L4        # if t_0 <= 0 goto L4
+# sum := ...
+  sc        sc        ?+1       # sc := 0
+  v_sum     sc        ?+1       # sc -= v_sum
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := v_sum
+  sc        sc        ?+1       # sc := 0
+  v_n       sc        ?+1       # sc -= v_n
+  t_1       t_1       ?+1       # t_1 := 0
+  sc        t_1       ?+1       # t_1 := v_n
+  t_2       t_2       ?+1       # t_2 := 0
+  km10      t_2       ?+1       # t_2 := 10
+  sc        sc        ?+1       # sc := 0
+  t_1       sc        ?+1       # sc -= t_1
+  dv_a      dv_a      ?+1       # dv_a := 0
+  sc        dv_a      ?+1       # dv_a := t_1
+  sc        sc        ?+1       # sc := 0
+  t_2       sc        ?+1       # sc -= t_2
+  dv_b      dv_b      ?+1       # dv_b := 0
+  sc        dv_b      ?+1       # dv_b := t_2
+# call divmod
+  sc        sc        ?+1       # sc := 0
+  rL7       sc        ?+1       # sc -= rL7
+  divmod_exit+2 divmod_exit+2 ?+1       # divmod_exit+2 := 0
+  sc        divmod_exit+2 ?+1       # divmod_exit+2 := rL7
+  Z         Z         divmod    # goto divmod
+L7:
+  sc        sc        ?+1       # sc := 0
+  dv_r      sc        ?+1       # sc -= dv_r
+  t_1       t_1       ?+1       # t_1 := 0
+  sc        t_1       ?+1       # t_1 := dv_r
+  sc        sc        ?+1       # sc := 0
+  t_1       sc        ?+1       # sc -= t_1
+  sc        t_0       ?+1       # t_0 += t_1
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  v_sum     v_sum     ?+1       # v_sum := 0
+  sc        v_sum     ?+1       # v_sum := t_0
+# n := ...
+  sc        sc        ?+1       # sc := 0
+  v_n       sc        ?+1       # sc -= v_n
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := v_n
+  t_1       t_1       ?+1       # t_1 := 0
+  km10      t_1       ?+1       # t_1 := 10
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  dv_a      dv_a      ?+1       # dv_a := 0
+  sc        dv_a      ?+1       # dv_a := t_0
+  sc        sc        ?+1       # sc := 0
+  t_1       sc        ?+1       # sc -= t_1
+  dv_b      dv_b      ?+1       # dv_b := 0
+  sc        dv_b      ?+1       # dv_b := t_1
+# call divmod
+  sc        sc        ?+1       # sc := 0
+  rL8       sc        ?+1       # sc -= rL8
+  divmod_exit+2 divmod_exit+2 ?+1       # divmod_exit+2 := 0
+  sc        divmod_exit+2 ?+1       # divmod_exit+2 := rL8
+  Z         Z         divmod    # goto divmod
+L8:
+  sc        sc        ?+1       # sc := 0
+  dv_q      sc        ?+1       # sc -= dv_q
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := dv_q
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  v_n       v_n       ?+1       # v_n := 0
+  sc        v_n       ?+1       # v_n := t_0
+  Z         Z         L3        # goto L3
+L4:
+# print an int
+  sc        sc        ?+1       # sc := 0
+  v_sum     sc        ?+1       # sc -= v_sum
+  t_0       t_0       ?+1       # t_0 := 0
+  sc        t_0       ?+1       # t_0 := v_sum
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  pi_n      pi_n      ?+1       # pi_n := 0
+  sc        pi_n      ?+1       # pi_n := t_0
+# call printint
+  sc        sc        ?+1       # sc := 0
+  rL9       sc        ?+1       # sc -= rL9
+  printint_exit+2 printint_exit+2 ?+1       # printint_exit+2 := 0
+  sc        printint_exit+2 ?+1       # printint_exit+2 := rL9
+  Z         Z         printint  # goto printint
+L9:
+# print "\n"
+  k10       -1        ?+1       # output the byte in k10
+# --- halt ---
+  Z         Z         -1        # jump to a negative address: halt
+# --- the trap: every Turpentine runtime error lands here ---
+trap:
+  -2        -2        ?+1       # a forbidden negative address: fail loudly
+# --- divmod: dv_q, dv_r := Euclidean quotient and remainder ---
+# 0 <= dv_r < |dv_b| always, as Turpentine's / and % require
+divmod:
+  Z         dv_b      ?+4       # if dv_b <= 0, test the other side
+  Z         Z         L18       # goto L18
+  scj       scj       ?+1       # scj := 0
+  dv_b      scj       ?+1       # scj -= dv_b
+  Z         scj       trap      # if scj <= 0 goto trap
+L18:
+  sc        sc        ?+1       # sc := 0
+  dv_b      sc        ?+1       # sc -= dv_b
+  dv_m      dv_m      ?+1       # dv_m := 0
+  sc        dv_m      ?+1       # dv_m := dv_b
+  dv_bneg   dv_bneg   ?+1       # dv_bneg := 0
+  Z         dv_m      L10       # if dv_m <= 0 goto L10
+  Z         Z         L11       # goto L11
+L10:
+  scn       scn       ?+1       # scn := 0
+  dv_m      scn       ?+1       # scn -= dv_m
+  sc        sc        ?+1       # sc := 0
+  scn       sc        ?+1       # sc -= scn
+  dv_m      dv_m      ?+1       # dv_m := 0
+  sc        dv_m      ?+1       # dv_m := -dv_m
+  dv_bneg   dv_bneg   ?+1       # dv_bneg := 0
+  km1       dv_bneg   ?+1       # dv_bneg := 1
+L11:
+  sc        sc        ?+1       # sc := 0
+  dv_a      sc        ?+1       # sc -= dv_a
+  dv_r      dv_r      ?+1       # dv_r := 0
+  sc        dv_r      ?+1       # dv_r := dv_a
+  dv_q      dv_q      ?+1       # dv_q := 0
+# while r < 0: r += m; q -= 1
+L12:
+  sc        sc        ?+1       # sc := 0
+  dv_r      sc        ?+1       # sc -= dv_r
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := dv_r
+  km1       w0        ?+1       # w0 += 1
+  Z         w0        L13       # if w0 <= 0 goto L13
+  Z         Z         L14       # goto L14
+L13:
+  sc        sc        ?+1       # sc := 0
+  dv_m      sc        ?+1       # sc -= dv_m
+  sc        dv_r      ?+1       # dv_r += dv_m
+  k1        dv_q      ?+1       # dv_q -= 1
+  Z         Z         L12       # goto L12
+# while r >= m: r -= m; q += 1
+L14:
+  sc        sc        ?+1       # sc := 0
+  dv_m      sc        ?+1       # sc -= dv_m
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := dv_m
+  dv_r      w0        ?+1       # w0 -= dv_r
+  Z         w0        L15       # if w0 <= 0 goto L15
+  Z         Z         L16       # goto L16
+L15:
+  dv_m      dv_r      ?+1       # dv_r -= dv_m
+  km1       dv_q      ?+1       # dv_q += 1
+  Z         Z         L14       # goto L14
+L16:
+  Z         dv_bneg   L17       # if dv_bneg <= 0 goto L17
+  scn       scn       ?+1       # scn := 0
+  dv_q      scn       ?+1       # scn -= dv_q
+  sc        sc        ?+1       # sc := 0
+  scn       sc        ?+1       # sc -= scn
+  dv_q      dv_q      ?+1       # dv_q := 0
+  sc        dv_q      ?+1       # dv_q := -dv_q
+L17:
+divmod_exit:
+  Z         Z         0         # return
+# --- printint: print pi_n in decimal, most significant digit first ---
+printint:
+  sc        sc        ?+1       # sc := 0
+  pi_n      sc        ?+1       # sc -= pi_n
+  pi_v      pi_v      ?+1       # pi_v := 0
+  sc        pi_v      ?+1       # pi_v := pi_n
+  Z         pi_v      L19       # if pi_v <= 0 goto L19
+  Z         Z         L20       # goto L20
+L19:
+  w0        w0        ?+1       # w0 := 0
+  pi_v      w0        ?+1       # w0 -= pi_v
+  Z         w0        L20       # if w0 <= 0 goto L20
+  k45       -1        ?+1       # output the byte in k45
+  sc        sc        ?+1       # sc := 0
+  w0        sc        ?+1       # sc -= w0
+  pi_v      pi_v      ?+1       # pi_v := 0
+  sc        pi_v      ?+1       # pi_v := w0
+L20:
+# count the digits: pi_k := number of digits of pi_v
+  pi_p      pi_p      ?+1       # pi_p := 0
+  km1       pi_p      ?+1       # pi_p := 1
+  pi_k      pi_k      ?+1       # pi_k := 0
+  km1       pi_k      ?+1       # pi_k := 1
+L21:
+# pi_t := 10 * pi_p
+  sc        sc        ?+1       # sc := 0
+  pi_p      sc        ?+1       # sc -= pi_p
+  w1        w1        ?+1       # w1 := 0
+  sc        w1        ?+1       # w1 := pi_p
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  sc        w1        ?+1       # w1 += w1
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  sc        w1        ?+1       # w1 += w1
+  sc        sc        ?+1       # sc := 0
+  pi_p      sc        ?+1       # sc -= pi_p
+  sc        w1        ?+1       # w1 += pi_p
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  sc        w1        ?+1       # w1 += w1
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  pi_t      pi_t      ?+1       # pi_t := 0
+  sc        pi_t      ?+1       # pi_t := w1
+  sc        sc        ?+1       # sc := 0
+  pi_t      sc        ?+1       # sc -= pi_t
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := pi_t
+  pi_v      w0        ?+1       # w0 -= pi_v
+  Z         w0        L22       # if w0 <= 0 goto L22
+  Z         Z         L23       # goto L23
+L22:
+  sc        sc        ?+1       # sc := 0
+  pi_t      sc        ?+1       # sc -= pi_t
+  pi_p      pi_p      ?+1       # pi_p := 0
+  sc        pi_p      ?+1       # pi_p := pi_t
+  km1       pi_k      ?+1       # pi_k += 1
+  Z         Z         L21       # goto L21
+# emit pi_k digits, rebuilding 10^(k-1) each time
+L23:
+  Z         pi_k      L30       # if pi_k <= 0 goto L30
+  pi_p      pi_p      ?+1       # pi_p := 0
+  km1       pi_p      ?+1       # pi_p := 1
+  pi_j      pi_j      ?+1       # pi_j := 0
+  km1       pi_j      ?+1       # pi_j := 1
+L24:
+  sc        sc        ?+1       # sc := 0
+  pi_j      sc        ?+1       # sc -= pi_j
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := pi_j
+  pi_k      w0        ?+1       # w0 -= pi_k
+  km1       w0        ?+1       # w0 += 1
+  Z         w0        L25       # if w0 <= 0 goto L25
+  Z         Z         L26       # goto L26
+L25:
+# pi_p := 10 * pi_p
+  sc        sc        ?+1       # sc := 0
+  pi_p      sc        ?+1       # sc -= pi_p
+  w1        w1        ?+1       # w1 := 0
+  sc        w1        ?+1       # w1 := pi_p
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  sc        w1        ?+1       # w1 += w1
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  sc        w1        ?+1       # w1 += w1
+  sc        sc        ?+1       # sc := 0
+  pi_p      sc        ?+1       # sc -= pi_p
+  sc        w1        ?+1       # w1 += pi_p
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  sc        w1        ?+1       # w1 += w1
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  pi_p      pi_p      ?+1       # pi_p := 0
+  sc        pi_p      ?+1       # pi_p := w1
+  km1       pi_j      ?+1       # pi_j += 1
+  Z         Z         L24       # goto L24
+L26:
+  pi_d      pi_d      ?+1       # pi_d := 0
+  km48      pi_d      ?+1       # pi_d := 48
+L27:
+  sc        sc        ?+1       # sc := 0
+  pi_p      sc        ?+1       # sc -= pi_p
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := pi_p
+  pi_v      w0        ?+1       # w0 -= pi_v
+  Z         w0        L28       # if w0 <= 0 goto L28
+  Z         Z         L29       # goto L29
+L28:
+  pi_p      pi_v      ?+1       # pi_v -= pi_p
+  km1       pi_d      ?+1       # pi_d += 1
+  Z         Z         L27       # goto L27
+L29:
+  pi_d      -1        ?+1       # output the byte in pi_d
+  k1        pi_k      ?+1       # pi_k -= 1
+  Z         Z         L23       # goto L23
+L30:
+printint_exit:
+  Z         Z         0         # return
+# --- readint: parse one line as a decimal integer into ri_v ---
+readint:
+  ri_v      ri_v      ?+1       # ri_v := 0
+  ri_neg    ri_neg    ?+1       # ri_neg := 0
+  ri_nd     ri_nd     ?+1       # ri_nd := 0
+  -1        ri_c      ?+1       # ri_c := next input byte (-1 at EOF)
+# skip leading blanks
+L31:
+  sc        sc        ?+1       # sc := 0
+  ri_c      sc        ?+1       # sc -= ri_c
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := ri_c
+  k32       w0        ?+1       # w0 -= k32
+  Z         w0        ?+4       # if w0 <= 0, test the other side
+  Z         Z         L43       # goto L43
+  scj       scj       ?+1       # scj := 0
+  w0        scj       ?+1       # scj -= w0
+  Z         scj       L32       # if scj <= 0 goto L32
+L43:
+  sc        sc        ?+1       # sc := 0
+  ri_c      sc        ?+1       # sc -= ri_c
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := ri_c
+  k9        w0        ?+1       # w0 -= k9
+  Z         w0        ?+4       # if w0 <= 0, test the other side
+  Z         Z         L44       # goto L44
+  scj       scj       ?+1       # scj := 0
+  w0        scj       ?+1       # scj -= w0
+  Z         scj       L32       # if scj <= 0 goto L32
+L44:
+  sc        sc        ?+1       # sc := 0
+  ri_c      sc        ?+1       # sc -= ri_c
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := ri_c
+  k13       w0        ?+1       # w0 -= k13
+  Z         w0        ?+4       # if w0 <= 0, test the other side
+  Z         Z         L45       # goto L45
+  scj       scj       ?+1       # scj := 0
+  w0        scj       ?+1       # scj -= w0
+  Z         scj       L32       # if scj <= 0 goto L32
+L45:
+  Z         Z         L33       # goto L33
+L32:
+  -1        ri_c      ?+1       # ri_c := next input byte (-1 at EOF)
+  Z         Z         L31       # goto L31
+# optional minus sign
+L33:
+  sc        sc        ?+1       # sc := 0
+  ri_c      sc        ?+1       # sc -= ri_c
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := ri_c
+  k45       w0        ?+1       # w0 -= k45
+  Z         w0        ?+4       # if w0 <= 0, test the other side
+  Z         Z         L46       # goto L46
+  scj       scj       ?+1       # scj := 0
+  w0        scj       ?+1       # scj -= w0
+  Z         scj       L34       # if scj <= 0 goto L34
+L46:
+  Z         Z         L35       # goto L35
+L34:
+  ri_neg    ri_neg    ?+1       # ri_neg := 0
+  km1       ri_neg    ?+1       # ri_neg := 1
+  -1        ri_c      ?+1       # ri_c := next input byte (-1 at EOF)
+# digits: ri_v := ri_v * 10 + (c - 48)
+L35:
+  sc        sc        ?+1       # sc := 0
+  ri_c      sc        ?+1       # sc -= ri_c
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := ri_c
+  k48       w0        ?+1       # w0 -= k48
+  w2        w2        ?+1       # w2 := 0
+  w0        w2        ?+1       # w2 -= w0
+  Z         w2        L36       # if w2 <= 0 goto L36
+  Z         Z         L38       # goto L38
+L36:
+  sc        sc        ?+1       # sc := 0
+  ri_c      sc        ?+1       # sc -= ri_c
+  w2        w2        ?+1       # w2 := 0
+  sc        w2        ?+1       # w2 := ri_c
+  k57       w2        ?+1       # w2 -= k57
+  Z         w2        L37       # if w2 <= 0 goto L37
+  Z         Z         L38       # goto L38
+L37:
+# ri_v := 10 * ri_v
+  sc        sc        ?+1       # sc := 0
+  ri_v      sc        ?+1       # sc -= ri_v
+  w1        w1        ?+1       # w1 := 0
+  sc        w1        ?+1       # w1 := ri_v
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  sc        w1        ?+1       # w1 += w1
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  sc        w1        ?+1       # w1 += w1
+  sc        sc        ?+1       # sc := 0
+  ri_v      sc        ?+1       # sc -= ri_v
+  sc        w1        ?+1       # w1 += ri_v
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  sc        w1        ?+1       # w1 += w1
+  sc        sc        ?+1       # sc := 0
+  w1        sc        ?+1       # sc -= w1
+  ri_v      ri_v      ?+1       # ri_v := 0
+  sc        ri_v      ?+1       # ri_v := w1
+  sc        sc        ?+1       # sc := 0
+  w0        sc        ?+1       # sc -= w0
+  sc        ri_v      ?+1       # ri_v += w0
+  km1       ri_nd     ?+1       # ri_nd += 1
+  -1        ri_c      ?+1       # ri_c := next input byte (-1 at EOF)
+  Z         Z         L35       # goto L35
+# skip trailing blanks
+L38:
+  sc        sc        ?+1       # sc := 0
+  ri_c      sc        ?+1       # sc -= ri_c
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := ri_c
+  k32       w0        ?+1       # w0 -= k32
+  Z         w0        ?+4       # if w0 <= 0, test the other side
+  Z         Z         L47       # goto L47
+  scj       scj       ?+1       # scj := 0
+  w0        scj       ?+1       # scj -= w0
+  Z         scj       L39       # if scj <= 0 goto L39
+L47:
+  sc        sc        ?+1       # sc := 0
+  ri_c      sc        ?+1       # sc -= ri_c
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := ri_c
+  k9        w0        ?+1       # w0 -= k9
+  Z         w0        ?+4       # if w0 <= 0, test the other side
+  Z         Z         L48       # goto L48
+  scj       scj       ?+1       # scj := 0
+  w0        scj       ?+1       # scj -= w0
+  Z         scj       L39       # if scj <= 0 goto L39
+L48:
+  sc        sc        ?+1       # sc := 0
+  ri_c      sc        ?+1       # sc -= ri_c
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := ri_c
+  k13       w0        ?+1       # w0 -= k13
+  Z         w0        ?+4       # if w0 <= 0, test the other side
+  Z         Z         L49       # goto L49
+  scj       scj       ?+1       # scj := 0
+  w0        scj       ?+1       # scj -= w0
+  Z         scj       L39       # if scj <= 0 goto L39
+L49:
+  Z         Z         L40       # goto L40
+L39:
+  -1        ri_c      ?+1       # ri_c := next input byte (-1 at EOF)
+  Z         Z         L38       # goto L38
+# the line must end here: a newline, or end of input (-1)
+L40:
+  sc        sc        ?+1       # sc := 0
+  ri_c      sc        ?+1       # sc -= ri_c
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := ri_c
+  k10       w0        ?+1       # w0 -= k10
+  Z         w0        ?+4       # if w0 <= 0, test the other side
+  Z         Z         L50       # goto L50
+  scj       scj       ?+1       # scj := 0
+  w0        scj       ?+1       # scj -= w0
+  Z         scj       L41       # if scj <= 0 goto L41
+L50:
+  sc        sc        ?+1       # sc := 0
+  ri_c      sc        ?+1       # sc -= ri_c
+  w0        w0        ?+1       # w0 := 0
+  sc        w0        ?+1       # w0 := ri_c
+  km1       w0        ?+1       # w0 += 1
+  Z         w0        ?+4       # if w0 <= 0, test the other side
+  Z         Z         L51       # goto L51
+  scj       scj       ?+1       # scj := 0
+  w0        scj       ?+1       # scj -= w0
+  Z         scj       L41       # if scj <= 0 goto L41
+L51:
+  Z         Z         trap      # goto trap
+L41:
+  Z         ri_nd     trap      # if ri_nd <= 0 goto trap
+  Z         ri_neg    L42       # if ri_neg <= 0 goto L42
+  scn       scn       ?+1       # scn := 0
+  ri_v      scn       ?+1       # scn -= ri_v
+  sc        sc        ?+1       # sc := 0
+  scn       sc        ?+1       # sc -= scn
+  ri_v      ri_v      ?+1       # ri_v := 0
+  sc        ri_v      ?+1       # ri_v := -ri_v
+L42:
+readint_exit:
+  Z         Z         0         # return
+# --- data ---
+v_n:        0         # variable n
+v_sum:      0         # variable sum
+t_0:        0         # expression temporary 0
+t_1:        0         # expression temporary 1
+t_2:        0         # expression temporary 2
+Z:          0         # the constant zero: never changes
+sc:         0         # macro scratch
+scn:        0         # negation scratch
+scj:        0         # zero-test scratch
+w0:         0         # routine workspace
+w1:         0         # routine workspace
+w2:         0         # routine workspace
+rL0:        L0        # return address for the call at L0
+rL7:        L7        # return address for the call at L7
+rL8:        L8        # return address for the call at L8
+rL9:        L9        # return address for the call at L9
+dv_a:       0         # divmod
+dv_b:       0         # divmod
+dv_q:       0         # divmod
+dv_r:       0         # divmod
+dv_m:       0         # divmod
+dv_bneg:    0         # divmod
+pi_n:       0         # printint
+pi_v:       0         # printint
+pi_p:       0         # printint
+pi_t:       0         # printint
+pi_k:       0         # printint
+pi_j:       0         # printint
+pi_d:       0         # printint
+ri_v:       0         # readint
+ri_c:       0         # readint
+ri_neg:     0         # readint
+ri_nd:      0         # readint
+# --- literal pool ---
+km1:        -1
+km10:       -10
+k10:        10
+k1:         1
+k45:        45
+km48:       -48
+k32:        32
+k9:         9
+k13:        13
+k48:        48
+k57:        57

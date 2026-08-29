@@ -50,3 +50,11 @@ root = "Langlib.Languages.Thue.Main"
 [[lean_exe]]
 name = "malbolge"
 root = "Langlib.Languages.Malbolge.Main"
+
+[[lean_exe]]
+name = "piet"
+root = "Langlib.Languages.Piet.Main"
+
+[[lean_exe]]
+name = "brainloller"
+root = "Langlib.Languages.Brainloller.Main"

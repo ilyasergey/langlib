@@ -35,6 +35,7 @@ Named cells:
 |------|----------|
 | `Z` | the constant 0, the pivot of every jump; never changes |
 | `sc` | scratch used inside `MOV`/`ADD`/`NEG` |
+| `scn` | second scratch, used inside `NEG` |
 | `scj` | scratch used inside the zero test |
 | `w0`, `w1`, `w2` | routine workspace |
 | `v_x` | the Turpentine variable `x` |
@@ -66,7 +67,7 @@ The classic subleq idiom set, all written in terms of the one instruction
 | `SUB s d` | `s d ?+1` | `mem[d] -= mem[s]` |
 | `ADD s d` | `ZERO sc; SUB s sc; SUB sc d` | `mem[d] += mem[s]` |
 | `MOV s d` | `ZERO sc; SUB s sc; ZERO d; SUB sc d` | `mem[d] := mem[s]` |
-| `NEG a` | `ZERO sc; SUB a sc; ZERO a; SUB sc a` | `mem[a] := -mem[a]` |
+| `NEG a` | `ZERO scn; SUB a scn; ZERO sc; SUB scn sc; ZERO a; SUB sc a` | `mem[a] := -mem[a]` |
 | `JMP l` | `Z Z l` | unconditional jump |
 | `JLE a l` | `Z a l` | jump if `mem[a] <= 0`, leaving `mem[a]` alone |
 | `JZ a l` | `Z a ?+4; JMP cont; ZERO scj; SUB a scj; JLE scj l; cont:` | jump if `mem[a] == 0` |
@@ -273,6 +274,7 @@ private def fresh : M String := do
 
 private def wZ : Word := .ref "Z" 0
 private def wSc : Word := .ref "sc" 0
+private def wScn : Word := .ref "scn" 0
 private def wScj : Word := .ref "scj" 0
 private def w0 : Word := .ref "w0" 0
 private def w1 : Word := .ref "w1" 0
@@ -321,9 +323,14 @@ private def mMov (src dst : Word) : M Unit := do
   mZero dst
   emitI wSc dst NEXT s!"{dst.render} := {src.render}"
 
+/-- `mem[a] := -mem[a]`. Subtraction can only ever produce `-x` in a *third*
+cell, so flipping a cell in place takes two hops: `scn := -a`, `sc := -scn`
+(that is, `sc := a`), `a := -sc`. -/
 private def mNeg (a : Word) : M Unit := do
+  mZero wScn
+  mSub a wScn        -- scn := -a
   mZero wSc
-  mSub a wSc
+  mSub wScn wSc      -- sc := a
   mZero a
   emitI wSc a NEXT s!"{a.render} := -{a.render}"
 
@@ -890,6 +897,7 @@ def buildChecked (p : Program) (types : Types) : Except String (Array Item) := d
     data := data.push (.datum s!"t_{d}" (.lit 0) s!"expression temporary {d}")
   data := data.push (.datum "Z" (.lit 0) "the constant zero: never changes")
   data := data.push (.datum "sc" (.lit 0) "macro scratch")
+  data := data.push (.datum "scn" (.lit 0) "negation scratch")
   data := data.push (.datum "scj" (.lit 0) "zero-test scratch")
   data := data.push (.datum "w0" (.lit 0) "routine workspace")
   data := data.push (.datum "w1" (.lit 0) "routine workspace")
@@ -951,11 +959,13 @@ def renderItems (items : Array Item) : String :=
     | .label n => acc ++ n ++ ":\n"
     | .comment t => acc ++ "# " ++ t ++ "\n"
     | .instr a b c note =>
-      let body := "  " ++ pad a.render 10 ++ pad b.render 10 ++ pad c.render 10
-      acc ++ body ++ (if note.isEmpty then "" else "# " ++ note) ++ "\n"
+      let head := "  " ++ pad a.render 10 ++ pad b.render 10
+      if note.isEmpty then acc ++ head ++ c.render ++ "\n"
+      else acc ++ head ++ pad c.render 10 ++ "# " ++ note ++ "\n"
     | .datum n w note =>
-      let body := pad (n ++ ":") 12 ++ pad w.render 10
-      acc ++ body ++ (if note.isEmpty then "" else "# " ++ note) ++ "\n"
+      let head := pad (n ++ ":") 12
+      if note.isEmpty then acc ++ head ++ w.render ++ "\n"
+      else acc ++ head ++ pad w.render 10 ++ "# " ++ note ++ "\n"
 
 /-- Compile a Turpentine program to a subleq memory image. The program is
 type-checked first: `Except.error` means it was not a well-typed

@@ -140,6 +140,30 @@ would read different bytes from it. The cats' echo behaviour, EOF handling,
 the loader oversight, and the non-printable spin are pinned by golden tests
 instead.
 
+## piet
+
+Reference: **npiet** (Erik Schoenfelder) is the community's de-facto
+reference. It is not in Homebrew; build it from source (PPM input needs no
+image library, since libpng and gd are only for PNG and GIF):
+
+```
+curl -O https://www.bertnase.de/npiet/npiet-1.3f.tar.gz
+tar xf npiet-1.3f.tar.gz && cd npiet-1.3f && ./configure && make
+```
+
+Debian-based systems may also have `apt install npiet`. Our examples are
+codel-size-1 P3 files, which npiet reads directly. Caveat: npiet prompts
+with `? ` when a program reads a number, so the difftest section only
+compares input-free programs.
+
+## brainloller
+
+No canonical interpreter exists (Vandevenne published the spec, not a
+maintained reference), so golden tests are the whole story: encode-decode
+round trips, hand-pixelled images pinning the rotation colours, and
+execution through the brainfuck core, which has its own differential
+section.
+
 ## Languages without a canonical interpreter
 
 For these, golden unit tests on programs are the reference story, and their

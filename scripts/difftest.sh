@@ -141,8 +141,25 @@ else
   fi
 fi
 
+# --------------------------------------------------------------------- piet
+# Reference: npiet, https://www.bertnase.de/npiet/ (build from source; PPM
+# needs no image library). Caveat: npiet prompts "? " on numeric input, so
+# only input-free programs are compared.
+PIET_LANGLIB=.lake/build/bin/piet
+if [ ! -x "$PIET_LANGLIB" ]; then
+  note "piet: build first (lake build piet); skipping"
+elif ! command -v npiet >/dev/null 2>&1; then
+  SKIP=$((SKIP+1))
+  note "piet: npiet not installed (source at bertnase.de/npiet); skipping"
+else
+  note "piet vs npiet:"
+  compare "hi.ppm" "" "$PIET_LANGLIB" Langlib/Examples/Piet/hi.ppm \
+    -- npiet Langlib/Examples/Piet/hi.ppm
+fi
+
 # Languages with no comparable reference binary (see docs/TESTING.md for
-# why): ook, deadfish, fractran, subleq, thue. Golden tests cover them.
+# why): ook, deadfish, fractran, subleq, thue, brainloller. Golden tests
+# cover them.
 
 note ""
 note "difftest: $PASS passed, $FAIL failed, $SKIP sections skipped"
