@@ -17,7 +17,7 @@ human-readable front-end language (WTF) and verified compilers from it.
   helpers, test harness) lives in `Langlib/Common/`.
 * Documentation for each language goes to `docs/<langname>/` (lowercase),
   Lean code to `Langlib/<Langname>/` (capitalised Lean module name).
-* Example programs go to `Langlib/Examples/<langname>/`, using the
+* Example programs go to `Langlib/Examples/<Langname>/`, using the
   language's customary file extension.
 * The front-end language is spelled WTF (all capitals); its sources use the
   `.wtf` extension and its Lean code lives under `Langlib/WTF/`.

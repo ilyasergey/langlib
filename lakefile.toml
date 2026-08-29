@@ -9,3 +9,7 @@ name = "Langlib"
 [[lean_exe]]
 name = "tests"
 root = "Langlib.Tests.Main"
+
+[[lean_exe]]
+name = "brainfuck"
+root = "Langlib.Brainfuck.Main"

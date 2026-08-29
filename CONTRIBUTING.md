@@ -29,7 +29,7 @@ A complete language contribution consists of:
    * `README.md`: how to build and run, pointers into the docs.
    Register the executable in `lakefile.toml` and import the modules from
    `Langlib.lean`.
-3. **Examples** in `Langlib/Examples/<langname>/`: canonical programs (hello world,
+3. **Examples** in `Langlib/Examples/<Langname>/`: canonical programs (hello world,
    cat, a quine if the language has a famous one) plus something fun.
    Examples must be original, public domain, or permissively licensed, with
    attribution in a comment or in the language README.

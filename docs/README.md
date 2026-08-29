@@ -16,6 +16,8 @@ Per-language specifications live in `docs/<langname>/spec.md`; compiler notes
 | thue | [spec](thue/spec.md) | `Langlib/Thue/` | `lake exe thue` |
 | fractran | [spec](fractran/spec.md) | `Langlib/Fractran/` | `lake exe fractran` |
 | malbolge | [spec](malbolge/spec.md) | `Langlib/Malbolge/` | `lake exe malbolge` |
+| piet | [spec](piet/spec.md) | `Langlib/Piet/` | `lake exe piet` |
+| brainloller | [spec](brainloller/spec.md) | `Langlib/Brainloller/` | `lake exe brainloller` |
 
 ## Project documents
 
@@ -23,5 +25,5 @@ Per-language specifications live in `docs/<langname>/spec.md`; compiler notes
 * [PROGRESS.md](PROGRESS.md): dated progress log.
 * [ROADMAP.md](ROADMAP.md): candidate languages and instructions for adding
   one.
-* [ALTERNATIVES.md](ALTERNATIVES.md): related efforts elsewhere.
+* [RELATED.md](RELATED.md): related efforts elsewhere.
 * verification.md (Stage 6): the compiler verification pipeline design.

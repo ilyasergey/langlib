@@ -19,7 +19,8 @@ cover, and how langlib differs. If you know of another one, please add it.
 
 ## Formal semantics collections
 
-* **esolang-semantics** (wolflo): https://github.com/wolflo/esolang-semantics
+* **esolang-semantics** (Chucky Ellison):
+  https://github.com/ellisonch/esolang-semantics
 
   The closest analog to langlib: a collection of esoteric language semantics
   written in the K framework, including several of the same languages. K
@@ -30,7 +31,9 @@ cover, and how langlib differs. If you know of another one, please add it.
 * **k-brainfuck-semantics** (wolflo):
   https://github.com/wolflo/k-brainfuck-semantics
 
-  Brainfuck alone, in K; its README links the parent collection above.
+  Brainfuck alone, in K, together with `kprove` specifications verifying
+  properties of individual brainfuck programs; its README links the parent
+  collection above.
 
 ## Verified brainfuck compilers
 

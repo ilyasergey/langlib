@@ -43,7 +43,7 @@ lake test           # run the test suite
 Each language ships a runner, for example:
 
 ```
-lake exe brainfuck Langlib/Examples/brainfuck/hello.b
+lake exe brainfuck Langlib/Examples/Brainfuck/hello.b
 ```
 
 See the per-language READMEs under `Langlib/` for details.
@@ -53,7 +53,7 @@ See the per-language READMEs under `Langlib/` for details.
 The current inhabitants of the library are documented in
 [docs/README.md](docs/README.md). The roadmap of languages still to be
 implemented lives in [docs/ROADMAP.md](docs/ROADMAP.md), and a survey of
-related efforts in [docs/ALTERNATIVES.md](docs/ALTERNATIVES.md).
+related efforts in [docs/RELATED.md](docs/RELATED.md).
 
 ## Contributing
 

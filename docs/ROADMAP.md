@@ -1,8 +1,17 @@
 # Language roadmap
 
-What else the library can implement, roughly ordered by (value x feasibility).
-Before starting one, read the instructions at the bottom, check the license
-situation, and move the language into `docs/PLAN.md` Stage 1/2 tables.
+What the library implements and what it can implement next, roughly ordered
+by (value x feasibility). Before starting a candidate, read the instructions
+at the bottom, check the license situation, and move the language into
+`docs/PLAN.md` Stage 1/2 tables.
+
+## Committed (first wave, see `docs/PLAN.md`)
+
+**Brainfuck**, **Whitespace**, and **Malbolge** are confirmed must-haves and
+will be implemented first, followed by the rest of the initial nine: Ook!,
+Deadfish, Subleq, Fractran, Thue, and Befunge-93. Graphical languages are
+also confirmed wanted: **Piet** and **Brainloller** form the second wave
+(see `docs/PLAN.md`, Stage 2).
 
 ## Strong candidates
 
@@ -11,10 +20,6 @@ situation, and move the language into `docs/PLAN.md` Stage 1/2 tables.
   implementable (C-INTERCAL is a GPL implementation, which we would not
   reuse, only cite). Large but well documented. A parser and interpreter is
   a serious, rewarding project; a WTF compiler is plausible.
-* **Piet** (David Morgan-Mar, ~2002). Programs are abstract paintings;
-  execution follows colour blocks. Needs image input (start with PPM/PNG
-  decoding or a textual grid format). Interpreter is moderate; great for the
-  website.
 * **FALSE** (Wouter van Oortmerssen, 1993). The stack language that
   inspired brainfuck; compact and clean. Interpreter is easy; a good extra
   compilation target.
@@ -32,6 +37,14 @@ situation, and move the language into `docs/PLAN.md` Stage 1/2 tables.
   other languages in the library (thue, fractran, rule 110 arguments).
 * **OISC variants** (subneg, addleq). Small deltas over our subleq core;
   good targets for compiler experiments.
+* **Java generics subtyping** (Radu Grigore, "Java Generics are Turing
+  Complete", POPL 2017, https://arxiv.org/abs/1605.05274). Not an esolang
+  by intent, which is exactly the joke: the paper reduces Turing-machine
+  halting to Java subtype checking. A langlib entry would formalise the
+  paper's subtyping machine (a fragment of Java's generic subtyping rules)
+  as the language, implement its "interpreter" (the subtype checker), and
+  provide the reduction as the compiler into it. Research-grade but well
+  specified by the paper.
 
 ## Candidates needing care
 

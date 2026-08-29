@@ -10,7 +10,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 
 Lake project on Lean 4.33, git repo, README, CLAUDE.md, LICENSE (Apache 2.0),
 CONTRIBUTING, .gitignore, docs skeleton (this plan, PROGRESS, ROADMAP,
-ALTERNATIVES).
+RELATED).
 
 ## Stage 1: language documentation `[ ]`
 
@@ -27,23 +27,32 @@ Write `docs/<langname>/spec.md` for the initial nine languages:
 | thue       | John Colagioia, 2000             | nondeterministic string rewriting |
 | fractran   | John Conway, 1987                | programs are lists of fractions; number theory as a machine |
 | malbolge   | Ben Olmstead, 1998               | designed to be impossible to program; interpreter-only |
+| piet       | David Morgan-Mar, ~2002          | programs are abstract paintings; the graphical esolang |
+| brainloller| Lode Vandevenne, 2005            | brainfuck encoded in pixel colours; graphical, nearly free given BF |
 
 Each spec must pin down the exact semantics our interpreter implements
 (cell width, EOF, bounds, errors), with sources. Also: `docs/ROADMAP.md`
-(candidate languages + instructions), `docs/ALTERNATIVES.md` (related work).
+(candidate languages + instructions), `docs/RELATED.md` (related work).
 
 ## Stage 2: interpreters `[ ]`
 
 Shared infrastructure in `Langlib/Common/`: pure fuel-based execution model
 (`Outcome`), byte I/O, parser helpers, golden-test harness. Then, per
 language: `Syntax`, `Parser`, `Semantics`, `Main` (runner exe), `README.md`,
-examples in `Langlib/Examples/<langname>/`, golden tests in
+examples in `Langlib/Examples/<Langname>/`, golden tests in
 `Langlib/Tests/`. Brainfuck is the exemplar; other languages follow its
 structure. Differential testing script `scripts/difftest.sh` (skips absent
 reference binaries).
 
 Order: brainfuck (exemplar), then whitespace and malbolge (confirmed
 must-haves), then ook, deadfish, subleq, fractran, thue, befunge93.
+
+Graphical languages (confirmed wanted): piet and brainloller follow once
+the textual nine are in. They need image input: a small PPM (P3/P6) reader
+in `Langlib/Common/`, plus a textual grid fallback so programs can live in
+git diffs and tests. Piet semantics per Morgan-Mar's spec (colour blocks,
+DP/CC, the 17-operation colour wheel, codel size flag); brainloller is a
+pixel-decoder front end onto the brainfuck core.
 
 ## Stage 3: WTF front end `[ ]`
 
