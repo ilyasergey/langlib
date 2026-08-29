@@ -58,7 +58,25 @@ output.
 | `maxelem.turp` | largest of 8 numbers (ported from Velvet) |
 | `sort.turp` | insertion sort of 6 numbers (ported from Velvet) |
 | `sieve.turp` | primes below 50, via a bool array |
-| `sumsq.turp` | sums the squares below 5; written inside the certified fragment, so `--tc` accepts it |
+| `sumsq.turp` | sums the squares below 5 | compiles with `--tc` |
+| `isqrt-tc.turp` | integer square root of 17 | compiles with `--tc` |
+| `fact-tc.turp` | factorial of 5 | compiles with `--tc` |
+| `fib-tc.turp` | the 10th Fibonacci number | compiles with `--tc` |
+| `hello-tc.turp` | "Hi" packed base-256 into `answer` | compiles with `--tc` |
+| `gcd-tc.turp` | gcd of 252 and 105 | needs `%` |
+| `sumdigits-tc.turp` | digit sum of 9045 | needs `/` and `%` |
+| `collatz-tc.turp` | Collatz steps for 27 | needs `/` and `%` |
+| `primes-tc.turp` | how many primes below 30 | needs `%` |
+| `maxelem-tc.turp` | largest of eight numbers | needs arrays |
+| `sieve-tc.turp` | how many primes below 50 | needs arrays |
+| `sort-tc.turp` | sorts six numbers, reports the largest | needs arrays and `-` |
+| `cat-tc.turp` | why cat has no twin | never: streaming I/O |
+
+Programs marked *certified fragment* are written for `--tc`: no input or
+output, no subtraction, division or modulo, no arrays, and the result left
+in a variable named `answer`. Every other example uses Turpentine's own
+I/O and needs a bespoke compiler. See
+[docs/certified-compilation.md](../../docs/certified-compilation.md).
 
 ## Tests
 

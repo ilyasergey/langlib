@@ -1,0 +1,18 @@
+// The 10th Fibonacci number, in the certified fragment: 55.
+//
+// fib.turp prints the whole sequence, which a register machine cannot do:
+// it yields one number at halt. This twin computes a single term instead,
+// which is the honest way to say the same thing in the fragment.
+//
+// Compiles today.
+var answer : int;
+var b : int;
+var t : int;
+var i : int;
+b := 1;
+while i < 10 {
+  t := answer + b;
+  answer := b;
+  b := t;
+  i := i + 1;
+}

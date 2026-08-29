@@ -1,5 +1,7 @@
 // Fibonacci: reads n, prints F(0), F(1), ..., F(n-1), one per line.
 // Usage: echo 10 | lake exe turpentine run Langlib/Examples/Turpentine/fib.turp
+// Streaming output: prints a sequence, so bespoke compilers only. The
+// certified compiler yields a single number at halt; see fact-tc.turp.
 var n : int;
 var a : int := 0;
 var b : int := 1;

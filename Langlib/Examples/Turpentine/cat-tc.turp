@@ -1,0 +1,12 @@
+// The certified fragment has no streaming I/O, so cat.turp has no twin.
+//
+// cat.turp copies its input to its output byte by byte. A register machine
+// takes its input before the run and yields one number at halt, so an echo
+// that interleaves reading and writing cannot be expressed at all, however
+// far the fragment is widened. This is a limit of the model rather than a
+// missing feature, and it is why the bespoke compilers exist.
+//
+// The nearest thing the fragment can say is "how many bytes would have
+// been copied", given the input in registers. That needs input variables;
+// see docs/certified-compilation.md section 4b item 5.
+var answer : int;

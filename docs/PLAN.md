@@ -467,22 +467,23 @@ and halts with registers set. Turpentine has streaming byte and line I/O.
 So a derived compiler cannot handle `readInt`, `println`, and friends
 without extending the source model.
 
-Two options, and the choice should be made before any of this is built:
+**Settled: simulate I/O with designated variables, and leave the model
+alone.** A register machine starts with registers set and halts with
+registers set, which is all that is needed.
 
-1. **Restrict**: derived compilers accept the I/O-free fragment of
-   Turpentine, with inputs preloaded into registers and the answer read
-   from a register at halt. Simple, honest, and enough to make the derived
-   compiler useful as an oracle for pure computations.
-2. **Extend**: define `URM+IO`, a register machine with `read` and `write`
-   instructions, prove *that* universal (trivially, it contains the URM),
-   and state `TuringComplete` against it. Every completeness proof then
-   has to say what its language does with the two extra instructions,
-   which is a small addition for languages that have I/O at all and a
-   genuine obstacle for fractran, which has none.
+Input is designated variables (`input0`, `input1`, ...) mapped to the
+initial register vector, which `compileToURM` already returns and never
+populates. Output stays the single `Nat` in `answer`; a program that wants
+to print a string builds its base-256 encoding there and the runner
+renders it, which is a presentation convention outside the theorem.
 
-Prefer option 2, with a `URM` to `URM+IO` embedding so that a language
-proved complete for the I/O-free model stays proved. Option 1 is the
-fallback if the extension makes the simulation proofs materially harder.
+The rejected alternative was `URM+IO`, a register machine with `read` and
+`write` instructions. It would have forced every completeness proof in the
+library to say what its language does with two new instructions, for a
+capability the machine's own conventions already provide. The cost of the
+chosen design is real and must be documented: no interleaving, so output
+is observable only at halt and input cannot depend on it. Programs needing
+genuine streaming stay with the bespoke compilers.
 
 ### Sequencing
 

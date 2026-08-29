@@ -355,11 +355,37 @@ in is:
    The addressing is easier here than in any esolang backend, because
    register indices are compile-time constants, so a computed index needs
    a dispatch chain rather than self-modifying code.
-5. **I/O.** Not a widening of the same fragment but a change of model: a
-   URM has no input or output, so this needs `URM+IO` with `read` and
-   `write` instructions and an embedding from the plain URM, as Stage 9
-   describes. Leave it last, and expect the answer convention to change
-   with it.
+5. **I/O, by convention rather than by changing the model.** A URM has no
+   input or output, but it does not need any: it *starts* with registers
+   set and *halts* with registers set, which is enough if Turpentine
+   agrees to say so.
+
+   **Input** is already plumbed and unused. `compileToURM` returns
+   `(UProg × List Nat)` and `TuringComplete.compile` takes that vector,
+   but today the compiler always returns `[]`
+   (`compileToURM_inputs`). Designate variables, `input0`, `input1` and so
+   on, map them to the initial register vector, and input works with no
+   change to the model, the interface, or any completeness proof.
+
+   **Output** stays the single `Nat` in `answer`. To print a string, the
+   program builds its base-256 encoding in `answer` and the runner renders
+   it as bytes. That is a *presentation* convention sitting outside the
+   theorem: the theorem still says the compiled program's answer equals
+   the source program's, and rendering that number as text changes
+   nothing about what was proved.
+
+   What this cannot do, and the docs must say so: there is no
+   interleaving. Output is observable only at halt, not as a stream, so a
+   program that prints and then loops forever prints nothing. Input is
+   fixed before the run, so nothing can be read that depends on what was
+   printed. Programs needing genuine streaming stay with the bespoke
+   compilers.
+
+   This is preferred over extending the model to `URM+IO` with `read` and
+   `write` instructions. That extension would force every completeness
+   proof in the library to say what its language does with two new
+   instructions, for a capability the register machine's own conventions
+   already provide.
 
 Each step keeps the same obligation: `compileToURM_correct` must still
 hold for the widened fragment, with Lean asserting only what is proved.

@@ -47,6 +47,20 @@ def suite : Suite where
         expect := .outputs "1\n2\n5\n5\n6\n9\n" }
     , { name := "sumsq example (certified fragment)", source := ex "sumsq.turp",
         expect := .outputs "" }
+    , { name := "isqrt-tc example (certified fragment)", source := ex "isqrt-tc.turp",
+        expect := .outputs "" }
+    , { name := "fact-tc example (certified fragment)", source := ex "fact-tc.turp",
+        expect := .outputs "" }
+    , { name := "gcd-tc example", source := ex "gcd-tc.turp", expect := .outputs "" }
+    , { name := "sumdigits-tc example", source := ex "sumdigits-tc.turp", expect := .outputs "" }
+    , { name := "collatz-tc example", source := ex "collatz-tc.turp", expect := .outputs "" }
+    , { name := "fib-tc example", source := ex "fib-tc.turp", expect := .outputs "" }
+    , { name := "maxelem-tc example", source := ex "maxelem-tc.turp", expect := .outputs "" }
+    , { name := "primes-tc example", source := ex "primes-tc.turp", expect := .outputs "" }
+    , { name := "sieve-tc example", source := ex "sieve-tc.turp", expect := .outputs "" }
+    , { name := "sort-tc example", source := ex "sort-tc.turp", expect := .outputs "" }
+    , { name := "hello-tc example", source := ex "hello-tc.turp", expect := .outputs "" }
+    , { name := "cat-tc example", source := ex "cat-tc.turp", expect := .outputs "" }
     , { name := "sieve example", source := ex "sieve.turp",
         expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n31\n37\n41\n43\n47\n" }
     , { name := "array elements start at zero", source := .inline

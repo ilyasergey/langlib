@@ -5,27 +5,46 @@ Per-language specifications live in `docs/<langname>/spec.md`; compiler notes
 
 ## Status matrix
 
-Legend: `yes` done, `wip` in progress, `-` not started, `n/a` not applicable.
-Everything the columns mean is explained below the table.
-
-| Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved | Bespoke compiler | Bespoke correct | Correct via TC |
-|----------|------|--------|-------------|------------------|--------|-----------------|-----------|------------------|-----------------|----------------|
-| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | wip | [yes, scalars](brainfuck/compiler.md) | planned | planned |
-| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [yes](whitespace/compiler.md) | planned | [**yes**](../Langlib/Computability/Derived.lean#L101) |
-| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [yes](subleq/compiler.md) | planned | [**yes**](../Langlib/Computability/Derived.lean#L105) |
-| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | no | [no](befunge93/compiler.md) | n/a | n/a |
-| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [no, bounded storage](malbolge/spec.md) | no | [no](malbolge/compiler.md) | n/a | n/a |
-| malbolge-unshackled | wip | wip | wip | wip | `malbolge-unshackled` | yes | no | planned | planned | planned |
-| [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | no | [planned](fractran/compiler.md) | planned | planned |
-| [thue](thue/spec.md) | yes | yes | yes | yes | `thue` | yes | no | [planned](thue/compiler.md) | planned | planned |
-| [piet](piet/spec.md) | yes | yes | yes | yes | `piet` | yes | no | [planned](piet/compiler.md) | planned | planned |
-| [ook](ook/spec.md) | yes | yes | yes | yes | `ook` | yes (via brainfuck) | no | [planned, free via brainfuck](ook/compiler.md) | planned | planned |
-| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `brainloller` | yes (via brainfuck) | no | [planned, free via brainfuck](brainloller/compiler.md) | planned | planned |
-| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `deadfish` | [no, finite state](deadfish/spec.md) | no | [planned, output-only](deadfish/compiler.md) | planned | n/a |
-| unlambda / SKI | wip | wip | wip | wip | `unlambda` | yes | no | planned | planned | planned |
-| [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `turpentine` | yes | no | (source) | (source) | (source) |
+| Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved | Hosts full Turpentine | Bespoke compiler | Bespoke correct | Correct via TC |
+|----------|------|--------|-------------|------------------|--------|-----------------|-----------|-----------------------|------------------|-----------------|----------------|
+| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | wip | yes | [yes, scalars](brainfuck/compiler.md) | planned | planned |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | yes | [yes](whitespace/compiler.md) | planned | [**yes**](../Langlib/Computability/Derived.lean#L101) |
+| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | yes | [yes](subleq/compiler.md) | planned | [**yes**](../Langlib/Computability/Derived.lean#L105) |
+| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | no | no, 2000 code cells | [no](befunge93/compiler.md) | n/a | n/a |
+| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [no, bounded storage](malbolge/spec.md) | no | no, bounded storage | [no](malbolge/compiler.md) | n/a | n/a |
+| malbolge-unshackled | wip | wip | wip | wip | `malbolge-unshackled` | yes | no | expected yes | planned | planned | planned |
+| [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | no | no I/O at all | [planned](fractran/compiler.md) | planned | planned |
+| [thue](thue/spec.md) | yes | yes | yes | yes | `thue` | yes | no | expected, unary output | [planned](thue/compiler.md) | planned | planned |
+| [piet](piet/spec.md) | yes | yes | yes | yes | `piet` | yes | no | expected yes | [planned](piet/compiler.md) | planned | planned |
+| [ook](ook/spec.md) | yes | yes | yes | yes | `ook` | yes (via brainfuck) | no | yes, via brainfuck | [planned, free via brainfuck](ook/compiler.md) | planned | planned |
+| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `brainloller` | yes (via brainfuck) | no | yes, via brainfuck | [planned, free via brainfuck](brainloller/compiler.md) | planned | planned |
+| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `deadfish` | [no, finite state](deadfish/spec.md) | no | no, output only | [planned, output-only](deadfish/compiler.md) | planned | n/a |
+| unlambda / SKI | wip | wip | wip | wip | `unlambda` | yes | no | expected yes | planned | planned | planned |
+| [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `turpentine` | yes | no | (source) | (source) | (source) | (source) |
 
 ## Reading the table
+
+Legend: `yes` done, `wip` in progress, `-` not started, `n/a` not
+applicable.
+
+### Hosts full Turpentine
+
+Whether the target can express the whole source language, or something is
+structurally missing. This is about the *target*, not about how much work
+we have done: `no I/O at all` for fractran is a fact about FRACTRAN, and
+no amount of compiler engineering changes it.
+
+A `no` here bounds what any compiler into that language can be. Bounded
+storage caps program size (befunge93's 2000 code cells, malbolge's 59049
+words); deadfish has no input and no loops, so it takes only straight-line
+output; fractran has no I/O, so results come out as a final state to be
+factorised rather than printed.
+
+Note that this column and the two compiler columns answer different
+questions. A language can host full Turpentine and still have no compiler
+written, and a language whose bespoke compiler accepts everything may
+still have only a fragment compiled by the certified route, because that
+route is limited by the register machine rather than by the target.
 
 ### Running a language
 
@@ -136,7 +155,12 @@ The three columns follow from that.
 * **Bespoke correct**: whether *that* backend has a machine-checked
   correctness theorem. Real per-language proof work.
 * **Correct via TC**: whether the derived compiler exists for this
-  language. A `yes` links to that language's compiler, and *the correctness
+  language. It compiles a *fragment* of Turpentine, not the whole
+  language: no I/O, no subtraction, division or modulo, no arrays, and
+  the result in a variable named `answer`. That fragment is being widened
+  (see [certified-compilation.md](certified-compilation.md) section 4b);
+  the `-tc` examples in `Langlib/Examples/Turpentine/` are written against
+  it, each saying which restriction still blocks it. A `yes` links to that language's compiler, and *the correctness
   theorem is its `correct` field*, since a `TurpentineCompiler` bundles the
   compiler with its proof.
 

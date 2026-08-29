@@ -1,6 +1,8 @@
 // Integer square root: reads n, prints the r with r*r <= n < (r+1)*(r+1).
 // Ported from Velvet's flagship example (github.com/verse-lab/velvet).
 // Usage: echo 17 | lake exe turpentine run Langlib/Examples/Turpentine/isqrt.turp
+// A TC-friendly twin, isqrt-tc.turp, computes the same thing without I/O
+// so the certified compiler can accept it. See that file for the fragment.
 var n : int;
 var x : int := 0;
 n := readInt();

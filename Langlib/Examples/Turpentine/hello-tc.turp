@@ -1,0 +1,14 @@
+// The string "Hi" packed into a single number, in the certified fragment.
+//
+// hello.turp prints text, which a register machine cannot do. The output
+// convention for the certified fragment is that a program builds the
+// base-256 encoding of its bytes in `answer`, and the runner renders that
+// number as text. "Hi" is 'H' = 72 and 'i' = 105, so the answer is
+// 72 * 256 + 105 = 18537.
+//
+// Compiles today. The rendering half is a runner convention that sits
+// outside the correctness theorem: the theorem says the number is right,
+// and how a number is displayed proves nothing either way.
+var answer : int;
+answer := 72;
+answer := answer * 256 + 105;

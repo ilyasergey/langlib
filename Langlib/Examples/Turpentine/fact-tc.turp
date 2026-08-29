@@ -1,0 +1,16 @@
+// Factorial of 5, in the certified fragment: 120.
+//
+// Written for the certified compiler, so there is no input or output and
+// the result is left in `answer`. See isqrt-tc.turp for what the fragment
+// allows and why.
+//
+// Usage: lake exe turpentine exec --via whitespace --tc Langlib/Examples/Turpentine/fact-tc.turp
+var answer : int;
+var i : int;
+var n : int;
+answer := 1;
+n := 5;
+while i < n {
+  i := i + 1;
+  answer := answer * i;
+}

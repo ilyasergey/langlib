@@ -1,5 +1,7 @@
 // Sieve of Eratosthenes over a bool array: prints every prime below 50.
 // Original example for langlib, and the reason Turpentine has arrays.
+// Streaming output and an array: bespoke compilers only. See sumsq.turp
+// for a program written for the certified compiler.
 var composite : bool[50];
 var p : int := 2;
 var m : int;

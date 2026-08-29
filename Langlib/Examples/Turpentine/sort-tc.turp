@@ -1,0 +1,31 @@
+// Insertion sort of six numbers, reporting the largest: 9.
+//
+// sort.turp prints the whole sorted sequence, which a register machine
+// cannot do. This twin sorts the same numbers and leaves the last element,
+// the maximum, in `answer`, so the sorting still happens and the result is
+// a single number.
+//
+// Still blocked on: arrays and `-`. See docs/certified-compilation.md 4b.
+var answer : int;
+var a : int[6];
+var i : int;
+var j : int;
+var key : int;
+a[0] := 5;
+a[1] := 2;
+a[2] := 9;
+a[3] := 1;
+a[4] := 5;
+a[5] := 6;
+i := 1;
+while i < len(a) {
+  key := a[i];
+  j := i;
+  while j > 0 && a[j - 1] > key {
+    a[j] := a[j - 1];
+    j := j - 1;
+  }
+  a[j] := key;
+  i := i + 1;
+}
+answer := a[len(a) - 1];

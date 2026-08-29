@@ -1,5 +1,8 @@
 // Primes: reads n, prints every prime <= n by trial division.
 // Usage: echo 30 | lake exe turpentine run Langlib/Examples/Turpentine/primes.turp
+// Streaming output: this prints a sequence, which the certified compiler
+// cannot express (a register machine yields one number at halt). Bespoke
+// compilers only. See sumsq.turp for a program written for --tc.
 var n : int;
 var candidate : int := 2;
 var d : int;

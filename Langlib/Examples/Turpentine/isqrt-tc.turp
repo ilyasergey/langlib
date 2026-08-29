@@ -1,0 +1,26 @@
+// Integer square root of 17, in the certified fragment.
+//
+// This is the TC-friendly twin of isqrt.turp. That one reads a number and
+// prints the answer, which is how Turpentine programs normally look and
+// what the bespoke compilers accept. This one is written for the certified
+// compiler instead, so it obeys the register machine's conventions:
+//
+//   * no input and no output. A URM starts with its registers set and
+//     halts with them set, so the input is baked in and the result is left
+//     in a variable called `answer`, which becomes register 0;
+//   * no subtraction, division or modulo, because a register holds a
+//     natural number and Turpentine's integers do not;
+//   * no arrays, and no initialisers on declarations.
+//
+// Compare the two:
+//   echo 17 | lake exe turpentine run  Langlib/Examples/Turpentine/isqrt.turp
+//   lake exe turpentine exec --via whitespace --tc Langlib/Examples/Turpentine/isqrt-tc.turp
+//
+// Both answer 4. The first prints it; the second leaves it in register 0
+// and the runner decodes it.
+var answer : int;
+var n : int;
+n := 17;
+while (answer + 1) * (answer + 1) <= n {
+  answer := answer + 1;
+}

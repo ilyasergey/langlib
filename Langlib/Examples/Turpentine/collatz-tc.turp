@@ -1,0 +1,16 @@
+// Collatz step count for 27, in the certified fragment: 111.
+//
+// TC-friendly twin of collatz.turp. Input baked in, result in `answer`.
+//
+// Still blocked on: `/` and `%`. See docs/certified-compilation.md 4b.
+var answer : int;
+var n : int;
+n := 27;
+while n != 1 {
+  if n % 2 == 0 {
+    n := n / 2;
+  } else {
+    n := 3 * n + 1;
+  }
+  answer := answer + 1;
+}

@@ -1,0 +1,26 @@
+// How many primes there are below 30, in the certified fragment: 10.
+//
+// primes.turp prints the primes themselves, which a register machine
+// cannot do: it yields one number at halt. Counting them is the same
+// computation reduced to a single answer.
+//
+// Still blocked on: `%`. See docs/certified-compilation.md section 4b.
+var answer : int;
+var candidate : int;
+var d : int;
+var divisors : int;
+candidate := 2;
+while candidate < 30 {
+  divisors := 0;
+  d := 2;
+  while d * d <= candidate {
+    if candidate % d == 0 {
+      divisors := divisors + 1;
+    }
+    d := d + 1;
+  }
+  if divisors == 0 {
+    answer := answer + 1;
+  }
+  candidate := candidate + 1;
+}

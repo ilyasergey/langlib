@@ -1,0 +1,12 @@
+// Digit sum of 9045, in the certified fragment: 18.
+//
+// TC-friendly twin of sumdigits.turp. Input baked in, result in `answer`.
+//
+// Still blocked on: `/` and `%`. See docs/certified-compilation.md 4b.
+var answer : int;
+var n : int;
+n := 9045;
+while n > 0 {
+  answer := answer + n % 10;
+  n := n / 10;
+}

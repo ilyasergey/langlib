@@ -1,6 +1,8 @@
 // cat: copies input bytes to output until end of input.
 // readByte() yields -1 at EOF, so no EOF-convention drama here.
 // Usage: echo meow | lake exe turpentine run Langlib/Examples/Turpentine/cat.turp
+// Reads and writes a byte stream, which the certified compiler cannot do:
+// a register machine's input is fixed before the run. Bespoke only.
 var c : int;
 c := readByte();
 while c >= 0 {
