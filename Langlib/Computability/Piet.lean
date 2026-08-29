@@ -2419,6 +2419,262 @@ theorem tryFrom_lblock (g : Grid) (bl : Blocks) (h : Hue) (l : Lightness) (y : N
     simp [tryFrom, hinfo, h00, b1, b2, b3, step?, hw, hh,
       Dir.clockwise, Dir.rotate, Dir.ofNat, Dir.toNat, CC.toggle, CC.toNat]
 
+/-! ## Reading the generated grid
+
+Each of these reads one codel of `loopGrid` out of the three row lists.
+They are the interface between the layout and the run: everything above
+this point is about lists, everything below is about the evaluator. -/
+
+/-- Width of the prologue corridor, in codels. -/
+def pw (prologue : List BlockCmd) : Nat :=
+  (coloredRuns Hue.red Lightness.normal prologue).length
+
+/-- Width of the loop-body corridor, in codels. -/
+def bw (body : List BlockCmd) : Nat :=
+  (coloredRuns Hue.red Lightness.normal (loopCode body)).length
+
+theorem bw_pos (body : List BlockCmd) : 0 < bw body :=
+  List.length_pos_of_ne_nil (coloredRuns_ne_nil _ _ _)
+
+theorem top_length (prologue body : List BlockCmd) :
+    (loopRows prologue body).top.length = pw prologue + bw body + 5 := by
+  simp [loopRows, pw, bw]
+  omega
+
+theorem loopGrid_width (prologue body : List BlockCmd) :
+    (loopGrid prologue body).width = pw prologue + bw body + 5 := by
+  rw [loopGrid, threeRowGrid, top_length]
+
+theorem loopGrid_height (prologue body : List BlockCmd) :
+    (loopGrid prologue body).height = 3 := rfl
+
+/-- Read a codel of the top row from the row list. -/
+theorem loopGrid_top_of (prologue body : List BlockCmd) (x : Nat) (c : Codel)
+    (hx : x < pw prologue + bw body + 5)
+    (h : (loopRows prologue body).top[x]? = some c) :
+    (loopGrid prologue body).get x 0 = c := by
+  have hx' : x < (loopRows prologue body).top.length := by
+    rw [top_length]; exact hx
+  rw [loopGrid, threeRowGrid_get_top _ _ _ _ hx']
+  rw [List.getElem?_eq_getElem hx'] at h
+  exact Option.some.inj h
+
+theorem loopGrid_middle_of (prologue body : List BlockCmd) (x : Nat) (c : Codel)
+    (hx : x < pw prologue + bw body + 5)
+    (h : (loopRows prologue body).middle[x]? = some c) :
+    (loopGrid prologue body).get x 1 = c := by
+  have hx' : x < (loopRows prologue body).top.length := by
+    rw [top_length]; exact hx
+  have hm : x < (loopRows prologue body).middle.length := by
+    rw [loopRows_middle_length]; exact hx'
+  rw [loopGrid, threeRowGrid_get_middle _ _ _ _ hx' (loopRows_middle_length _ _)]
+  rw [List.getElem?_eq_getElem hm] at h
+  exact Option.some.inj h
+
+theorem loopGrid_bottom_of (prologue body : List BlockCmd) (x : Nat) (c : Codel)
+    (hx : x < pw prologue + bw body + 5)
+    (h : (loopRows prologue body).bottom[x]? = some c) :
+    (loopGrid prologue body).get x 2 = c := by
+  have hx' : x < (loopRows prologue body).top.length := by
+    rw [top_length]; exact hx
+  have hb : x < (loopRows prologue body).bottom.length := by
+    rw [loopRows_bottom_length]; exact hx'
+  rw [loopGrid, threeRowGrid_get_bottom _ _ _ _ hx' (loopRows_middle_length _ _)
+    (loopRows_bottom_length _ _)]
+  rw [List.getElem?_eq_getElem hb] at h
+  exact Option.some.inj h
+
+theorem loopGrid_get_start (prologue body : List BlockCmd) :
+    (loopGrid prologue body).get 0 0 = .white := by
+  apply loopGrid_top_of _ _ _ _ (by have := bw_pos body; omega)
+  simp [loopRows]
+
+theorem loopGrid_get_sep (prologue body : List BlockCmd) :
+    (loopGrid prologue body).get (pw prologue + 1) 0 = .white := by
+  apply loopGrid_top_of _ _ _ _ (by have := bw_pos body; omega)
+  simp only [loopRows]
+  rw [List.getElem?_append_left (by simp [pw]),
+    List.getElem?_append_left (by simp [pw]),
+    List.getElem?_append_right (by simp [pw])]
+  simp [pw]
+
+/-- The last three codels of the top row. -/
+theorem loopRows_top_tail (prologue body : List BlockCmd) (j : Nat) :
+    (loopRows prologue body).top[pw prologue + bw body + 2 + j]? =
+      [Codel.chromatic
+          (advance (endColor Hue.red Lightness.normal (loopCode body)).1
+            (endColor Hue.red Lightness.normal (loopCode body)).2 .outNum).1
+          (advance (endColor Hue.red Lightness.normal (loopCode body)).1
+            (endColor Hue.red Lightness.normal (loopCode body)).2 .outNum).2,
+        Codel.white, Codel.chromatic Hue.yellow Lightness.dark][j]? := by
+  simp only [loopRows]
+  rw [List.getElem?_append_right (by simp [pw, bw]; omega)]
+  congr 1
+  simp [pw, bw]
+  omega
+
+/-- The last four codels of the middle row. -/
+theorem loopRows_middle_tail (prologue body : List BlockCmd) (j : Nat) :
+    (loopRows prologue body).middle[pw prologue + bw body + 1 + j]? =
+      [Codel.chromatic
+          (advance (endColor Hue.red Lightness.normal (loopCode body)).1
+            (endColor Hue.red Lightness.normal (loopCode body)).2 .pop).1
+          (advance (endColor Hue.red Lightness.normal (loopCode body)).1
+            (endColor Hue.red Lightness.normal (loopCode body)).2 .pop).2,
+        Codel.black, Codel.chromatic Hue.yellow Lightness.dark,
+        Codel.chromatic Hue.yellow Lightness.dark][j]? := by
+  have hb := bw_pos body
+  simp only [loopRows]
+  rw [List.getElem?_append_right (by simp [pw, bw] at hb ⊢; omega)]
+  congr 1
+  simp [pw, bw] at hb ⊢
+  omega
+
+/-- The last three codels of the bottom row are all black. -/
+theorem loopRows_bottom_tail (prologue body : List BlockCmd) (j : Nat) :
+    (loopRows prologue body).bottom[pw prologue + bw body + 2 + j]? =
+      [Codel.black, Codel.black, Codel.black][j]? := by
+  simp only [loopRows]
+  rw [List.getElem?_append_right (by simp [pw, bw]; omega)]
+  congr 1
+  simp [pw, bw]
+  omega
+
+/-- The block that prints the answer, at the end of the loop body. -/
+theorem loopGrid_get_out (prologue body : List BlockCmd) :
+    (loopGrid prologue body).get (pw prologue + bw body + 2) 0 =
+      .chromatic
+        (advance (endColor Hue.red Lightness.normal (loopCode body)).1
+          (endColor Hue.red Lightness.normal (loopCode body)).2 .outNum).1
+        (advance (endColor Hue.red Lightness.normal (loopCode body)).1
+          (endColor Hue.red Lightness.normal (loopCode body)).2 .outNum).2 := by
+  apply loopGrid_top_of _ _ _ _ (by omega)
+  simpa using loopRows_top_tail prologue body 0
+
+/-- The white codel between the printing block and the terminal. -/
+theorem loopGrid_get_outWhite (prologue body : List BlockCmd) :
+    (loopGrid prologue body).get (pw prologue + bw body + 3) 0 = .white := by
+  apply loopGrid_top_of _ _ _ _ (by omega)
+  have h := loopRows_top_tail prologue body 1
+  rw [show pw prologue + bw body + 2 + 1 = pw prologue + bw body + 3 from rfl] at h
+  simpa using h
+
+theorem loopGrid_get_term00 (prologue body : List BlockCmd) :
+    (loopGrid prologue body).get (pw prologue + bw body + 4) 0 =
+      .chromatic Hue.yellow Lightness.dark := by
+  apply loopGrid_top_of _ _ _ _ (by omega)
+  have h := loopRows_top_tail prologue body 2
+  rw [show pw prologue + bw body + 2 + 2 = pw prologue + bw body + 4 from rfl] at h
+  simpa using h
+
+/-- The white column the return corridor climbs. -/
+theorem loopGrid_get_sepMiddle (prologue body : List BlockCmd) :
+    (loopGrid prologue body).get (pw prologue + 1) 1 = .white := by
+  apply loopGrid_middle_of _ _ _ _ (by have := bw_pos body; omega)
+  simp only [loopRows, pw]
+  rw [List.getElem?_append_left (by simp),
+    List.getElem?_append_left (by simp),
+    List.getElem?_append_right (by simp)]
+  simp
+
+/-- The `pop` block the loop turns down through. -/
+theorem loopGrid_get_loopBlock (prologue body : List BlockCmd) :
+    (loopGrid prologue body).get (pw prologue + bw body + 1) 1 =
+      .chromatic
+        (advance (endColor Hue.red Lightness.normal (loopCode body)).1
+          (endColor Hue.red Lightness.normal (loopCode body)).2 .pop).1
+        (advance (endColor Hue.red Lightness.normal (loopCode body)).1
+          (endColor Hue.red Lightness.normal (loopCode body)).2 .pop).2 := by
+  apply loopGrid_middle_of _ _ _ _ (by omega)
+  simpa using loopRows_middle_tail prologue body 0
+
+theorem loopGrid_get_midBlack (prologue body : List BlockCmd) :
+    (loopGrid prologue body).get (pw prologue + bw body + 2) 1 = .black := by
+  apply loopGrid_middle_of _ _ _ _ (by omega)
+  have h := loopRows_middle_tail prologue body 1
+  rw [show pw prologue + bw body + 1 + 1 = pw prologue + bw body + 2 from rfl] at h
+  simpa using h
+
+theorem loopGrid_get_term10 (prologue body : List BlockCmd) :
+    (loopGrid prologue body).get (pw prologue + bw body + 3) 1 =
+      .chromatic Hue.yellow Lightness.dark := by
+  apply loopGrid_middle_of _ _ _ _ (by omega)
+  have h := loopRows_middle_tail prologue body 2
+  rw [show pw prologue + bw body + 1 + 2 = pw prologue + bw body + 3 from rfl] at h
+  simpa using h
+
+theorem loopGrid_get_term11 (prologue body : List BlockCmd) :
+    (loopGrid prologue body).get (pw prologue + bw body + 4) 1 =
+      .chromatic Hue.yellow Lightness.dark := by
+  apply loopGrid_middle_of _ _ _ _ (by omega)
+  have h := loopRows_middle_tail prologue body 3
+  rw [show pw prologue + bw body + 1 + 3 = pw prologue + bw body + 4 from rfl] at h
+  simpa using h
+
+/-- The bottom white run the return corridor crosses. -/
+theorem loopGrid_get_bottomWhite (prologue body : List BlockCmd) (j : Nat)
+    (hj : j ≤ bw body) :
+    (loopGrid prologue body).get (pw prologue + 1 + j) 2 = .white := by
+  apply loopGrid_bottom_of _ _ _ _ (by omega)
+  simp only [loopRows, pw, bw] at hj ⊢
+  rw [List.getElem?_append_left (by simp; omega),
+    List.getElem?_append_right (by simp)]
+  rw [show (coloredRuns Hue.red Lightness.normal prologue).length + 1 + j -
+      (List.replicate ((coloredRuns Hue.red Lightness.normal prologue).length + 1)
+        Codel.black).length = j from by simp]
+  rw [List.getElem?_eq_getElem (by simp; omega)]
+  simp
+
+/-- The black codel that stops the return corridor. -/
+theorem loopGrid_get_bottomBlack (prologue body : List BlockCmd) :
+    (loopGrid prologue body).get (pw prologue) 2 = .black := by
+  apply loopGrid_bottom_of _ _ _ _ (by have := bw_pos body; omega)
+  simp only [loopRows, pw]
+  rw [List.getElem?_append_left (by simp; omega),
+    List.getElem?_append_left (by simp)]
+  simp
+
+theorem loopGrid_get_bottomTail (prologue body : List BlockCmd) (j : Nat)
+    (hj : j < 3) :
+    (loopGrid prologue body).get (pw prologue + bw body + 2 + j) 2 = .black := by
+  apply loopGrid_bottom_of _ _ _ _ (by omega)
+  have h := loopRows_bottom_tail prologue body j
+  rw [h]
+  match j, hj with
+  | 0, _ => rfl
+  | 1, _ => rfl
+  | 2, _ => rfl
+
+/-- Landing in the terminal block ends the run. -/
+theorem loopGrid_halt (prologue body : List BlockCmd) (bl : Blocks) (s : MState)
+    (hpos : s.pos = (pw prologue + bw body + 4, 0)) :
+    tryFrom (loopGrid prologue body) bl 8 s = .halt s := by
+  have hb1 : (loopGrid prologue body).get (pw prologue + bw body + 4) 2 = .black := by
+    have h := loopGrid_get_bottomTail prologue body 2 (by omega)
+    rwa [show pw prologue + bw body + 2 + 2 = pw prologue + bw body + 4 from rfl] at h
+  have hb2 : (loopGrid prologue body).get (pw prologue + bw body + 3) 2 = .black := by
+    have h := loopGrid_get_bottomTail prologue body 1 (by omega)
+    rwa [show pw prologue + bw body + 2 + 1 = pw prologue + bw body + 3 from rfl] at h
+  exact tryFrom_lblock (loopGrid prologue body) bl Hue.yellow Lightness.dark
+    (pw prologue + bw body + 2)
+    (by rw [loopGrid_width]) (loopGrid_height _ _)
+    (loopGrid_get_term00 prologue body)
+    (loopGrid_get_term11 prologue body)
+    (loopGrid_get_term10 prologue body)
+    (by rw [loopGrid_get_outWhite]; rfl)
+    (by rw [hb1]; rfl)
+    (by rw [hb2]; rfl)
+    (by rw [loopGrid_get_midBlack]; rfl)
+    hb1 hb2 (loopGrid_get_midBlack prologue body) s hpos
+
+/-- ... and the evaluator reports it. -/
+theorem loopGrid_exec_halt (prologue body : List BlockCmd) (bl : Blocks)
+    (fuel : Nat) (s : MState)
+    (hpos : s.pos = (pw prologue + bw body + 4, 0)) :
+    exec (loopGrid prologue body) bl (fuel + 1) s = (s, Exit.halted) := by
+  rw [show fuel + 1 = Nat.succ fuel from rfl, exec,
+    loopGrid_halt prologue body bl s hpos]
+
 /-- Full compiler with singleton command blocks. -/
 def compile (P : Program) (inputs : List Nat) : Grid :=
   let base := registerDepth P inputs
