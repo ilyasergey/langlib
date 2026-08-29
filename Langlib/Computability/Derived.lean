@@ -3,6 +3,7 @@ import Langlib.Computability.Subleq
 import Langlib.Computability.Brainfuck
 import Langlib.Computability.Fractran
 import Langlib.Computability.Thue
+import Langlib.Computability.Piet
 import Langlib.Computability.Ook
 import Langlib.Computability.Brainloller
 import Langlib.Turpentine.Compile.URM
@@ -123,6 +124,12 @@ shared URM pass with the string-rewriting Thue completeness witness. The
 emitted program is a rulebase plus its initial string; the answer is read
 out of the halted final state, since Thue has no other way to report one. -/
 def derivedThue : TurpentineCompiler ThueLang := derived thueComplete
+
+/-- The certified Turpentine-to-Piet compiler obtained by composing the
+shared URM pass with the image-level Piet completeness witness. The emitted
+program is a codel grid; `lake exe piet` runs it, and the answer comes back
+as the decimal number the image prints before halting. -/
+def derivedPiet : TurpentineCompiler PietLang := derived pietComplete
 
 /-- Ook! and Brainloller inherit Brainfuck's completeness witness, so they
 inherit its certified compiler too. Neither needed a new proof: `derived`

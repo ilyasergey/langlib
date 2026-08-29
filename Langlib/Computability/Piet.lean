@@ -1,4 +1,5 @@
 import Langlib.Common.Fuel
+import Std.Data.String.ToNat
 import Langlib.Computability.Class
 import Langlib.Computability.URM
 import Langlib.Languages.Piet.Semantics
@@ -3689,6 +3690,289 @@ theorem exec_run (P : Program) (inputs : List Nat) (bl : Blocks)
         exact exec_halt_of_step P inputs bl hstep hbelow hbase hw s next flag
           hpos hdp hstack
 
+/-! ## The run, end to end
+
+The start slide, the prologue, the loop, and the answer. -/
+
+/-- Every codel of the prologue corridor is its own colour block. -/
+theorem loopGrid_prologue_isolated (prologue body : List BlockCmd)
+    (hu : UnitCode prologue) (j : Nat) (hj : j ≤ prologue.length) :
+    localInfoAt? (loopGrid prologue body) (1 + j, 0) =
+      some (singletonInfo (1 + j, 0)) := by
+  have hpw : pw prologue = prologue.length + 1 :=
+    coloredRuns_length_of_unit _ _ _ hu
+  have hcolour : ∀ i, i ≤ prologue.length →
+      (loopGrid prologue body).get (1 + i) 0 =
+        .chromatic (colourAt Hue.red Lightness.normal prologue i).1
+          (colourAt Hue.red Lightness.normal prologue i).2 := by
+    intro i hi
+    rw [show (1 : Nat) + i = i + 1 from by omega]
+    have hib : i < (coloredRuns Hue.red Lightness.normal prologue).length := by
+      rw [coloredRuns_length_of_unit _ _ _ hu]; omega
+    rw [loopGrid_get_prologue prologue body i hib]
+    have hg := coloredRuns_getElem?_unit Hue.red Lightness.normal prologue hu i hi
+    rw [List.getElem?_eq_getElem hib] at hg
+    exact Option.some.inj hg
+  have hcur := hcolour j hj
+  apply localInfoAt?_top _ _ _ _ (by rw [loopGrid_width]; have := bw_pos body; omega)
+    (by rw [loopGrid_height]; omega) hcur
+  · intro _
+    rcases Nat.eq_zero_or_pos j with rfl | hj0
+    · rw [show (1 : Nat) + 0 - 1 = 0 from rfl, loopGrid_get_start]
+      rfl
+    · obtain ⟨i, rfl⟩ : ∃ i, j = i + 1 := ⟨j - 1, by omega⟩
+      rw [show (1 : Nat) + (i + 1) - 1 = 1 + i from by omega, hcolour i (by omega)]
+      apply chromatic_bne
+      exact fun he => colourAt_succ_ne Hue.red Lightness.normal prologue i
+        (by omega) he.symm
+  · rcases Nat.lt_or_ge j prologue.length with hlt | hge
+    · rw [show (1 : Nat) + j + 1 = 1 + (j + 1) from by omega,
+        hcolour (j + 1) (by omega)]
+      apply chromatic_bne
+      exact colourAt_succ_ne Hue.red Lightness.normal prologue j (by omega)
+    · have hjeq : j = prologue.length := by omega
+      subst hjeq
+      rw [show (1 : Nat) + prologue.length + 1 = pw prologue + 1 from by omega,
+        loopGrid_get_sep]
+      rfl
+  · rw [show (1 : Nat) + j = j + 1 from by omega]
+    rw [loopGrid_get_prologue_down prologue body j
+      (by rw [coloredRuns_length_of_unit _ _ _ hu]; omega)]
+    rfl
+
+/-- The prologue: from the first codel of the image, load the register file
+and slide across the separator into the loop body. -/
+theorem exec_entry (P : Program) (inputs : List Nat) (bl : Blocks) (s : MState)
+    (hpos : s.pos = (1, 0)) (hdp : s.dp = .right) :
+    Reaches (exec (image P inputs) bl) s
+      { runCode (unitize (initialCode (registerDepth P inputs + 3) inputs)) s with
+        pos := (pw (unitize
+          (initialCode (registerDepth P inputs + 3) inputs)) + 2, 0),
+        dp := .right } := by
+  set base := registerDepth P inputs with hbaseDef
+  set prologue := unitize (initialCode (base + 3) inputs) with hpro
+  set body := unitize (dispatcherCode P base) with hbody
+  have hu : UnitCode prologue := unitCode_unitize _
+  have hst : StableCode prologue :=
+    stableCode_unitize (stableCode_initialCode _ _)
+  have hpw : pw prologue = prologue.length + 1 :=
+    coloredRuns_length_of_unit _ _ _ hu
+  have hcorr := loopGrid_prologue_corridor prologue body hu
+  have hsf : slideFuel (loopGrid prologue body) =
+      (4 * (pw prologue + bw body + 5) * 3 + 7) + 1 := by
+    rw [slideFuel, loopGrid_width, loopGrid_height]
+  have hlast : (loopGrid prologue body).get (pw prologue) 0 =
+      .chromatic (colourAt Hue.red Lightness.normal prologue prologue.length).1
+        (colourAt Hue.red Lightness.normal prologue prologue.length).2 := by
+    have hib : prologue.length <
+        (coloredRuns Hue.red Lightness.normal prologue).length := by
+      rw [coloredRuns_length_of_unit _ _ _ hu]; omega
+    have h := loopGrid_get_prologue prologue body prologue.length hib
+    rw [show pw prologue = prologue.length + 1 from hpw, h]
+    have hg := coloredRuns_getElem?_unit Hue.red Lightness.normal prologue hu
+      prologue.length (by omega)
+    rw [List.getElem?_eq_getElem hib] at hg
+    exact Option.some.inj hg
+  -- the corridor
+  have h1 : Reaches (exec (image P inputs) bl) s
+      { runCode prologue s with pos := (pw prologue, 0) } := by
+    apply reaches_of_exec
+    intro fuel
+    have h := exec_unitCorridor (loopGrid prologue body) bl prologue 1 Hue.red
+      Lightness.normal hcorr hst fuel s hpos hdp
+    rw [show (1 : Nat) + prologue.length = pw prologue from by omega] at h
+    exact h
+  -- the separator
+  have h2 : Reaches (exec (image P inputs) bl)
+      { runCode prologue s with pos := (pw prologue, 0) }
+      { runCode prologue s with pos := (pw prologue + 2, 0), dp := .right } := by
+    apply reaches_of_exec
+    intro fuel
+    have hdp' : ({ runCode prologue s with pos := (pw prologue, 0) } : MState).dp
+        = .right := by
+      simp only []
+      rw [runCode_dp_of_stable prologue hst, hdp]
+    have h := exec_white (loopGrid prologue body) bl fuel
+      ({ runCode prologue s with pos := (pw prologue, 0) } : MState)
+      _ _ (pw prologue + 1, 0) (pw prologue + 2, 0) .right _
+      (by
+        simp only []
+        rw [show pw prologue = 1 + prologue.length from by omega]
+        exact loopGrid_prologue_isolated prologue body hu prologue.length (by omega))
+      (by simp only []; exact hlast)
+      (by
+        simp only []
+        rw [hdp']
+        simp only [step?]
+        rw [if_pos (by rw [loopGrid_width]; have := bw_pos body; omega)])
+      (loopGrid_get_sep prologue body)
+      (by
+        rw [hdp', hsf]
+        exact slide_land_right _ _ _ _ _ _ Hue.red Lightness.normal (by simp)
+          (by
+            simp only [step?]
+            rw [if_pos (by rw [loopGrid_width]; have := bw_pos body; omega)])
+          (by
+            have h := loopGrid_body_colour prologue body (unitCode_loopCode _) 0
+              (by omega)
+            simpa using h))
+    exact h
+  exact Reaches.trans h1 h2
+
+/-- The prologue leaves the register file on the stack, with the three
+control slots zeroed. -/
+theorem initial_stack (P : Program) (inputs : List Nat) (s : MState)
+    (hstack : s.stack = []) :
+    (runCode (unitize (initialCode (registerDepth P inputs + 3) inputs)) s).stack =
+      stackOf (registerDepth P inputs) (Cslib.URM.Regs.ofInputs inputs) 0 0 0 := by
+  set base := registerDepth P inputs with hbaseDef
+  have hlen : inputs.length ≤ base := by
+    rw [hbaseDef, registerDepth]
+    omega
+  have hz : ∀ i, base ≤ i → inputs.getD i 0 = 0 := by
+    intro i hi
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_none (by omega)]
+    rfl
+  rw [runCode_unitize, runCode_initialCode]
+  simp only [hstack, List.append_nil]
+  simp only [initialRegisters]
+  rw [show base + 3 = base + 1 + 1 + 1 from rfl, List.range_succ, List.range_succ,
+    List.range_succ]
+  simp only [List.map_append, List.map_cons, List.map_nil,
+    stackOf, List.append_assoc, List.cons_append, List.nil_append]
+  rw [hz base (by omega), hz (base + 1) (by omega), hz (base + 1 + 1) (by omega)]
+  simp [Cslib.URM.Regs.ofInputs, List.map_map, Function.comp]
+
+theorem runCode_initialCode_output (R : Nat) (inputs : List Nat) (s : MState) :
+    (runCode (unitize (initialCode R inputs)) s).output = s.output := by
+  rw [runCode_unitize, runCode_initialCode]
+
+theorem int_toString_ofNat (n : Nat) : toString ((n : Nat) : Int) = toString n := rfl
+
+theorem fromUTF8?_toUTF8 (s : String) : String.fromUTF8? s.toUTF8 = some s := by
+  simp only [String.toUTF8_eq_toByteArray, String.fromUTF8?, dif_pos s.isValidUTF8,
+    Option.some.injEq, ← String.toByteArray_inj]
+  simp [String.fromUTF8]
+
+theorem decodeOutput_toString (n : Nat) :
+    decodeOutput ((toString ((n : Nat) : Int)).toUTF8) = some n := by
+  rw [int_toString_ofNat]
+  simp only [decodeOutput, fromUTF8?_toUTF8]
+  rw [show toString n = Nat.repr n by exact Nat.toString_eq_repr]
+  simp [Nat.toNat?_repr]
+
+theorem instrBelow_of_maxRegister (N : Nat) (instr : Cslib.URM.Instr)
+    (h : instr.maxRegister < N) : InstrBelow N instr := by
+  cases instr with
+  | Z r | S r => exact h
+  | T m r | J m r q =>
+      simp only [Cslib.URM.Instr.maxRegister] at h
+      exact ⟨by omega, by omega⟩
+
+theorem maxRegister_le (P : Program) : ∀ instr ∈ P,
+    instr.maxRegister ≤ P.maxRegister := by
+  have le_foldl : ∀ (xs : List Cslib.URM.Instr) (acc : Nat),
+      acc ≤ xs.foldl (fun a j => max a j.maxRegister) acc := by
+    intro xs
+    induction xs with
+    | nil => intro acc; exact Nat.le_refl _
+    | cons j js ih =>
+        intro acc
+        exact Nat.le_trans (Nat.le_max_left acc j.maxRegister) (ih _)
+  have mem_le : ∀ (xs : List Cslib.URM.Instr) (acc : Nat) (j : Cslib.URM.Instr),
+      j ∈ xs → j.maxRegister ≤ xs.foldl (fun a t => max a t.maxRegister) acc := by
+    intro xs
+    induction xs with
+    | nil => intro acc j hj; simp at hj
+    | cons k ks ih =>
+        intro acc j hj
+        rcases List.mem_cons.mp hj with rfl | hj
+        · exact Nat.le_trans (Nat.le_max_right acc j.maxRegister) (le_foldl _ _)
+        · exact ih _ j hj
+  intro instr hi
+  exact mem_le P 0 instr hi
+
+theorem below_registerDepth (P : Program) (inputs : List Nat) :
+    ∀ x ∈ P, InstrBelow (registerDepth P inputs) x := by
+  intro x hx
+  apply instrBelow_of_maxRegister
+  have := maxRegister_le P x hx
+  rw [registerDepth]
+  omega
+
+theorem registerDepth_pos (P : Program) (inputs : List Nat) :
+    0 < registerDepth P inputs := by
+  rw [registerDepth]
+  omega
+
+/-- End to end: a halting URM run is simulated by the generated image, and
+the printed answer is register zero. -/
+theorem simulation (P : Program) (inputs : List Nat) (result : Nat)
+    (h : Cslib.URM.HaltsWithResult P inputs result) :
+    ∃ fuel,
+      (evalGrid (image P inputs) (Input.ofString "") fuel).exit = Exit.halted ∧
+      decodeOutput (evalGrid (image P inputs) (Input.ofString "") fuel).output =
+        some result := by
+  obtain ⟨u, hsteps, hhalt, hresult⟩ := h
+  set base := registerDepth P inputs with hbaseDef
+  set prologue := unitize (initialCode (base + 3) inputs) with hpro
+  set body := unitize (dispatcherCode P base) with hbody
+  set bl := computeBlocks (image P inputs) with hbl
+  set s₁ : MState :=
+    { pos := (1, 0), dp := .right, cc := .left, input := Input.ofString "" }
+    with hs₁
+  have hw : (image P inputs).width = pw prologue + bw body + 5 :=
+    loopGrid_width prologue body
+  have hfirst : (image P inputs).get 1 0 = Codel.chromatic Hue.red Lightness.normal := by
+    have hib : (0 : Nat) < (coloredRuns Hue.red Lightness.normal prologue).length := by
+      rw [coloredRuns_length_of_unit _ _ _ (unitCode_unitize _)]
+      omega
+    have hg := coloredRuns_getElem?_unit Hue.red Lightness.normal prologue
+      (unitCode_unitize _) 0 (by omega)
+    rw [List.getElem?_eq_getElem hib] at hg
+    have h := loopGrid_get_prologue prologue body 0 hib
+    rw [Option.some.inj hg] at h
+    rw [image_eq]
+    simpa using h
+  have hh : (image P inputs).height = 3 := loopGrid_height prologue body
+  -- the prologue
+  obtain ⟨c, hc⟩ := exec_entry P inputs bl s₁ rfl rfl
+  -- the loop
+  obtain ⟨m, s', hexec, hout⟩ := exec_run P inputs bl (below_registerDepth P inputs)
+    (registerDepth_pos P inputs) hsteps hhalt
+    ({ runCode prologue s₁ with pos := (pw prologue + 2, 0), dp := .right } :
+      MState) 0 0 rfl rfl
+    (by
+      simp only []
+      exact initial_stack P inputs s₁ rfl)
+  have heval : evalGrid (image P inputs) (Input.ofString "") (c + m) =
+      { output := s'.output, exit := Exit.halted } := by
+    unfold evalGrid
+    rw [show (image P inputs).get 0 0 = Codel.white from
+      loopGrid_get_start prologue body]
+    simp only []
+    rw [show slide (image P inputs) (slideFuel (image P inputs)) [] (0, 0) .right .left
+      = .landed (1, 0) .right .left from by
+        rw [show slideFuel (image P inputs) =
+          (4 * (pw prologue + bw body + 5) * 3 + 7) + 1 from by
+            rw [slideFuel, hw, hh]]
+        exact slide_land_right _ _ _ _ _ _ Hue.red Lightness.normal (by simp)
+          (by
+            simp only [step?]
+            rw [if_pos (by rw [hw]; have := bw_pos body; omega)])
+          hfirst]
+    simp only []
+    rw [hc m, hexec]
+  refine ⟨c + m, by rw [heval], ?_⟩
+  rw [heval]
+  simp only []
+  rw [hout]
+  have hempty : (runCode prologue s₁).output = ByteArray.empty := by
+    rw [runCode_initialCode_output]
+  have hr : u.regs 0 = result := hresult
+  simp only [hempty, ByteArray.empty_append, hr]
+  exact decodeOutput_toString result
+
 end Langlib.Computability.URMPiet
 
 namespace Langlib.Computability
@@ -3700,5 +3984,13 @@ instance : ProgLang PietLang where
   Prog := Langlib.Piet.Grid
   parse := fun src => Langlib.Piet.parseGrid {} src.toUTF8
   run := Langlib.Piet.evalGrid
+
+set_option maxHeartbeats 1000000 in
+/-- Piet is Turing complete, via the verified URM-to-image compiler. -/
+def pietComplete : TuringComplete PietLang where
+  compile := URMPiet.image
+  encodeInput := fun _ => Langlib.Common.Input.ofString ""
+  decodeOutput := URMPiet.decodeOutput
+  simulates := fun P inputs result h => URMPiet.simulation P inputs result h
 
 end Langlib.Computability

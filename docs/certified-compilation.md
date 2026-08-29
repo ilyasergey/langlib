@@ -14,10 +14,10 @@ engineering.
 |---|---|
 | `ProgLang`, the class of runnable languages | [Class.lean:41](../Langlib/Computability/Class.lean#L41) |
 | `computes_of_turingComplete`, the bridge to cslib | [Class.lean](../Langlib/Computability/Class.lean) |
-| `TurpentineCompiler`, a compiler bundled with its proof | [Derived.lean:60](../Langlib/Computability/Derived.lean#L60) |
-| **`derived`**, the general correctness theorem | [Derived.lean:88](../Langlib/Computability/Derived.lean#L88) |
-| `derivedWhitespace`, `derivedSubleq`, `derivedBrainfuck`, `derivedFractran`, `derivedThue`, the instances | [Derived.lean](../Langlib/Computability/Derived.lean) |
-| `agree`, two compilers give one answer | [Derived.lean:146](../Langlib/Computability/Derived.lean#L146) |
+| `TurpentineCompiler`, a compiler bundled with its proof | [Derived.lean:61](../Langlib/Computability/Derived.lean#L61) |
+| **`derived`**, the general correctness theorem | [Derived.lean:89](../Langlib/Computability/Derived.lean#L89) |
+| `derivedWhitespace`, `derivedSubleq`, `derivedBrainfuck`, `derivedFractran`, `derivedThue`, `derivedPiet`, the instances | [Derived.lean](../Langlib/Computability/Derived.lean) |
+| `agree`, two compilers give one answer | [Derived.lean:153](../Langlib/Computability/Derived.lean#L153) |
 | `compileToURM_correct`, the shared first hop | [Compile/URM.lean:3985](../Langlib/Turpentine/Compile/URM.lean#L3985) |
 | **`TuringComplete`**, the completeness claim | [Class.lean:81](../Langlib/Computability/Class.lean#L81) |
 | `BoundedStorage`, the incompleteness claim | [Class.lean:184](../Langlib/Computability/Class.lean#L184) |
@@ -31,15 +31,16 @@ engineering.
 | **`compileToURM`**, Turpentine to the URM | [Compile/URM.lean:661](../Langlib/Turpentine/Compile/URM.lean#L661) |
 | **`compileToURM_correct`**, its simulation | [Compile/URM.lean:3985](../Langlib/Turpentine/Compile/URM.lean#L3985) |
 | `TurpentineHaltsWith`, the answer convention | [Compile/URM.lean:3970](../Langlib/Turpentine/Compile/URM.lean#L3970) |
-| `TurpentineCompiler`, the interface | [Derived.lean:60](../Langlib/Computability/Derived.lean#L60) |
-| `derived`, one construction for every target | [Derived.lean:88](../Langlib/Computability/Derived.lean#L88) |
-| `derivedWhitespace` | [Derived.lean:106](../Langlib/Computability/Derived.lean#L106) |
-| `derivedSubleq` | [Derived.lean:110](../Langlib/Computability/Derived.lean#L110) |
-| `derivedBrainfuck` | [Derived.lean:114](../Langlib/Computability/Derived.lean#L114) |
-| `derivedFractran` | [Derived.lean:119](../Langlib/Computability/Derived.lean#L119) |
-| `derivedThue` | [Derived.lean:125](../Langlib/Computability/Derived.lean#L125) |
-| `agree`, two compilers give one answer | [Derived.lean:146](../Langlib/Computability/Derived.lean#L146) |
-| its tests | [Tests/DerivedWhitespace.lean](../Langlib/Tests/DerivedWhitespace.lean), [Tests/DerivedSubleq.lean](../Langlib/Tests/DerivedSubleq.lean), [Tests/DerivedFractran.lean](../Langlib/Tests/DerivedFractran.lean), [Tests/DerivedThue.lean](../Langlib/Tests/DerivedThue.lean) |
+| `TurpentineCompiler`, the interface | [Derived.lean:61](../Langlib/Computability/Derived.lean#L61) |
+| `derived`, one construction for every target | [Derived.lean:89](../Langlib/Computability/Derived.lean#L89) |
+| `derivedWhitespace` | [Derived.lean:107](../Langlib/Computability/Derived.lean#L107) |
+| `derivedSubleq` | [Derived.lean:111](../Langlib/Computability/Derived.lean#L111) |
+| `derivedBrainfuck` | [Derived.lean:115](../Langlib/Computability/Derived.lean#L115) |
+| `derivedFractran` | [Derived.lean:120](../Langlib/Computability/Derived.lean#L120) |
+| `derivedThue` | [Derived.lean:126](../Langlib/Computability/Derived.lean#L126) |
+| `derivedPiet` | [Derived.lean:132](../Langlib/Computability/Derived.lean#L132) |
+| `agree`, two compilers give one answer | [Derived.lean:153](../Langlib/Computability/Derived.lean#L153) |
+| its tests | [Tests/DerivedWhitespace.lean](../Langlib/Tests/DerivedWhitespace.lean), [Tests/DerivedSubleq.lean](../Langlib/Tests/DerivedSubleq.lean), [Tests/DerivedFractran.lean](../Langlib/Tests/DerivedFractran.lean), [Tests/DerivedThue.lean](../Langlib/Tests/DerivedThue.lean), [Tests/DerivedPiet.lean](../Langlib/Tests/DerivedPiet.lean) |
 | the axiom audit | [scripts/axioms.lean](../scripts/axioms.lean) |
 
 The bespoke backends, for contrast, are
@@ -351,7 +352,7 @@ statement was scoped to. The two are not in competition either: the
 stream-level theorem, restricted to programs that read nothing and print
 nothing and carry the `answer` convention, *implies* the answer-level
 field, so a verified bespoke backend still yields a `TurpentineCompiler`
-instance and the [`agree`](../Langlib/Computability/Derived.lean#L146)
+instance and the [`agree`](../Langlib/Computability/Derived.lean#L153)
 corollary still fires. It fires on the overlap, which is the I/O-free
 fragment, and says nothing about the programs that made the stronger
 theorem necessary.

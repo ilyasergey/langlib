@@ -1,10 +1,25 @@
 # Compiling Turpentine to Piet
 
-* **Status**: planned, not started.
+* **Status**: a *derived*, certified compiler exists
+  ([`derivedPiet`](../../Langlib/Computability/Derived.lean#L132)); the
+  bespoke one is planned, not started.
 * **Family**: StackIR (see `docs/PLAN.md`, Stage 4), shared with
   whitespace.
+* **Implementation**: the bespoke backend would go in
+  `Langlib/Turpentine/Compile/Piet.lean`, beside the
+  [whitespace backend](../../Langlib/Turpentine/Compile/Whitespace.lean).
 
-* **Implementation**: none yet; it would go in `Langlib/Turpentine/Compile/Piet.lean`, beside the [whitespace backend](../../Langlib/Turpentine/Compile/Whitespace.lean).
+## What already exists
+
+[`pietComplete`](../../Langlib/Computability/Piet.lean#L3990) compiles an
+arbitrary register machine into a codel grid and proves the simulation
+against `evalGrid`, so composing it with the shared Turpentine-to-URM pass
+gives a verified Turpentine-to-Piet compiler today. It has the limits every
+derived compiler has — no I/O, because everything routes through a register
+machine, and an enormous image, because every command is one codel and
+every literal is built from one-codel pushes. `docs/computability-piet.md`
+has the measured sizes. What a bespoke backend would add is a readable
+image and Piet's own `inNum` and `inChar`.
 
 ## Compile and run one, once this exists
 

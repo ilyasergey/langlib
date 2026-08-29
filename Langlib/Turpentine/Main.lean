@@ -79,20 +79,21 @@ def compilerOfSource (emit : String → Except String String)
     let text ← emit src
     return { text, run := run text }
 
-/-- The certified route for a target: parse, compile through the shared
-URM pass and the target's completeness witness, then render. One line per
-target, because `derived` did the work. -/
-def compilerOfCertified {α : Type} (compile : Program → Except String α)
+/-- The certified route for a target: parse, type-check, compile through
+the shared URM pass and the target's completeness witness, then render. One
+line per target, because `derived` did the work. `compile` is the
+`TurpentineCompiler.compileSource` of that target's derived compiler. -/
+def compilerOfCertified {α : Type} (compile : String → Except String α)
     (render : α → String)
     (run : String → Input → Nat → Except String RunResult) : Compiler :=
-  compilerOfSource (fun src => do return render (← compile (← parse src))) run
+  compilerOfSource (fun src => do return render (← compile src)) run
 
 /-- FRACTRAN's certified backend, which needs its own entry because a `.ft`
 file holds only the fractions: the starting value is a command-line flag or
 the first line of stdin. The emitted file records it in a comment, the note
 repeats the command, and `exec` supplies it the way the note says to. -/
 def fractranCertified : Compiler := fun src => do
-  let cp ← Langlib.Computability.derivedFractran.compile (← parse src)
+  let cp ← Langlib.Computability.derivedFractran.compileSource src
   let text :=
     s!"# Compiled by turpentine, certified route: derived from FRACTRAN's\n\
        # Turing-completeness proof. FRACTRAN has no I/O, so the answer is the\n\
@@ -128,21 +129,21 @@ def backends : List Backend :=
     , bespoke := some (compilerOfSource Compile.Brainfuck.compileSource
         (Langlib.Brainfuck.run { eof := .zero }))
     , certified := some (compilerOfCertified
-        Langlib.Computability.derivedBrainfuck.compile
+        Langlib.Computability.derivedBrainfuck.compileSource
         Langlib.Brainfuck.Prog.render
         (Langlib.Brainfuck.run { eof := .zero })) }
   , { name := "whitespace"
     , bespoke := some (compilerOfSource Compile.Whitespace.compileSource
         Langlib.Whitespace.run)
     , certified := some (compilerOfCertified
-        Langlib.Computability.derivedWhitespace.compile
+        Langlib.Computability.derivedWhitespace.compileSource
         Langlib.Whitespace.Prog.render
         Langlib.Whitespace.run) }
   , { name := "subleq"
     , bespoke := some (compilerOfSource Compile.Subleq.compileSource
         Langlib.Subleq.run)
     , certified := some (compilerOfCertified
-        Langlib.Computability.derivedSubleq.compile
+        Langlib.Computability.derivedSubleq.compileSource
         Langlib.Subleq.Prog.render
         Langlib.Subleq.run) }
   , { name := "ook"
@@ -152,7 +153,7 @@ def backends : List Backend :=
     , bespoke := some (compilerOfSource Compile.Ook.compileSource
         (Langlib.Ook.run { eof := .zero }))
     , certified := some (compilerOfCertified
-        Langlib.Computability.derivedOok.compile
+        Langlib.Computability.derivedOok.compileSource
         Langlib.Ook.render
         (Langlib.Ook.run { eof := .zero })) }
   , { name := "brainloller"
@@ -161,7 +162,7 @@ def backends : List Backend :=
     , bespoke := some (compilerOfSource Compile.Brainloller.compileSource
         (Langlib.Brainloller.run { eof := .zero }))
     , certified := some (compilerOfCertified
-        Langlib.Computability.derivedBrainloller.compile
+        Langlib.Computability.derivedBrainloller.compileSource
         (fun prog =>
           (Langlib.Brainloller.encode (Langlib.Brainfuck.Prog.render prog)
             Compile.Brainloller.defaultWidth).toPpm3)
@@ -173,7 +174,7 @@ def backends : List Backend :=
       -- primitive is `~`, and the compiled program does not use it, so the
       -- halted state string is the result.
     , certified := some (compilerOfCertified
-        Langlib.Computability.derivedThue.compile
+        Langlib.Computability.derivedThue.compileSource
         Langlib.Thue.Prog.render
         (Langlib.Thue.run { finalState := true })) } ]
 

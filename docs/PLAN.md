@@ -98,11 +98,11 @@ state first-order, I/O explicit.
   Unbounded values and addresses mean a full compiler is possible. The
   route is a VM whose bytecode lives in data cells, which are never
   executed and so never self-encrypt.
-* Turpentine -> thue and -> fractran `[ ]` (bespoke): planned via a shared
-  register machine (RegIR); see their compiler pages. Both already have a
-  *derived*, certified compiler out of their completeness proofs
-  (`derivedThue`, `derivedFractran`), so what a bespoke backend would add is
-  readable output and I/O, not correctness.
+* Turpentine -> thue, -> fractran and -> piet `[ ]` (bespoke): planned via a
+  shared register machine (RegIR); see their compiler pages. All three
+  already have a *derived*, certified compiler out of their completeness
+  proofs (`derivedThue`, `derivedFractran`, `derivedPiet`), so what a
+  bespoke backend would add is readable output and I/O, not correctness.
 
 ### Intermediate representations, and why
 
@@ -352,7 +352,7 @@ contorting the statements to fit theorems we have not needed yet.
 | thue | **complete, PROVED** (`Langlib/Computability/Thue.lean`, axiom-clean) | semi-Thue systems are universal (Post), but the interesting part here was the deterministic strategy. A configuration is a unique `@` marker carrying the phase, plus one unary run per counter; every generated rule reads that marker and exactly one adjacent cell, so `firstMatch` is a function on represented states and the intended derivation is the only one the interpreter can follow. Strategy *independence* (the same answer under `Strategy.random`) is one step further and not claimed; see `docs/computability-thue.md`. |
 | malbolge-unshackled | complete | **language landed** (interpreter, runner, tests, `docs/malbolge-unshackled/spec.md`); the proof is open. Unbounded values and addresses; settled in 2020 by MalbolgeLisp. The simulation would have to survive both the self-encrypting code and the free choice of rotation width, which no other target here has an analogue of. |
 | malbolge | **incomplete, PROVED** (`Langlib/Computability/Malbolge.lean`, axiom-clean) | a bounded-storage machine: 59049 words of 59049 values is a large finite state space, so its halting problem is decidable and it cannot be Turing complete. The proof turned out *not* to be the same shape as Befunge-93's: that language's restricted core is finite by construction, while Malbolge's state type is wide (an unbounded array, a growing output, a cursor whose range depends on the input), so the reachable states had to be cut out with an invariant carried through every instruction. That is also why the witness is a `BoundedRun` (the reachable-only form of `BoundedStorage`, added for this) rather than a `BoundedStorage`; see `docs/computability-malbolge.md`. The interesting sequel is Scheffer's Malbolge-T (the program reads its own output, lifting the bound) and Ørjan Johansen's Malbolge Unshackled (2007), which is complete, settled in 2020 by MalbolgeLisp, and which we are implementing. |
-| piet | complete | unbounded stack of unbounded integers plus conditional branching. Codel-level codegen is laborious; a paper-level argument via a stack machine is the realistic first step. |
+| piet | **complete, PROVED** (`Langlib/Computability/Piet.lean`, axiom-clean) | unbounded stack of unbounded integers plus conditional branching, so the arithmetic was never in doubt; the work was geometric. The generated image is one branchless dispatcher loop, and the proof is stated against `evalGrid` itself: DP/CC movement, the eight exits of every colour block, the white slides, and the halt. The finding worth keeping is that **a singleton colour block can never halt a Piet program** — whatever codel the run arrived from is an unblocked neighbour — so the terminal is an L of three codels, the smallest shape that can hide its own entry. |
 | ook | complete | free: `parse . render = id` against brainfuck, so it inherits the brainfuck result by composition. |
 | brainloller | complete | likewise free, via its decoder into the brainfuck AST. |
 | turpentine | complete | our own front end, so this is a statement about the *source* language: a URM compiles to Turpentine directly (registers are array elements, the decrement-or-jump is a `while`), which also makes every Turing-complete backend's compiler a second, independent completeness proof for that target. |

@@ -34,6 +34,41 @@ all because it has no external definition.
 Every URL in every spec page was fetched: all 34 resolve except
 `mazonka.com`, which is the one now archived.
 
+## 2026-08-30 (night, later): Piet proved Turing complete
+
+`pietComplete : TuringComplete PietLang` landed, and with it `derivedPiet`.
+The language whose programs are abstract paintings now has a
+machine-checked completeness proof, and the proof is stated against
+`evalGrid` itself: the DP and CC rules, the eight exits of every colour
+block, the white slides and the halt are the ones the reference evaluator
+implements, not a paper idealisation of them.
+
+The arithmetic and the primitives landed earlier today. What closed the gap
+was composition, and it went in five pieces. `exec_toPivot` runs the
+dispatcher body: the corridor, then the `switch` and the `pointer`, which
+are exactly the two commands a corridor may not contain, since they move
+the chooser and the direction. The two branches out of the pivot were
+already proved, so `reaches_iteration` is one whole turn of the loop —
+corridor, pivot, `pop`, return corridor, back to the first codel of the
+body with the chooser where it started, because the `switch` toggles it
+once and the corridor's three blocked turns toggle it once more. `exec_run`
+composes those over `Cslib.URM.Steps`, `exec_entry` covers the start slide
+and the prologue that loads the register file, and `simulation` assembles
+the whole thing and reads the answer out of the decimal the image printed.
+
+Two things had to be said carefully. A program counter that is already past
+the end of the source still runs one iteration, so the halted dispatcher
+needed its own lemma; and the induction has to know that the intermediate
+states of a halting run are *not* halted, which comes from cslib's
+`no_step_of_halted`.
+
+Also: `StableCode` now has a lemma per generator, which is what lets the
+corridor claim anything at all about the dispatcher's own code.
+
+975 tests. Every language in the library with a positive computational-class
+claim now has a machine-checked one, except Malbolge Unshackled, Unlambda
+and SKI, which landed as languages today and whose proofs are Stage 8 work.
+
 ## 2026-08-30 (night): the Piet dispatcher computes, and the terminal halts
 
 Piet's completeness proof had a shape problem: the command traces were

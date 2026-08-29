@@ -39,6 +39,29 @@ def suite : Suite where
         expect := .parseError "outside the certified URM fragment" }
     ]
 
-def suites : List Suite := [suite]
+/-- What `lake exe turpentine compile --to thue --tc` writes, read back.
+The CLI emits concrete syntax and the Thue runner parses it, so the emitted
+file is the program the theorem is about only if `Prog.render` inverts
+`parse` on what the compiler generates. -/
+def renderRoundTrip (src : String) (_input : Input) (_fuel : Nat) :
+    Except String RunResult := do
+  let prog ← derivedThue.compileSource src
+  let prog' ← Langlib.Thue.parse (Langlib.Thue.Prog.render prog)
+  if prog' == prog then
+    return { output := "ok".toUTF8, exit := .halted }
+  else
+    return { exit := .error "the rendered rulebase did not parse back unchanged" }
+
+def renderSuite : Suite where
+  name := "turpentine -> thue (certified), rendered text parses back"
+  run := renderRoundTrip
+  cases :=
+    [ { name := "default zero", source := .inline "var answer : int;",
+        expect := .outputs "ok" }
+    , { name := "constant", source := .inline "var answer : int; answer := 2;",
+        expect := .outputs "ok" }
+    ]
+
+def suites : List Suite := [suite, renderSuite]
 
 end Langlib.Tests.DerivedThue

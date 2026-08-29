@@ -35,6 +35,30 @@ def suite : Suite where
         expect := .parseError "outside the certified URM fragment" }
     ]
 
-def suites : List Suite := [suite]
+/-- What `lake exe turpentine compile --to fractran --tc` writes, read back.
+A `.ft` file holds only the fractions, so the CLI puts the starting value in
+a `#` comment header and repeats it in the run command it prints; this checks
+that a file shaped like that parses back to the fractions compiled. -/
+def renderRoundTrip (src : String) (_input : Input) (_fuel : Nat) :
+    Except String RunResult := do
+  let cp ← derivedFractran.compileSource src
+  let text := s!"# starting value: {cp.start}\n" ++ Langlib.Fractran.Prog.render cp.code ++ "\n"
+  let code ← Langlib.Fractran.parse text
+  if code == cp.code then
+    return { output := "ok".toUTF8, exit := .halted }
+  else
+    return { exit := .error "the rendered fractions did not parse back unchanged" }
+
+def renderSuite : Suite where
+  name := "turpentine -> fractran (certified), rendered text parses back"
+  run := renderRoundTrip
+  cases :=
+    [ { name := "default zero", source := .inline "var answer : int;",
+        expect := .outputs "ok" }
+    , { name := "constant", source := .inline "var answer : int; answer := 2;",
+        expect := .outputs "ok" }
+    ]
+
+def suites : List Suite := [suite, renderSuite]
 
 end Langlib.Tests.DerivedFractran

@@ -158,6 +158,18 @@ recommendations and npiet where the spec is silent:
    and running out is distinct from halting, so divergence (a program
    that never meets the 8-failure condition) is observable in tests.
 
+## Computational class
+
+**Turing complete, and proved so here**:
+[`pietComplete`](../../Langlib/Computability/Piet.lean#L3990) compiles an
+unlimited register machine into a codel grid and proves that
+`Langlib.Piet.evalGrid` — the evaluator specified on this page, with these
+DP and CC rules, these exits and these white slides — computes what the
+machine computes. The stack of unbounded integers was never the hard part;
+the geometry was. [docs/computability-piet.md](../computability-piet.md)
+has the proof's shape, including the one fact about the language that fell
+out of it: a colour block of a single codel can never halt a Piet program.
+
 ## Trying it
 
 The runner reads program files as text, so feed it ASCII PPM (P3);

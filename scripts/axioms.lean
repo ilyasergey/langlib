@@ -79,6 +79,7 @@ open Langlib.Computability
 #print axioms derivedBrainfuck
 #print axioms derivedFractran
 #print axioms derivedThue
+#print axioms derivedPiet
 #print axioms agree
 
 -- Brainfuck: Turing complete via paired unary tape columns. The compiler
@@ -311,6 +312,13 @@ open Langlib.Computability
 #print axioms URMPiet.loopGrid_width
 #print axioms URMPiet.loopGrid_get_bottomWhite
 #print axioms URMPiet.loopGrid_halt
+#print axioms URMPiet.exec_toPivot
+#print axioms URMPiet.exec_loop_branch
+#print axioms URMPiet.exec_halt_branch
+#print axioms URMPiet.reaches_iteration
+#print axioms URMPiet.exec_run
+#print axioms URMPiet.simulation
+#print axioms pietComplete
 #print axioms URMPiet.slide_left_run
 #print axioms URMPiet.slide_return
 #print axioms URMPiet.tryFrom_white

@@ -272,15 +272,16 @@ as the proof.
 
 | Backend | Effective compiler | Simulation | End-to-end theorem | Derived compiler |
 |---------|--------------------|------------|--------------------|------------------|
-| whitespace | yes | [yes](../Langlib/Computability/BespokeWhitespace.lean#L3246) | [yes, scalar fragment](../Langlib/Computability/BespokeWhitespace.lean#L3246) | [yes](../Langlib/Computability/Derived.lean#L106) |
-| subleq | yes | [yes](../Langlib/Computability/BespokeSubleq.lean#L629) | [yes, two shapes](../Langlib/Computability/BespokeSubleq.lean#L629) | [yes](../Langlib/Computability/Derived.lean#L110) |
-| brainfuck | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L114) |
-| fractran | - | - | - | [yes](../Langlib/Computability/Derived.lean#L119) |
-| thue | - | - | - | [yes](../Langlib/Computability/Derived.lean#L125) |
-| ook | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L131) |
-| brainloller | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L136) |
+| whitespace | yes | [yes](../Langlib/Computability/BespokeWhitespace.lean#L3246) | [yes, scalar fragment](../Langlib/Computability/BespokeWhitespace.lean#L3246) | [yes](../Langlib/Computability/Derived.lean#L107) |
+| subleq | yes | [yes](../Langlib/Computability/BespokeSubleq.lean#L629) | [yes, two shapes](../Langlib/Computability/BespokeSubleq.lean#L629) | [yes](../Langlib/Computability/Derived.lean#L111) |
+| brainfuck | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L115) |
+| fractran | - | - | - | [yes](../Langlib/Computability/Derived.lean#L120) |
+| thue | - | - | - | [yes](../Langlib/Computability/Derived.lean#L126) |
+| piet | - | - | - | [yes](../Langlib/Computability/Derived.lean#L132) |
+| ook | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L138) |
+| brainloller | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L143) |
 | deadfish | - | - | - | n/a (not complete) |
-| piet, malbolge | - | - | - | the point of Stage 9 |
+| malbolge | - | - | - | n/a (not complete) |
 
 Fuel monotonicity dropped out of the scoreboard: both proofs use the
 exact-cost `Langlib.Common.Reaches` and never needed it.

@@ -1,16 +1,19 @@
-# Piet computability status
+# Piet is Turing complete
 
-LangLib contains a total runnable URM-to-Piet compiler that accepts arbitrary
-`J` instructions, including backward jumps. Its stack translation and the
-whole dispatcher are proved against `Langlib.Piet.execOp`: one dispatcher
-pass performs exactly one `Cslib.URM.Step`
-([`dispatchUpdate_step`](../Langlib/Computability/Piet.lean#L1272),
-[`runCode_dispatcherCode`](../Langlib/Computability/Piet.lean#L1482)). The
-generated images are exercised through the reference `evalGrid` evaluator.
+LangLib contains a total runnable URM-to-Piet compiler that accepts
+arbitrary `J` instructions, including backward jumps, and the simulation
+theorem that makes it a completeness proof:
+[`pietComplete : TuringComplete PietLang`](../Langlib/Computability/Piet.lean#L3990).
+Composing it with the shared Turpentine-to-URM pass gives a certified
+Turpentine-to-Piet compiler,
+[`derivedPiet`](../Langlib/Computability/Derived.lean#L132).
 
-What is still open is **geometric**, and only geometric: that `evalGrid`
-walking the generated codel grid follows those command traces. So the module
-does not assert `pietComplete : TuringComplete PietLang` yet.
+The claim is not that Piet is universal — that has never been in doubt, and
+the esolang wiki has said so since 2002. The claim is that *this image*,
+walked by *this interpreter*, computes what the register machine computes:
+the DP and CC rules, the eight exits of every colour block, the white
+slides, and the halt are all the ones the reference evaluator implements,
+because the proof is stated against `Langlib.Piet.evalGrid` itself.
 
 ## Register representation
 
@@ -94,95 +97,96 @@ runCode (unitize code) s = runCode code s
 shows that normalization preserves the abstract command trace. Singleton
 blocks remove variable-area literals from the main geometric obligation.
 
-## What is proved, and what the geometry still needs
+## How the simulation is proved
 
-Two of the three layers are done.
+Three layers, and each of them checks something a paper argument would
+wave at.
 
 **The stack layer.** `runCode` is defined against Piet's real `execOp`, so
-the macros check the details a paper proof would skip: the source-block size
+the macros check the details a sketch would skip: the source-block size
 `push` reads, the operand order of `roll` and `subtract`, and which
-operations touch DP and CC. The proved macros are listed above.
+operations touch DP and CC. `copyAt`, `storeTop`, `zeroAt`, `succTop` and
+the guarded instruction traces are all proved this way.
 
 **The arithmetic layer.**
-[`stackOf`](../Langlib/Computability/Piet.lean#L968) models the dispatcher's
+[`stackOf`](../Langlib/Computability/Piet.lean#L966) models the dispatcher's
 stack as a URM register file followed by the three control slots, and
-[`dispatchUpdate_step`](../Langlib/Computability/Piet.lean#L1272) proves that
-one pass over the whole program performs exactly one `Cslib.URM.Step`. The
-proof is the masking argument the design rests on: instructions whose guard
-is zero are identity
-([`guardedUpdate_of_flag_zero`](../Langlib/Computability/Piet.lean#L1086)),
-the one instruction the program counter selects applies its arithmetic, and
-`J` sets the fall-through counter to its target exactly when both the guard
-and the register comparison hold.
-[`runCode_dispatcherCode`](../Langlib/Computability/Piet.lean#L1482) lifts
-that to a whole iteration: the register file advances by one step, the
-answer is left on top for the pivot, and the direction pointer turns exactly
-when the run continues.
+[`dispatchUpdate_step`](../Langlib/Computability/Piet.lean#L1270) proves
+that one pass over the whole program performs exactly one
+`Cslib.URM.Step`. The argument is the masking one the branchless design
+rests on: instructions whose guard is zero are the identity, the one
+instruction the program counter selects applies its arithmetic, and `J`
+sets the fall-through counter to its target exactly when both the guard and
+the register comparison hold.
 
-**The geometric layer, in progress.** Every *primitive* the image-level
-simulation needs is now proved; what is missing is the composition.
+**The geometric layer.** This is the one that was open, and it has three
+parts.
 
-The bridge from a command trace to the image is
-[`exec_unitCorridor`](../Langlib/Computability/Piet.lean#L445): a run of
-isolated singleton blocks along a row is executed by the real evaluator in
-order. Building those runs from row lookups is
-[`unitCorridor_of_row`](../Langlib/Computability/Piet.lean#L1919), which
-needs only that consecutive corridor colours differ — every Piet command
-changes the colour, so they do — and that the row below is black.
+*Corridors.* Every command codel in a generated image is an isolated
+singleton block, because every Piet command changes the colour and the row
+below the corridor is black.
+[`unitCorridor_of_row`](../Langlib/Computability/Piet.lean#L1917) builds
+those runs from row lookups and
+[`exec_unitCorridor`](../Langlib/Computability/Piet.lean#L447) executes
+them through the real evaluator. The dispatcher's last two commands, the
+`switch` and the `pointer`, move the chooser and the direction and so
+cannot be inside a corridor;
+[`exec_toPivot`](../Langlib/Computability/Piet.lean#L3179) takes them one at
+a time.
 
-The white transits are proved against `Langlib.Piet.slide`:
-[`exec_white`](../Langlib/Computability/Piet.lean#L2008) carries one
-through the evaluator, and
-[`slide_return`](../Langlib/Computability/Piet.lean#L2109) is the whole
-return corridor — down from the pivot's `pop`, left along the bottom, up
-the white column, and right into the first codel of the loop body. Its
-three blocked turns leave the codel chooser toggled exactly once, which is
-what the dispatcher's trailing `switch` compensates for. The variable-length
-part is [`slide_left_run`](../Langlib/Computability/Piet.lean#L2045), which
+*White transits.* A slide executes no command; it only moves, and each
+blocked turn rotates the direction and toggles the chooser.
+[`slide_return`](../Langlib/Computability/Piet.lean#L2107) is the whole
+return corridor — down from the pivot's `pop`, left along the bottom, up the
+white column, and right into the first codel of the body — and its three
+blocked turns leave the chooser toggled exactly once, which is what the
+dispatcher's trailing `switch` compensates for. The variable-length leg
 carries the invariant that makes the interpreter's revisit check fail:
 every remembered (codel, direction) pair is either in another direction or
 strictly to the right of where the slide now is.
 
-The terminal block was the interesting one, and it forced a change to the
-layout. **A singleton block can never halt**: whatever codel the program
-arrived from is an unblocked neighbour, and one of the eight exits steps
-back into it. So the terminal is an L of three codels — the top-right
-corner, the codel below it, and the codel to the left of that — which is
-the smallest shape that can hide its entry.
-[`flood_lblock`](../Langlib/Computability/Piet.lean#L2315) computes
-`Langlib.Piet.flood` on it (ten worklist steps over a symbolic grid, with
-the visited array tracked through three `set!` calls whose indices are
-distinct), [`localInfoAt?_lblock`](../Langlib/Computability/Piet.lean#L2375)
-turns that into the block's eight exits, and
-[`tryFrom_lblock`](../Langlib/Computability/Piet.lean#L2401) proves every
-one of them blocked.
-[`loopGrid_halt`](../Langlib/Computability/Piet.lean#L2649) instantiates all
-of that at the generated image's own terminal.
+*The terminal block.* **A singleton colour block can never halt a Piet
+program.** Whatever codel the program arrived from is an unblocked
+neighbour, and one of the eight selected exits steps straight back into it.
+So the terminal is an L of three codels — the top-right corner, the codel
+below it, and the codel to the left of that — which is the smallest shape
+that can hide its own entry.
+[`flood_lblock`](../Langlib/Computability/Piet.lean#L2313) computes
+`Langlib.Piet.flood` on it, ten worklist steps over a symbolic grid with the
+visited array tracked through three `set!` calls at distinct indices;
+[`localInfoAt?_lblock`](../Langlib/Computability/Piet.lean#L2373) turns that
+into the block's eight exits; and
+[`tryFrom_lblock`](../Langlib/Computability/Piet.lean#L2399) proves every
+one of them blocked, so the interpreter runs out of attempts and halts in
+the state it arrived in.
 
-What is left is the composition, and it is bookkeeping rather than
-discovery:
+**Putting it together.**
+[`reaches_iteration`](../Langlib/Computability/Piet.lean#L3477) is one whole
+turn of the loop: the corridor, the pivot, the `pop`, the return corridor,
+and back to the first codel of the body with the chooser where it started.
+[`exec_run`](../Langlib/Computability/Piet.lean#L3655) composes those over
+`Cslib.URM.Steps`, taking the other branch — print the answer, slide into
+the terminal, halt — on the iteration whose committed program counter falls
+off the end of the source.
+[`exec_entry`](../Langlib/Computability/Piet.lean#L3745) covers the start
+slide and the prologue that loads the register file, and
+[`simulation`](../Langlib/Computability/Piet.lean#L3910) assembles the whole
+thing through `evalGrid` and reads the answer back out of the decimal the
+image printed.
 
-* instantiate the corridor builder at the prologue and at the stable prefix
-  of the dispatcher body (everything before its trailing `switch` and
-  `pointer`, which are exactly the two commands a corridor may not contain,
-  since they move DP and CC);
-* the pivot: the `switch` and `pointer` transitions, then either right
-  through `outNum` to the terminal or down through the ignored `pop` into
-  the return corridor;
-* the induction that composes iterations over `Cslib.URM.Steps`, carrying
-  the invariant that ties the machine's position, direction, chooser and
-  stack to the URM state;
-* the assembly through `evalGrid` and `decodeOutput`.
+### What the claim does and does not say
 
-Until those land there is no `simulation` theorem and no `pietComplete`, and
-the certified Turpentine-to-Piet compiler described in
-`certified-compilation.md` remains unavailable.
+`simulation` covers halting runs, as the shared `TuringComplete` interface
+does for every language here. It says nothing about divergence: a compiler
+that halted where the source machine loops would still satisfy it.
+Connecting URM computability to every partial computable function relies on
+the classical result of Shepherdson and Sturgis (1963), since cslib contains
+no formal equivalence with another universal model.
 
-A future `TuringComplete PietLang` term would constrain halting URM runs
-only. It would not prove divergence preservation. The passage from URM
-universality to all partial computable functions would continue to use the
-classical result of Shepherdson and Sturgis (1963), since cslib does not
-formalize that equivalence.
+The compiled images have no input instruction in them. That is the derived
+compiler's limitation everywhere in this library, not Piet's: the register
+machine the proof goes through has nowhere to read from. Piet's own `inNum`
+and `inChar` are implemented and tested; a bespoke backend would use them.
 
 ## Measured cost
 
@@ -208,52 +212,38 @@ lake build Langlib.Computability.Piet
 Output:
 
 ```text
-Build completed successfully (616 jobs).
+Build completed successfully (617 jobs).
 ```
 
-The generated images are run through the reference evaluator as part of the
-test suite: the straight corridor, the full dispatcher with both outcomes of
-a forward `J`, a transfer inside a backward loop, a terminating addition
-loop, and the compiled sizes.
+The certified Turpentine-to-Piet compiler runs as part of the test suite:
+each case compiles a source program, generates the image, walks it with the
+real `evalGrid`, and decodes the decimal it printed.
 
 ```
 lake test
 ```
 
-Output, showing the four Piet sections of that run:
+Output, showing the certified Piet section of that run and its last line:
 
 ```text
-── urm -> piet (verified stack macros, straight corridor) (6 tests)
-  ok   empty program preserves register zero
-  ok   a constant built by increments
-  ok   zero clears the answer register
-  ok   transfer copies into the answer register
-  ok   successor at depth then transfer
-  ok   the straight compiler rejects J explicitly
-── urm -> piet (partial corridor size) (2 tests)
-  ok   three increments
-  ok   one transfer with two inputs
-── urm -> piet (branchless dispatcher, real evaluator) (5 tests)
-  ok   empty program preserves register zero
-  ok   a taken forward jump halts immediately
-  ok   an untaken forward jump falls through
-  ok   transfer inside a backward copy loop
-  ok   backward jumps implement addition
-── urm -> piet (singleton dispatcher size) (2 tests)
-  ok   three increments
-  ok   backward-loop addition
+── turpentine -> piet (certified), decoded answer (3 tests)
+  ok   default zero
+  ok   constant
+  ok   rejects printing
+all 975 tests passed
 ```
 
 Every theorem on this page is listed in
-[`scripts/axioms.lean`](../scripts/axioms.lean). None of them depends on
-`sorryAx`.
+[`scripts/axioms.lean`](../scripts/axioms.lean). The witness rests only on
+Lean's standard logical axioms.
 
 ```
-lake env lean scripts/axioms.lean | grep URMPiet.dispatchUpdate_step
+lake env lean scripts/axioms.lean | grep -E "pietComplete|URMPiet.simulation"
 ```
 
 Output:
 
 ```text
-'Langlib.Computability.URMPiet.dispatchUpdate_step' depends on axioms: [propext, Quot.sound]
+'Langlib.Computability.URMPiet.simulation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Computability.pietComplete' depends on axioms: [propext, Classical.choice, Quot.sound]
 ```
