@@ -202,4 +202,277 @@ theorem move2_spec {R a b c : Nat} (ha : a < R) (hb : b < R) (hc : c < R)
     rw [hfr r hra hrb hrc, CState.up_regs_of_ne _ hrc, CState.up_regs_of_ne _ hrb,
       CState.down_regs_of_ne _ hra]
 
+/-! ## Paired unary columns on the Brainfuck tape
+
+For a fixed positive register bound `R`, a row occupies `2 * R` cells.  The
+two columns belonging to register `r` are its data column and a guide column.
+If the counter contains `n`, both columns contain `1` in rows `0, ..., n-1`
+and `0` from row `n` onward.  A zero guard row precedes row zero.  The guide
+column lets the generated code return to row zero after finding the end of a
+counter without storing a bounded row number.
+-/
+
+open Langlib.Brainfuck
+
+/-- Number of tape cells in one row of the paired-column layout. -/
+def stride (R : Nat) : Nat := 2 * R
+
+/-- Absolute tape position of the data cell for `(row, r)`.  Row zero starts
+after the guard row. -/
+def dataPos (R row r : Nat) : Nat := stride R * (row + 1) + 2 * r
+
+/-- Absolute tape position of the guide cell for `(row, r)`. -/
+def guidePos (R row r : Nat) : Nat := dataPos R row r + 1
+
+/-- The finite part of the zipper tape, read from cell zero to the last cell
+that has been allocated. -/
+def tapeCells (s : Brainfuck.State) : List UInt8 :=
+  s.left.reverse ++ s.cell :: s.right
+
+/-- Read a tape position, treating the unallocated suffix as zero. -/
+def tapeAt (s : Brainfuck.State) (p : Nat) : UInt8 :=
+  (tapeCells s).getD p 0
+
+/-- The interpreter lifted to a configuration whose first component is the
+remaining Brainfuck command queue. -/
+def bfExec (cfg : Brainfuck.Config) :
+    Nat → (List Brainfuck.Op × Brainfuck.State) → Brainfuck.State × Exit :=
+  fun fuel q => Brainfuck.exec cfg fuel q.1 q.2
+
+/-- `n` consecutive pointer moves. -/
+def rights (n : Nat) : List Brainfuck.Op := List.replicate n .right
+def lefts (n : Nat) : List Brainfuck.Op := List.replicate n .left
+
+/-- Move from the row-zero data cell of register zero to that of `r`. -/
+def toReg (r : Nat) : List Brainfuck.Op := rights (2 * r)
+
+/-- Move from the row-zero data cell of `r` back to register zero. -/
+def fromReg (r : Nat) : List Brainfuck.Op := lefts (2 * r)
+
+/-- Brainfuck code for incrementing the unary counter under the pointer.
+It first finds the zero just after the run.  The excursion to the following
+guide cell allocates enough zero tape for the next increment. -/
+def incAt (R : Nat) : List Brainfuck.Op :=
+  [.loop (rights (stride R)), .inc, .right, .inc] ++
+  rights (stride R) ++ lefts (stride R) ++ [.loop (lefts (stride R))] ++
+  rights (stride R) ++ [.left]
+
+/-- Brainfuck code for decrementing a nonzero unary counter under the
+pointer. -/
+def decAt (R : Nat) : List Brainfuck.Op :=
+  [.loop (rights (stride R))] ++ lefts (stride R) ++ [.dec, .right, .dec] ++
+  lefts (stride R) ++ [.loop (lefts (stride R))] ++ rights (stride R) ++ [.left]
+
+/-- Compositional translation of structured counter code.  Every translated
+command starts and ends at the row-zero cell of register zero. -/
+def lower (R : Nat) : Code → List Brainfuck.Op
+  | [] => []
+  | .inc r :: cs => toReg r ++ incAt R ++ fromReg r ++ lower R cs
+  | .dec r :: cs => toReg r ++ decAt R ++ fromReg r ++ lower R cs
+  | .emit :: cs => .output :: lower R cs
+  | .loop r body :: cs =>
+      toReg r ++
+        [.loop (fromReg r ++ lower R body ++ toReg r)] ++
+        fromReg r ++ lower R cs
+
+theorem lower_append (R : Nat) (a b : Code) :
+    lower R (a ++ b) = lower R a ++ lower R b := by
+  induction a with
+  | nil => simp [lower]
+  | cons c cs ih =>
+    cases c <;> simp only [lower, List.cons_append, ih, List.append_assoc]
+
+/-! ### Exact one-command execution -/
+
+variable {cfg : Brainfuck.Config} {k : List Brainfuck.Op} {s : Brainfuck.State}
+
+theorem reaches_bf_inc :
+    Reaches (bfExec cfg) (.inc :: k, s) (k, { s with cell := s.cell + 1 }) :=
+  Reaches.one fun f => by simp only [bfExec, Brainfuck.exec]
+
+theorem reaches_bf_dec :
+    Reaches (bfExec cfg) (.dec :: k, s) (k, { s with cell := s.cell - 1 }) :=
+  Reaches.one fun f => by simp only [bfExec, Brainfuck.exec]
+
+theorem reaches_bf_right :
+    Reaches (bfExec cfg) (.right :: k, s) (k, s.moveRight) :=
+  Reaches.one fun f => by simp only [bfExec, Brainfuck.exec]
+
+theorem reaches_bf_left {s' : Brainfuck.State} (h : s.moveLeft? = some s') :
+    Reaches (bfExec cfg) (.left :: k, s) (k, s') :=
+  Reaches.one fun f => by simp only [bfExec, Brainfuck.exec, h]
+
+theorem reaches_bf_output :
+    Reaches (bfExec cfg) (.output :: k, s)
+      (k, { s with output := s.output.push s.cell }) :=
+  Reaches.one fun f => by simp only [bfExec, Brainfuck.exec]
+
+theorem reaches_bf_loop_zero {body : List Brainfuck.Op} (h : s.cell = 0) :
+    Reaches (bfExec cfg) (.loop body :: k, s) (k, s) :=
+  Reaches.one fun f => by simp [bfExec, Brainfuck.exec, h]
+
+theorem reaches_bf_loop_nonzero {body : List Brainfuck.Op} (h : s.cell ≠ 0) :
+    Reaches (bfExec cfg) (.loop body :: k, s)
+      (body ++ .loop body :: k, s) :=
+  Reaches.one fun f => by
+    simp only [bfExec, Brainfuck.exec]
+    rw [if_neg (by simpa using h)]
+
+/-! ### Tape movement -/
+
+theorem tapeCells_moveLeft {s s' : Brainfuck.State} (h : s.moveLeft? = some s') :
+    tapeCells s' = tapeCells s := by
+  cases s with
+  | mk left cell right input output =>
+    cases left with
+    | nil => simp [Brainfuck.State.moveLeft?] at h
+    | cons c cs =>
+      simp only [Brainfuck.State.moveLeft?, Option.some.injEq] at h
+      subst s'
+      simp [tapeCells, List.reverse_cons, List.append_assoc]
+
+theorem tapeAt_moveLeft {s s' : Brainfuck.State} (h : s.moveLeft? = some s') (p : Nat) :
+    tapeAt s' p = tapeAt s p := by
+  unfold tapeAt
+  rw [tapeCells_moveLeft h]
+
+theorem pointer_moveLeft {s s' : Brainfuck.State} (h : s.moveLeft? = some s') :
+    s'.left.length + 1 = s.left.length := by
+  cases s with
+  | mk left cell right input output =>
+    cases left with
+    | nil => simp [Brainfuck.State.moveLeft?] at h
+    | cons c cs =>
+      simp only [Brainfuck.State.moveLeft?, Option.some.injEq] at h
+      subst s'
+      simp
+
+theorem pointer_moveRight (s : Brainfuck.State) :
+    s.moveRight.left.length = s.left.length + 1 := by
+  cases s with
+  | mk left cell right input output =>
+    cases right <;> simp [Brainfuck.State.moveRight]
+
+private theorem getD_append_zero (xs : List UInt8) (p : Nat) :
+    (xs ++ [0]).getD p 0 = xs.getD p 0 := by
+  rw [List.getD_eq_getElem?_getD, List.getD_eq_getElem?_getD,
+    List.getElem?_append]
+  by_cases h : p < xs.length
+  · simp [h]
+  · have hle : xs.length ≤ p := by omega
+    rw [if_neg h, List.getElem?_eq_none hle]
+    by_cases hp : p - xs.length = 0 <;> simp [hp]
+
+theorem tapeAt_moveRight (s : Brainfuck.State) (p : Nat) :
+    tapeAt s.moveRight p = tapeAt s p := by
+  cases s with
+  | mk left cell right input output =>
+    cases right with
+    | nil =>
+      simp only [Brainfuck.State.moveRight, tapeAt, tapeCells, List.reverse_cons,
+        List.nil_append]
+      exact getD_append_zero _ _
+    | cons c cs =>
+      simp [Brainfuck.State.moveRight, tapeAt, tapeCells, List.reverse_cons,
+        List.append_assoc]
+
+theorem tapeAt_pointer (s : Brainfuck.State) : tapeAt s s.left.length = s.cell := by
+  unfold tapeAt tapeCells
+  rw [List.getD_eq_getElem?_getD,
+    List.getElem?_append_right (by simp : s.left.reverse.length ≤ s.left.length)]
+  simp
+
+theorem moveLeft?_moveRight (s : Brainfuck.State) :
+    ∃ s', s.moveRight.moveLeft? = some s' := by
+  cases s with
+  | mk left cell right input output =>
+    cases right with
+    | nil => exact ⟨⟨left, cell, [0], input, output⟩, rfl⟩
+    | cons c cs => exact ⟨⟨left, cell, c :: cs, input, output⟩, rfl⟩
+
+/-- Functional iteration of right moves. -/
+def moveRightN : Nat → Brainfuck.State → Brainfuck.State
+  | 0, s => s
+  | n + 1, s => moveRightN n s.moveRight
+
+/-- Relational iteration of successful left moves. -/
+inductive MoveLeftN : Nat → Brainfuck.State → Brainfuck.State → Prop where
+  | zero (s : Brainfuck.State) : MoveLeftN 0 s s
+  | succ {n : Nat} {s s₁ t : Brainfuck.State} :
+      s.moveLeft? = some s₁ → MoveLeftN n s₁ t → MoveLeftN (n + 1) s t
+
+theorem reaches_rights (n : Nat) (k : List Brainfuck.Op) (s : Brainfuck.State) :
+    Reaches (bfExec cfg) (rights n ++ k, s) (k, moveRightN n s) := by
+  induction n generalizing s with
+  | zero => simpa [rights, moveRightN] using Reaches.refl (bfExec cfg) (k, s)
+  | succ n ih =>
+    simp only [rights, List.replicate_succ, List.cons_append, moveRightN]
+    exact Reaches.trans reaches_bf_right (ih s.moveRight)
+
+theorem reaches_lefts {n : Nat} {s t : Brainfuck.State} (h : MoveLeftN n s t)
+    (k : List Brainfuck.Op) :
+    Reaches (bfExec cfg) (lefts n ++ k, s) (k, t) := by
+  induction h with
+  | zero s => simpa [lefts] using Reaches.refl (bfExec cfg) (k, s)
+  | succ h _ ih =>
+    simp only [lefts, List.replicate_succ, List.cons_append]
+    exact Reaches.trans (reaches_bf_left h) ih
+
+theorem moveRightN_pointer (n : Nat) (s : Brainfuck.State) :
+    (moveRightN n s).left.length = s.left.length + n := by
+  induction n generalizing s with
+  | zero => simp [moveRightN]
+  | succ n ih => simp only [moveRightN, ih, pointer_moveRight]; omega
+
+theorem moveRightN_tapeAt (n : Nat) (s : Brainfuck.State) (p : Nat) :
+    tapeAt (moveRightN n s) p = tapeAt s p := by
+  induction n generalizing s with
+  | zero => rfl
+  | succ n ih => rw [moveRightN, ih, tapeAt_moveRight]
+
+theorem moveRightN_cell (n : Nat) (s : Brainfuck.State) :
+    (moveRightN n s).cell = tapeAt s (s.left.length + n) := by
+  rw [← tapeAt_pointer (moveRightN n s), moveRightN_tapeAt, moveRightN_pointer]
+
+theorem MoveLeftN.pointer {n : Nat} {s t : Brainfuck.State} (h : MoveLeftN n s t) :
+    t.left.length + n = s.left.length := by
+  induction h with
+  | zero => simp
+  | succ hm _ ih => have hp := pointer_moveLeft hm; omega
+
+theorem MoveLeftN.tapeAt {n : Nat} {s t : Brainfuck.State} (h : MoveLeftN n s t)
+    (p : Nat) : tapeAt t p = tapeAt s p := by
+  induction h with
+  | zero => rfl
+  | succ hm _ ih => rw [ih, tapeAt_moveLeft hm]
+
+theorem exists_moveLeftN {n : Nat} {s : Brainfuck.State} (h : n ≤ s.left.length) :
+    ∃ t, MoveLeftN n s t := by
+  induction n generalizing s with
+  | zero => exact ⟨s, .zero s⟩
+  | succ n ih =>
+    cases s with
+    | mk left cell right input output =>
+      cases left with
+      | nil => simp at h
+      | cons c cs =>
+        let s₁ : Brainfuck.State := ⟨cs, c, cell :: right, input, output⟩
+        have hm : (⟨c :: cs, cell, right, input, output⟩ : Brainfuck.State).moveLeft? =
+            some s₁ := rfl
+        have hn : n ≤ s₁.left.length := by simp only [s₁]; simp only [List.length_cons] at h; omega
+        obtain ⟨t, ht⟩ := ih hn
+        exact ⟨t, .succ hm ht⟩
+
+/-- Moving right and then the same distance left returns to the original
+absolute pointer and preserves every tape cell. -/
+theorem right_left_roundtrip (n : Nat) (s : Brainfuck.State) :
+    ∃ t, MoveLeftN n (moveRightN n s) t ∧
+      t.left.length = s.left.length ∧ ∀ p, tapeAt t p = tapeAt s p := by
+  have hle : n ≤ (moveRightN n s).left.length := by rw [moveRightN_pointer]; omega
+  obtain ⟨t, ht⟩ := exists_moveLeftN hle
+  refine ⟨t, ht, ?_, ?_⟩
+  · have := ht.pointer; rw [moveRightN_pointer] at this; omega
+  · intro p; rw [ht.tapeAt, moveRightN_tapeAt]
+
+
 end Langlib.Computability.URMBrainfuck

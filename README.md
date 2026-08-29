@@ -8,16 +8,17 @@ point, to win a bet, to parody a committee, or simply to be difficult. Over the
 last fifty years they have accumulated into a large body of design knowledge:
 minimal instruction sets, string rewriting, stack machines on a torus,
 self-modifying trit codes. This knowledge is scattered across personal pages,
-wikis, and long-dead FTP servers. It is nice to have all these designs in one
-place, written down precisely, and executable.
+wikis, and long-dead FTP servers, and a good deal of it is folklore: claims
+repeated confidently and checked by nobody.
 
-On top of the interpreters sits **[Turpentine](docs/turpentine/spec.md)**
-(`.turp`), a small readable imperative language that compiles to the
-esoteric ones. It is named for
-the solvent: a [Turing tarpit](https://en.wikipedia.org/wiki/Turing_tarpit)
-is a language in which everything is possible and nothing is easy, and
-turpentine dissolves tar. Write the program once with variables and loops,
-and let the compiler suffer.
+The goal is to archive that knowledge in a form that cannot rot. Every
+language gets a written specification, an executable reference semantics,
+and machine-checked answers to the questions people actually argue about,
+starting with what each language can compute. On top of that sits a
+certified compiler from a language a human would willingly write in, so the
+collection is not only a museum: the claim that these machines are
+programmable is backed by a compiler whose correctness is proved rather
+than tested.
 
 For each language, langlib provides:
 
@@ -30,31 +31,34 @@ For each language, langlib provides:
   available;
 * a **computational-class result**: a claim that the language is or is not
   Turing complete, and a machine-checked proof of it;
-* where the language can host one, a **compiler from Turpentine**.
+* if the language is Turing complete, a **compiler from
+  [Turpentine](docs/turpentine/spec.md)** (`.turp`), the small readable
+  imperative language that sits on top of the collection. It is named for
+  the solvent: a [Turing tarpit](https://en.wikipedia.org/wiki/Turing_tarpit)
+  is a language where everything is possible and nothing is easy, and
+  turpentine dissolves tar. Two compilation schemes are possible, one
+  hand-written and one derived from the completeness proof, and the
+  library keeps both.
 
 ## Computability
 
 Esolang folklore is full of claims nobody has checked. Every language here
 gets a claim about its computational class and a machine-checked proof,
 stated against the Turing machine and register machine from
-[cslib](https://github.com/leanprover/cslib). Completeness is proved by
-compiling a universal machine into the language; incompleteness by
-bounding its state space. Status per language is in the
-[status matrix](docs/README.md), the plan is
-[Stage 8](docs/PLAN.md), and `scripts/axioms.lean` audits every result,
-since a proof resting on `sorry` type-checks like a real one.
+[cslib](https://github.com/leanprover/cslib), which the project depends on.
+Completeness is proved by compiling a universal machine into the language;
+incompleteness by bounding its state space.
 
-The components:
-
-* [Langlib/Computability/Class.lean](Langlib/Computability/Class.lean) —
-  `ProgLang`, `TuringComplete` and `BoundedStorage`: one interface every
-  result is an instance of.
-* [Langlib/Computability/Whitespace.lean](Langlib/Computability/Whitespace.lean) —
-  **Whitespace is proved Turing complete.** Axiom-clean.
-* [Langlib/Computability/URM.lean](Langlib/Computability/URM.lean) — the
-  register machine the proofs are stated against.
-* [scripts/axioms.lean](scripts/axioms.lean) — the audit.
-* [docs/README.md](docs/README.md) — status per language.
+All of it lands in one interface,
+[`Class.lean`](Langlib/Computability/Class.lean), which defines `ProgLang`,
+`TuringComplete` and `BoundedStorage`, so every result is an instance of the
+same two definitions rather than a bespoke theorem. The proofs are stated
+against [our helpers](Langlib/Computability/URM.lean) over cslib's register
+machine, and each one is audited by
+[`scripts/axioms.lean`](scripts/axioms.lean), because a proof resting on
+`sorry` type-checks exactly like a real one. Per-language status is in the
+[status matrix](docs/README.md) and the plan is
+[Stage 8](docs/PLAN.md).
 
 Precision here has already paid. [Befunge-93](docs/befunge93/spec.md) is
 called incomplete because of its 80 by 25 playfield, but the real argument
@@ -64,40 +68,39 @@ we implement *is* complete. Same name, two languages.
 
 ## Verified compilers
 
-Two strategies, and langlib keeps both. **Bespoke** compilers are written
-by hand per target, accept the whole of Turpentine, and produce small
-output: this is what `lake exe turpentine compile` runs today for
-brainfuck, whitespace and subleq. **Via the URM**, a compiler comes free
-from a completeness proof, because such a proof already contains a
-verified compiler from a register machine; composing it with one
-Turpentine-to-register-machine pass yields a correct-by-construction
-compiler into every language proved complete.
+Two schemes, and langlib keeps both, because neither subsumes the other.
 
-Neither subsumes the other. Derived compilers are verified but enormous
-and restricted to an I/O-free fragment; bespoke ones are practical but so
-far unverified, and the derived one is the oracle that tests them. Both
-are instances of one `TurpentineCompiler` interface, so agreement between
-them is a theorem rather than a hope. The pipeline and its diagrams are in
-[certified-compilation.md](docs/certified-compilation.md), the correctness
-statements in [verification.md](docs/verification.md), and each target's
-own decisions in `docs/<langname>/compiler.md`, for example
-[whitespace](docs/whitespace/compiler.md),
-[subleq](docs/subleq/compiler.md) and
-[brainfuck](docs/brainfuck/compiler.md).
+**Bespoke** compilers are hand-written per target. They accept the whole of
+Turpentine, produce compact output, and are what
+`lake exe turpentine compile --to <lang>` runs today for
+[brainfuck](Langlib/Turpentine/Compile/Brainfuck.lean),
+[whitespace](Langlib/Turpentine/Compile/Whitespace.lean) and
+[subleq](Langlib/Turpentine/Compile/Subleq.lean). None is verified yet;
+verifying one is real per-language proof work.
 
-The components:
+**Via the URM**, a compiler costs nothing to write. A completeness proof
+already *contains* a verified compiler from a register machine, so
+composing it with a single shared Turpentine-to-register-machine pass,
+[`Compile/URM.lean`](Langlib/Turpentine/Compile/URM.lean), yields a
+correct-by-construction compiler into any language proved Turing complete.
+Both schemes produce instances of one `TurpentineCompiler` interface, and
+the composition that builds the derived instance is proved once for an
+arbitrary target rather than per language (in
+[`Langlib/Computability/`](Langlib/Computability/), alongside the
+completeness proofs). Derived compilers are enormous and restricted to an
+I/O-free fragment, so they are for proving things, not for running
+programs.
 
-* [Langlib/Turpentine/Compile/](Langlib/Turpentine/Compile/) — the bespoke
-  backends: [brainfuck](Langlib/Turpentine/Compile/Brainfuck.lean),
-  [whitespace](Langlib/Turpentine/Compile/Whitespace.lean),
-  [subleq](Langlib/Turpentine/Compile/Subleq.lean).
-* [docs/certified-compilation.md](docs/certified-compilation.md) — the
-  pipeline, the theorem that makes it compose, and the diagrams.
-* [docs/verification.md](docs/verification.md) — what compiler correctness
-  means here, including how `assert` compiles.
-* Per target: `docs/<langname>/compiler.md`, for example
-  [whitespace](docs/whitespace/compiler.md) and
-  [brainfuck](docs/brainfuck/compiler.md).
+One interface for both schemes buys a theorem rather than a hope: where a
+language has both compilers, they provably produce the same observable
+behaviour on programs both accept. Until a bespoke compiler is verified,
+the derived one is the strongest available check on it.
+
+The pipeline, the diagrams and the theorem that makes the composition work
+are in [certified-compilation.md](docs/certified-compilation.md); what
+correctness means here, including how `assert` compiles, is in
+[verification.md](docs/verification.md); and each target's own decisions
+are in `docs/<langname>/compiler.md`.
 
 Turpentine is deeply embedded in Lean and modelled on
 [Velvet](https://github.com/verse-lab/velvet). The longer-term plan is to
