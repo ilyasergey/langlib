@@ -79,29 +79,29 @@ lost; the unsettled ones say `open`, or `in progress` where the foundations
 have landed and one step remains.
 
 The last column names the Turpentine compilers a target has and links each
-to its source. A **bespoke** one is hand-written for that target: it emits
-compact, readable code and supports the whole language. *(trusted)* means
-tested rather than proved; *(certified on a fragment)* means a correctness
-theorem covers part of what the compiler accepts, and links it. Whitespace
-and subleq have one, over fragments the compiler states as data by
-refusing everything outside them. A **derived** one comes out of that language's completeness proof,
-so it is *(certified)* already, but it does not support I/O: it routes
-everything through a register machine, which has no way to read or write,
-so the program takes no input and leaves its result in `answer`. Its
-output is also enormous.
+to its source. A **derived** one comes out of that language's completeness
+proof, so it is *(certified)* already, but it does not support I/O: it
+routes everything through a register machine, which has no way to read or
+write, so the program takes no input and leaves its result in `answer`.
+Its output is also enormous. A **bespoke** one is hand-written for that
+target: it emits compact, readable code and supports the whole language.
+*(trusted)* means tested rather than proved; *(certified on a fragment)*
+means a correctness theorem covers part of what the compiler accepts, and
+links it. Whitespace and subleq have one, over fragments the compiler
+states as data by refusing everything outside them.
 [Verified compilers](#verified-compilers) below explains why the library
 keeps both kinds.
 
 | Language | Turing-complete (TC) | TC claim mechanised | Turpentine compiler |
 |----------|--------------------------|------------------------------|---------------------|
-| [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L2888)** | [bespoke](Langlib/Turpentine/Compile/Brainfuck.lean#L1317) (trusted), and [derived](Langlib/Computability/Derived.lean#L113) (certified) |
-| [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1117)** | [bespoke](Langlib/Turpentine/Compile/Whitespace.lean#L530) ([certified on a fragment](Langlib/Computability/BespokeWhitespace.lean#L3246)), and [derived](Langlib/Computability/Derived.lean#L105) (certified) |
-| [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1201)** | [bespoke](Langlib/Turpentine/Compile/Subleq.lean#L1125) ([certified on a fragment](Langlib/Computability/BespokeSubleq.lean#L629)), and [derived](Langlib/Computability/Derived.lean#L109) (certified) |
-| [fractran](docs/fractran/spec.md) | yes | **[yes](Langlib/Computability/Fractran.lean#L4458)** | [derived](Langlib/Computability/Derived.lean#L118) (certified, programmatic artifact); [bespoke planned](docs/fractran/compiler.md) |
+| [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L2888)** | [derived](Langlib/Computability/Derived.lean#L113) (certified), and [bespoke](Langlib/Turpentine/Compile/Brainfuck.lean#L1317) (trusted) |
+| [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1117)** | [derived](Langlib/Computability/Derived.lean#L105) (certified), and [bespoke](Langlib/Turpentine/Compile/Whitespace.lean#L530) ([certified on a fragment](Langlib/Computability/BespokeWhitespace.lean#L3246)) |
+| [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1201)** | [derived](Langlib/Computability/Derived.lean#L109) (certified), and [bespoke](Langlib/Turpentine/Compile/Subleq.lean#L1125) ([certified on a fragment](Langlib/Computability/BespokeSubleq.lean#L629)) |
+| [fractran](docs/fractran/spec.md) | yes | **[yes](Langlib/Computability/Fractran.lean#L4458)** | [derived](Langlib/Computability/Derived.lean#L118) (certified); [bespoke planned](docs/fractran/compiler.md) |
 | [piet](docs/piet/spec.md) | yes | [in progress](docs/computability-piet.md) | [planned](docs/piet/compiler.md) |
 | [thue](docs/thue/spec.md) | yes | open | [planned](docs/thue/compiler.md) |
-| [ook](docs/ook/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Ook.lean#L540)** | [bespoke](Langlib/Turpentine/Compile/Ook.lean#L49) (trusted), and [derived](Langlib/Computability/Derived.lean#L124) (certified) |
-| [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Brainloller.lean#L329)**, bar the [pixel walk](docs/brainloller/compiler.md) | [bespoke](Langlib/Turpentine/Compile/Brainloller.lean#L57) (trusted), and [derived](Langlib/Computability/Derived.lean#L129) (certified) |
+| [ook](docs/ook/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Ook.lean#L540)** | [derived](Langlib/Computability/Derived.lean#L124) (certified), and [bespoke](Langlib/Turpentine/Compile/Ook.lean#L49) (trusted) |
+| [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Brainloller.lean#L329)**, bar the [pixel walk](docs/brainloller/compiler.md) | [derived](Langlib/Computability/Derived.lean#L129) (certified), and [bespoke](Langlib/Turpentine/Compile/Brainloller.lean#L57) (trusted) |
 | [befunge93](docs/befunge93/spec.md) | [no with byte cells, yes with ours](docs/befunge93/spec.md#computational-class-and-why-our-deviations-matter) | **[yes](Langlib/Computability/Befunge93.lean#L326)**, for the byte core | [none: 2000 cells](docs/befunge93/compiler.md) |
 | [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[yes](Langlib/Computability/Malbolge.lean#L743)** | [none: bounded](docs/malbolge/compiler.md) |
 | [deadfish](docs/deadfish/spec.md) | no, every program halts | **[yes](Langlib/Computability/Deadfish.lean#L89)** | [planned, output only](docs/deadfish/compiler.md) |
