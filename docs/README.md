@@ -39,31 +39,30 @@ the difference between them is the whole point of this library:
   URM-computable partial function wherever it is defined. `no` means nobody has proved it here yet, whatever the
   literature believes. `yes` links to the theorem.
 
-One entry in the proved column now reads `yes`:
-[whitespace](../Langlib/Computability/Whitespace.lean) is machine-checked
-Turing complete, by compiling cslib's unlimited register machine into it
-and proving the compilation simulates. `#print axioms` on the result
-reports only `propext`, `Classical.choice` and `Quot.sound`, so nothing is
-resting on a `sorry`. The rest still read `no`, which is the honest state:
-the interpreters and compilers came first, and Stage 8 of
-[PLAN.md](PLAN.md) is where that column keeps changing. Every language
+A `yes` there means a completeness proof exists in this repository: a
+compiler from cslib's unlimited register machine into the language, plus a
+proof that the compilation simulates, audited by
+[scripts/axioms.lean](../scripts/axioms.lean) to confirm it rests on
+nothing but Lean's three standard axioms. Most rows read `no`, which is
+the honest state: the interpreters and compilers came first, and Stage 8
+of [PLAN.md](PLAN.md) is where that column keeps changing. Every language
 claimed Turing complete is also a language Turpentine should compile to.
 
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved | Bespoke compiler | Bespoke correct | Correct via TC |
 |----------|------|--------|-------------|------------------|--------|-----------------|-----------|------------------|-----------------|----------------|
-| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `lake exe brainfuck` | yes | no | [bespoke, scalars](brainfuck/compiler.md) | no | no |
-| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `lake exe whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [bespoke](whitespace/compiler.md) | no | no |
-| [subleq](subleq/spec.md) | yes | yes | yes | yes | `lake exe subleq` | yes | no | [bespoke](subleq/compiler.md) | no | no |
+| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `lake exe brainfuck` | yes | wip | [yes, scalars](brainfuck/compiler.md) | no | no |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `lake exe whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [yes](whitespace/compiler.md) | no | no |
+| [subleq](subleq/spec.md) | yes | yes | yes | yes | `lake exe subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [yes](subleq/compiler.md) | no | no |
 | [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `lake exe befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | no | [not planned](befunge93/compiler.md) | n/a | n/a |
 | [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `lake exe malbolge` | [no, bounded storage](malbolge/spec.md) | no | [not planned](malbolge/compiler.md) | n/a | n/a |
-| malbolge-unshackled | wip | wip | wip | wip | `lake exe malbolge-unshackled` | yes | no | planned, via TC | no | no |
-| [fractran](fractran/spec.md) | yes | yes | yes | yes | `lake exe fractran` | yes | no | [planned, via TC](fractran/compiler.md) | no | no |
-| [thue](thue/spec.md) | yes | yes | yes | yes | `lake exe thue` | yes | no | [planned, via TC](thue/compiler.md) | no | no |
-| [piet](piet/spec.md) | yes | yes | yes | yes | `lake exe piet` | yes | no | [planned, via TC](piet/compiler.md) | no | no |
-| [ook](ook/spec.md) | yes | yes | yes | yes | `lake exe ook` | yes (via brainfuck) | no | [bespoke, free via brainfuck](ook/compiler.md) | no | no |
-| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `lake exe brainloller` | yes (via brainfuck) | no | [bespoke, free via brainfuck](brainloller/compiler.md) | no | no |
-| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `lake exe deadfish` | [no, finite state](deadfish/spec.md) | no | [bespoke, output-only](deadfish/compiler.md) | no | no |
-| unlambda / SKI | wip | wip | wip | wip | `lake exe unlambda` | yes | no | planned, bespoke | no | no |
+| malbolge-unshackled | wip | wip | wip | wip | `lake exe malbolge-unshackled` | yes | no | planned | no | no |
+| [fractran](fractran/spec.md) | yes | yes | yes | yes | `lake exe fractran` | yes | no | [planned](fractran/compiler.md) | no | no |
+| [thue](thue/spec.md) | yes | yes | yes | yes | `lake exe thue` | yes | no | [planned](thue/compiler.md) | no | no |
+| [piet](piet/spec.md) | yes | yes | yes | yes | `lake exe piet` | yes | no | [planned](piet/compiler.md) | no | no |
+| [ook](ook/spec.md) | yes | yes | yes | yes | `lake exe ook` | yes (via brainfuck) | no | [planned, free via brainfuck](ook/compiler.md) | no | no |
+| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `lake exe brainloller` | yes (via brainfuck) | no | [planned, free via brainfuck](brainloller/compiler.md) | no | no |
+| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `lake exe deadfish` | [no, finite state](deadfish/spec.md) | no | [planned, output-only](deadfish/compiler.md) | no | no |
+| unlambda / SKI | wip | wip | wip | wip | `lake exe unlambda` | yes | no | planned | no | no |
 | [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `lake exe turpentine` | yes | no | (source) | (source) | (source) |
 
 When a proof lands, its `no` becomes a `yes` linking to the theorem in
