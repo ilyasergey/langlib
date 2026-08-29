@@ -413,3 +413,16 @@ open Langlib.Computability
 #print axioms BespokeWhitespace.emitsS_printAnswer
 #print axioms BespokeWhitespace.compileChecked_of_gen
 #print axioms BespokeWhitespace.bespokeCompile_correct
+
+-- FRACTRAN: full URM simulation through the ordered fraction interpreter,
+-- finite halt cleanup to `2 ^ R₀`, and the shared completeness witness.
+#print axioms URMFractran.urmStep_compileRules
+#print axioms URMFractran.urmSteps_compileRules
+#print axioms URMFractran.cleanupSteps_compileRules
+#print axioms URMFractran.simulationRules
+#print axioms URMFractran.simulationConcrete
+#print axioms URMFractran.compile_terminal_none
+#print axioms URMFractran.exec_final_of_steps
+#print axioms URMFractran.decodeOutput_encode
+#print axioms URMFractran.simulation
+#print axioms fractranComplete

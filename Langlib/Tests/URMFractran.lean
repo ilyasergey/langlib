@@ -2,12 +2,12 @@ import Langlib.Common.TestHarness
 import Langlib.Computability.Fractran
 
 /-!
-Differential tests for the runnable URM-to-FRACTRAN compiler scaffold.
+Differential tests for the verified URM-to-FRACTRAN compiler.
 
 Each case executes the URM reference interpreter, compiles the same program,
 runs the generated fraction list with the actual FRACTRAN interpreter in
-`pow2` mode, and compares the decoded exponent.  The differential tests do
-not replace the missing whole-program Lean simulation theorem.
+`final` mode, and compares the decoded terminal power of two.  The same
+execution path is used by `fractranComplete`.
 
 Prime-exponent states grow quickly, so the examples are deliberately small
 and receive generous fuel.
@@ -60,7 +60,7 @@ def run (src : String) (_input : Input) (fuel : Nat) : Except String RunResult :
   else
     let want := Langlib.Computability.URM.result P inputs urmSteps
     let artifact := Langlib.Computability.URMFractran.compileProgram P inputs
-    let r := Langlib.Fractran.evalProg { out := .pow2 }
+    let r := Langlib.Fractran.evalProg { out := .final }
       artifact.code artifact.start fuel
     match r.exit with
     | .halted =>
@@ -70,7 +70,7 @@ def run (src : String) (_input : Input) (fuel : Nat) : Except String RunResult :
           return { output := s!"ok {want}".toUTF8, exit := .halted }
         else
           return { exit := .error s!"URM says {want}, compiled FRACTRAN says {got}" }
-      | none => return { exit := .error "the pow2 output did not decode" }
+      | none => return { exit := .error "the final power-of-two output did not decode" }
     | .outOfFuel => return { exit := .error s!"compiled program ran out of fuel ({fuel})" }
     | .error msg => return { exit := .error s!"compiled program failed: {msg}" }
 
@@ -95,7 +95,7 @@ def stats (src : String) (_input : Input) (_fuel : Nat) : Except String RunResul
 private def ftFuel : Nat := 5_000_000
 
 def suite : Suite where
-  name := "urm -> fractran (runnable compiler scaffold)"
+  name := "urm -> fractran (verified compiler)"
   run := run
   cases :=
     [ { name := "empty program preserves register 0", fuel := ftFuel,

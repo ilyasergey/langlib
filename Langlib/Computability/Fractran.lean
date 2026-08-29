@@ -3,19 +3,21 @@ import Langlib.Languages.Fractran.Semantics
 import Mathlib.Data.Nat.Factorization.Basic
 import Mathlib.Data.Nat.GCD.BigOperators
 import Mathlib.Data.Nat.Prime.Nth
+import Std.Data.String.ToNat
 
 /-!
-# Prime-exponent compilation foundations for FRACTRAN
+# Verified prime-exponent compilation to FRACTRAN
 
-This file develops the arithmetic core needed by a verified URM-to-FRACTRAN
-compiler.  A finite counter store is encoded as a product of distinct prime
-powers.  A rule consumes one finite multiset of prime tokens and produces
-another.  The lemmas below prove that the concrete FRACTRAN applicability
-test and update agree with multiset inclusion and subtraction/addition.
+This file proves a runnable URM-to-FRACTRAN compiler correct. A finite
+counter store is encoded as a product of distinct prime powers. Generated
+rules implement the four URM instructions under FRACTRAN's ordered
+first-match semantics, restore their scratch exponents, and preserve a
+unique control token at every instruction boundary. Cleanup reduces a
+halting store to `2 ^ R₀`.
 
-The full URM control simulation is not yet assembled here.  In particular,
-this file does not declare `fractranComplete`; see
-`docs/computability-fractran.md` for the remaining composition obligation.
+The proof composes the instruction simulations over `Cslib.URM.Steps`,
+executes the resulting fraction trace with the real fuel-based interpreter,
+and establishes `fractranComplete : TuringComplete FractranLang`.
 -/
 
 namespace Langlib.Computability.URMFractran
@@ -547,6 +549,18 @@ theorem eraseToken_noControl {l : Layout} {s : Tokens} (hs : NoControl l s)
   intro i hi
   simp [eraseToken, Finsupp.tsub_apply, hs i hi]
 
+theorem sub_noControl {l : Layout} {s t : Tokens} (hs : NoControl l s) :
+    NoControl l (s - t) := by
+  intro i hi
+  simp [Finsupp.tsub_apply, hs i hi]
+
+theorem add_single_noControl {l : Layout} {s : Tokens} {i n : Nat}
+    (hs : NoControl l s) (hi : ¬IsControl l i) :
+    NoControl l (s + Finsupp.single i n) := by
+  intro c hc
+  have hci : c ≠ i := fun h => hi (h ▸ hc)
+  simp [Finsupp.add_apply, hs c hc, hci]
+
 theorem onlyControl_add_single {l : Layout} {base : Tokens} {c : Nat}
     (hb : NoControl l base) (hc : IsControl l c) :
     OnlyControl l c (base + Finsupp.single c 1) := by
@@ -928,6 +942,26 @@ theorem drainRules_ownedIn (l : Layout) {a b source next : Nat} {adds : List Nat
   rcases hq with hq | hq | hq | hq <;> subst q <;>
     simp [SRule.OwnedIn, srule, ha, hb]
 
+theorem compareRules_ownedIn (l : Layout) {a b m r equal unequal : Nat}
+    (ha : IsControl l a) (hb : IsControl l b) {q : SRule}
+    (hq : q ∈ compareRules l a b m r equal unequal) :
+    q.OwnedIn l [a, b] := by
+  simp only [compareRules, List.mem_cons, List.not_mem_nil, or_false] at hq
+  rcases hq with hq | hq | hq | hq | hq | hq | hq | hq <;>
+    subst q <;> simp [SRule.OwnedIn, srule, ha, hb]
+
+theorem compareRules_wellControlled (l : Layout) {a b m r equal unequal : Nat}
+    (ha : IsControl l a) (hb : IsControl l b)
+    (he : IsControl l equal) (hu : IsControl l unequal)
+    (hm : m < l.regBound) (hr : r < l.regBound) {q : SRule}
+    (hq : q ∈ compareRules l a b m r equal unequal) : q.WellControlled l := by
+  simp only [compareRules, List.mem_cons, List.not_mem_nil, or_false] at hq
+  rcases hq with hq | hq | hq | hq | hq | hq | hq | hq <;>
+    subst q <;>
+    simp [SRule.WellControlled, srule, ha, hb, he, hu,
+      register_not_control hm, register_not_control hr,
+      scratch0_not_control l, scratch1_not_control l]
+
 theorem drainRules_wellControlled (l : Layout) {a b source next : Nat}
     {adds : List Nat} (ha : IsControl l a) (hb : IsControl l b)
     (hn : IsControl l next) (hs : ¬IsControl l source)
@@ -951,6 +985,218 @@ theorem addMany_apply (base : Tokens) (adds : List Nat) (n i : Nat) :
     simp only [Finsupp.add_apply, tokensOfList_apply]
     rw [Nat.succ_mul]
     omega
+
+theorem restore_equal_identity (l : Layout) (base : Tokens) (m r n : Nat)
+    (hbm : base m = 0) (hbr : base r = 0)
+    (hbs0 : base l.scratch0 = 0) (hbs1 : base l.scratch1 = 0)
+    (hm : m < l.regBound) (hr : r < l.regBound) (hmr : m ≠ r) :
+    addMany
+        (eraseToken
+          (addMany (eraseToken (addMany base [l.scratch0, l.scratch1] n)
+            l.scratch0) [m] n) l.scratch1)
+        [r] n =
+      base + Finsupp.single m n + Finsupp.single r n := by
+  classical
+  have hms0 : m ≠ l.scratch0 := by unfold Layout.scratch0; omega
+  have hrs0 : r ≠ l.scratch0 := by unfold Layout.scratch0; omega
+  have hms1 : m ≠ l.scratch1 := by
+    unfold Layout.scratch1 Layout.scratch0; omega
+  have hrs1 : r ≠ l.scratch1 := by
+    unfold Layout.scratch1 Layout.scratch0; omega
+  have hs01 : l.scratch0 ≠ l.scratch1 := by unfold Layout.scratch1; omega
+  ext i
+  rw [addMany_apply]
+  by_cases him : i = m
+  · subst i
+    simp [addMany_apply, eraseToken_apply_of_ne, hbm, hms0, hms1, hmr,
+      Ne.symm hms0, Ne.symm hms1, Ne.symm hmr, hs01, List.count]
+  · by_cases hir : i = r
+    · subst i
+      simp [addMany_apply, eraseToken_apply_of_ne, hbr, hrs0, hrs1, hmr,
+        Ne.symm hrs0, Ne.symm hrs1, Ne.symm hmr, hs01, List.count]
+    · by_cases his0 : i = l.scratch0
+      · subst i
+        simp [addMany_apply, eraseToken_apply_of_ne, hbs0, hms0, hrs0,
+          hms1, hrs1, hs01, List.count]
+      · by_cases his1 : i = l.scratch1
+        · subst i
+          simp [addMany_apply, eraseToken_apply_of_ne, hbs1, hms1, hrs1,
+            hs01, List.count]
+        · simp [addMany_apply, eraseToken_apply_of_ne, him, hir, his0, his1,
+            Ne.symm him, Ne.symm hir, Ne.symm his0, Ne.symm his1, List.count]
+
+theorem restore_scratch_identity (l : Layout) (data : Tokens) (m r : Nat)
+    (hm : m < l.regBound) (hr : r < l.regBound) (hmr : m ≠ r) :
+    addMany
+        (eraseToken
+          (addMany (eraseToken data l.scratch0) [m] (data l.scratch0))
+          l.scratch1)
+        [r] (data l.scratch1) =
+      eraseToken (eraseToken data l.scratch0) l.scratch1 +
+        Finsupp.single m (data l.scratch0) +
+        Finsupp.single r (data l.scratch1) := by
+  classical
+  have hms0 : m ≠ l.scratch0 := by unfold Layout.scratch0; omega
+  have hrs0 : r ≠ l.scratch0 := by unfold Layout.scratch0; omega
+  have hms1 : m ≠ l.scratch1 := by
+    unfold Layout.scratch1 Layout.scratch0; omega
+  have hrs1 : r ≠ l.scratch1 := by
+    unfold Layout.scratch1 Layout.scratch0; omega
+  have hs01 : l.scratch0 ≠ l.scratch1 := by unfold Layout.scratch1; omega
+  ext i
+  rw [addMany_apply]
+  by_cases him : i = m
+  · subst i
+    simp [addMany_apply, eraseToken_apply_of_ne, hms0, hms1, hmr,
+      Ne.symm hms0, Ne.symm hms1, Ne.symm hmr, hs01, List.count]
+  · by_cases hir : i = r
+    · subst i
+      simp [addMany_apply, eraseToken_apply_of_ne, hrs0, hrs1, hmr,
+        Ne.symm hrs0, Ne.symm hrs1, Ne.symm hmr, hs01, List.count]
+    · by_cases his0 : i = l.scratch0
+      · subst i
+        simp [addMany_apply, eraseToken_apply_of_ne, hms0, hrs0, hms1,
+          hrs1, hs01, List.count]
+      · by_cases his1 : i = l.scratch1
+        · subst i
+          simp [addMany_apply, eraseToken_apply_of_ne, hms1, hrs1, hs01,
+            List.count]
+        · simp [addMany_apply, eraseToken_apply_of_ne, him, hir, his0, his1,
+            Ne.symm him, Ne.symm hir, Ne.symm his0, Ne.symm his1, List.count]
+
+theorem regTokens_split_two (l : Layout) (regs : Cslib.URM.Regs)
+    {m r : Nat} (hm : m < l.regBound) (hr : r < l.regBound) (hmr : m ≠ r) :
+    eraseToken (eraseToken (regTokens l regs) m) r +
+        Finsupp.single m (regs m) + Finsupp.single r (regs r) =
+      regTokens l regs := by
+  have hrValue : eraseToken (regTokens l regs) m r = regs r := by
+    rw [eraseToken_apply_of_ne _ hmr.symm]
+    simp [regTokens_apply, hr]
+  have hmValue : regTokens l regs m = regs m := by simp [regTokens_apply, hm]
+  calc
+    eraseToken (eraseToken (regTokens l regs) m) r +
+          Finsupp.single m (regs m) + Finsupp.single r (regs r) =
+        (eraseToken (eraseToken (regTokens l regs) m) r +
+          Finsupp.single r (eraseToken (regTokens l regs) m r)) +
+          Finsupp.single m (regTokens l regs m) := by
+            rw [hrValue, hmValue]
+            ac_rfl
+    _ = eraseToken (regTokens l regs) m +
+          Finsupp.single m (regTokens l regs m) := by
+            rw [eraseToken_add_self]
+    _ = regTokens l regs := eraseToken_add_self _ _
+
+theorem restore_left_identity (l : Layout) (base : Tokens) (m r x y : Nat)
+    (hbm : base m = 0) (hbr : base r = 0)
+    (hbs0 : base l.scratch0 = 0) (hbs1 : base l.scratch1 = 0)
+    (hm : m < l.regBound) (hr : r < l.regBound) (hmr : m ≠ r)
+    (hyx : y < x) :
+    let data := addMany (base + Finsupp.single m (x - y))
+      [l.scratch0, l.scratch1] y - Finsupp.single m 1 +
+        Finsupp.single l.scratch0 1
+    addMany
+        (eraseToken
+          (addMany (eraseToken data l.scratch0) [m] (data l.scratch0))
+          l.scratch1)
+        [r] (data l.scratch1) =
+      base + Finsupp.single m x + Finsupp.single r y := by
+  classical
+  let data := addMany (base + Finsupp.single m (x - y))
+    [l.scratch0, l.scratch1] y - Finsupp.single m 1 +
+      Finsupp.single l.scratch0 1
+  change addMany
+      (eraseToken (addMany (eraseToken data l.scratch0) [m] (data l.scratch0))
+        l.scratch1) [r] (data l.scratch1) = _
+  rw [restore_scratch_identity l data m r hm hr hmr]
+  unfold data
+  have hms0 : m ≠ l.scratch0 := by unfold Layout.scratch0; omega
+  have hrs0 : r ≠ l.scratch0 := by unfold Layout.scratch0; omega
+  have hms1 : m ≠ l.scratch1 := by
+    unfold Layout.scratch1 Layout.scratch0; omega
+  have hrs1 : r ≠ l.scratch1 := by
+    unfold Layout.scratch1 Layout.scratch0; omega
+  have hs01 : l.scratch0 ≠ l.scratch1 := by unfold Layout.scratch1; omega
+  ext i
+  by_cases him : i = m
+  · subst i
+    simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbr, hbs0, hbs1,
+      hms0, hms1, hmr, Ne.symm hms0, Ne.symm hms1, Ne.symm hmr,
+      hs01, Ne.symm hs01, List.count]
+    omega
+  · by_cases hir : i = r
+    · subst i
+      simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbr, hbs0, hbs1,
+        hms0, hms1, hrs0, hrs1, hmr, Ne.symm hms0, Ne.symm hms1,
+        Ne.symm hrs0, Ne.symm hrs1, Ne.symm hmr, hs01, Ne.symm hs01,
+        List.count]
+    · by_cases his0 : i = l.scratch0
+      · subst i
+        simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbr, hbs0, hbs1,
+          hms0, hrs0, hms1, hrs1, Ne.symm hms0, Ne.symm hrs0,
+          Ne.symm hms1, Ne.symm hrs1, hs01, Ne.symm hs01, List.count]
+      · by_cases his1 : i = l.scratch1
+        · subst i
+          simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbr, hbs0, hbs1,
+            hms1, hrs1, Ne.symm hms1, Ne.symm hrs1, hs01, Ne.symm hs01,
+            List.count]
+        · simp [addMany_apply, eraseToken_apply_of_ne, him, hir, his0, his1,
+            Ne.symm him, Ne.symm hir, Ne.symm his0, Ne.symm his1, List.count]
+
+theorem restore_right_identity (l : Layout) (base : Tokens) (m r x y : Nat)
+    (hbm : base m = 0) (hbr : base r = 0)
+    (hbs0 : base l.scratch0 = 0) (hbs1 : base l.scratch1 = 0)
+    (hm : m < l.regBound) (hr : r < l.regBound) (hmr : m ≠ r)
+    (hxy : x < y) :
+    let data := addMany (base + Finsupp.single r (y - x))
+      [l.scratch0, l.scratch1] x - Finsupp.single r 1 +
+        Finsupp.single l.scratch1 1
+    addMany
+        (eraseToken
+          (addMany (eraseToken data l.scratch0) [m] (data l.scratch0))
+          l.scratch1)
+        [r] (data l.scratch1) =
+      base + Finsupp.single m x + Finsupp.single r y := by
+  classical
+  let data := addMany (base + Finsupp.single r (y - x))
+    [l.scratch0, l.scratch1] x - Finsupp.single r 1 +
+      Finsupp.single l.scratch1 1
+  change addMany
+      (eraseToken (addMany (eraseToken data l.scratch0) [m] (data l.scratch0))
+        l.scratch1) [r] (data l.scratch1) = _
+  rw [restore_scratch_identity l data m r hm hr hmr]
+  unfold data
+  have hms0 : m ≠ l.scratch0 := by unfold Layout.scratch0; omega
+  have hrs0 : r ≠ l.scratch0 := by unfold Layout.scratch0; omega
+  have hms1 : m ≠ l.scratch1 := by
+    unfold Layout.scratch1 Layout.scratch0; omega
+  have hrs1 : r ≠ l.scratch1 := by
+    unfold Layout.scratch1 Layout.scratch0; omega
+  have hs01 : l.scratch0 ≠ l.scratch1 := by unfold Layout.scratch1; omega
+  ext i
+  by_cases him : i = m
+  · subst i
+    simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbr, hbs0, hbs1,
+      hms0, hms1, hrs0, hrs1, hmr, Ne.symm hms0, Ne.symm hms1,
+      Ne.symm hrs0, Ne.symm hrs1, Ne.symm hmr, hs01, Ne.symm hs01,
+      List.count]
+  · by_cases hir : i = r
+    · subst i
+      simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbr, hbs0, hbs1,
+        hrs0, hrs1, hmr, Ne.symm hrs0, Ne.symm hrs1, Ne.symm hmr,
+        hs01, Ne.symm hs01, List.count]
+      omega
+    · by_cases his0 : i = l.scratch0
+      · subst i
+        simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbr, hbs0, hbs1,
+          hms0, hrs0, hms1, hrs1, Ne.symm hms0, Ne.symm hrs0,
+          Ne.symm hms1, Ne.symm hrs1, hs01, Ne.symm hs01, List.count]
+      · by_cases his1 : i = l.scratch1
+        · subst i
+          simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbr, hbs0, hbs1,
+            hms1, hrs1, Ne.symm hms1, Ne.symm hrs1, hs01, Ne.symm hs01,
+            List.count]
+        · simp [addMany_apply, eraseToken_apply_of_ne, him, hir, his0, his1,
+            Ne.symm him, Ne.symm hir, Ne.symm his0, Ne.symm his1, List.count]
 
 theorem noControl_add_tokensOfList {l : Layout} {base : Tokens} {adds : List Nat}
     (hb : NoControl l base) (ha : ∀ i ∈ adds, ¬IsControl l i) :
@@ -1256,6 +1502,146 @@ theorem compareRules_left_steps (l : Layout) (base : Tokens)
         (Relation.ReflTransGen.head stepB hih.1)
   exact (loop n base hbase hbm hbr).1
 
+/-- Symmetric unequal case: an unmatched right-register token is moved to
+`scratch1` before restoration. -/
+theorem compareRules_right_steps (l : Layout) (base : Tokens)
+    (a b m r equal unequal n : Nat)
+    (hbase : NoControl l base) (hbm : base m = 0) (hbr : 1 ≤ base r)
+    (hm : m < l.regBound) (hr : r < l.regBound) (hmr : m ≠ r)
+    (ha : IsControl l a) (hb : IsControl l b) (hu : IsControl l unequal)
+    (hab : a ≠ b) :
+    RulesSteps (compareRules l a b m r equal unequal)
+      (pairedState base m r n a)
+      (addMany base [l.scratch0, l.scratch1] n - Finsupp.single r 1 +
+        Finsupp.single l.scratch1 1 + Finsupp.single unequal 1) := by
+  classical
+  have loop : ∀ k (current : Tokens),
+      NoControl l current → current m = 0 → 1 ≤ current r →
+      RulesSteps (compareRules l a b m r equal unequal)
+          (pairedState current m r k a)
+          (addMany current [l.scratch0, l.scratch1] k - Finsupp.single r 1 +
+            Finsupp.single l.scratch1 1 + Finsupp.single unequal 1) ∧
+      RulesSteps (compareRules l a b m r equal unequal)
+          (pairedState current m r k b)
+          (addMany current [l.scratch0, l.scratch1] k - Finsupp.single r 1 +
+            Finsupp.single l.scratch1 1 + Finsupp.single unequal 1) := by
+    intro k
+    induction k with
+    | zero =>
+      intro current hcurrent hcm hcr
+      have mDisabled (c : Nat) (hc : IsControl l c) (produce rest : List Nat) :
+          ¬(srule produce (c :: m :: rest)).Enabled
+            (pairedState current m r 0 c) := by
+        intro h
+        have hv := Finsupp.le_def.mp h m
+        have hcm' : c ≠ m := ne_of_gt (lt_of_lt_of_le hm (control_ge_bound hc))
+        simp [SRule.Enabled, srule, pairedState, tokensOfList, hcm,
+          hcm', hmr] at hv
+      have rightEnabled (c : Nat) (hc : IsControl l c) :
+          (srule [unequal, l.scratch1] [c, r]).Enabled
+            (pairedState current m r 0 c) := by
+        simpa [pairedState] using
+          single_data_enabled (base := current) (owner := c) (source := r)
+            (next := unequal) (add := l.scratch1) hcr
+            (ne_of_gt (lt_of_lt_of_le hr (control_ge_bound hc)))
+      have rightApply (c : Nat) (hc : IsControl l c) :
+          (srule [unequal, l.scratch1] [c, r]).apply
+              (pairedState current m r 0 c) =
+            current - Finsupp.single r 1 + Finsupp.single l.scratch1 1 +
+              Finsupp.single unequal 1 := by
+        simpa [pairedState] using
+          single_data_apply (base := current) (owner := c) (source := r)
+            (next := unequal) (add := l.scratch1) hcr
+            (ne_of_gt (lt_of_lt_of_le hr (control_ge_bound hc)))
+      have haRight := rightEnabled a ha
+      have hbRight := rightEnabled b hb
+      have haApply := rightApply a ha
+      have hbApply := rightApply b hb
+      have stepA : RulesStep (compareRules l a b m r equal unequal)
+          (pairedState current m r 0 a)
+          (current - Finsupp.single r 1 + Finsupp.single l.scratch1 1 +
+            Finsupp.single unequal 1) := by
+        rw [compareRules]
+        simpa [haApply] using RulesStep.tail
+          (mDisabled a ha [b, l.scratch0, l.scratch1] [r])
+          (RulesStep.tail (mDisabled a ha [unequal, l.scratch0] [])
+            (RulesStep.head haRight))
+      have hcb := pairedState_onlyControl (base := current) (m := m) (r := r)
+        (n := 0) (c := b) hcurrent hm hr hb
+      have skipA (produce consumeData : List Nat) :
+          ¬(srule produce (a :: consumeData)).Enabled
+            (pairedState current m r 0 b) :=
+        enabled_false_of_other_control hcb ha hab
+      have stepB : RulesStep (compareRules l a b m r equal unequal)
+          (pairedState current m r 0 b)
+          (current - Finsupp.single r 1 + Finsupp.single l.scratch1 1 +
+            Finsupp.single unequal 1) := by
+        rw [compareRules]
+        simpa [hbApply] using RulesStep.tail (skipA _ [m, r])
+          (RulesStep.tail (skipA _ [m])
+            (RulesStep.tail (skipA _ [r])
+              (RulesStep.tail (skipA _ [])
+                (RulesStep.tail
+                  (mDisabled b hb [a, l.scratch0, l.scratch1] [r])
+                  (RulesStep.tail (mDisabled b hb [unequal, l.scratch0] [])
+                    (RulesStep.head hbRight))))))
+      simpa [addMany] using And.intro
+        (Relation.ReflTransGen.single stepA)
+        (Relation.ReflTransGen.single stepB)
+    | succ k ih =>
+      intro current hcurrent hcm hcr
+      let nextBase := current + Finsupp.single l.scratch0 1 +
+        Finsupp.single l.scratch1 1
+      have hnextControl : NoControl l nextBase := by
+        have hnc := noControl_add_tokensOfList
+          (adds := [l.scratch0, l.scratch1]) hcurrent
+          (by intro i hi
+              simp only [List.mem_cons, List.not_mem_nil, or_false] at hi
+              rcases hi with rfl | rfl
+              · exact scratch0_not_control l
+              · exact scratch1_not_control l)
+        simpa [nextBase, tokensOfList, add_assoc] using hnc
+      have hnextM : nextBase m = 0 := by
+        simp [nextBase, hcm, show m ≠ l.scratch0 from by unfold Layout.scratch0; omega,
+          show m ≠ l.scratch1 from by
+            unfold Layout.scratch1 Layout.scratch0; omega]
+      have hnextR : 1 ≤ nextBase r := by
+        simp [nextBase, show r ≠ l.scratch0 from by unfold Layout.scratch0; omega,
+          show r ≠ l.scratch1 from by
+            unfold Layout.scratch1 Layout.scratch0; omega, hcr]
+      have hih := ih nextBase hnextControl hnextM hnextR
+      have haPair := paired_cons_enabled (base := current) (owner := a) (next := b)
+        (m := m) (r := r) (n := k) hcurrent ha hm hr hmr
+      have hbPair := paired_cons_enabled (base := current) (owner := b) (next := a)
+        (m := m) (r := r) (n := k) hcurrent hb hm hr hmr
+      have haApply := paired_apply_cons l (base := current) (owner := a) (next := b)
+        (m := m) (r := r) (n := k) hcurrent ha hb hm hr hmr hab
+      have hbApply := paired_apply_cons l (base := current) (owner := b) (next := a)
+        (m := m) (r := r) (n := k) hcurrent hb ha hm hr hmr hab.symm
+      have stepA : RulesStep (compareRules l a b m r equal unequal)
+          (pairedState current m r (k + 1) a)
+          (pairedState nextBase m r k b) := by
+        rw [compareRules]
+        simpa [haApply, nextBase] using RulesStep.head haPair
+      have hcb := pairedState_onlyControl (base := current) (m := m) (r := r)
+        (n := k + 1) (c := b) hcurrent hm hr hb
+      have skipA (produce consumeData : List Nat) :
+          ¬(srule produce (a :: consumeData)).Enabled
+            (pairedState current m r (k + 1) b) :=
+        enabled_false_of_other_control hcb ha hab
+      have stepB : RulesStep (compareRules l a b m r equal unequal)
+          (pairedState current m r (k + 1) b)
+          (pairedState nextBase m r k a) := by
+        rw [compareRules]
+        simpa [hbApply] using RulesStep.tail (skipA _ [m, r])
+          (RulesStep.tail (skipA _ [m])
+            (RulesStep.tail (skipA _ [r])
+              (RulesStep.tail (skipA _ []) (RulesStep.head hbPair))))
+      simpa [addMany, nextBase, tokensOfList, add_assoc] using And.intro
+        (Relation.ReflTransGen.head stepA hih.2)
+        (Relation.ReflTransGen.head stepB hih.1)
+  exact (loop n base hbase hbm hbr).1
+
 theorem apply_cons_many {base : Tokens} {owner source next : Nat} {adds : List Nat}
     {n : Nat} (howner : base owner = 0) (hsource : base source = 0)
     (hnext : base next = 0) (haOwner : tokensOfList adds owner = 0)
@@ -1407,6 +1793,129 @@ theorem drainRules_steps (l : Layout) (base : Tokens) (a b source : Nat)
         (Relation.ReflTransGen.head stepB hih.1)
   exact (loop n base hbase hsourceBase).1
 
+def restoreRules (l : Layout) (a b c d m r next : Nat) : List SRule :=
+  drainRules a b l.scratch0 [m] c ++
+    drainRules c d l.scratch1 [r] next
+
+theorem restoreRules_ownedIn (l : Layout) {a b c d m r next : Nat}
+    (ha : IsControl l a) (hb : IsControl l b)
+    (hc : IsControl l c) (hd : IsControl l d) {q : SRule}
+    (hq : q ∈ restoreRules l a b c d m r next) :
+    q.OwnedIn l [a, b, c, d] := by
+  simp only [restoreRules, List.mem_append] at hq
+  rcases hq with hq | hq
+  · obtain ⟨owner, rest, homem, hoc, hconsume⟩ :=
+      drainRules_ownedIn l ha hb hq
+    refine ⟨owner, rest, ?_, hoc, hconsume⟩
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at homem ⊢
+    rcases homem with rfl | rfl <;> simp
+  · obtain ⟨owner, rest, homem, hoc, hconsume⟩ :=
+      drainRules_ownedIn l hc hd hq
+    refine ⟨owner, rest, ?_, hoc, hconsume⟩
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at homem ⊢
+    rcases homem with rfl | rfl <;> simp
+
+theorem restoreRules_wellControlled (l : Layout) {a b c d m r next : Nat}
+    (ha : IsControl l a) (hb : IsControl l b)
+    (hc : IsControl l c) (hd : IsControl l d) (hn : IsControl l next)
+    (hm : m < l.regBound) (hr : r < l.regBound) {q : SRule}
+    (hq : q ∈ restoreRules l a b c d m r next) : q.WellControlled l := by
+  simp only [restoreRules, List.mem_append] at hq
+  rcases hq with hq | hq
+  · exact drainRules_wellControlled l ha hb hc (scratch0_not_control l)
+      (by intro i hi; simp only [List.mem_cons, List.not_mem_nil, or_false] at hi
+          subst i; exact register_not_control hm) hq
+  · exact drainRules_wellControlled l hc hd hn (scratch1_not_control l)
+      (by intro i hi; simp only [List.mem_cons, List.not_mem_nil, or_false] at hi
+          subst i; exact register_not_control hr) hq
+
+theorem restoreRules_steps (l : Layout) (data : Tokens)
+    (a b c d m r next : Nat)
+    (hdata : NoControl l data) (hm : m < l.regBound) (hr : r < l.regBound)
+    (hmr : m ≠ r) (ha : IsControl l a) (hb : IsControl l b)
+    (hc : IsControl l c) (hd : IsControl l d) (hn : IsControl l next)
+    (hab : a ≠ b) (hac : a ≠ c) (hbc : b ≠ c)
+    (hcd : c ≠ d) (hcn : c ≠ next) (hdn : d ≠ next)
+    (hdisj : [a, b].Disjoint [c, d]) :
+    RulesSteps (restoreRules l a b c d m r next)
+      (data + Finsupp.single a 1)
+      (addMany
+          (eraseToken
+            (addMany (eraseToken data l.scratch0) [m] (data l.scratch0))
+            l.scratch1)
+          [r] (data l.scratch1) + Finsupp.single next 1) := by
+  classical
+  let firstBase := eraseToken data l.scratch0
+  let afterM := addMany firstBase [m] (data l.scratch0)
+  let secondBase := eraseToken afterM l.scratch1
+  have hfirst := drainRules_steps l firstBase a b l.scratch0 [m] c
+    (data l.scratch0)
+    (eraseToken_noControl hdata l.scratch0) (eraseToken_apply_self _ _)
+    (Or.inr (Or.inl rfl))
+    (by intro i hi; simp only [List.mem_cons, List.not_mem_nil, or_false] at hi
+        subst i; exact register_not_control hm)
+    (by simp [show l.scratch0 ≠ m from by unfold Layout.scratch0; omega])
+    ha hb hc hab hac hbc
+  have hstart : data + Finsupp.single a 1 =
+      counterState firstBase l.scratch0 (data l.scratch0) a := by
+    rw [← eraseToken_add_self data l.scratch0]
+    simp [counterState, firstBase, add_assoc]
+  have hafterMControl : NoControl l afterM :=
+    addMany_noControl (data l.scratch0) (eraseToken_noControl hdata l.scratch0)
+      (by intro i hi; simp only [List.mem_cons, List.not_mem_nil, or_false] at hi
+          subst i; exact register_not_control hm)
+  have hafterMScratch1 : afterM l.scratch1 = data l.scratch1 := by
+    rw [addMany_apply]
+    have hsm : l.scratch1 ≠ m := by
+      unfold Layout.scratch1 Layout.scratch0; omega
+    rw [eraseToken_apply_of_ne _ (by unfold Layout.scratch1; omega)]
+    simp [hsm, Ne.symm hsm, List.count]
+  have hsecond := drainRules_steps l secondBase c d l.scratch1 [r] next
+    (data l.scratch1)
+    (eraseToken_noControl hafterMControl l.scratch1) (eraseToken_apply_self _ _)
+    (Or.inr (Or.inr rfl))
+    (by intro i hi; simp only [List.mem_cons, List.not_mem_nil, or_false] at hi
+        subst i; exact register_not_control hr)
+    (by simp [show l.scratch1 ≠ r from by
+      unfold Layout.scratch1 Layout.scratch0; omega])
+    hc hd hn hcd hcn hdn
+  have hsecondStart : afterM + Finsupp.single c 1 =
+      counterState secondBase l.scratch1 (data l.scratch1) c := by
+    rw [← hafterMScratch1, ← eraseToken_add_self afterM l.scratch1]
+    simp [counterState, secondBase, add_assoc]
+  have hfirsts : RulesSteps (drainRules a b l.scratch0 [m] c)
+      (data + Finsupp.single a 1) (afterM + Finsupp.single c 1) := by
+    simpa [firstBase, afterM, hstart] using hfirst
+  have hseconds : RulesSteps (drainRules c d l.scratch1 [r] next)
+      (afterM + Finsupp.single c 1)
+      (addMany secondBase [r] (data l.scratch1) + Finsupp.single next 1) := by
+    simpa [secondBase, hsecondStart] using hsecond
+  have hfirstWhole := hfirsts.append (drainRules c d l.scratch1 [r] next)
+  have hsecondWhole : RulesSteps (restoreRules l a b c d m r next)
+      (afterM + Finsupp.single c 1)
+      (addMany secondBase [r] (data l.scratch1) + Finsupp.single next 1) := by
+    unfold restoreRules
+    simpa only [List.append_nil] using
+      (show RulesSteps
+          (drainRules a b l.scratch0 [m] c ++
+            drainRules c d l.scratch1 [r] next ++ [])
+          (afterM + Finsupp.single c 1)
+          (addMany secondBase [r] (data l.scratch1) +
+            Finsupp.single next 1) from by
+        apply RulesSteps.embed_owned
+          (preOwners := [a, b]) (owners := [c, d])
+        · intro q hq; exact drainRules_ownedIn l ha hb hq
+        · intro q hq; exact drainRules_ownedIn l hc hd hq
+        · exact hdisj
+        · intro q hq
+          exact drainRules_wellControlled l hc hd hn (scratch1_not_control l)
+            (by intro i hi
+                simp only [List.mem_cons, List.not_mem_nil, or_false] at hi
+                subst i; exact register_not_control hr) hq
+        · exact ⟨c, hc, onlyControl_add_single hafterMControl hc⟩
+        · exact hseconds)
+  exact Relation.ReflTransGen.trans hfirstWhole hsecondWhole
+
 @[simp] theorem zeroRules_map (a b r next : Nat) :
     (zeroRules a b r next).map SRule.toFrac = zeroCode a b r next := rfl
 
@@ -1511,6 +2020,28 @@ theorem targetMarker_control (l : Layout) (q : Nat) :
   split
   · exact marker_control l (by omega) (by omega)
   · exact halt_control l
+
+theorem marker_ne_targetMarker_of_ne (l : Layout) {pc q phase : Nat}
+    (hpc : pc < l.progLen) (hphase : phase < 16) (hpq : pc ≠ q) :
+    l.marker pc phase ≠ targetMarker l q := by
+  unfold targetMarker
+  split
+  · intro h
+    exact hpq (marker_injective_of_phase hphase (by omega) h).1
+  · intro h
+    have hpcLen := (marker_injective_of_phase hphase (by omega) h).1
+    omega
+
+theorem marker_ne_targetMarker_of_phase_ne (l : Layout) {pc q phase : Nat}
+    (hpc : pc < l.progLen) (hphase : phase < 16) (hphase0 : phase ≠ 0) :
+    l.marker pc phase ≠ targetMarker l q := by
+  unfold targetMarker
+  split
+  · intro h
+    exact hphase0 (marker_injective_of_phase hphase (by omega) h).2
+  · intro h
+    have hpcLen := (marker_injective_of_phase hphase (by omega) h).1
+    omega
 
 theorem boundaryTokens_oneControl (l : Layout) (pc : Nat) (regs : Cslib.URM.Regs) :
     OneControl l (boundaryTokens l pc regs) := by
@@ -1992,6 +2523,418 @@ theorem instrRules_T_steps (l : Layout) {pc m r : Nat} (hpc : pc < l.progLen)
     simpa [instrRules, hmr, zrs, mrs, rrs, p0, p1, p2, p3, p4, p5,
       drainRules] using hall
 
+theorem instrRules_J_same_steps (l : Layout) {pc m q : Nat}
+    (hpc : pc < l.progLen) (regs : Cslib.URM.Regs) :
+    RulesSteps (instrRules l pc (.J m m q))
+      (boundaryTokens l pc regs) (boundaryTokens l q regs) := by
+  by_cases hq : q = pc
+  · subst q
+    exact Relation.ReflTransGen.refl
+  · let owner := l.marker pc 0
+    let next := targetMarker l q
+    let rule := srule [next] [owner]
+    have howner : IsControl l owner := marker_control l (by omega) (by omega)
+    have hnext : IsControl l next := targetMarker_control l q
+    have hone : owner ≠ next := by
+      exact marker_ne_targetMarker_of_ne l hpc (by omega) (Ne.symm hq)
+    have hstart : boundaryTokens l pc regs =
+        regTokens l regs + Finsupp.single owner 1 := by
+      simp [boundaryTokens, targetMarker, hpc, owner]
+    have hen : rule.Enabled (boundaryTokens l pc regs) := by
+      rw [hstart]
+      simpa [rule, SRule.Enabled, srule] using
+        counter_finish_enabled (base := regTokens l regs) (r := m) (next := next)
+          (regTokens_noControl l regs owner howner)
+    have happly : rule.apply (boundaryTokens l pc regs) =
+        boundaryTokens l q regs := by
+      rw [hstart]
+      have h := counter_apply_finish (base := regTokens l regs) (r := m)
+        (owner := owner) (next := next)
+        (regTokens_noControl l regs owner howner)
+        (regTokens_noControl l regs next hnext) hone
+      simpa [rule, counterState, boundaryTokens, next] using h
+    have hstep : RulesStep (instrRules l pc (.J m m q))
+        (boundaryTokens l pc regs) (boundaryTokens l q regs) := by
+      simp only [instrRules, if_pos rfl, if_neg hq]
+      simpa [rule, happly] using RulesStep.head hen
+    exact Relation.ReflTransGen.single hstep
+
+theorem instrRules_J_distinct_equal_steps (l : Layout) {pc m r q : Nat}
+    (hpc : pc < l.progLen) (hm : m < l.regBound) (hr : r < l.regBound)
+    (hmr : m ≠ r) (regs : Cslib.URM.Regs) (heq : regs m = regs r) :
+    RulesSteps (instrRules l pc (.J m r q))
+      (boundaryTokens l pc regs) (boundaryTokens l q regs) := by
+  classical
+  let p0 := l.marker pc 0
+  let p1 := l.marker pc 1
+  let p2 := l.marker pc 2
+  let p3 := l.marker pc 3
+  let p4 := l.marker pc 4
+  let p5 := l.marker pc 5
+  let p6 := l.marker pc 6
+  let p7 := l.marker pc 7
+  let p8 := l.marker pc 8
+  let p9 := l.marker pc 9
+  let crs := compareRules l p0 p1 m r p2 p4
+  let ers := restoreRules l p2 p3 p6 p7 m r (targetMarker l q)
+  let urs := restoreRules l p4 p5 p8 p9 m r (nextMarker l pc)
+  let base := eraseToken (eraseToken (regTokens l regs) m) r
+  let data := addMany base [l.scratch0, l.scratch1] (regs m)
+  have hp (phase : Nat) (hphase : phase < 16) :
+      IsControl l (l.marker pc phase) := marker_control l (by omega) hphase
+  have hp0 := hp 0 (by omega)
+  have hp1 := hp 1 (by omega)
+  have hp2 := hp 2 (by omega)
+  have hp3 := hp 3 (by omega)
+  have hp4 := hp 4 (by omega)
+  have hp5 := hp 5 (by omega)
+  have hp6 := hp 6 (by omega)
+  have hp7 := hp 7 (by omega)
+  have hp8 := hp 8 (by omega)
+  have hp9 := hp 9 (by omega)
+  have ht := targetMarker_control l q
+  have hn := nextMarker_control l hpc
+  have phase_ne {a b : Nat} (ha : a < 16) (hb : b < 16) (hab : a ≠ b) :
+      l.marker pc a ≠ l.marker pc b := by
+    intro h
+    exact hab (marker_injective_of_phase ha hb h).2
+  have hbaseControl : NoControl l base :=
+    eraseToken_noControl (eraseToken_noControl (regTokens_noControl l regs) m) r
+  have hbaseM : base m = 0 := by
+    rw [eraseToken_apply_of_ne _ hmr, eraseToken_apply_self]
+  have hbaseR : base r = 0 := eraseToken_apply_self _ _
+  have hbaseS0 : base l.scratch0 = 0 := by
+    rw [eraseToken_apply_of_ne _ (by unfold Layout.scratch0; omega),
+      eraseToken_apply_of_ne _ (by unfold Layout.scratch0; omega)]
+    simp [regTokens_apply, Layout.scratch0]
+  have hbaseS1 : base l.scratch1 = 0 := by
+    rw [eraseToken_apply_of_ne _ (by unfold Layout.scratch1 Layout.scratch0; omega),
+      eraseToken_apply_of_ne _ (by unfold Layout.scratch1 Layout.scratch0; omega)]
+    rw [regTokens_apply, if_neg (by unfold Layout.scratch1 Layout.scratch0; omega)]
+  have hstart : boundaryTokens l pc regs =
+      pairedState base m r (regs m) p0 := by
+    have hsplit := regTokens_split_two l regs hm hr hmr
+    rw [boundaryTokens, targetMarker, if_pos hpc, hsplit.symm]
+    simp only [pairedState, base, p0]
+    rw [heq]
+  have hcmp := compareRules_equal_steps l base p0 p1 m r p2 p4 (regs m)
+    hbaseControl hbaseM hbaseR hm hr hmr hp0 hp1 hp2 hp4
+    (phase_ne (by omega) (by omega) (by omega))
+    (phase_ne (by omega) (by omega) (by omega))
+    (phase_ne (by omega) (by omega) (by omega))
+  have hdataControl : NoControl l data :=
+    addMany_noControl (regs m) hbaseControl
+      (by intro i hi
+          simp only [List.mem_cons, List.not_mem_nil, or_false] at hi
+          rcases hi with rfl | rfl
+          · exact scratch0_not_control l
+          · exact scratch1_not_control l)
+  have hrestore := restoreRules_steps l data p2 p3 p6 p7 m r
+    (targetMarker l q) hdataControl hm hr hmr hp2 hp3 hp6 hp7 ht
+    (phase_ne (by omega) (by omega) (by omega))
+    (phase_ne (by omega) (by omega) (by omega))
+    (phase_ne (by omega) (by omega) (by omega))
+    (phase_ne (by omega) (by omega) (by omega))
+    (marker_ne_targetMarker_of_phase_ne l hpc (by omega) (by omega))
+    (marker_ne_targetMarker_of_phase_ne l hpc (by omega) (by omega))
+    (by simp [List.disjoint_left, p2, p3, p6, p7, Layout.marker])
+  have hrestored :
+      addMany
+          (eraseToken
+            (addMany (eraseToken data l.scratch0) [m] (data l.scratch0))
+            l.scratch1)
+          [r] (data l.scratch1) = regTokens l regs := by
+    have hid := restore_equal_identity l base m r (regs m)
+      hbaseM hbaseR hbaseS0 hbaseS1 hm hr hmr
+    have hsplit := regTokens_split_two l regs hm hr hmr
+    rw [← heq] at hsplit
+    have hs01 : l.scratch0 ≠ l.scratch1 := by unfold Layout.scratch1; omega
+    simpa [data, addMany_apply, hbaseS0, hbaseS1, List.count,
+      hs01, Ne.symm hs01] using hid.trans hsplit
+  have hcmps : RulesSteps crs (boundaryTokens l pc regs)
+      (data + Finsupp.single p2 1) := by
+    simpa [crs, data, hstart] using hcmp
+  have hrestores : RulesSteps ers (data + Finsupp.single p2 1)
+      (boundaryTokens l q regs) := by
+    simpa [ers, hrestored, boundaryTokens] using hrestore
+  have hcmpWhole : RulesSteps (crs ++ ers ++ urs) (boundaryTokens l pc regs)
+      (data + Finsupp.single p2 1) := by
+    simpa only [List.append_assoc] using hcmps.append (ers ++ urs)
+  have hrestoreWhole : RulesSteps (crs ++ ers ++ urs)
+      (data + Finsupp.single p2 1) (boundaryTokens l q regs) := by
+    apply RulesSteps.embed_owned
+      (preOwners := [p0, p1]) (owners := [p2, p3, p6, p7])
+    · intro rule hrule; exact compareRules_ownedIn l hp0 hp1 hrule
+    · intro rule hrule; exact restoreRules_ownedIn l hp2 hp3 hp6 hp7 hrule
+    · simp [List.disjoint_left, p0, p1, p2, p3, p6, p7, Layout.marker]
+    · intro rule hrule
+      exact restoreRules_wellControlled l hp2 hp3 hp6 hp7 ht hm hr hrule
+    · exact ⟨p2, hp2, onlyControl_add_single hdataControl hp2⟩
+    · exact hrestores
+  have hall := Relation.ReflTransGen.trans hcmpWhole hrestoreWhole
+  simpa [instrRules, hmr, crs, ers, urs, compareRules, restoreRules,
+    drainRules, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9] using hall
+
+theorem instrRules_J_unequal_finish (l : Layout) {pc m r q : Nat}
+    (hpc : pc < l.progLen) (hm : m < l.regBound) (hr : r < l.regBound)
+    (hmr : m ≠ r) (regs : Cslib.URM.Regs) (data : Tokens)
+    (hdata : NoControl l data)
+    (hfinal :
+      addMany
+          (eraseToken
+            (addMany (eraseToken data l.scratch0) [m] (data l.scratch0))
+            l.scratch1)
+          [r] (data l.scratch1) = regTokens l regs) :
+    RulesSteps (instrRules l pc (.J m r q))
+      (data + Finsupp.single (l.marker pc 4) 1)
+      (boundaryTokens l (pc + 1) regs) := by
+  let p0 := l.marker pc 0
+  let p1 := l.marker pc 1
+  let p2 := l.marker pc 2
+  let p3 := l.marker pc 3
+  let p4 := l.marker pc 4
+  let p5 := l.marker pc 5
+  let p6 := l.marker pc 6
+  let p7 := l.marker pc 7
+  let p8 := l.marker pc 8
+  let p9 := l.marker pc 9
+  let crs := compareRules l p0 p1 m r p2 p4
+  let ers := restoreRules l p2 p3 p6 p7 m r (targetMarker l q)
+  let urs := restoreRules l p4 p5 p8 p9 m r (nextMarker l pc)
+  have hp (phase : Nat) (hphase : phase < 16) :
+      IsControl l (l.marker pc phase) := marker_control l (by omega) hphase
+  have hp0 := hp 0 (by omega)
+  have hp1 := hp 1 (by omega)
+  have hp2 := hp 2 (by omega)
+  have hp3 := hp 3 (by omega)
+  have hp4 := hp 4 (by omega)
+  have hp5 := hp 5 (by omega)
+  have hp6 := hp 6 (by omega)
+  have hp7 := hp 7 (by omega)
+  have hp8 := hp 8 (by omega)
+  have hp9 := hp 9 (by omega)
+  have hn := nextMarker_control l hpc
+  have phase_ne {a b : Nat} (ha : a < 16) (hb : b < 16) (hab : a ≠ b) :
+      l.marker pc a ≠ l.marker pc b := by
+    intro h
+    exact hab (marker_injective_of_phase ha hb h).2
+  have hrestore := restoreRules_steps l data p4 p5 p8 p9 m r
+    (nextMarker l pc) hdata hm hr hmr hp4 hp5 hp8 hp9 hn
+    (phase_ne (by omega) (by omega) (by omega))
+    (phase_ne (by omega) (by omega) (by omega))
+    (phase_ne (by omega) (by omega) (by omega))
+    (phase_ne (by omega) (by omega) (by omega))
+    (marker_ne_nextMarker l hpc (phase := 8) (by omega))
+    (marker_ne_nextMarker l hpc (phase := 9) (by omega))
+    (by simp [List.disjoint_left, p4, p5, p8, p9, Layout.marker])
+  have hrestores : RulesSteps urs (data + Finsupp.single p4 1)
+      (boundaryTokens l (pc + 1) regs) := by
+    simpa [urs, hfinal, boundaryTokens, nextMarker_eq_target_succ] using hrestore
+  have hwhole : RulesSteps (crs ++ ers ++ urs) (data + Finsupp.single p4 1)
+      (boundaryTokens l (pc + 1) regs) := by
+    simpa only [List.append_nil] using
+      (show RulesSteps ((crs ++ ers) ++ urs ++ [])
+          (data + Finsupp.single p4 1) (boundaryTokens l (pc + 1) regs) from by
+        apply RulesSteps.embed_owned
+          (pre := crs ++ ers) (rs := urs) (post := [])
+          (preOwners := [p0, p1, p2, p3, p6, p7])
+          (owners := [p4, p5, p8, p9])
+        · intro rule hrule
+          simp only [List.mem_append] at hrule
+          rcases hrule with hrule | hrule
+          · obtain ⟨owner, rest, homem, hoc, hconsume⟩ :=
+              compareRules_ownedIn l hp0 hp1 hrule
+            refine ⟨owner, rest, ?_, hoc, hconsume⟩
+            simp only [List.mem_cons, List.not_mem_nil, or_false] at homem ⊢
+            rcases homem with rfl | rfl <;>
+              simp [p0, p1, p2, p3, p6, p7]
+          · obtain ⟨owner, rest, homem, hoc, hconsume⟩ :=
+              restoreRules_ownedIn l hp2 hp3 hp6 hp7 hrule
+            refine ⟨owner, rest, ?_, hoc, hconsume⟩
+            simp only [List.mem_cons, List.not_mem_nil, or_false] at homem ⊢
+            rcases homem with rfl | rfl | rfl | rfl <;>
+              simp [p0, p1, p2, p3, p6, p7]
+        · intro rule hrule; exact restoreRules_ownedIn l hp4 hp5 hp8 hp9 hrule
+        · simp [List.disjoint_left, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9,
+            Layout.marker]
+        · intro rule hrule
+          exact restoreRules_wellControlled l hp4 hp5 hp8 hp9 hn hm hr hrule
+        · exact ⟨p4, hp4, onlyControl_add_single hdata hp4⟩
+        · exact hrestores)
+  simpa [instrRules, hmr, crs, ers, urs, compareRules, restoreRules,
+    drainRules, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9] using hwhole
+
+theorem instrRules_J_distinct_unequal_steps (l : Layout) {pc m r q : Nat}
+    (hpc : pc < l.progLen) (hm : m < l.regBound) (hr : r < l.regBound)
+    (hmr : m ≠ r) (regs : Cslib.URM.Regs) (hne : regs m ≠ regs r) :
+    RulesSteps (instrRules l pc (.J m r q))
+      (boundaryTokens l pc regs) (boundaryTokens l (pc + 1) regs) := by
+  classical
+  let p0 := l.marker pc 0
+  let p1 := l.marker pc 1
+  let p2 := l.marker pc 2
+  let p3 := l.marker pc 3
+  let p4 := l.marker pc 4
+  let p5 := l.marker pc 5
+  let p6 := l.marker pc 6
+  let p7 := l.marker pc 7
+  let p8 := l.marker pc 8
+  let p9 := l.marker pc 9
+  let crs := compareRules l p0 p1 m r p2 p4
+  let ers := restoreRules l p2 p3 p6 p7 m r (targetMarker l q)
+  let urs := restoreRules l p4 p5 p8 p9 m r (nextMarker l pc)
+  let base := eraseToken (eraseToken (regTokens l regs) m) r
+  have hp0 : IsControl l p0 := marker_control l (by omega) (by omega)
+  have hp1 : IsControl l p1 := marker_control l (by omega) (by omega)
+  have hp2 : IsControl l p2 := marker_control l (by omega) (by omega)
+  have hp4 : IsControl l p4 := marker_control l (by omega) (by omega)
+  have hp01 : p0 ≠ p1 := by
+    simp [p0, p1, Layout.marker]
+  have hp02 : p0 ≠ p2 := by simp [p0, p2, Layout.marker]
+  have hp12 : p1 ≠ p2 := by simp [p1, p2, Layout.marker]
+  have hbaseControl : NoControl l base :=
+    eraseToken_noControl (eraseToken_noControl (regTokens_noControl l regs) m) r
+  have hbaseM : base m = 0 := by
+    rw [eraseToken_apply_of_ne _ hmr, eraseToken_apply_self]
+  have hbaseR : base r = 0 := eraseToken_apply_self _ _
+  have hbaseS0 : base l.scratch0 = 0 := by
+    rw [eraseToken_apply_of_ne _ (by unfold Layout.scratch0; omega),
+      eraseToken_apply_of_ne _ (by unfold Layout.scratch0; omega)]
+    rw [regTokens_apply, if_neg (by unfold Layout.scratch0; omega)]
+  have hbaseS1 : base l.scratch1 = 0 := by
+    rw [eraseToken_apply_of_ne _ (by unfold Layout.scratch1 Layout.scratch0; omega),
+      eraseToken_apply_of_ne _ (by unfold Layout.scratch1 Layout.scratch0; omega)]
+    rw [regTokens_apply, if_neg (by unfold Layout.scratch1 Layout.scratch0; omega)]
+  have hsplit := regTokens_split_two l regs hm hr hmr
+  by_cases hxy : regs m < regs r
+  · let excessBase := base + Finsupp.single r (regs r - regs m)
+    let data := addMany excessBase [l.scratch0, l.scratch1] (regs m) -
+      Finsupp.single r 1 + Finsupp.single l.scratch1 1
+    have hexcessControl : NoControl l excessBase :=
+      add_single_noControl hbaseControl (register_not_control hr)
+    have hexcessM : excessBase m = 0 := by
+      simp [excessBase, hbaseM, hmr]
+    have hexcessR : 1 ≤ excessBase r := by
+      simp [excessBase, hbaseR, hmr]
+      omega
+    have hstart : boundaryTokens l pc regs =
+        pairedState excessBase m r (regs m) p0 := by
+      rw [boundaryTokens, targetMarker, if_pos hpc, hsplit.symm]
+      ext i
+      simp only [pairedState, excessBase, base, p0, Finsupp.add_apply,
+        Finsupp.single_apply]
+      by_cases him : i = m
+      · subst i
+        simp [hmr, Ne.symm hmr] <;> omega
+      · by_cases hir : i = r
+        · subst i
+          simp [hmr, Ne.symm hmr] <;> omega
+        · simp [him, hir, Ne.symm him, Ne.symm hir]
+    have hcmp := compareRules_right_steps l excessBase p0 p1 m r p2 p4
+      (regs m) hexcessControl hexcessM hexcessR hm hr hmr hp0 hp1 hp4 hp01
+    have hdataControl : NoControl l data := by
+      apply add_single_noControl
+      · apply sub_noControl
+        exact addMany_noControl (regs m) hexcessControl
+          (by intro i hi
+              simp only [List.mem_cons, List.not_mem_nil, or_false] at hi
+              rcases hi with rfl | rfl
+              · exact scratch0_not_control l
+              · exact scratch1_not_control l)
+      · exact scratch1_not_control l
+    have hfinal :
+        addMany
+            (eraseToken
+              (addMany (eraseToken data l.scratch0) [m] (data l.scratch0))
+              l.scratch1)
+            [r] (data l.scratch1) = regTokens l regs := by
+      have hid := restore_right_identity l base m r (regs m) (regs r)
+        hbaseM hbaseR hbaseS0 hbaseS1 hm hr hmr hxy
+      exact (by simpa [data, excessBase] using hid.trans hsplit)
+    have hcmps : RulesSteps crs (boundaryTokens l pc regs)
+        (data + Finsupp.single p4 1) := by
+      simpa [crs, data, hstart] using hcmp
+    have hprefix : RulesSteps (instrRules l pc (.J m r q))
+        (boundaryTokens l pc regs) (data + Finsupp.single p4 1) := by
+      have hall := hcmps.append (ers ++ urs)
+      simpa [instrRules, hmr, crs, ers, urs, compareRules, restoreRules,
+        drainRules, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9] using hall
+    have hfinish := instrRules_J_unequal_finish l hpc hm hr hmr regs data
+      hdataControl hfinal (q := q)
+    exact Relation.ReflTransGen.trans hprefix hfinish
+
+  · have hyx : regs r < regs m := by omega
+    let excessBase := base + Finsupp.single m (regs m - regs r)
+    let data := addMany excessBase [l.scratch0, l.scratch1] (regs r) -
+      Finsupp.single m 1 + Finsupp.single l.scratch0 1
+    have hexcessControl : NoControl l excessBase :=
+      add_single_noControl hbaseControl (register_not_control hm)
+    have hexcessM : 1 ≤ excessBase m := by
+      simp [excessBase, hbaseM, hmr]
+      omega
+    have hexcessR : excessBase r = 0 := by
+      simp [excessBase, hbaseR, hmr]
+    have hstart : boundaryTokens l pc regs =
+        pairedState excessBase m r (regs r) p0 := by
+      rw [boundaryTokens, targetMarker, if_pos hpc, hsplit.symm]
+      ext i
+      simp only [pairedState, excessBase, base, p0, Finsupp.add_apply,
+        Finsupp.single_apply]
+      by_cases him : i = m
+      · subst i
+        simp [hmr, Ne.symm hmr] <;> omega
+      · by_cases hir : i = r
+        · subst i
+          simp [hmr, Ne.symm hmr] <;> omega
+        · simp [him, hir, Ne.symm him, Ne.symm hir]
+    have hcmp := compareRules_left_steps l excessBase p0 p1 m r p2 p4
+      (regs r) hexcessControl hexcessM hexcessR hm hr hmr hp0 hp1 hp4 hp01
+    have hdataControl : NoControl l data := by
+      apply add_single_noControl
+      · apply sub_noControl
+        exact addMany_noControl (regs r) hexcessControl
+          (by intro i hi
+              simp only [List.mem_cons, List.not_mem_nil, or_false] at hi
+              rcases hi with rfl | rfl
+              · exact scratch0_not_control l
+              · exact scratch1_not_control l)
+      · exact scratch0_not_control l
+    have hfinal :
+        addMany
+            (eraseToken
+              (addMany (eraseToken data l.scratch0) [m] (data l.scratch0))
+              l.scratch1)
+            [r] (data l.scratch1) = regTokens l regs := by
+      have hid := restore_left_identity l base m r (regs m) (regs r)
+        hbaseM hbaseR hbaseS0 hbaseS1 hm hr hmr hyx
+      exact (by simpa [data, excessBase] using hid.trans hsplit)
+    have hcmps : RulesSteps crs (boundaryTokens l pc regs)
+        (data + Finsupp.single p4 1) := by
+      simpa [crs, data, hstart] using hcmp
+    have hprefix : RulesSteps (instrRules l pc (.J m r q))
+        (boundaryTokens l pc regs) (data + Finsupp.single p4 1) := by
+      have hall := hcmps.append (ers ++ urs)
+      simpa [instrRules, hmr, crs, ers, urs, compareRules, restoreRules,
+        drainRules, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9] using hall
+    have hfinish := instrRules_J_unequal_finish l hpc hm hr hmr regs data
+      hdataControl hfinal (q := q)
+    exact Relation.ReflTransGen.trans hprefix hfinish
+
+theorem instrRules_J_steps (l : Layout) {pc m r q : Nat}
+    (hpc : pc < l.progLen) (hm : m < l.regBound) (hr : r < l.regBound)
+    (regs : Cslib.URM.Regs) :
+    RulesSteps (instrRules l pc (.J m r q))
+      (boundaryTokens l pc regs)
+      (boundaryTokens l (if regs m = regs r then q else pc + 1) regs) := by
+  by_cases hmr : m = r
+  · subst r
+    simpa using instrRules_J_same_steps l hpc regs (m := m) (q := q)
+  · by_cases heq : regs m = regs r
+    · simpa [heq] using
+        instrRules_J_distinct_equal_steps l hpc hm hr hmr regs heq (q := q)
+    · simpa [heq] using
+        instrRules_J_distinct_unequal_steps l hpc hm hr hmr regs heq (q := q)
+
 /-- Every rule in an instruction block is owned by one of that block's
 sixteen reserved phase markers. -/
 def SRule.OwnedBy (l : Layout) (pc : Nat) (r : SRule) : Prop :=
@@ -2133,6 +3076,46 @@ def blocksRules (l : Layout) : Nat → Program → List SRule
   | _, [] => []
   | pc, i :: rest => instrRules l pc i ++ blocksRules l (pc + 1) rest
 
+/-- The control markers which may own an instruction rule.  The halt marker
+is deliberately excluded, which makes the first cleanup rule safe from all
+instruction blocks preceding it. -/
+def blockOwners (l : Layout) : List Nat :=
+  (List.range (16 * l.progLen)).map fun offset => l.regBound + offset
+
+theorem marker_mem_blockOwners (l : Layout) {pc phase : Nat}
+    (hpc : pc < l.progLen) (hphase : phase < 16) :
+    l.marker pc phase ∈ blockOwners l := by
+  unfold blockOwners Layout.marker
+  simp only [List.mem_map, List.mem_range]
+  exact ⟨16 * pc + phase, by omega, by omega⟩
+
+theorem blockOwners_lt_halt (l : Layout) {owner : Nat}
+    (howner : owner ∈ blockOwners l) : owner < l.halt := by
+  unfold blockOwners at howner
+  simp only [List.mem_map, List.mem_range] at howner
+  obtain ⟨offset, hoffset, rfl⟩ := howner
+  unfold Layout.halt Layout.marker
+  omega
+
+theorem blockOwners_disjoint_halt (l : Layout) :
+    (blockOwners l).Disjoint [l.halt] := by
+  rw [List.disjoint_left]
+  intro owner howner hhalt
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hhalt
+  subst owner
+  exact Nat.lt_irrefl _ (blockOwners_lt_halt l howner)
+
+theorem blockOwners_disjoint_clean (l : Layout) (r phase : Nat) :
+    (blockOwners l).Disjoint [l.clean r phase] := by
+  rw [List.disjoint_left]
+  intro owner hblock hclean
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hclean
+  subst owner
+  have hlt := blockOwners_lt_halt l hblock
+  unfold Layout.halt Layout.marker Layout.clean Layout.cleanBase
+    Layout.scratch1 Layout.scratch0 at hlt
+  omega
+
 theorem blocksRules_owned (l : Layout) (start : Nat) (P : Program)
     {r : SRule} (hr : r ∈ blocksRules l start P) :
     ∃ pc, start ≤ pc ∧ pc < start + P.length ∧ r.OwnedBy l pc := by
@@ -2146,6 +3129,15 @@ theorem blocksRules_owned (l : Layout) (start : Nat) (P : Program)
       refine ⟨pc, by omega, ?_, hown⟩
       simp only [List.length_cons]
       omega
+
+theorem blocksRules_ownedIn (l : Layout) (P : Program)
+    (hlen : P.length ≤ l.progLen) {r : SRule}
+    (hr : r ∈ blocksRules l 0 P) : r.OwnedIn l (blockOwners l) := by
+  obtain ⟨pc, _hlow, hhigh, phase, rest, hphase, hconsume⟩ :=
+    blocksRules_owned l 0 P hr
+  simp only [Nat.zero_add] at hhigh
+  refine ⟨l.marker pc phase, rest, marker_mem_blockOwners l (by omega) hphase,
+    marker_control l (by omega) hphase, hconsume⟩
 
 theorem blocksRules_split (l : Layout) (start : Nat) (P : Program)
     {k : Nat} {i : Cslib.URM.Instr} (hi : P[k]? = some i) :
@@ -2203,15 +3195,339 @@ def cleanupFromRules (l : Layout) : Nat → List SRule
 termination_by r => l.regBound - r
 decreasing_by omega
 
-theorem cleanupFromRules_map (l : Layout) (r : Nat) :
-    (cleanupFromRules l r).map SRule.toFrac = cleanupFrom l r := by
-  rw [cleanupFromRules, cleanupFrom]
-  split
-  · simp only [List.map_append, zeroRules_map]
-    rw [cleanupFromRules_map l (r + 1)]
-  · rfl
-termination_by l.regBound - r
+def cleanupLoopRules (l : Layout) : Nat → List SRule
+  | r =>
+      if r < l.regBound then
+        zeroRules (l.clean r 0) (l.clean r 1) r (l.clean (r + 1) 0) ++
+          cleanupLoopRules l (r + 1)
+      else []
+termination_by r => l.regBound - r
 decreasing_by omega
+
+def cleanupOwners (l : Layout) : Nat → List Nat
+  | r =>
+      if r < l.regBound then
+        [l.clean r 0, l.clean r 1] ++ cleanupOwners l (r + 1)
+      else []
+termination_by r => l.regBound - r
+decreasing_by omega
+
+noncomputable def clearFromTokens (l : Layout) : Tokens → Nat → Tokens
+  | data, r =>
+      if r < l.regBound then clearFromTokens l (eraseToken data r) (r + 1)
+      else data
+termination_by data r => l.regBound - r
+decreasing_by omega
+
+theorem clean_injective_of_phase {l : Layout} {r r' phase phase' : Nat}
+    (hphase : phase < 2) (hphase' : phase' < 2)
+    (h : l.clean r phase = l.clean r' phase') :
+    r = r' ∧ phase = phase' := by
+  unfold Layout.clean at h
+  constructor <;> omega
+
+theorem cleanupOwners_spec (l : Layout) (start : Nat) {owner : Nat}
+    (howner : owner ∈ cleanupOwners l start) :
+    ∃ r phase, start ≤ r ∧ r < l.regBound ∧ phase < 2 ∧
+      owner = l.clean r phase := by
+  rw [cleanupOwners] at howner
+  split at howner
+  · simp only [List.mem_append, List.mem_cons, List.not_mem_nil, or_false] at howner
+    rcases howner with (rfl | rfl) | howner
+    · exact ⟨start, 0, le_rfl, by assumption, by omega, rfl⟩
+    · exact ⟨start, 1, le_rfl, by assumption, by omega, rfl⟩
+    · obtain ⟨r, phase, hlower, hupper, hphase, heq⟩ :=
+        cleanupOwners_spec l (start + 1) howner
+      exact ⟨r, phase, by omega, hupper, hphase, heq⟩
+  · simp at howner
+termination_by l.regBound - start
+decreasing_by omega
+
+theorem cleanupOwners_control (l : Layout) (start : Nat) {owner : Nat}
+    (howner : owner ∈ cleanupOwners l start) : IsControl l owner := by
+  obtain ⟨r, phase, _hlower, _hupper, hphase, rfl⟩ :=
+    cleanupOwners_spec l start howner
+  exact clean_control l r phase
+
+theorem blockOwners_disjoint_cleanupOwners (l : Layout) (start : Nat) :
+    (blockOwners l).Disjoint (cleanupOwners l start) := by
+  rw [List.disjoint_left]
+  intro owner hblock hclean
+  obtain ⟨r, phase, _hlower, _hupper, _hphase, heq⟩ :=
+    cleanupOwners_spec l start hclean
+  have hlt := blockOwners_lt_halt l hblock
+  rw [heq] at hlt
+  unfold Layout.halt Layout.marker Layout.clean Layout.cleanBase
+    Layout.scratch1 Layout.scratch0 at hlt
+  omega
+
+theorem cleanupOwners_disjoint_next (l : Layout) {r : Nat}
+    (hr : r < l.regBound) :
+    [l.clean r 0, l.clean r 1].Disjoint (cleanupOwners l (r + 1)) := by
+  rw [List.disjoint_left]
+  intro owner hcurrent hlater
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hcurrent
+  obtain ⟨k, phase, hlower, _hupper, hphase, heq⟩ :=
+    cleanupOwners_spec l (r + 1) hlater
+  rcases hcurrent with rfl | rfl
+  · have h := clean_injective_of_phase (l := l) (r := r) (r' := k)
+      (phase := 0) (phase' := phase) (by omega) hphase heq
+    omega
+  · have h := clean_injective_of_phase (l := l) (r := r) (r' := k)
+      (phase := 1) (phase' := phase) (by omega) hphase heq
+    omega
+
+theorem cleanupLoop_ownedIn (l : Layout) (start : Nat) {q : SRule}
+    (hq : q ∈ cleanupLoopRules l start) : q.OwnedIn l (cleanupOwners l start) := by
+  by_cases hstart : start < l.regBound
+  · rw [cleanupLoopRules, if_pos hstart] at hq
+    rw [cleanupOwners, if_pos hstart]
+    simp only [List.mem_append] at hq
+    rcases hq with hq | hq
+    · obtain ⟨owner, rest, homem, hoc, hconsume⟩ :=
+        zeroRules_ownedIn l (clean_control l start 0) (clean_control l start 1) hq
+      refine ⟨owner, rest, ?_, hoc, hconsume⟩
+      simp only [List.mem_append]
+      exact Or.inl homem
+    · obtain ⟨owner, rest, homem, hoc, hconsume⟩ :=
+        cleanupLoop_ownedIn l (start + 1) hq
+      refine ⟨owner, rest, ?_, hoc, hconsume⟩
+      simp only [List.mem_append]
+      exact Or.inr homem
+  · rw [cleanupLoopRules, if_neg hstart] at hq
+    simp at hq
+termination_by l.regBound - start
+decreasing_by omega
+
+theorem cleanupLoop_wellControlled (l : Layout) (start : Nat) {q : SRule}
+    (hq : q ∈ cleanupLoopRules l start) : q.WellControlled l := by
+  rw [cleanupLoopRules] at hq
+  split at hq
+  · simp only [List.mem_append] at hq
+    rcases hq with hq | hq
+    · simpa [zeroRules, drainRules] using
+        (drainRules_wellControlled l (clean_control l start 0)
+          (clean_control l start 1) (clean_control l (start + 1) 0)
+          (register_not_control (by assumption))
+          (by simp) hq)
+    · exact cleanupLoop_wellControlled l (start + 1) hq
+  · simp at hq
+termination_by l.regBound - start
+decreasing_by omega
+
+theorem cleanupLoop_steps (l : Layout) (data : Tokens) (start : Nat)
+    (hdata : NoControl l data) :
+    RulesSteps (cleanupLoopRules l start)
+      (data + Finsupp.single (l.clean start 0) 1)
+      (clearFromTokens l data start +
+        Finsupp.single (l.clean (max start l.regBound) 0) 1) := by
+  by_cases hstart : start < l.regBound
+  · let a := l.clean start 0
+    let b := l.clean start 1
+    let next := l.clean (start + 1) 0
+    let base := eraseToken data start
+    have ha := clean_control l start 0
+    have hb := clean_control l start 1
+    have hn := clean_control l (start + 1) 0
+    have hab : a ≠ b := by unfold a b Layout.clean; omega
+    have han : a ≠ next := by unfold a next Layout.clean; omega
+    have hbn : b ≠ next := by unfold b next Layout.clean; omega
+    have hzero := zeroRules_steps l base a b start next (data start)
+      (eraseToken_noControl hdata start) (eraseToken_apply_self _ _) hstart
+      ha hb hn hab han hbn
+    have hstate : data + Finsupp.single a 1 =
+        counterState base start (data start) a := by
+      rw [← eraseToken_add_self data start]
+      simp [counterState, base, add_assoc]
+    have hzeros : RulesSteps (zeroRules a b start next)
+        (data + Finsupp.single a 1) (base + Finsupp.single next 1) := by
+      simpa [hstate] using hzero
+    have hrec := cleanupLoop_steps l base (start + 1)
+      (eraseToken_noControl hdata start)
+    have hzeroWhole : RulesSteps (cleanupLoopRules l start)
+        (data + Finsupp.single a 1) (base + Finsupp.single next 1) := by
+      rw [cleanupLoopRules, if_pos hstart]
+      simpa [a, b, next] using hzeros.append (cleanupLoopRules l (start + 1))
+    have hrecWhole : RulesSteps (cleanupLoopRules l start)
+        (base + Finsupp.single next 1)
+        (clearFromTokens l base (start + 1) +
+          Finsupp.single (l.clean (max (start + 1) l.regBound) 0) 1) := by
+      rw [cleanupLoopRules, if_pos hstart]
+      simpa only [List.append_nil] using
+        (show RulesSteps
+            (zeroRules a b start next ++ cleanupLoopRules l (start + 1) ++ [])
+            (base + Finsupp.single next 1)
+            (clearFromTokens l base (start + 1) +
+              Finsupp.single (l.clean (max (start + 1) l.regBound) 0) 1) from by
+          apply RulesSteps.embed_owned
+            (preOwners := [a, b]) (owners := cleanupOwners l (start + 1))
+          · intro q hq; exact zeroRules_ownedIn l ha hb hq
+          · intro q hq; exact cleanupLoop_ownedIn l (start + 1) hq
+          · simpa [a, b] using cleanupOwners_disjoint_next l hstart
+          · intro q hq; exact cleanupLoop_wellControlled l (start + 1) hq
+          · exact ⟨next, hn, onlyControl_add_single
+              (eraseToken_noControl hdata start) hn⟩
+          · simpa [base, next] using hrec)
+    have hall := Relation.ReflTransGen.trans hzeroWhole hrecWhole
+    rw [clearFromTokens, if_pos hstart]
+    have hmax0 : max start l.regBound = l.regBound := max_eq_right (Nat.le_of_lt hstart)
+    have hmax1 : max (start + 1) l.regBound = l.regBound := by
+      apply max_eq_right
+      omega
+    simpa [base, hmax0, hmax1] using hall
+  · rw [cleanupLoopRules, if_neg hstart, clearFromTokens, if_neg hstart]
+    have hmax : max start l.regBound = start := max_eq_left (Nat.le_of_not_gt hstart)
+    rw [hmax]
+termination_by l.regBound - start
+decreasing_by omega
+
+theorem clearFromTokens_noControl (l : Layout) (data : Tokens) (start : Nat)
+    (hdata : NoControl l data) : NoControl l (clearFromTokens l data start) := by
+  rw [clearFromTokens]
+  split
+  · exact clearFromTokens_noControl l (eraseToken data start) (start + 1)
+      (eraseToken_noControl hdata start)
+  · exact hdata
+termination_by l.regBound - start
+decreasing_by omega
+
+theorem cleanupFromRules_eq_loop (l : Layout) (start : Nat) :
+    cleanupFromRules l start = cleanupLoopRules l start ++
+      [srule [] [l.clean (max start l.regBound) 0]] := by
+  by_cases hstart : start < l.regBound
+  · rw [cleanupFromRules, if_pos hstart, cleanupLoopRules, if_pos hstart,
+      cleanupFromRules_eq_loop l (start + 1)]
+    have hmax0 : max start l.regBound = l.regBound :=
+      max_eq_right (Nat.le_of_lt hstart)
+    have hmax1 : max (start + 1) l.regBound = l.regBound := by
+      apply max_eq_right
+      omega
+    simp [hmax0, hmax1, List.append_assoc]
+  · rw [cleanupFromRules, if_neg hstart, cleanupLoopRules, if_neg hstart]
+    have hmax : max start l.regBound = start :=
+      max_eq_left (Nat.le_of_not_gt hstart)
+    simp [hmax]
+termination_by l.regBound - start
+decreasing_by omega
+
+theorem cleanupOwners_disjoint_end (l : Layout) (start : Nat) :
+    (cleanupOwners l start).Disjoint [l.clean (max start l.regBound) 0] := by
+  rw [List.disjoint_left]
+  intro owner howner hend
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hend
+  subst owner
+  obtain ⟨r, phase, _hlower, hupper, hphase, heq⟩ :=
+    cleanupOwners_spec l start howner
+  have hclean := clean_injective_of_phase (l := l) (r := max start l.regBound)
+    (r' := r) (phase := 0) (phase' := phase) (by omega) hphase heq
+  have hbound : l.regBound ≤ max start l.regBound := le_max_right _ _
+  omega
+
+theorem consume_control_enabled {base : Tokens} {owner : Nat} :
+    (srule [] [owner]).Enabled (base + Finsupp.single owner 1) := by
+  classical
+  unfold SRule.Enabled
+  rw [Finsupp.le_def]
+  intro i
+  simp only [srule, tokensOfList, Finsupp.add_apply, Finsupp.single_apply]
+  by_cases hio : i = owner <;> subst_vars <;> simp_all
+
+theorem consume_control_apply {l : Layout} {base : Tokens} {owner : Nat}
+    (hbase : NoControl l base) (howner : IsControl l owner) :
+    (srule [] [owner]).apply (base + Finsupp.single owner 1) = base := by
+  classical
+  have hbo := hbase owner howner
+  ext i
+  simp only [SRule.apply, srule, tokensOfList, Finsupp.add_apply,
+    Finsupp.single_apply, Finsupp.tsub_apply]
+  by_cases hio : i = owner
+  · subst i; simp [hbo]
+  · simp [hio, Ne.symm hio]
+
+theorem cleanupFromRules_steps (l : Layout) (data : Tokens) (start : Nat)
+    (hdata : NoControl l data) :
+    RulesSteps (cleanupFromRules l start)
+      (data + Finsupp.single (l.clean start 0) 1)
+      (clearFromTokens l data start) := by
+  let endMarker := l.clean (max start l.regBound) 0
+  have hendControl : IsControl l endMarker := clean_control l _ 0
+  have hloop := cleanupLoop_steps l data start hdata
+  have hclearControl := clearFromTokens_noControl l data start hdata
+  let finalRule := srule [] [endMarker]
+  have hfinalEnabled : finalRule.Enabled
+      (clearFromTokens l data start + Finsupp.single endMarker 1) := by
+    exact consume_control_enabled
+  have hfinalApply : finalRule.apply
+      (clearFromTokens l data start + Finsupp.single endMarker 1) =
+      clearFromTokens l data start := by
+    exact consume_control_apply hclearControl hendControl
+  have hfinalLocal : RulesStep [finalRule]
+      (clearFromTokens l data start + Finsupp.single endMarker 1)
+      (clearFromTokens l data start) := by
+    simpa [hfinalApply] using RulesStep.head hfinalEnabled
+  have hfinalWhole : RulesStep
+      (cleanupLoopRules l start ++ [finalRule])
+      (clearFromTokens l data start + Finsupp.single endMarker 1)
+      (clearFromTokens l data start) := by
+    simpa only [List.append_nil] using
+      (show RulesStep (cleanupLoopRules l start ++ [finalRule] ++ [])
+          (clearFromTokens l data start + Finsupp.single endMarker 1)
+          (clearFromTokens l data start) from by
+        apply RulesStep.embed_owned
+          (preOwners := cleanupOwners l start) (owners := [endMarker])
+        · intro q hq; exact cleanupLoop_ownedIn l start hq
+        · intro q hq
+          simp only [List.mem_cons, List.not_mem_nil, or_false] at hq
+          subst q
+          exact ⟨endMarker, [], by simp, hendControl, rfl⟩
+        · simpa [endMarker] using cleanupOwners_disjoint_end l start
+        · exact ⟨endMarker, hendControl, onlyControl_add_single hclearControl hendControl⟩
+        · exact hfinalLocal)
+  rw [cleanupFromRules_eq_loop]
+  exact Relation.ReflTransGen.tail
+    (by simpa [endMarker, finalRule] using hloop.append [finalRule]) hfinalWhole
+
+theorem clearFromTokens_apply (l : Layout) (data : Tokens) (start i : Nat) :
+    clearFromTokens l data start i =
+      if start ≤ i ∧ i < l.regBound then 0 else data i := by
+  by_cases hstart : start < l.regBound
+  · rw [clearFromTokens, if_pos hstart,
+      clearFromTokens_apply l (eraseToken data start) (start + 1) i]
+    by_cases his : i = start
+    · subst i
+      simp [eraseToken_apply_self, hstart]
+    · rw [eraseToken_apply_of_ne _ his]
+      by_cases hlt : start < i
+      · simp [Nat.succ_le_iff.mpr hlt, Nat.le_of_lt hlt]
+      · have : i < start := by omega
+        simp [show ¬start ≤ i by omega, show ¬start + 1 ≤ i by omega]
+  · rw [clearFromTokens, if_neg hstart]
+    have : l.regBound ≤ start := Nat.le_of_not_gt hstart
+    simp
+    omega
+termination_by l.regBound - start
+decreasing_by omega
+
+theorem clearFrom_regTokens_one (l : Layout) (regs : Cslib.URM.Regs)
+    (hpos : 0 < l.regBound) :
+    clearFromTokens l (regTokens l regs) 1 = Finsupp.single 0 (regs 0) := by
+  classical
+  ext i
+  rw [clearFromTokens_apply]
+  by_cases hi : i = 0
+  · subst i
+    simp [regTokens_apply, hpos]
+  · rw [regTokens_apply]
+    by_cases hib : i < l.regBound
+    · have hi1 : 1 ≤ i := by omega
+      simp [hib, hi, hi1]
+    · simp [hib, hi]
+
+theorem halt_ne_clean (l : Layout) (r phase : Nat) :
+    l.halt ≠ l.clean r phase := by
+  unfold Layout.halt Layout.marker Layout.clean Layout.cleanBase
+    Layout.scratch1 Layout.scratch0
+  omega
 
 def cleanup (l : Layout) : List Frac :=
   if 1 < l.regBound then
@@ -2222,6 +3538,162 @@ def cleanupRules (l : Layout) : List SRule :=
   if 1 < l.regBound then
     srule [l.clean 1 0] [l.halt] :: cleanupFromRules l 1
   else [srule [] [l.halt]]
+
+theorem cleanupRules_steps (l : Layout) (regs : Cslib.URM.Regs)
+    (hpos : 0 < l.regBound) :
+    RulesSteps (cleanupRules l)
+      (regTokens l regs + Finsupp.single l.halt 1)
+      (Finsupp.single 0 (regs 0)) := by
+  have hregControl := regTokens_noControl l regs
+  by_cases hlarge : 1 < l.regBound
+  · let firstRule := srule [l.clean 1 0] [l.halt]
+    let finalMarker := l.clean l.regBound 0
+    let finalRule := srule [] [finalMarker]
+    have hhalt := halt_control l
+    have hclean1 := clean_control l 1 0
+    have hfirstEnabled : firstRule.Enabled
+        (regTokens l regs + Finsupp.single l.halt 1) := by
+      simpa [firstRule, SRule.Enabled, srule] using
+        counter_finish_enabled (base := regTokens l regs) (r := 0)
+          (next := l.clean 1 0) (hregControl l.halt hhalt)
+    have hfirstApply : firstRule.apply
+        (regTokens l regs + Finsupp.single l.halt 1) =
+        regTokens l regs + Finsupp.single (l.clean 1 0) 1 := by
+      simpa [firstRule, counterState] using
+        counter_apply_finish (base := regTokens l regs) (r := 0)
+          (owner := l.halt) (next := l.clean 1 0)
+          (hregControl l.halt hhalt) (hregControl (l.clean 1 0) hclean1)
+          (halt_ne_clean l 1 0)
+    have hfirst : RulesStep (cleanupRules l)
+        (regTokens l regs + Finsupp.single l.halt 1)
+        (regTokens l regs + Finsupp.single (l.clean 1 0) 1) := by
+      rw [cleanupRules, if_pos hlarge, cleanupFromRules_eq_loop]
+      simpa [firstRule, hfirstApply] using RulesStep.head hfirstEnabled
+    have hloop := cleanupLoop_steps l (regTokens l regs) 1 hregControl
+    have hloopTarget :
+        clearFromTokens l (regTokens l regs) 1 + Finsupp.single finalMarker 1 =
+          Finsupp.single 0 (regs 0) + Finsupp.single finalMarker 1 := by
+      rw [clearFrom_regTokens_one l regs (by omega)]
+    have hhaltOwners : [l.halt].Disjoint (cleanupOwners l 1) := by
+      rw [List.disjoint_left]
+      intro owner hmem hlater
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at hmem
+      subst owner
+      obtain ⟨r, phase, _hlower, _hupper, _hphase, heq⟩ :=
+        cleanupOwners_spec l 1 hlater
+      exact halt_ne_clean l r phase heq
+    have hloopWhole : RulesSteps (cleanupRules l)
+        (regTokens l regs + Finsupp.single (l.clean 1 0) 1)
+        (Finsupp.single 0 (regs 0) + Finsupp.single finalMarker 1) := by
+      rw [cleanupRules, if_pos hlarge, cleanupFromRules_eq_loop]
+      have hmax : max 1 l.regBound = l.regBound := max_eq_right (by omega)
+      rw [hmax]
+      change RulesSteps ([firstRule] ++ cleanupLoopRules l 1 ++ [finalRule])
+        (regTokens l regs + Finsupp.single (l.clean 1 0) 1)
+        (Finsupp.single 0 (regs 0) + Finsupp.single finalMarker 1)
+      apply RulesSteps.embed_owned
+        (pre := [firstRule]) (rs := cleanupLoopRules l 1) (post := [finalRule])
+        (preOwners := [l.halt]) (owners := cleanupOwners l 1)
+      · intro q hq
+        simp only [List.mem_cons, List.not_mem_nil, or_false] at hq
+        subst q
+        exact ⟨l.halt, [], by simp, hhalt, rfl⟩
+      · intro q hq; exact cleanupLoop_ownedIn l 1 hq
+      · exact hhaltOwners
+      · intro q hq; exact cleanupLoop_wellControlled l 1 hq
+      · exact ⟨l.clean 1 0, hclean1,
+          onlyControl_add_single hregControl hclean1⟩
+      · rw [hmax, clearFrom_regTokens_one l regs (by omega)] at hloop
+        simpa [finalMarker] using hloop
+    have hclearControl : NoControl l (Finsupp.single 0 (regs 0)) := by
+      intro i hi
+      have hi0 : i ≠ 0 := by
+        intro h
+        subst i
+        exact Nat.not_le_of_lt (by omega) (control_ge_bound hi)
+      simp [hi0]
+    have hfinalEnabled : finalRule.Enabled
+        (Finsupp.single 0 (regs 0) + Finsupp.single finalMarker 1) := by
+      exact consume_control_enabled
+    have hfinalApply : finalRule.apply
+        (Finsupp.single 0 (regs 0) + Finsupp.single finalMarker 1) =
+        Finsupp.single 0 (regs 0) := by
+      exact consume_control_apply hclearControl (clean_control l l.regBound 0)
+    have hpreOwners : (l.halt :: cleanupOwners l 1).Disjoint [finalMarker] := by
+      rw [List.disjoint_left]
+      intro owner howner hend
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at howner hend
+      subst owner
+      rcases howner with hhaltEq | hloopOwner
+      · exact halt_ne_clean l l.regBound 0 hhaltEq.symm
+      · have hd := cleanupOwners_disjoint_end l 1
+        have hmax : max 1 l.regBound = l.regBound := max_eq_right (by omega)
+        rw [hmax, List.disjoint_left] at hd
+        exact hd hloopOwner (by simp [finalMarker])
+    have hfinal : RulesStep (cleanupRules l)
+        (Finsupp.single 0 (regs 0) + Finsupp.single finalMarker 1)
+        (Finsupp.single 0 (regs 0)) := by
+      rw [cleanupRules, if_pos hlarge, cleanupFromRules_eq_loop]
+      have hmax : max 1 l.regBound = l.regBound := max_eq_right (by omega)
+      rw [hmax]
+      simpa [firstRule, finalRule, List.append_assoc] using
+        (show RulesStep
+            ([firstRule] ++ cleanupLoopRules l 1 ++ [finalRule] ++ [])
+            (Finsupp.single 0 (regs 0) + Finsupp.single finalMarker 1)
+            (Finsupp.single 0 (regs 0)) from by
+          apply RulesStep.embed_owned
+            (preOwners := l.halt :: cleanupOwners l 1)
+            (owners := [finalMarker])
+          · intro q hq
+            simp only [List.mem_append, List.mem_cons, List.not_mem_nil,
+              or_false] at hq
+            rcases hq with hq | hq
+            · subst q
+              exact ⟨l.halt, [], by simp, hhalt, rfl⟩
+            · obtain ⟨owner, rest, homem, hoc, hconsume⟩ :=
+                cleanupLoop_ownedIn l 1 hq
+              exact ⟨owner, rest, by simp [homem], hoc, hconsume⟩
+          · intro q hq
+            simp only [List.mem_cons, List.not_mem_nil, or_false] at hq
+            subst q
+            exact ⟨finalMarker, [], by simp, clean_control l l.regBound 0, rfl⟩
+          · exact hpreOwners
+          · exact ⟨finalMarker, clean_control l l.regBound 0,
+              onlyControl_add_single hclearControl (clean_control l l.regBound 0)⟩
+          · simpa [finalRule, hfinalApply] using RulesStep.head hfinalEnabled)
+    exact Relation.ReflTransGen.tail
+      (Relation.ReflTransGen.head hfirst hloopWhole) hfinal
+  · have hbound : l.regBound = 1 := by omega
+    have hhalt := halt_control l
+    have hfinalEnabled : (srule [] [l.halt]).Enabled
+        (regTokens l regs + Finsupp.single l.halt 1) := consume_control_enabled
+    have hfinalApply : (srule [] [l.halt]).apply
+        (regTokens l regs + Finsupp.single l.halt 1) = regTokens l regs :=
+      consume_control_apply hregControl hhalt
+    have hreg : regTokens l regs = Finsupp.single 0 (regs 0) := by
+      ext i
+      by_cases hi : i = 0
+      · subst i; simp [regTokens_apply, hbound]
+      · simp [regTokens_apply, hbound, hi]
+    have hstep : RulesStep (cleanupRules l)
+        (regTokens l regs + Finsupp.single l.halt 1)
+        (Finsupp.single 0 (regs 0)) := by
+      rw [cleanupRules, if_neg hlarge]
+      have hlocal : RulesStep [srule [] [l.halt]]
+          (regTokens l regs + Finsupp.single l.halt 1) (regTokens l regs) := by
+        simpa [hfinalApply] using RulesStep.head hfinalEnabled
+      simpa [hreg] using hlocal
+    exact Relation.ReflTransGen.single hstep
+
+theorem cleanupFromRules_map (l : Layout) (r : Nat) :
+    (cleanupFromRules l r).map SRule.toFrac = cleanupFrom l r := by
+  rw [cleanupFromRules, cleanupFrom]
+  split
+  · simp only [List.map_append, zeroRules_map]
+    rw [cleanupFromRules_map l (r + 1)]
+  · rfl
+termination_by l.regBound - r
+decreasing_by omega
 
 theorem cleanupRules_map (l : Layout) :
     (cleanupRules l).map SRule.toFrac = cleanup l := by
@@ -2249,6 +3721,62 @@ def encodeInput (P : Program) (inputs : List Nat) : Nat :=
   primeAt (if P.isEmpty then l.halt else l.marker 0 0) *
     ((List.range inputs.length).map fun r => primeAt r ^ inputs.getD r 0).prod
 
+theorem regTokens_ofInputs (P : Program) (inputs : List Nat) :
+    regTokens (layout P inputs) (Cslib.URM.Regs.ofInputs inputs) =
+      (Finset.range inputs.length).sum fun r =>
+        Finsupp.single r (inputs.getD r 0) := by
+  classical
+  ext i
+  rw [regTokens_apply]
+  by_cases hi : i < inputs.length
+  · have hib : i < (layout P inputs).regBound := by
+      change i < registerBound P inputs
+      exact lt_of_lt_of_le hi (Nat.le_max_right _ _)
+    simp [Cslib.URM.Regs.ofInputs, Finset.sum_apply,
+      Finsupp.single_apply, hi, hib]
+  · have hget : inputs.getD i 0 = 0 := by
+      rw [List.getD_eq_getElem?_getD, List.getElem?_eq_none (Nat.le_of_not_gt hi)]
+      rfl
+    simp [Cslib.URM.Regs.ofInputs, Finset.sum_apply,
+      Finsupp.single_apply, hi, hget]
+
+theorem encodeTokens_inputSum (inputs : List Nat) :
+    encodeTokens
+        ((Finset.range inputs.length).sum fun r =>
+          Finsupp.single r (inputs.getD r 0)) =
+      ((List.range inputs.length).map fun r =>
+        primeAt r ^ inputs.getD r 0).prod := by
+  induction inputs.length with
+  | zero => simp
+  | succ n ih =>
+    rw [Finset.sum_range_succ, encodeTokens_add, encodeTokens_single,
+      List.range_succ, List.map_append, List.prod_append]
+    simpa using congrArg (fun x => x * primeAt n ^ inputs.getD n 0) ih
+
+theorem encodeInput_eq_encodeTokens_boundary (P : Program) (inputs : List Nat) :
+    encodeInput P inputs =
+      encodeTokens
+        (boundaryTokens (layout P inputs) 0
+          (Cslib.URM.Regs.ofInputs inputs)) := by
+  let l := layout P inputs
+  have hregs : encodeTokens (regTokens l (Cslib.URM.Regs.ofInputs inputs)) =
+      ((List.range inputs.length).map fun r =>
+        primeAt r ^ inputs.getD r 0).prod := by
+    rw [show regTokens l (Cslib.URM.Regs.ofInputs inputs) =
+        (Finset.range inputs.length).sum fun r =>
+          Finsupp.single r (inputs.getD r 0) by
+      simpa [l] using regTokens_ofInputs P inputs]
+    exact encodeTokens_inputSum inputs
+  unfold encodeInput boundaryTokens
+  rw [encodeTokens_add, encodeTokens_single, pow_one, hregs]
+  by_cases hempty : P.isEmpty
+  · have hp : P = [] := List.isEmpty_iff.mp hempty
+    subst P
+    simp [l, layout, targetMarker, Nat.mul_comm]
+  · have hp : P ≠ [] := by simpa [List.isEmpty_iff] using hempty
+    have hlen : 0 < P.length := List.length_pos_iff.mpr hp
+    simp [l, layout, targetMarker, hempty, hlen, Nat.mul_comm]
+
 theorem encodeInput_pos (P : Program) (inputs : List Nat) :
     0 < encodeInput P inputs := by
   unfold encodeInput
@@ -2264,6 +3792,224 @@ theorem encodeInput_pos (P : Program) (inputs : List Nat) :
 def compileRules (P : Program) (inputs : List Nat) : List SRule :=
   let l := layout P inputs
   blocksRules l 0 P ++ cleanupRules l
+
+/-- Once the URM control counter reaches the halt marker, the cleanup suffix
+runs under the first-match semantics of the complete compiled rule list. -/
+theorem cleanupSteps_compileRules (P : Program) (inputs : List Nat)
+    (regs : Cslib.URM.Regs) :
+    RulesSteps (compileRules P inputs)
+      (regTokens (layout P inputs) regs +
+        Finsupp.single (layout P inputs).halt 1)
+      (Finsupp.single 0 (regs 0)) := by
+  let l := layout P inputs
+  have hlen : P.length ≤ l.progLen := by simp [l, layout]
+  have hregControl := regTokens_noControl l regs
+  have hblocks : ∀ q ∈ blocksRules l 0 P, q.OwnedIn l (blockOwners l) := by
+    intro q hq
+    exact blocksRules_ownedIn l P hlen hq
+  have hpos : 0 < l.regBound := by
+    simpa [l, layout] using registerBound_pos P inputs
+  by_cases hlarge : 1 < l.regBound
+  · let firstRule := srule [l.clean 1 0] [l.halt]
+    let finalMarker := l.clean l.regBound 0
+    let finalRule := srule [] [finalMarker]
+    have hhalt := halt_control l
+    have hclean1 := clean_control l 1 0
+    have hfirstEnabled : firstRule.Enabled
+        (regTokens l regs + Finsupp.single l.halt 1) := by
+      simpa [firstRule, SRule.Enabled, srule] using
+        counter_finish_enabled (base := regTokens l regs) (r := 0)
+          (next := l.clean 1 0) (hregControl l.halt hhalt)
+    have hfirstApply : firstRule.apply
+        (regTokens l regs + Finsupp.single l.halt 1) =
+        regTokens l regs + Finsupp.single (l.clean 1 0) 1 := by
+      simpa [firstRule, counterState] using
+        counter_apply_finish (base := regTokens l regs) (r := 0)
+          (owner := l.halt) (next := l.clean 1 0)
+          (hregControl l.halt hhalt) (hregControl (l.clean 1 0) hclean1)
+          (halt_ne_clean l 1 0)
+    have hfirstLocal : RulesStep [firstRule]
+        (regTokens l regs + Finsupp.single l.halt 1)
+        (regTokens l regs + Finsupp.single (l.clean 1 0) 1) := by
+      simpa [hfirstApply] using RulesStep.head hfirstEnabled
+    have hfirst : RulesStep (compileRules P inputs)
+        (regTokens l regs + Finsupp.single l.halt 1)
+        (regTokens l regs + Finsupp.single (l.clean 1 0) 1) := by
+      unfold compileRules
+      change RulesStep (blocksRules l 0 P ++ cleanupRules l) _ _
+      rw [cleanupRules, if_pos hlarge, cleanupFromRules_eq_loop]
+      have hembed : RulesStep
+          (blocksRules l 0 P ++ [firstRule] ++
+            (cleanupLoopRules l 1 ++
+              [srule [] [l.clean (max 1 l.regBound) 0]]))
+          (regTokens l regs + Finsupp.single l.halt 1)
+          (regTokens l regs + Finsupp.single (l.clean 1 0) 1) := by
+        apply RulesStep.embed_owned
+          (preOwners := blockOwners l) (owners := [l.halt])
+        · exact hblocks
+        · intro q hq
+          simp only [List.mem_cons, List.not_mem_nil, or_false] at hq
+          subst q
+          exact ⟨l.halt, [], by simp, hhalt, rfl⟩
+        · exact blockOwners_disjoint_halt l
+        · exact ⟨l.halt, hhalt, onlyControl_add_single hregControl hhalt⟩
+        · exact hfirstLocal
+      simpa [firstRule, List.append_assoc] using hembed
+    have hloopLocal := cleanupLoop_steps l (regTokens l regs) 1 hregControl
+    have hmax : max 1 l.regBound = l.regBound := max_eq_right (by omega)
+    rw [hmax, clearFrom_regTokens_one l regs hpos] at hloopLocal
+    have hloopOwners : (blockOwners l ++ [l.halt]).Disjoint
+        (cleanupOwners l 1) := by
+      rw [List.disjoint_left]
+      intro owner howner hclean
+      simp only [List.mem_append, List.mem_cons, List.not_mem_nil,
+        or_false] at howner
+      rcases howner with hblock | hhaltOwner
+      · exact List.disjoint_left.mp
+          (blockOwners_disjoint_cleanupOwners l 1) hblock hclean
+      · subst owner
+        obtain ⟨r, phase, _hlower, _hupper, _hphase, heq⟩ :=
+          cleanupOwners_spec l 1 hclean
+        exact halt_ne_clean l r phase heq
+    have hloopWhole : RulesSteps (compileRules P inputs)
+        (regTokens l regs + Finsupp.single (l.clean 1 0) 1)
+        (Finsupp.single 0 (regs 0) + Finsupp.single finalMarker 1) := by
+      unfold compileRules
+      change RulesSteps (blocksRules l 0 P ++ cleanupRules l) _ _
+      rw [cleanupRules, if_pos hlarge, cleanupFromRules_eq_loop, hmax]
+      have hembed : RulesSteps
+          ((blocksRules l 0 P ++ [firstRule]) ++ cleanupLoopRules l 1 ++
+            [finalRule])
+          (regTokens l regs + Finsupp.single (l.clean 1 0) 1)
+          (Finsupp.single 0 (regs 0) + Finsupp.single finalMarker 1) := by
+        apply RulesSteps.embed_owned
+          (preOwners := blockOwners l ++ [l.halt])
+          (owners := cleanupOwners l 1)
+        · intro q hq
+          simp only [List.mem_append, List.mem_cons, List.not_mem_nil,
+            or_false] at hq
+          rcases hq with hq | hq
+          · obtain ⟨owner, rest, homem, hoc, hconsume⟩ := hblocks q hq
+            exact ⟨owner, rest, by simp [homem], hoc, hconsume⟩
+          · subst q
+            exact ⟨l.halt, [], by simp, hhalt, rfl⟩
+        · intro q hq; exact cleanupLoop_ownedIn l 1 hq
+        · exact hloopOwners
+        · intro q hq; exact cleanupLoop_wellControlled l 1 hq
+        · exact ⟨l.clean 1 0, hclean1,
+            onlyControl_add_single hregControl hclean1⟩
+        · simpa [finalMarker] using hloopLocal
+      simpa [firstRule, finalRule, List.append_assoc] using hembed
+    have hclearControl : NoControl l (Finsupp.single 0 (regs 0)) := by
+      intro i hi
+      have hi0 : i ≠ 0 := by
+        intro hieq
+        subst i
+        exact Nat.not_le_of_lt hpos (control_ge_bound hi)
+      simp [hi0]
+    have hfinalEnabled : finalRule.Enabled
+        (Finsupp.single 0 (regs 0) + Finsupp.single finalMarker 1) :=
+      consume_control_enabled
+    have hfinalApply : finalRule.apply
+        (Finsupp.single 0 (regs 0) + Finsupp.single finalMarker 1) =
+        Finsupp.single 0 (regs 0) := by
+      exact consume_control_apply hclearControl (clean_control l l.regBound 0)
+    have hfinalLocal : RulesStep [finalRule]
+        (Finsupp.single 0 (regs 0) + Finsupp.single finalMarker 1)
+        (Finsupp.single 0 (regs 0)) := by
+      simpa [hfinalApply] using RulesStep.head hfinalEnabled
+    have hfinalOwners :
+        (blockOwners l ++ (l.halt :: cleanupOwners l 1)).Disjoint
+          [finalMarker] := by
+      rw [List.disjoint_left]
+      intro owner howner hfinalOwner
+      simp only [List.mem_append, List.mem_cons, List.not_mem_nil,
+        or_false] at howner hfinalOwner
+      subst owner
+      rcases howner with hblock | hhaltOwner | hloopOwner
+      · exact List.disjoint_left.mp
+          (blockOwners_disjoint_clean l l.regBound 0) hblock (by simp [finalMarker])
+      · exact halt_ne_clean l l.regBound 0 hhaltOwner.symm
+      · have hd := cleanupOwners_disjoint_end l 1
+        rw [hmax, List.disjoint_left] at hd
+        exact hd hloopOwner (by simp [finalMarker])
+    have hfinal : RulesStep (compileRules P inputs)
+        (Finsupp.single 0 (regs 0) + Finsupp.single finalMarker 1)
+        (Finsupp.single 0 (regs 0)) := by
+      unfold compileRules
+      change RulesStep (blocksRules l 0 P ++ cleanupRules l) _ _
+      rw [cleanupRules, if_pos hlarge, cleanupFromRules_eq_loop, hmax]
+      have hembed : RulesStep
+          ((blocksRules l 0 P ++ ([firstRule] ++ cleanupLoopRules l 1)) ++
+            [finalRule] ++ [])
+          (Finsupp.single 0 (regs 0) + Finsupp.single finalMarker 1)
+          (Finsupp.single 0 (regs 0)) := by
+        apply RulesStep.embed_owned
+          (preOwners := blockOwners l ++ (l.halt :: cleanupOwners l 1))
+          (owners := [finalMarker])
+        · intro q hq
+          simp only [List.mem_append, List.mem_cons, List.not_mem_nil,
+            or_false] at hq
+          rcases hq with hq | hq | hq
+          · obtain ⟨owner, rest, homem, hoc, hconsume⟩ := hblocks q hq
+            exact ⟨owner, rest, by simp [homem], hoc, hconsume⟩
+          · subst q
+            exact ⟨l.halt, [], by simp, hhalt, rfl⟩
+          · obtain ⟨owner, rest, homem, hoc, hconsume⟩ :=
+              cleanupLoop_ownedIn l 1 hq
+            exact ⟨owner, rest, by simp [homem], hoc, hconsume⟩
+        · intro q hq
+          simp only [List.mem_cons, List.not_mem_nil, or_false] at hq
+          subst q
+          exact ⟨finalMarker, [], by simp, clean_control l l.regBound 0, rfl⟩
+        · exact hfinalOwners
+        · exact ⟨finalMarker, clean_control l l.regBound 0,
+            onlyControl_add_single hclearControl (clean_control l l.regBound 0)⟩
+        · exact hfinalLocal
+      simpa [firstRule, finalRule, List.append_assoc] using hembed
+    exact Relation.ReflTransGen.tail
+      (Relation.ReflTransGen.head hfirst hloopWhole) hfinal
+  · have hbound : l.regBound = 1 := by omega
+    have hhalt := halt_control l
+    have hfinalEnabled : (srule [] [l.halt]).Enabled
+        (regTokens l regs + Finsupp.single l.halt 1) := consume_control_enabled
+    have hfinalApply : (srule [] [l.halt]).apply
+        (regTokens l regs + Finsupp.single l.halt 1) = regTokens l regs :=
+      consume_control_apply hregControl hhalt
+    have hreg : regTokens l regs = Finsupp.single 0 (regs 0) := by
+      ext i
+      by_cases hi : i = 0
+      · subst i; simp [regTokens_apply, hbound]
+      · simp [regTokens_apply, hbound, hi]
+    have hlocal : RulesStep [srule [] [l.halt]]
+        (regTokens l regs + Finsupp.single l.halt 1)
+        (Finsupp.single 0 (regs 0)) := by
+      have hlocal' : RulesStep [srule [] [l.halt]]
+          (regTokens l regs + Finsupp.single l.halt 1) (regTokens l regs) := by
+        simpa [hfinalApply] using RulesStep.head hfinalEnabled
+      simpa [hreg] using hlocal'
+    have hwhole : RulesStep (compileRules P inputs)
+        (regTokens l regs + Finsupp.single l.halt 1)
+        (Finsupp.single 0 (regs 0)) := by
+      unfold compileRules
+      change RulesStep (blocksRules l 0 P ++ cleanupRules l) _ _
+      rw [cleanupRules, if_neg hlarge]
+      have hembed : RulesStep
+          (blocksRules l 0 P ++ [srule [] [l.halt]] ++ [])
+          (regTokens l regs + Finsupp.single l.halt 1)
+          (Finsupp.single 0 (regs 0)) := by
+        apply RulesStep.embed_owned
+          (preOwners := blockOwners l) (owners := [l.halt])
+        · exact hblocks
+        · intro q hq
+          simp only [List.mem_cons, List.not_mem_nil, or_false] at hq
+          subst q
+          exact ⟨l.halt, [], by simp, hhalt, rfl⟩
+        · exact blockOwners_disjoint_halt l
+        · exact ⟨l.halt, hhalt, onlyControl_add_single hregControl hhalt⟩
+        · exact hlocal
+      simpa using hembed
+    exact Relation.ReflTransGen.single hwhole
 
 /-- A first-match micro-step inside the current instruction block is also a
 first-match step of the whole compiled program.  Earlier blocks are disabled
@@ -2369,13 +4115,284 @@ theorem instrSteps_compileRules (P : Program) (inputs : List Nat)
     exact Relation.ReflTransGen.tail ih
       (instrStep_compileRules P inputs hi hmid hlast)
 
+theorem urmStep_compileRules (P : Program) (inputs : List Nat)
+    {s t : Cslib.URM.State} (hstep : Cslib.URM.Step P s t) :
+    RulesSteps (compileRules P inputs)
+      (boundaryTokens (layout P inputs) s.pc s.regs)
+      (boundaryTokens (layout P inputs) t.pc t.regs) := by
+  let l := layout P inputs
+  cases hstep with
+  | @zero n hi =>
+    have hpc : s.pc < l.progLen := by
+      change s.pc < P.length
+      by_contra h
+      rw [List.getElem?_eq_none (Nat.le_of_not_gt h)] at hi
+      simp at hi
+    have hn : n < l.regBound := by
+      have hib := instr_maxRegister_lt_registerBound P inputs hi
+      simpa [l, layout, Cslib.URM.Instr.maxRegister] using hib
+    have hlocal := instrRules_Z_steps l hpc hn s.regs
+    exact instrSteps_compileRules P inputs hi (boundaryTokens_oneControl l _ _)
+      hlocal
+  | @succ n hi =>
+    have hpc : s.pc < l.progLen := by
+      change s.pc < P.length
+      by_contra h
+      rw [List.getElem?_eq_none (Nat.le_of_not_gt h)] at hi
+      simp at hi
+    have hn : n < l.regBound := by
+      have hib := instr_maxRegister_lt_registerBound P inputs hi
+      simpa [l, layout, Cslib.URM.Instr.maxRegister] using hib
+    have hlocal := instrRules_S_steps l hpc hn s.regs
+    exact instrSteps_compileRules P inputs hi (boundaryTokens_oneControl l _ _)
+      hlocal
+  | @transfer m n hi =>
+    have hpc : s.pc < l.progLen := by
+      change s.pc < P.length
+      by_contra h
+      rw [List.getElem?_eq_none (Nat.le_of_not_gt h)] at hi
+      simp at hi
+    have hm : m < l.regBound := by
+      have hib := instr_maxRegister_lt_registerBound P inputs hi
+      simp only [Cslib.URM.Instr.maxRegister] at hib
+      change max m n < l.regBound at hib
+      omega
+    have hn : n < l.regBound := by
+      have hib := instr_maxRegister_lt_registerBound P inputs hi
+      simp only [Cslib.URM.Instr.maxRegister] at hib
+      change max m n < l.regBound at hib
+      omega
+    have hlocal := instrRules_T_steps l hpc hm hn s.regs
+    exact instrSteps_compileRules P inputs hi (boundaryTokens_oneControl l _ _)
+      hlocal
+  | @jump_eq m n q hi heq =>
+    have hpc : s.pc < l.progLen := by
+      change s.pc < P.length
+      by_contra h
+      rw [List.getElem?_eq_none (Nat.le_of_not_gt h)] at hi
+      simp at hi
+    have hm : m < l.regBound := by
+      have hib := instr_maxRegister_lt_registerBound P inputs hi
+      simp only [Cslib.URM.Instr.maxRegister] at hib
+      change max m n < l.regBound at hib
+      omega
+    have hn : n < l.regBound := by
+      have hib := instr_maxRegister_lt_registerBound P inputs hi
+      simp only [Cslib.URM.Instr.maxRegister] at hib
+      change max m n < l.regBound at hib
+      omega
+    have hlocal := instrRules_J_steps l hpc hm hn s.regs (q := q)
+    have hwhole := instrSteps_compileRules P inputs hi
+      (boundaryTokens_oneControl l _ _) hlocal
+    have heq' : s.regs m = s.regs n := heq
+    rw [if_pos heq'] at hwhole
+    simpa [l] using hwhole
+  | @jump_ne m n q hi hne =>
+    have hpc : s.pc < l.progLen := by
+      change s.pc < P.length
+      by_contra h
+      rw [List.getElem?_eq_none (Nat.le_of_not_gt h)] at hi
+      simp at hi
+    have hm : m < l.regBound := by
+      have hib := instr_maxRegister_lt_registerBound P inputs hi
+      simp only [Cslib.URM.Instr.maxRegister] at hib
+      change max m n < l.regBound at hib
+      omega
+    have hn : n < l.regBound := by
+      have hib := instr_maxRegister_lt_registerBound P inputs hi
+      simp only [Cslib.URM.Instr.maxRegister] at hib
+      change max m n < l.regBound at hib
+      omega
+    have hlocal := instrRules_J_steps l hpc hm hn s.regs (q := q)
+    have hwhole := instrSteps_compileRules P inputs hi
+      (boundaryTokens_oneControl l _ _) hlocal
+    have hne' : s.regs m ≠ s.regs n := hne
+    rw [if_neg hne'] at hwhole
+    simpa [l] using hwhole
+
+theorem urmSteps_compileRules (P : Program) (inputs : List Nat)
+    {s t : Cslib.URM.State} (hsteps : Cslib.URM.Steps P s t) :
+    RulesSteps (compileRules P inputs)
+      (boundaryTokens (layout P inputs) s.pc s.regs)
+      (boundaryTokens (layout P inputs) t.pc t.regs) := by
+  induction hsteps with
+  | refl => exact Relation.ReflTransGen.refl
+  | tail hprefix hlast ih =>
+    exact Relation.ReflTransGen.trans ih
+      (urmStep_compileRules P inputs hlast)
+
+/-- A complete halting URM run, followed by the verified cleanup suffix. -/
+theorem simulationRules (P : Program) (inputs : List Nat) (result : Nat)
+    (h : Cslib.URM.HaltsWithResult P inputs result) :
+    RulesSteps (compileRules P inputs)
+      (boundaryTokens (layout P inputs) 0
+        (Cslib.URM.Regs.ofInputs inputs))
+      (Finsupp.single 0 result) := by
+  obtain ⟨s, hsteps, hhalt, hresult⟩ := h
+  have hurm := urmSteps_compileRules P inputs hsteps
+  have hcleanup := cleanupSteps_compileRules P inputs s.regs
+  have hboundary :
+      boundaryTokens (layout P inputs) s.pc s.regs =
+        regTokens (layout P inputs) s.regs +
+          Finsupp.single (layout P inputs).halt 1 := by
+    unfold boundaryTokens targetMarker
+    rw [if_neg]
+    exact Nat.not_lt_of_ge hhalt
+  rw [hboundary] at hurm
+  have hall := Relation.ReflTransGen.trans hurm hcleanup
+  change s.regs 0 = result at hresult
+  rw [hresult] at hall
+  simpa [Cslib.URM.State.init] using hall
+
 def compile (P : Program) (inputs : List Nat) : Prog :=
   (compileRules P inputs).map SRule.toFrac
+
+/-- The abstract simulation is an execution of the concrete fraction list,
+from the compiler's runnable start integer to `2 ^ result`. -/
+theorem simulationConcrete (P : Program) (inputs : List Nat) (result : Nat)
+    (h : Cslib.URM.HaltsWithResult P inputs result) :
+    Relation.ReflTransGen
+      (fun n n' => Langlib.Fractran.step (compile P inputs) n = some n')
+      (encodeInput P inputs) (2 ^ result) := by
+  have hconcrete := rulesSteps_concrete (simulationRules P inputs result h)
+  rw [← encodeInput_eq_encodeTokens_boundary P inputs] at hconcrete
+  simpa [compile, encodeTokens_single] using hconcrete
 
 theorem compile_eq_old (P : Program) (inputs : List Nat) :
     compile P inputs =
       blocks (layout P inputs) 0 P ++ cleanup (layout P inputs) := by
   simp [compile, compileRules, List.map_append, blocksRules_map, cleanupRules_map]
+
+theorem cleanupRules_consumesControl (l : Layout) {q : SRule}
+    (hq : q ∈ cleanupRules l) :
+    ∃ owner rest, IsControl l owner ∧ q.consume = owner :: rest := by
+  by_cases hlarge : 1 < l.regBound
+  · rw [cleanupRules, if_pos hlarge, cleanupFromRules_eq_loop] at hq
+    simp only [List.mem_cons, List.mem_append, List.mem_singleton] at hq
+    rcases hq with hq | hq | hq
+    · subst q
+      exact ⟨l.halt, [], halt_control l, rfl⟩
+    · obtain ⟨owner, rest, _hmem, hcontrol, hconsume⟩ :=
+        cleanupLoop_ownedIn l 1 hq
+      exact ⟨owner, rest, hcontrol, hconsume⟩
+    · simp only [List.mem_cons, List.not_mem_nil, or_false] at hq
+      subst q
+      exact ⟨l.clean (max 1 l.regBound) 0, [], clean_control l _ 0, rfl⟩
+  · rw [cleanupRules, if_neg hlarge] at hq
+    simp only [List.mem_singleton] at hq
+    subst q
+    exact ⟨l.halt, [], halt_control l, rfl⟩
+
+theorem compileRules_consumesControl (P : Program) (inputs : List Nat)
+    {q : SRule} (hq : q ∈ compileRules P inputs) :
+    ∃ owner rest, IsControl (layout P inputs) owner ∧
+      q.consume = owner :: rest := by
+  let l := layout P inputs
+  unfold compileRules at hq
+  change q ∈ blocksRules l 0 P ++ cleanupRules l at hq
+  simp only [List.mem_append] at hq
+  rcases hq with hblock | hcleanup
+  · obtain ⟨owner, rest, _hmem, hcontrol, hconsume⟩ :=
+      blocksRules_ownedIn l P (by simp [l, layout]) hblock
+    exact ⟨owner, rest, hcontrol, hconsume⟩
+  · exact cleanupRules_consumesControl l hcleanup
+
+theorem compileRule_disabled_final (P : Program) (inputs : List Nat)
+    (result : Nat) {q : SRule} (hq : q ∈ compileRules P inputs) :
+    ¬q.Enabled (Finsupp.single 0 result) := by
+  intro henabled
+  obtain ⟨owner, rest, hcontrol, hconsume⟩ :=
+    compileRules_consumesControl P inputs hq
+  have howner0 : owner ≠ 0 := by
+    intro heq
+    subst owner
+    exact Nat.not_le_of_lt (registerBound_pos P inputs)
+      (control_ge_bound hcontrol)
+  have howner := Finsupp.le_def.mp henabled owner
+  simp [SRule.Enabled, hconsume, tokensOfList, howner0] at howner
+
+theorem concrete_step_none_of_all_disabled {rs : List SRule} {s : Tokens}
+    (hdisabled : ∀ q ∈ rs, ¬q.Enabled s) :
+    Langlib.Fractran.step (rs.map SRule.toFrac) (encodeTokens s) = none := by
+  induction rs with
+  | nil => rfl
+  | cons q rest ih =>
+    have hq := hdisabled q (by simp)
+    have hndvd : ¬q.toFrac.den ∣ encodeTokens s := by
+      simpa [SRule.toFrac, encodeTokens_tokensOfList, SRule.Enabled] using
+        (not_congr (encodeTokens_dvd_iff
+          (a := tokensOfList q.consume) (b := s))).mpr hq
+    have hmod : encodeTokens s % q.toFrac.den ≠ 0 := by
+      exact fun hz => hndvd (Nat.dvd_iff_mod_eq_zero.mpr hz)
+    have hrest : ∀ r ∈ rest, ¬r.Enabled s := by
+      intro r hr
+      exact hdisabled r (by simp [hr])
+    simp only [List.map_cons, Langlib.Fractran.step, List.find?_cons]
+    rw [show (encodeTokens s % q.toFrac.den == 0) = false by simp [hmod]]
+    exact ih hrest
+
+theorem compile_terminal_none (P : Program) (inputs : List Nat)
+    (result : Nat) :
+    Langlib.Fractran.step (compile P inputs) (2 ^ result) = none := by
+  have hnone := concrete_step_none_of_all_disabled
+    (rs := compileRules P inputs) (s := Finsupp.single 0 result)
+    (fun q hq => compileRule_disabled_final P inputs result hq)
+  simpa [compile, encodeTokens_single] using hnone
+
+theorem exec_final_of_steps {p : Prog} {start final : Nat}
+    (hsteps : Relation.ReflTransGen
+      (fun n n' => Langlib.Fractran.step p n = some n') start final)
+    (hnone : Langlib.Fractran.step p final = none) :
+    ∃ fuel, Langlib.Fractran.exec { out := .final } p fuel start ByteArray.empty =
+      { output := (toString final ++ "\n").toUTF8,
+        exit := Langlib.Common.Exit.halted } := by
+  induction hsteps using Relation.ReflTransGen.head_induction_on with
+  | refl =>
+    refine ⟨1, ?_⟩
+    simp only [Langlib.Fractran.exec, hnone, beq_self_eq_true, if_true]
+    rfl
+  | head hstep _hrest ih =>
+    obtain ⟨fuel, hfuel⟩ := ih
+    refine ⟨fuel + 1, ?_⟩
+    simp only [Langlib.Fractran.exec, hstep]
+    exact hfuel
+
+/-- Parse the exact line format emitted by `Fractran.exec`: a decimal
+natural followed by one newline. -/
+def decodeLine (b : ByteArray) : Option Nat := do
+  let s ← String.fromUTF8? b
+  match s.toList.reverse with
+  | '\n' :: digitsRev => (String.ofList digitsRev.reverse).toNat?
+  | _ => none
+
+/-- Decode the final-mode observation by checking that the emitted terminal
+FRACTRAN integer is an exact power of two. -/
+def decodeOutput (b : ByteArray) : Option Nat := do
+  let n ← decodeLine b
+  Langlib.Fractran.pow2? n
+
+theorem fromUTF8?_toUTF8 (s : String) :
+    String.fromUTF8? s.toUTF8 = some s := by
+  simp only [String.toUTF8_eq_toByteArray, String.fromUTF8?,
+    dif_pos s.isValidUTF8, Option.some.injEq, ← String.toByteArray_inj]
+  simp [String.fromUTF8]
+
+theorem decodeLine_encode (n : Nat) :
+    decodeLine ((toString n ++ "\n").toUTF8) = some n := by
+  rw [show toString n = Nat.repr n by exact Nat.toString_eq_repr]
+  unfold decodeLine
+  rw [fromUTF8?_toUTF8]
+  simpa [← Nat.repr_eq_ofList_toDigits] using Nat.toNat?_repr n
+
+theorem pow2?_two_pow (n : Nat) :
+    Langlib.Fractran.pow2? (2 ^ n) = some n := by
+  simp [Langlib.Fractran.pow2?, Nat.log2_two_pow]
+
+theorem decodeOutput_encode (n : Nat) :
+    decodeOutput ((toString (2 ^ n) ++ "\n").toUTF8) = some n := by
+  unfold decodeOutput
+  rw [decodeLine_encode]
+  exact pow2?_two_pow n
 
 /-- A compiled artifact bundles the FRACTRAN list with its positive starting
 integer.  FRACTRAN has no native input instruction, and the start integer
@@ -2386,6 +4403,37 @@ structure CompiledProgram where
 
 def compileProgram (P : Program) (inputs : List Nat) : CompiledProgram :=
   ⟨compile P inputs, encodeInput P inputs⟩
+
+/-- End-to-end execution through the real fuel-based FRACTRAN interpreter. -/
+theorem simulation (P : Program) (inputs : List Nat) (result : Nat)
+    (h : Cslib.URM.HaltsWithResult P inputs result) :
+    ∃ fuel,
+      (Langlib.Fractran.evalProg { out := .final }
+        (compileProgram P inputs).code (compileProgram P inputs).start fuel).exit =
+          Langlib.Common.Exit.halted ∧
+      decodeOutput
+        (Langlib.Fractran.evalProg { out := .final }
+          (compileProgram P inputs).code (compileProgram P inputs).start fuel).output =
+            some result := by
+  have hsteps := simulationConcrete P inputs result h
+  have hnone := compile_terminal_none P inputs result
+  obtain ⟨fuel, hexec⟩ := exec_final_of_steps hsteps hnone
+  have hstart : encodeInput P inputs ≠ 0 := Nat.ne_of_gt (encodeInput_pos P inputs)
+  have heval :
+      Langlib.Fractran.evalProg { out := .final }
+          (compileProgram P inputs).code (compileProgram P inputs).start fuel =
+        { output := (toString (2 ^ result) ++ "\n").toUTF8,
+          exit := Langlib.Common.Exit.halted } := by
+    unfold Langlib.Fractran.evalProg compileProgram
+    simp only [show (encodeInput P inputs == 0) = false by simp [hstart],
+      if_false,
+      show (Langlib.Fractran.OutMode.final ==
+        Langlib.Fractran.OutMode.trajectory) = false by decide]
+    exact hexec
+  refine ⟨fuel, ?_, ?_⟩
+  · rw [heval]
+  · rw [heval]
+    exact decodeOutput_encode result
 
 end Langlib.Computability.URMFractran
 
@@ -2404,12 +4452,13 @@ instance : ProgLang FractranLang where
     let code ← Langlib.Fractran.parse src
     return ⟨code, 1⟩
   run := fun p _input fuel =>
-    Langlib.Fractran.evalProg { out := .pow2 } p.code p.start fuel
+    Langlib.Fractran.evalProg { out := .final } p.code p.start fuel
 
-/-- Decode the single decimal exponent emitted by the cleanup step in
-`pow2` mode. -/
-def URMFractran.decodeOutput (b : ByteArray) : Option Nat := do
-  let s ← String.fromUTF8? b
-  s.trimAscii.toString.toNat?
+/-- FRACTRAN is Turing complete via the verified URM compiler. -/
+def fractranComplete : TuringComplete FractranLang where
+  compile := URMFractran.compileProgram
+  encodeInput := fun _ => Input.ofString ""
+  decodeOutput := URMFractran.decodeOutput
+  simulates := fun P inputs result h => URMFractran.simulation P inputs result h
 
 end Langlib.Computability
