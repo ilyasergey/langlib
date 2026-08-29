@@ -2,6 +2,28 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-09-02: Subleq proved Turing complete
+
+The second completeness proof, and the easy one, exactly as predicted: a
+URM register is one subleq memory cell holding the value directly, because
+subleq words are arbitrary-precision and memory is unbounded. No encoding,
+no range cap, and not one lemma in the file carries a range side-condition.
+
+The interesting part is the `J` instruction. The URM tests equality;
+subleq branches on `<= 0`. Since registers hold naturals, equality is two
+`<=` tests on the same difference in both directions, which comes to nine
+subleq instructions. Straight-line instructions set their branch target to
+the next instruction, so the branch is invisible and no sign reasoning is
+needed for `Z`, `S` or `T`.
+
+One documented trade: `decodeOutput` counts output bytes rather than
+parsing decimal, because subleq's only output primitive is a single byte
+and decimal printing would need a division routine plus a self-modifying
+digit buffer, out of proportion to the claim. Byte-counting is a total
+function of the output and invents nothing; the cost is output size.
+
+18 differential tests, axiom-clean, 631 tests in the suite.
+
 ## 2026-09-01 (later): the certified compilation plan
 
 * `docs/certified-compilation.md` written: the pipeline

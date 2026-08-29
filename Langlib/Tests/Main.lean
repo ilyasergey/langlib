@@ -11,6 +11,7 @@ import Langlib.Tests.Malbolge
 import Langlib.Tests.Ook
 import Langlib.Tests.Piet
 import Langlib.Tests.Subleq
+import Langlib.Tests.URMSubleq
 import Langlib.Tests.Thue
 import Langlib.Tests.Whitespace
 import Langlib.Tests.Turpentine
@@ -37,6 +38,7 @@ def main : IO UInt32 :=
     , Langlib.Tests.Ook.suites
     , Langlib.Tests.Piet.suites
     , Langlib.Tests.Subleq.suites
+    , Langlib.Tests.URMSubleq.suites
     , Langlib.Tests.Thue.suites
     , Langlib.Tests.Whitespace.suites
     , Langlib.Tests.Turpentine.suites

@@ -20,6 +20,7 @@ claims to be. Add a line here whenever a new completeness or
 incompleteness instance lands.
 -/
 import Langlib.Computability.Whitespace
+import Langlib.Computability.Subleq
 
 open Langlib.Computability
 
@@ -33,3 +34,10 @@ open Langlib.Computability
 #print axioms whitespaceComplete
 #print axioms URMWhitespace.simulation
 #print axioms URMWhitespace.compile
+
+-- Subleq: Turing complete. Registers are single unbounded signed cells, the
+-- answer leaves the machine in unary, and the compiled program halts by
+-- jumping to a negative address.
+#print axioms subleqComplete
+#print axioms URMSubleq.simulation
+#print axioms URMSubleq.compile
