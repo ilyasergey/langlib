@@ -318,6 +318,52 @@ second simulation proof, which is why it is not here yet. `&&` and `||` need
 a totality lemma for the certified expressions, which is easy once negative
 intermediates are gone. Arrays need the layout lemmas generalised.
 
+### 4b. Widening the fragment, in order
+
+The restrictions are not equally expensive to lift, and they are not
+equally often hit. Compiling every example in
+`Langlib/Examples/Turpentine/` with `--tc` and recording the *first*
+complaint gives the real ranking:
+
+| first blocker | examples |
+|---|---|
+| a declaration has an initialiser | collatz, fib, isqrt, primes, sumdigits |
+| no variable named `answer` | cat, gcd, hello |
+| an array | maxelem, sieve, sort |
+
+Subtraction, division, `&&` and `||` never come first: something cheaper
+stops the program before the compiler reaches them. So the order to widen
+in is:
+
+1. **Initialisers.** `var x : int := e;` is a declaration followed by an
+   assignment, and the reference semantics agrees: `initEnv` evaluates
+   initialisers in order, in scope of the earlier ones. Desugaring them to
+   assignments at the head of the body should be a small change to
+   `compileToURM` and a correspondingly small change to the proof, and it
+   unblocks five of the eleven examples. Do this first.
+2. **`&&` and `||`.** The emitted code evaluates both operands where the
+   source short-circuits, so they agree exactly when the right operand is
+   total. Every in-fragment expression is total once negatives are gone,
+   so this is a lemma rather than a redesign.
+3. **Subtraction, division and modulo.** The real work: a URM register is
+   a `Nat` and Turpentine's integers are `Int`, so this needs either a
+   `Nat`-valued reference semantics for the fragment plus a bridge to
+   `Turpentine.exec`, or a sign representation costing two registers per
+   variable. Choose deliberately; the bridge is probably cheaper to prove
+   and the sign encoding is certainly cheaper to explain.
+4. **Arrays.** Generalise the slot layout past one register per variable.
+   The addressing is easier here than in any esolang backend, because
+   register indices are compile-time constants, so a computed index needs
+   a dispatch chain rather than self-modifying code.
+5. **I/O.** Not a widening of the same fragment but a change of model: a
+   URM has no input or output, so this needs `URM+IO` with `read` and
+   `write` instructions and an embedding from the plain URM, as Stage 9
+   describes. Leave it last, and expect the answer convention to change
+   with it.
+
+Each step keeps the same obligation: `compileToURM_correct` must still
+hold for the widened fragment, with Lean asserting only what is proved.
+
 ### 5. What it is for
 
 Not for running programs. The derived compiler emits large, slow output: a
