@@ -1,0 +1,11 @@
+name = "langlib"
+version = "0.1.0"
+defaultTargets = ["Langlib"]
+testDriver = "tests"
+
+[[lean_lib]]
+name = "Langlib"
+
+[[lean_exe]]
+name = "tests"
+root = "Langlib.Tests.Main"

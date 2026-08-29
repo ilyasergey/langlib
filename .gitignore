@@ -1,0 +1,18 @@
+# Task descriptions for agents (local only)
+task/
+
+# Lake build artifacts
+.lake/
+build/
+lake-packages/
+
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*~
+
+# Test scratch output
+*.out.tmp
