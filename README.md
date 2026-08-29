@@ -84,8 +84,10 @@ compact, readable code and supports the whole language. Every one of them
 is marked *(trusted)*, meaning tested rather than proved; when a bespoke
 correctness theorem lands, that marker becomes *(certified)* and links the
 theorem. A **derived** one comes out of that language's completeness proof,
-so it is *(certified)* already, at the price of a restricted source
-fragment and enormous output.
+so it is *(certified)* already, but it does not support I/O: it routes
+everything through a register machine, which has no way to read or write,
+so the program takes no input and leaves its result in `answer`. Its
+output is also enormous.
 [Verified compilers](#verified-compilers) below explains why the library
 keeps both kinds.
 
