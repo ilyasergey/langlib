@@ -43,7 +43,7 @@ def checkMain (file : String) : IO UInt32 := do
       IO.eprintln s!"wtf: type error: {e}"
       return 1
     | .ok Γ =>
-      IO.println s!"{file}: well-typed formalism ({Γ.size} variable(s), {prog.decls.length} declaration(s))"
+      IO.println s!"{file}: well typed ({Γ.size} variable(s), {prog.decls.length} declaration(s))"
       return 0
 
 end Langlib.Turpentine

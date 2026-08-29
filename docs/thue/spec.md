@@ -126,19 +126,46 @@ wild and works the same, since the runner never inspects the name.
 
 ## Trying it
 
+Hello world: one rule, one rewrite, one line of output.
+
 ```
-lake exe thue Langlib/Examples/Thue/hello.t
-lake exe thue --final-state Langlib/Examples/Thue/increment.t
-echo 111 | lake exe thue Langlib/Examples/Thue/parity.t
-echo 0 | lake exe thue Langlib/Examples/Thue/truth.t
-lake exe thue --strategy random --seed 7 Langlib/Examples/Thue/hello.t
+$ lake exe thue Langlib/Examples/Thue/hello.t
+Hello World!
 ```
 
-The increment example rewrites `_1111111111_` (binary 1023, fenced by
-underscores) into `10000000000` (1024) and halts without printing; the
-`--final-state` flag shows the result. It reaches the same answer under
-every strategy, which is what a well-bred Thue program looks like. For the
-rest of the examples see `Langlib/Examples/Thue/` and the tests in
+Binary increment. It rewrites `_1111111111_` (1023, fenced by
+underscores) into 1024 and halts without printing anything, so
+`--final-state` is how you see the answer. It reaches the same result
+under every strategy, which is what a well-bred Thue program looks like.
+
+```
+$ lake exe thue --final-state Langlib/Examples/Thue/increment.t
+10000000000
+```
+
+Parity of a unary number, read from input.
+
+```
+$ echo 111 | lake exe thue Langlib/Examples/Thue/parity.t
+odd
+```
+
+The truth-machine, halting on `0`.
+
+```
+$ echo 0 | lake exe thue Langlib/Examples/Thue/truth.t
+0
+```
+
+The random strategy restores the original interpreter's nondeterminism.
+The seed makes it reproducible, which the original never was.
+
+```
+$ lake exe thue --strategy random --seed 7 Langlib/Examples/Thue/hello.t
+Hello World!
+```
+
+For the rest of the examples see `Langlib/Examples/Thue/` and the tests in
 `Langlib/Tests/Thue.lean`.
 
 ## Compilation from Turpentine

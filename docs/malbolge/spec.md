@@ -215,17 +215,43 @@ first:
 
 ## Trying it
 
+Andrew Cooke's hello world, found by a search program in 2000 because no
+human could write one. The odd capitalisation is not a typo: it is what
+the search found, and fixing it would have meant another search.
+
 ```
-lake exe malbolge Langlib/Examples/Malbolge/hello.mal
-echo -n 0 | lake exe malbolge Langlib/Examples/Malbolge/truth.mal
-echo -n 'from the eighth circle' | lake exe malbolge --fuel 100000 Langlib/Examples/Malbolge/cat.mal
+$ lake exe malbolge Langlib/Examples/Malbolge/hello.mal
+HEllO WORld
 ```
 
-The first prints Cooke's search-discovered `HEllO WORld`. The truth-machine
-prints `0` and halts (feed it `1` and it prints `1` until the fuel runs
-out, as a truth-machine should). The cat echoes the input and then prints
-byte 168 forever, hence the fuel bound. See `Langlib/Examples/Malbolge/`
-for attributions and `Langlib/Tests/Malbolge.lean` for the golden tests.
+The truth-machine halts on input `0`.
+
+```
+$ echo -n 0 | lake exe malbolge Langlib/Examples/Malbolge/truth.mal
+0
+```
+
+Feed it `1` instead and it prints `1` until the fuel runs out, as a
+truth-machine should.
+
+```
+$ echo -n 1 | lake exe malbolge --fuel 100000 Langlib/Examples/Malbolge/truth.mal
+11111111111111111111111111111111111111111111111111111111...
+malbolge: out of fuel after 100000 steps (raise with --fuel)
+```
+
+Lou Scheffer's cat echoes the input, then prints byte 168 (a stray
+non-ASCII byte, which your terminal will render as garbage) forever,
+hence the fuel bound.
+
+```
+$ echo -n 'from the eighth circle' | lake exe malbolge --fuel 100000 Langlib/Examples/Malbolge/cat.mal
+from the eighth circle
+malbolge: out of fuel after 100000 steps (raise with --fuel)
+```
+
+See `Langlib/Examples/Malbolge/` for attributions and
+`Langlib/Tests/Malbolge.lean` for the golden tests.
 
 ## Compilation from Turpentine
 

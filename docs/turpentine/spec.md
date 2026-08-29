@@ -116,12 +116,41 @@ short-circuit.
 
 ## Trying it
 
+The obligatory greeting.
+
 ```
-lake exe turpentine run Langlib/Examples/Turpentine/hello.turp
-echo 17 | lake exe turpentine run Langlib/Examples/Turpentine/isqrt.turp
-printf '252\n105\n' | lake exe turpentine run Langlib/Examples/Turpentine/gcd.turp
-echo 27 | lake exe turpentine run Langlib/Examples/Turpentine/collatz.turp
-lake exe turpentine check Langlib/Examples/Turpentine/primes.turp
+$ lake exe turpentine run Langlib/Examples/Turpentine/hello.turp
+Hello, Turpentine!
+```
+
+Integer square root of 17, the example ported from Velvet. Note the
+annotations in the source: they type-check and are ignored at run time.
+
+```
+$ echo 17 | lake exe turpentine run Langlib/Examples/Turpentine/isqrt.turp
+4
+```
+
+Euclid's algorithm, reading two numbers, one per line.
+
+```
+$ printf '252\n105\n' | lake exe turpentine run Langlib/Examples/Turpentine/gcd.turp
+21
+```
+
+The Collatz step count for 27, which famously takes its time.
+
+```
+$ echo 27 | lake exe turpentine run Langlib/Examples/Turpentine/collatz.turp
+111
+```
+
+The `check` subcommand type-checks without running, and reports what it
+found.
+
+```
+$ lake exe turpentine check Langlib/Examples/Turpentine/primes.turp
+Langlib/Examples/Turpentine/primes.turp: well typed (4 variable(s), 4 declaration(s))
 ```
 
 ## Compilation to esoteric languages

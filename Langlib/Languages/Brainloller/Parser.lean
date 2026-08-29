@@ -54,7 +54,7 @@ private def walk (img : Image) : Nat → (Nat × Nat) → Dir → List Char →
 /-- Decode an image to brainfuck source (the eight command characters). -/
 def decode (img : Image) : Except String String := do
   let cmds ← walk img (4 * img.width * img.height + 1) (0, 0) .east []
-  return String.mk cmds
+  return String.ofList cmds
 
 /-- Decode an image all the way to a parsed brainfuck program. -/
 def decodeProg (img : Image) : Except String Langlib.Brainfuck.Prog :=
@@ -79,9 +79,8 @@ private def buildRows (width : Nat) : Nat → List Char → Nat →
     let cap := if isLast then fullCap
                else if y == 0 then width - 1 else width - 2
     let chunk := (cmds.take cap).filterMap rgbOfCmd
-    let mut row := Array.replicate width nopRgb
     let row := Id.run do
-      let mut row := row
+      let mut row := Array.replicate width nopRgb
       -- incoming turn pixel (the second of the pair placed by row y-1)
       if y > 0 then
         if east then row := row.set! 0 ccwRgb

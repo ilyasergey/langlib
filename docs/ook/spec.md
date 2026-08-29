@@ -101,10 +101,26 @@ and pastes none of the page's text.
 
 ## Trying it
 
+Hello world, spoken entirely in orangutan.
+
 ```
-lake exe ook Langlib/Examples/Ook/hello.ook
-echo -n "Ook-ook" | lake exe ook --eof zero Langlib/Examples/Ook/cat.ook
-lake exe ook Langlib/Examples/Ook/alphabet.ook
+$ lake exe ook Langlib/Examples/Ook/hello.ook
+Hello World!
+```
+
+The alphabet, since Ook! inherits everything brainfuck can do.
+
+```
+$ lake exe ook Langlib/Examples/Ook/alphabet.ook
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+```
+
+cat, which needs `--eof zero` for the same reason its brainfuck original
+does.
+
+```
+$ echo -n "Ook-ook" | lake exe ook --eof zero Langlib/Examples/Ook/cat.ook
+Ook-ook
 ```
 
 ## Compilation from Turpentine

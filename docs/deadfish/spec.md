@@ -98,16 +98,37 @@ one golden test does, for completeness.
 
 ## Trying it
 
+Deadfish greets you in ASCII codes, one per line, because numbers are the
+only thing it can print. The full output spells "Hello, world!".
+
 ```
-lake exe deadfish Langlib/Examples/Deadfish/hello.df
-lake exe deadfish Langlib/Examples/Deadfish/xkcd-random.df
-lake exe deadfish Langlib/Examples/Deadfish/powers.df
+$ lake exe deadfish Langlib/Examples/Deadfish/hello.df
+72
+101
+108
+108
+...
 ```
 
-`hello.df` (from the wiki, CC0) prints the ASCII codes of "Hello, world!",
-one per line, since numbers are the only thing Deadfish can print;
-`xkcd-random.df` is `iiso`, the fair-dice-roll constant 4; `powers.df`
-squares its way from 2 into the 256 reset.
+The xkcd constant: `iiso` increments twice, squares, and prints. Chosen by
+fair dice roll.
+
+```
+$ lake exe deadfish Langlib/Examples/Deadfish/xkcd-random.df
+4
+```
+
+Squaring from 2 walks into the 256 reset and never comes back, which is
+the whole personality of the language.
+
+```
+$ lake exe deadfish Langlib/Examples/Deadfish/powers.df
+2
+4
+16
+0
+0
+```
 
 ## Compilation from Turpentine
 

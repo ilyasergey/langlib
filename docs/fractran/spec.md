@@ -121,17 +121,46 @@ is absent, it is read as a decimal integer from the first line of stdin.
 
 ## Trying it
 
+The one-fraction adder. Starting from 1944 = 2^3 * 3^5, it moves the 2s
+into the 3s and halts at 3^8 = 6561, having added 3 and 5.
+
 ```
-lake exe fractran --n 1944 --out final Langlib/Examples/Fractran/adder.ft
-lake exe fractran --n 108 --out final Langlib/Examples/Fractran/multiply.ft
-lake exe fractran --n 2 --out pow2 --fuel 100000 Langlib/Examples/Fractran/primegame.ft
-echo 1944 | lake exe fractran --out trajectory Langlib/Examples/Fractran/adder.ft
+$ lake exe fractran --n 1944 --out final Langlib/Examples/Fractran/adder.ft
+6561
 ```
 
-The first line adds 3 and 5 in the
-exponents of 1944 = 2^3 * 3^5 and prints 6561 = 3^8; the second multiplies
-2 by 3 and prints 15625 = 5^6; the third prints the first primes and then
-reports running out of fuel, which for PRIMEGAME is the only way to stop.
+The multiplier: 108 = 2^2 * 3^3, and 5^6 = 15625 comes out, having
+multiplied 2 by 3.
+
+```
+$ lake exe fractran --n 108 --out final Langlib/Examples/Fractran/multiply.ft
+15625
+```
+
+Conway's PRIMEGAME. In `pow2` mode the runner prints the exponent
+whenever the state is a power of two, which is to say the primes. It never
+halts, so the fuel bound is how you stop it.
+
+```
+$ lake exe fractran --n 2 --out pow2 --fuel 100000 Langlib/Examples/Fractran/primegame.ft
+2
+3
+5
+7
+...
+fractran: out of fuel after 100000 steps (raise with --fuel)
+```
+
+Trajectory mode prints every intermediate state, which is the honest way
+to watch a FRACTRAN program think.
+
+```
+$ echo 1944 | lake exe fractran --out trajectory Langlib/Examples/Fractran/adder.ft
+1944
+2916
+4374
+6561
+```
 
 ## Compilation from Turpentine
 

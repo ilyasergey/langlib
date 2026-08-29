@@ -190,17 +190,42 @@ halting, so divergence is an observable outcome in tests.
 
 ## Trying it
 
+Hello world. The program is nothing but spaces, tabs, and newlines, so
+your editor will show you an empty file.
+
 ```
-lake exe whitespace Langlib/Examples/Whitespace/hello.ws
-printf '5\n' | lake exe whitespace Langlib/Examples/Whitespace/fact.ws
-printf 'Ada\n' | lake exe whitespace Langlib/Examples/Whitespace/greet.ws
-lake exe whitespace Langlib/Examples/Whitespace/cat.ws < README.md
+$ lake exe whitespace Langlib/Examples/Whitespace/hello.ws
+Hello, World!
 ```
 
-The last one copies the file and then reports a runtime error at end of
-input; see decision 12 above. The example programs cannot carry comments in
-any useful way (prose is invisible only if it contains no spaces, tabs, or
-newlines), so attribution lives in `Langlib/Languages/Whitespace/README.md`.
+Factorial, reading n as a decimal number on its own line.
+
+```
+$ printf '5\n' | lake exe whitespace Langlib/Examples/Whitespace/fact.ws
+120
+```
+
+A greeter, reading a line of text.
+
+```
+$ printf 'Ada\n' | lake exe whitespace Langlib/Examples/Whitespace/greet.ws
+Hello, Ada!
+```
+
+cat copies its input and then fails at end of input, which is correct: the
+reference implementation has no way to test for EOF either (see decision
+12 above).
+
+```
+$ lake exe whitespace Langlib/Examples/Whitespace/cat.ws < README.md
+# langlib
+...
+whitespace: runtime error: read char at end of input
+```
+
+The example programs cannot carry comments in any useful way (prose is
+invisible only if it contains no spaces, tabs, or newlines), so
+attribution lives in `Langlib/Languages/Whitespace/README.md`.
 
 ## Compilation from Turpentine
 

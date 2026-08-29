@@ -133,17 +133,33 @@ are reported with line and column.
 
 ## Trying it
 
+Hello world on a machine with one instruction. Worth reading the source:
+printing a string means incrementing the output instruction's own `A`
+operand, because the only addressing mode is "the operand I was assembled
+with". Self-modifying code is not a trick in subleq, it is the calling
+convention.
+
 ```
-lake exe subleq Langlib/Examples/Subleq/hello.sq
-echo -n 'majestic' | lake exe subleq Langlib/Examples/Subleq/cat.sq
-lake exe subleq Langlib/Examples/Subleq/countdown.sq
+$ lake exe subleq Langlib/Examples/Subleq/hello.sq
+Hello, World!
 ```
 
-`hello.sq` is worth reading: printing a string requires incrementing the
-output instruction's own `A` operand, because the only addressing mode is
-"the operand I was assembled with". Self-modifying code is not a trick in
-subleq; it is the calling convention. The examples and the golden tests
-(`Langlib/Tests/Subleq.lean`) pin down every decision above.
+cat, echoing until end of input.
+
+```
+$ echo -n 'majestic' | lake exe subleq Langlib/Examples/Subleq/cat.sq
+majestic
+```
+
+A countdown loop, built from subtract-and-branch and nothing else.
+
+```
+$ lake exe subleq Langlib/Examples/Subleq/countdown.sq
+9876543210
+```
+
+The examples and the golden tests (`Langlib/Tests/Subleq.lean`) pin down
+every decision above.
 
 ## Compilation from Turpentine
 

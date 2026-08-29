@@ -57,6 +57,10 @@ human-readable front-end language (Turpentine) and verified compilers from it.
   example programs. Only implement languages that are freely implementable.
 * Documentation should be precise and entertaining to read. These languages
   are jokes with formal content; keep both.
+* Every spec page ends with a "Trying it" section: one command per code
+  block, each preceded by a sentence saying what to expect, and each block
+  showing the actual output (verified by running it, not guessed). Never
+  collate several commands into one block.
 
 ## Testing
 
