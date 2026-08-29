@@ -1171,6 +1171,163 @@ theorem dispatchBlock_hit {B k : Nat} (i : Cslib.URM.Instr)
     (Ev.dec (by simp [eqReg, counterBound]) hTenz
       (hC.append (hI.append hloopZ)))
 
+/-- Consecutive guarded blocks, numbered from `k`. -/
+def dispatchBlocks (B : Nat) : Nat → List Cslib.URM.Instr → Code
+  | _, [] => []
+  | k, i :: is => dispatchBlock B k i ++ dispatchBlocks B (k + 1) is
+
+theorem ScratchClean.aux {B : Nat} {w : Nat → Nat} (h : ScratchClean B w) :
+    AuxClean B w := ⟨h.2.1, h.2.2.1, h.2.2.2.1, h.2.2.2.2.1,
+      h.2.2.2.2.2.1, h.2.2.2.2.2.2⟩
+
+/-- Once a block has matched and cleared the saved counter, all later blocks
+are misses and preserve the selected instruction's result. -/
+theorem dispatchBlocks_zero {B k : Nat} (is : List Cslib.URM.Instr)
+    (σ : Cslib.URM.Regs) (s : CState) (hsrc : SourceMatches B s.regs σ)
+    (haux : AuxClean B s.regs) (hsaved : s.regs (savedReg B) = 0) :
+    ∃ w', Ev (counterBound B) (dispatchBlocks B k is) s ⟨w', s.out⟩ ∧
+      SourceMatches B w' σ ∧ w' (pcReg B) = s.regs (pcReg B) ∧
+      w' (savedReg B) = 0 ∧ AuxClean B w' := by
+  induction is generalizing k s with
+  | nil => exact ⟨s.regs, Ev.nil, hsrc, rfl, hsaved, haux⟩
+  | cons i is ih =>
+    have hmiss : s.regs (savedReg B) ≠ k + 1 := by omega
+    obtain ⟨w₁, h₁, h₁src, h₁pc, h₁saved, h₁aux⟩ :=
+      dispatchBlock_miss i σ s hsrc haux hmiss
+    let s₁ : CState := ⟨w₁, s.out⟩
+    have h₁saved0 : s₁.regs (savedReg B) = 0 := by
+      change w₁ (savedReg B) = 0
+      rw [h₁saved, hsaved]
+    obtain ⟨w₂, h₂, h₂src, h₂pc, h₂saved, h₂aux⟩ :=
+      ih (k := k + 1) s₁ h₁src h₁aux h₁saved0
+    refine ⟨w₂, ?_, h₂src, ?_, h₂saved, h₂aux⟩
+    · exact h₁.append h₂
+    · rw [h₂pc]
+      exact h₁pc
+
+/-- A scan starting at block number `k` selects the instruction at list
+offset `d`, then all remaining blocks miss because the saved counter is zero. -/
+theorem dispatchBlocks_find {B k d : Nat} {is : List Cslib.URM.Instr}
+    {i : Cslib.URM.Instr} (hget : is[d]? = some i) (hmax : i.maxRegister < B)
+    (σ : Cslib.URM.Regs) (s : CState) (hsrc : SourceMatches B s.regs σ)
+    (hpc : s.regs (pcReg B) = 0) (haux : AuxClean B s.regs)
+    (hsaved : s.regs (savedReg B) = k + d + 1) :
+    ∃ w', Ev (counterBound B) (dispatchBlocks B k is) s ⟨w', s.out⟩ ∧
+      SourceMatches B w' (instrNextRegs i σ) ∧
+      w' (pcReg B) = instrNextPC (k + d) i σ + 1 ∧ ScratchClean B w' := by
+  induction d generalizing k is s with
+  | zero =>
+    cases is with
+    | nil => simp at hget
+    | cons head tail =>
+      simp only [List.getElem?_cons_zero, Option.some.injEq] at hget
+      subst head
+      have hhit : s.regs (savedReg B) = k + 1 := by simpa using hsaved
+      obtain ⟨w₁, h₁, h₁src, h₁pc, h₁clean⟩ :=
+        dispatchBlock_hit i σ hmax s hsrc hpc haux hhit
+      let s₁ : CState := ⟨w₁, s.out⟩
+      obtain ⟨w₂, h₂, h₂src, h₂pc, h₂saved, h₂aux⟩ :=
+        dispatchBlocks_zero (B := B) (k := k + 1) tail (instrNextRegs i σ) s₁
+          h₁src h₁clean.aux h₁clean.1
+      refine ⟨w₂, h₁.append h₂, h₂src, ?_, ?_⟩
+      · rw [h₂pc]
+        simpa using h₁pc
+      · exact ⟨h₂saved, h₂aux.1, h₂aux.2.1, h₂aux.2.2.1,
+          h₂aux.2.2.2.1, h₂aux.2.2.2.2.1, h₂aux.2.2.2.2.2⟩
+  | succ d ih =>
+    cases is with
+    | nil => simp at hget
+    | cons head tail =>
+      have hget' : tail[d]? = some i := by simpa using hget
+      have hmiss : s.regs (savedReg B) ≠ k + 1 := by
+        rw [hsaved]
+        omega
+      obtain ⟨w₁, h₁, h₁src, h₁pc, h₁saved, h₁aux⟩ :=
+        dispatchBlock_miss head σ s hsrc haux hmiss
+      let s₁ : CState := ⟨w₁, s.out⟩
+      have h₁pc0 : s₁.regs (pcReg B) = 0 := by
+        change w₁ (pcReg B) = 0
+        rw [h₁pc, hpc]
+      have h₁saved' : s₁.regs (savedReg B) = (k + 1) + d + 1 := by
+        change w₁ (savedReg B) = _
+        rw [h₁saved, hsaved]
+        omega
+      obtain ⟨w₂, h₂, h₂src, h₂pc, h₂clean⟩ :=
+        ih (k := k + 1) (is := tail) hget' s₁ h₁src h₁pc0 h₁aux h₁saved'
+      refine ⟨w₂, h₁.append h₂, h₂src, ?_, h₂clean⟩
+      simpa only [show k + 1 + d = k + (d + 1) by omega] using h₂pc
+
+/-- Every instruction in a source program uses a low counter register. -/
+def ProgramBelow (B : Nat) (P : Cslib.URM.Program) : Prop :=
+  ∀ i ∈ P, i.maxRegister < B
+
+/-- One pass through the dispatcher. -/
+def dispatchStep (B : Nat) (P : Cslib.URM.Program) : Code :=
+  move (pcReg B) (savedReg B) ++ dispatchBlocks B 0 P
+
+theorem step_arithmetic {P : Cslib.URM.Program} {u u' : Cslib.URM.State}
+    (h : Cslib.URM.Step P u u') :
+    ∃ i, P[u.pc]? = some i ∧
+      u'.pc = instrNextPC u.pc i u.regs ∧
+      u'.regs = instrNextRegs i u.regs := by
+  cases h with
+  | zero hi => exact ⟨.Z _, hi, rfl, rfl⟩
+  | succ hi => exact ⟨.S _, hi, rfl, rfl⟩
+  | transfer hi => exact ⟨.T _ _, hi, rfl, rfl⟩
+  | jump_eq hi heq =>
+    refine ⟨.J _ _ _, hi, ?_, rfl⟩
+    simp [instrNextPC, heq]
+  | jump_ne hi hne =>
+    refine ⟨.J _ _ _, hi, ?_, rfl⟩
+    simp [instrNextPC, hne]
+
+/-- One URM transition becomes one complete dispatcher pass. -/
+theorem dispatchStep_spec {B : Nat} {P : Cslib.URM.Program}
+    (hbelow : ProgramBelow B P) {u u' : Cslib.URM.State}
+    (hstep : Cslib.URM.Step P u u') (s : CState)
+    (hsrc : SourceMatches B s.regs u.regs)
+    (hpc : s.regs (pcReg B) = u.pc + 1) (hclean : ScratchClean B s.regs) :
+    ∃ w', Ev (counterBound B) (dispatchStep B P) s ⟨w', s.out⟩ ∧
+      SourceMatches B w' u'.regs ∧ w' (pcReg B) = u'.pc + 1 ∧
+      ScratchClean B w' := by
+  obtain ⟨i, hget, hnextpc, hnextregs⟩ := step_arithmetic hstep
+  have himem : i ∈ P := List.mem_of_getElem? hget
+  have himax : i.maxRegister < B := hbelow i himem
+  have hp : pcReg B < counterBound B := by simp [pcReg, counterBound]
+  have hsavedB : savedReg B < counterBound B := by simp [savedReg, counterBound]
+  obtain ⟨wM, hM, hMpc, hMsaved, hMfr⟩ := move_spec hp hsavedB
+    (by simp [pcReg, savedReg]) (s.regs (pcReg B)) s rfl
+  let sM : CState := ⟨wM, s.out⟩
+  have hMsrc : SourceMatches B wM u.regs := by
+    intro r hr
+    rw [hMfr r (by simp [pcReg]; omega) (by simp [savedReg]; omega)]
+    exact hsrc r hr
+  have hMpc0 : sM.regs (pcReg B) = 0 := hMpc
+  have hMsaved' : sM.regs (savedReg B) = 0 + u.pc + 1 := by
+    change wM (savedReg B) = 0 + u.pc + 1
+    rw [hMsaved, hclean.1, hpc]
+    omega
+  have hMaux : AuxClean B wM := by
+    refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
+    · rw [hMfr _ (by simp [cmpXReg, pcReg]) (by simp [cmpXReg, savedReg])]
+      exact hclean.2.1
+    · rw [hMfr _ (by simp [cmpYReg, pcReg]) (by simp [cmpYReg, savedReg])]
+      exact hclean.2.2.1
+    · rw [hMfr _ (by simp [tmpReg, pcReg]) (by simp [tmpReg, savedReg])]
+      exact hclean.2.2.2.1
+    · rw [hMfr _ (by simp [gateReg, pcReg]) (by simp [gateReg, savedReg])]
+      exact hclean.2.2.2.2.1
+    · rw [hMfr _ (by simp [eqReg, pcReg]) (by simp [eqReg, savedReg])]
+      exact hclean.2.2.2.2.2.1
+    · rw [hMfr _ (by simp [fallReg, pcReg]) (by simp [fallReg, savedReg])]
+      exact hclean.2.2.2.2.2.2
+  obtain ⟨wD, hD, hDsrc, hDpc, hDclean⟩ := dispatchBlocks_find
+    (B := B) (k := 0) (d := u.pc) (is := P) hget himax u.regs sM
+      hMsrc hMpc0 hMaux (by simpa using hMsaved')
+  refine ⟨wD, hM.append hD, ?_, ?_, hDclean⟩
+  · simpa [hnextregs]
+  · simpa [hnextpc] using hDpc
+
 
 /-! ## Paired unary columns on the Brainfuck tape
 
