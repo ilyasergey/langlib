@@ -1,5 +1,6 @@
 import Langlib.Computability.Whitespace
 import Langlib.Computability.Subleq
+import Langlib.Computability.Brainfuck
 import Langlib.Turpentine.Compile.URM
 
 /-!
@@ -103,6 +104,10 @@ def derivedWhitespace : TurpentineCompiler WhitespaceLang := derived whitespaceC
 /-- The same construction over a different completeness proof, with no new
 proof written: `derived` quantifies over the language and the witness. -/
 def derivedSubleq : TurpentineCompiler SubleqLang := derived subleqComplete
+
+/-- The certified Turpentine-to-Brainfuck compiler obtained by composing the
+shared URM pass with the paired-unary Brainfuck completeness witness. -/
+def derivedBrainfuck : TurpentineCompiler BrainfuckLang := derived brainfuckComplete
 
 /-- **Two verified compilers for one target agree.** On a program both accept
 and a source run that halts with `result`, both compiled programs halt and
