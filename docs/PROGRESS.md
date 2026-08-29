@@ -2,6 +2,31 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-30 (later)
+
+* Toolchain pinned to **Lean 4.33.0** (down from 4.33.1). Everything
+  builds and all tests pass; the downgrade also puts us on the toolchain
+  Verso tags, should the site ever want it.
+* **Arrays** in Turpentine: fixed-length, one-dimensional, bounds-checked.
+  Velvet's `MaxElem` and `InsertionSort` are ported, plus a sieve.
+* **Computability becomes a stated goal.** Stage 8 of the plan gives every
+  language a claim about its computational class and a route to a proof,
+  against cslib's Turing machine and unlimited register machine. The
+  README says so, CONTRIBUTING spells out what counts as evidence, and the
+  status matrix carries a Turing-complete column. An SKI/Unlambda entry is
+  planned so the library also has a completeness argument by bracket
+  abstraction rather than machine simulation.
+* **An IR layer is planned** (Stage 4): StackIR, TapeIR, RegIR, one per
+  target family, so lowering passes and simulation proofs are shared
+  rather than repeated per language.
+* **Every language now has a `compiler.md`**, describing what was built
+  where a backend exists and a concrete plan where one does not, including
+  arguments for why a general backend is the wrong thing to build for
+  befunge93 (80 by 25 playfield) and malbolge (self-encrypting code).
+* **The website landed**: `site/`, its own Lake package, 21 pages
+  generated from the docs, three in-browser playgrounds (brainfuck,
+  whitespace, deadfish) verified under node.
+
 ## 2026-08-30
 
 * Stage 4 opens for real: compilers from Turpentine to **whitespace** and

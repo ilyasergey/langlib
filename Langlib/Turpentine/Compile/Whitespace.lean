@@ -142,17 +142,47 @@ address, which our interpreter reports as
 `heap retrieve at negative address -1`. Both runs fail at the same point
 with no further output; only the wording differs.
 
-### 3. `readByte` at end of input (a real divergence)
+### 3. Array bounds (checked, with a different message)
+
+Out-of-bounds indexing is a runtime error in the reference semantics, in
+the same class as division by zero, and the compiled code checks it too.
+Every `a[i]`, in a read or a write, is preceded by
+
+```
+dup; jn oob                  -- i < 0
+dup; push n; sub; jn ok      -- i - n < 0, that is i < n
+jump oob
+ok:
+```
+
+Both halves are sign tests, which is all whitespace offers. The shared
+`oob:` trap does `push -2; push 0; store`, a store to a negative heap
+address, reported as `heap store at negative address -2`. That is a
+different forbidden address from the assert trap's `-1`, so the two
+failures stay distinguishable. Again the behaviour matches (the run stops
+at the same point with the same output so far) and only the wording
+differs.
+
+The check costs five instructions per index. Nothing in the layout depends
+on it, so an unchecked variant would be a one-line change if anyone ever
+wants the speed.
+
+### 4. `readByte` at end of input (a real divergence)
 
 This one cannot be repaired. Turpentine's `readByte()` yields `-1` at end of
 input, so a Turpentine `cat` loop terminates. Whitespace's `readchar`
 **raises a runtime error** at end of input and offers no way to test for
-EOF (`docs/whitespace/spec.md`, decision 12) — which is why the
+EOF (`docs/whitespace/spec.md`, decision 12), which is why the
 hand-written `Langlib/Examples/Whitespace/cat.ws` ends in an error by
 design. A compiled `cat.turp` therefore copies its input faithfully and then
 dies with `read char at end of input` where the Turpentine interpreter would
 have halted. Programs that never hit EOF (they read a known number of
 bytes) compile with no divergence at all.
+
+The same divergence reaches `a[i] := readByte()`: the compiled form reads
+before it checks the index, as the reference does, so at end of input it
+raises the read error where the reference would have stored `-1` and then
+possibly reported a bad index.
 
 `readInt` is fine by comparison: both languages read one line and raise a
 runtime error at end of input or on a line that is not an optionally

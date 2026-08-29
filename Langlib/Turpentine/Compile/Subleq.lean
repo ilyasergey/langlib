@@ -217,18 +217,21 @@ def Word.render : Word → String
   | .here off => "?" ++ offSuffix off
 
 /-- An emitted item. `label` and `comment` occupy no memory; `instr` is
-three words; `datum` is one word carrying its own label. -/
+three words; `datum` is one word carrying its own label; `pad` is a run of
+zero words with no label, used for the tail of an array. -/
 inductive Item where
   | label (name : String)
   | comment (text : String)
   | instr (a b c : Word) (note : String)
   | datum (name : String) (w : Word) (note : String)
+  | pad (count : Nat) (note : String)
 deriving Inhabited
 
 def Item.size : Item → Nat
   | .label _ | .comment _ => 0
   | .instr .. => 3
   | .datum .. => 1
+  | .pad n _ => n
 
 /-! ## Code-generation state -/
 
@@ -247,6 +250,8 @@ structure St where
   needDiv : Bool := false
   needPrint : Bool := false
   needRead : Bool := false
+  /-- Set by the first array operation; allocates the `ax`/`av` cells. -/
+  needArray : Bool := false
 deriving Inhabited
 
 abbrev M := StateT St (Except String)
@@ -392,6 +397,45 @@ private def mOutStr (s : String) : M Unit := do
     let k ← constW (Int.ofNat b.toNat)
     mOut k
 
+/-! ## Computed addressing, by patching operands
+
+Subleq's only addressing mode is "the operand I was assembled with", so
+reading `a[i]` means **writing the computed address into the operand field
+of an instruction and then executing that instruction**. The address lives
+in `ax`; the two macros below patch it into a load or a store standing a
+few words further down, and every execution re-patches before it runs, so
+they work inside loops. -/
+
+/-- `dst := mem[mem[ptr]]`: an indirect load. The word at the generated
+label is the `A` operand of the subtraction, and it is overwritten with the
+address held in `ptr` just before the subtraction runs. -/
+private def mLoadInd (ptr dst : Word) : M Unit := do
+  let ld ← fresh
+  emitC s!"{dst.render} := mem[{ptr.render}], by patching the load at {ld}"
+  mMov ptr (.ref ld 0)
+  mZero wSc
+  emitL ld
+  emitI (.lit 0) wSc NEXT "A is patched: sc := -mem[address]"
+  mZero dst
+  emitI wSc dst NEXT s!"{dst.render} := the element"
+
+/-- `mem[mem[ptr]] := mem[src]`: an indirect store. Three operand words get
+patched, the two of the zeroing instruction and the `B` of the subtraction
+that writes the value back. -/
+private def mStoreInd (ptr src : Word) : M Unit := do
+  let zi ← fresh
+  let st ← fresh
+  emitC s!"mem[{ptr.render}] := {src.render}, by patching {zi} and {st}"
+  mMov ptr (.ref zi 0)
+  mMov ptr (.ref zi 1)
+  mMov ptr (.ref st 1)
+  mZero wSc
+  mSub src wSc
+  emitL zi
+  emitI (.lit 0) (.lit 0) NEXT "A and B are patched: mem[address] := 0"
+  emitL st
+  emitI wSc (.lit 0) NEXT "B is patched: mem[address] -= sc, storing the value"
+
 /-! ## Calling the runtime routines -/
 
 /-- Call `name`: patch the routine's exit instruction with the address of
@@ -410,6 +454,42 @@ private def mCall (name : String) : M Unit := do
 private def varRef (types : Types) (x : String) : M Word :=
   if types.contains x then pure (varW x)
   else throw s!"unknown variable '{x}' (was the program type-checked?)"
+
+/-- The declared length of an array variable. -/
+private def arrLen (types : Types) (x : String) : M Nat :=
+  match types[x]? with
+  | some (.array _ n) => pure n
+  | some _ => throw s!"'{x}' is not an array (was the program type-checked?)"
+  | none => throw s!"unknown variable '{x}' (was the program type-checked?)"
+
+/-- The cell that holds the base address of array `x`. Subleq cannot take
+the address of a label at runtime, so the assembler stores it for us: the
+data cell `ab_x` is assembled with the address of `v_x` as its value. -/
+private def arrBaseW (x : String) : Word := .ref s!"ab_{x}" 0
+
+private def wAx : Word := .ref "ax" 0
+private def wAv : Word := .ref "av" 0
+
+/-- Bounds-check the index in `idx` against an array of length `n`, then
+leave the address of the element in `ax`. Out of range jumps to `trap`.
+Uses `w0`, which is free between statements. -/
+private def emitElemAddr (x : String) (n : Nat) (idx : Word) : M Unit := do
+  modify fun s => { s with needArray := true }
+  let ok ← fresh
+  emitC s!"bounds-check the index of {x} against 0 .. {n - 1}"
+  mMov idx w0
+  mInc w0
+  mJle w0 "trap"           -- i + 1 <= 0, that is i < 0
+  mMov idx w0
+  let kn ← constW (n : Int)
+  mSub kn w0
+  mInc w0                  -- w0 = i - n + 1
+  mJle w0 ok               -- i - n + 1 <= 0, that is i < n
+  mJmp "trap"
+  emitL ok
+  emitC s!"ax := address of {x}[i]"
+  mMov (arrBaseW x) wAx
+  mAdd idx wAx
 
 /-- Turn `t_d`, which holds `a - b`, into the boolean `mem[t_d] <= 0`. -/
 private def boolFromLe (d : Nat) : M Unit := do
@@ -447,10 +527,17 @@ private def boolFromZ (d : Nat) (want : Bool) : M Unit := do
 
 /-- Compile an expression, leaving its value in the temporary `t_d`. -/
 private def compileExpr (types : Types) : Expr → Nat → M Unit
-  | .index x _, _ =>
-    throw s!"arrays are not supported by this backend yet ({x}[i])"
-  | .len x, _ =>
-    throw s!"arrays are not supported by this backend yet (len({x}))"
+  | .index x i, d => do
+    noteDepth d
+    let n ← arrLen types x
+    compileExpr types i d
+    emitElemAddr x n (tmpW d)
+    mLoadInd wAx (tmpW d)
+  | .len x, d => do
+    -- The length is fixed at declaration, so this is a literal.
+    noteDepth d
+    let n ← arrLen types x
+    mSet (tmpW d) (n : Int)
   | .intLit n, d => do noteDepth d; mSet (tmpW d) n
   | .boolLit b, d => do noteDepth d; mSet (tmpW d) (if b then 1 else 0)
   | .var x, d => do
@@ -511,12 +598,36 @@ private def compileExpr (types : Types) : Expr → Nat → M Unit
 /-! ## Statements -/
 
 private def compileStmt (types : Types) : Stmt → M Unit
-  | .assignIndex x _ _ =>
-    throw s!"arrays are not supported by this backend yet ({x}[i] := ...)"
-  | .readIntIndex x _ =>
-    throw s!"arrays are not supported by this backend yet ({x}[i] := readInt())"
-  | .readByteIndex x _ =>
-    throw s!"arrays are not supported by this backend yet ({x}[i] := readByte())"
+  | .assignIndex x i e => do
+    emitC s!"{x}[i] := ..."
+    let n ← arrLen types x
+    -- The reference evaluates the right-hand side first, then the index,
+    -- so a failing `e` reports its own error even when `i` is out of range.
+    compileExpr types e 0
+    modify fun s => { s with needArray := true }
+    mMov (tmpW 0) wAv
+    compileExpr types i 0
+    emitElemAddr x n (tmpW 0)
+    mStoreInd wAx wAv
+  | .readIntIndex x i => do
+    modify fun s => { s with needRead := true, needArray := true }
+    emitC s!"{x}[i] := readInt()"
+    let n ← arrLen types x
+    -- Read first: the reference consumes and parses the line before it
+    -- looks at the index, so a bad line beats a bad index.
+    mCall "readint"
+    mMov (.ref "ri_v" 0) wAv
+    compileExpr types i 0
+    emitElemAddr x n (tmpW 0)
+    mStoreInd wAx wAv
+  | .readByteIndex x i => do
+    modify fun s => { s with needArray := true }
+    emitC s!"{x}[i] := readByte()"
+    let n ← arrLen types x
+    mIn wAv
+    compileExpr types i 0
+    emitElemAddr x n (tmpW 0)
+    mStoreInd wAx wAv
   | .skip => pure ()
   | .seq a b => do compileStmt types a; compileStmt types b
   | .assign x e => do
@@ -902,8 +1013,18 @@ def buildChecked (p : Program) (types : Types) : Except String (Array Item) := d
   -- routines and the literal pool asked for.
   let mut data : Array Item := #[]
   data := data.push (.comment "--- data ---")
-  for (x, _, _) in p.decls do
-    data := data.push (.datum s!"v_{x}" (.lit 0) s!"variable {x}")
+  for (x, t, _) in p.decls do
+    match t with
+    | .array _ n =>
+      -- `n` consecutive cells, all starting at 0 (which is also `false`),
+      -- plus a cell holding the base address, since subleq cannot take the
+      -- address of a label at runtime but the assembler can at build time.
+      data := data.push (.datum s!"v_{x}" (.lit 0) s!"array {x}, element 0")
+      if n > 1 then
+        data := data.push (.pad (n - 1) s!"{x}[1..{n - 1}]")
+      data := data.push
+        (.datum s!"ab_{x}" (.ref s!"v_{x}" 0) s!"base address of {x}")
+    | _ => data := data.push (.datum s!"v_{x}" (.lit 0) s!"variable {x}")
   for d in [0:st.maxDepth + 1] do
     data := data.push (.datum s!"t_{d}" (.lit 0) s!"expression temporary {d}")
   data := data.push (.datum "Z" (.lit 0) "the constant zero: never changes")
@@ -913,6 +1034,9 @@ def buildChecked (p : Program) (types : Types) : Except String (Array Item) := d
   data := data.push (.datum "w0" (.lit 0) "routine workspace")
   data := data.push (.datum "w1" (.lit 0) "routine workspace")
   data := data.push (.datum "w2" (.lit 0) "routine workspace")
+  if st.needArray then
+    data := data.push (.datum "ax" (.lit 0) "computed address of an array element")
+    data := data.push (.datum "av" (.lit 0) "value on its way into an array element")
   data := data ++ st.data
   if !st.constOrder.isEmpty then
     data := data.push (.comment "--- literal pool ---")
@@ -955,12 +1079,26 @@ def assembleItems (items : Array Item) : Except String Prog := do
       out := out.push (← resolveWord m (addr + 2) c)
     | .datum _ w _ =>
       out := out.push (← resolveWord m addr w)
+    | .pad n _ =>
+      for _ in [0:n] do
+        out := out.push 0
     addr := addr + (it.size : Int)
   return out
 
 private def pad (s : String) (n : Nat) : String :=
   if s.length ≥ n then s ++ " "
   else s ++ String.ofList (List.replicate (n - s.length) ' ')
+
+/-- `n` zero words, sixteen to a line: the body of an array's cells. -/
+private def zeroRows (n : Nat) : String := Id.run do
+  let mut out := ""
+  let mut left := n
+  while left > 0 do
+    let row := min left 16
+    out := out ++ "  " ++
+      String.intercalate " " ((List.range row).map fun _ => "0") ++ "\n"
+    left := left - row
+  return out
 
 /-- Render an item list as our subleq assembler text, with labels and
 comments. `Langlib.Subleq.assemble` parses it back to the same image. -/
@@ -977,6 +1115,9 @@ def renderItems (items : Array Item) : String :=
       let head := pad (n ++ ":") 12
       if note.isEmpty then acc ++ head ++ w.render ++ "\n"
       else acc ++ head ++ pad w.render 10 ++ "# " ++ note ++ "\n"
+    | .pad n note =>
+      -- A comment line, then a run of `n` zero words, sixteen to a line.
+      acc ++ (if note.isEmpty then "" else "# " ++ note ++ "\n") ++ zeroRows n
 
 /-- Compile a Turpentine program to a subleq memory image. The program is
 type-checked first: `Except.error` means it was not a well-typed
