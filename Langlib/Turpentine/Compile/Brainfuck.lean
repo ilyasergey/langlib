@@ -871,6 +871,10 @@ def maxDepth : Nat := 32
 def checkProgramSupported (p : Program) : Except String Unit := do
   if p.decls.length > maxVars then
     throw s!"the brainfuck backend supports at most {maxVars} variables, this program declares {p.decls.length}"
+  -- The body is checked before the declarations so that a program using an
+  -- array is told which array operation is missing, rather than being sent
+  -- back to the declaration that made it possible.
+  checkStmtSupported p.body
   for (x, t, init) in p.decls do
     match t with
     | .array _ _ =>
@@ -879,7 +883,6 @@ def checkProgramSupported (p : Program) : Except String Unit := do
     match init with
     | some e => checkExprSupported e
     | none => pure ()
-  checkStmtSupported p.body
   let d := programDepth p
   if d > maxDepth then
     throw s!"expression nesting of depth {d} exceeds the brainfuck backend's limit of {maxDepth}"

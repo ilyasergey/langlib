@@ -19,14 +19,18 @@ that `L` is Turing complete" means literally the same thing for every `L`.
   proved once in `halting_decidable`, so a language supplies only its
   bound.
 
-Finiteness is stated as an injection into an initial segment of `Nat`
-rather than with `Set.Finite`, because `Set.Finite` is a Mathlib notion and
-`Langlib` has no dependencies.
+The universal model is cslib's unlimited register machine
+(`Cslib.Computability.URM`); see `Langlib/Computability/URM.lean` for what
+langlib adds to it and why. Finiteness in `BoundedStorage` is stated as an
+injection into an initial segment of `Nat` rather than with `Set.Finite`:
+Mathlib is available here, but the injection needs no theory at all and the
+decidability proof below is short either way.
 -/
 
 namespace Langlib.Computability
 
 open Langlib.Common
+open Cslib.URM (Program HaltsWithResult)
 
 /-! ## Languages -/
 

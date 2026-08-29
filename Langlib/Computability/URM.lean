@@ -1,240 +1,63 @@
+import Cslib.Computability.URM.Execution
+
 /-!
-# The unlimited register machine
+# The unlimited register machine: langlib's adapter over cslib
 
-This is langlib's yardstick for Turing completeness: the unlimited register
-machine (URM) of Shepherdson and Sturgis, in the presentation Cutland uses.
-A URM has countably many registers, each holding a natural number, and four
-instructions: zero a register, increment a register, copy one register into
-another, and jump when two registers are equal. That instruction set is
-universal (Cutland, *Computability*, chapter 1), so exhibiting a simulation
-of an arbitrary URM inside a language `L` shows that `L` computes every
-computable function.
+The universal model langlib measures its languages against is the unlimited
+register machine of Shepherdson and Sturgis, in Cutland's presentation:
+countably many registers holding natural numbers, and four instructions,
+`Z n` (zero a register), `S n` (increment), `T m n` (copy), and `J m n q`
+(jump to instruction `q` when registers `m` and `n` are equal). That machine
+is universal, so a simulation of an arbitrary URM inside a language `L`
+shows that `L` computes every computable function.
 
-## Relation to cslib
+**The machine itself is cslib's** (`Cslib.Computability.URM`), not ours: the
+instruction set, the register state, the `Step` relation, `Steps`, `Halts`
+and `HaltsWithResult` are all used directly. This file adds only what cslib
+does not have and langlib needs, namely an *executable* interpreter.
 
-[cslib](https://github.com/leanprover/cslib) has this machine as
-`Cslib.Computability.URM`. langlib does not depend on cslib, because cslib
-depends on Mathlib and langlib is deliberately dependency-free (see
-`docs/computability.md` for the full argument and the evidence). The
-definitions below therefore *mirror* cslib's, name for name and constructor
-for constructor, so that a bridging lemma is a formality once a `proofs/`
-package exists. Deviations, all of them forced by the absence of Mathlib:
+cslib's execution semantics is a relation, `Step`, together with a
+`Part`-valued `eval` built from `Classical.choose`. That is the right choice
+for reasoning but it cannot be run, and langlib's differential tests
+(`Langlib/Tests/URMWhitespace.lean`) want to execute a URM program and
+compare its answer against the compiled Whitespace program's output. So this
+module defines a fuel-driven `step`/`run` and proves it agrees with cslib's
+relation:
 
-* `Regs` is `Nat → Nat` rather than `ℕ → ℕ`; these are the same type.
-* `Regs.write` is `fun k => if k = n then v else σ k` rather than
-  `Function.update σ n v`, which is not in core Lean. The two agree
-  pointwise (`Function.update` for a non-dependent codomain reduces to the
-  same conditional), so a bridging lemma is `funext` plus `dif_eq_if`.
-* `Instr.readsFrom` returns a `List Nat` rather than a `Finset ℕ`, since
-  `Finset` is a Mathlib notion. It is not used in any proof here.
-* cslib's execution semantics is the relation `Step` plus a `Part`-valued,
-  `Classical.choose`-based `eval`. That is not executable, and langlib wants
-  to *run* compiled URM programs in its test suite, so this module adds a
-  fuel-based executable `step`/`run` and proves it agrees with the relation
-  (`step_eq_some_iff_Step`, `Steps_run`). The relation itself is a
-  constructor-for-constructor copy of cslib's, so anything proved against
-  `Step` transfers directly.
-* `Steps` is spelled as its own inductive rather than
-  `Relation.ReflTransGen (Step p)`, which lives in Mathlib. The two
-  definitions are the same up to renaming the constructors.
+* `step_eq_some_iff_Step` : `step p s = some s' ↔ Cslib.URM.Step p s s'`
+* `step_eq_none_iff_isHalted` : `step p s = none ↔ s.isHalted p`
+* `steps_run` : `Cslib.URM.Steps p s (run p s n)`
+* `haltsWithResult_of_haltsIn` : a terminating `run` gives cslib's
+  `HaltsWithResult`
 
-Nothing else differs: the instruction set, the 0-indexed program counter,
-the "halted when the counter is at or past the end of the program"
-convention, `Regs.ofInputs`, and "the answer is register 0" are all cslib's.
+so the executable side is a definition plus four lemmas, and every theorem
+in `Langlib/Computability/` is stated against cslib's relation.
+
+Mathlib arrives with cslib. It is confined to `Langlib/Computability/`; the
+interpreters under `Langlib/Languages/` and `Langlib/Turpentine/` do not
+import it.
 -/
 
 namespace Langlib.Computability.URM
 
-/-! ## Instructions -/
+open Cslib.URM
 
-/-- URM instructions.
+/-! ## Convenience lemmas about registers
 
-* `Z n`: set register `n` to zero.
-* `S n`: increment register `n` by one.
-* `T m n`: transfer (copy) the contents of register `m` to register `n`.
-* `J m n q`: if registers `m` and `n` hold equal values, jump to instruction
-  `q`; otherwise proceed to the next instruction.
+cslib's `Regs.write` is `Function.update`; these two lemmas are the only
+facts about it the simulation proofs need. -/
 
-Jump targets are 0-indexed absolute instruction positions, and a target at
-or past the end of the program halts the machine. -/
-inductive Instr where
-  | Z : Nat → Instr
-  | S : Nat → Instr
-  | T : Nat → Nat → Instr
-  | J : Nat → Nat → Nat → Instr
-deriving DecidableEq, Repr, Inhabited
+theorem read_write_self (σ : Regs) (n v : Nat) : (σ.write n v).read n = v := by
+  simp [Regs.read, Regs.write]
 
-namespace Instr
-
-/-- The registers read by an instruction. -/
-def readsFrom : Instr → List Nat
-  | Z _ => []
-  | S n => [n]
-  | T m _ => [m]
-  | J m n _ => [m, n]
-
-/-- The register written by an instruction, if any. -/
-def writesTo : Instr → Option Nat
-  | Z n => some n
-  | S n => some n
-  | T _ n => some n
-  | J _ _ _ => none
-
-/-- The largest register index an instruction mentions. -/
-def maxRegister : Instr → Nat
-  | Z n => n
-  | S n => n
-  | T m n => max m n
-  | J m n _ => max m n
-
-/-- Shift every jump target by `offset`. Used when concatenating programs. -/
-def shiftJumps (offset : Nat) : Instr → Instr
-  | Z n => Z n
-  | S n => S n
-  | T m n => T m n
-  | J m n q => J m n (q + offset)
-
-/-- Shift every register reference by `offset`. Used to isolate register use
-when composing programs. -/
-def shiftRegisters (offset : Nat) : Instr → Instr
-  | Z n => Z (n + offset)
-  | S n => S (n + offset)
-  | T m n => T (m + offset) (n + offset)
-  | J m n q => J (m + offset) (n + offset) q
-
-end Instr
-
-/-! ## Registers -/
-
-/-- Register contents, as a total function from register index to value.
-Only finitely many registers are ever touched by a program, but keeping the
-state total avoids carrying a finiteness side-condition through every
-lemma. -/
-abbrev Regs := Nat → Nat
-
-namespace Regs
-
-/-- All registers zero. -/
-def zero : Regs := fun _ => 0
-
-/-- Read register `n`. -/
-def read (σ : Regs) (n : Nat) : Nat := σ n
-
-/-- Write `v` to register `n`. -/
-def write (σ : Regs) (n : Nat) (v : Nat) : Regs :=
-  fun k => if k = n then v else σ k
-
-@[simp] theorem read_write_self (σ : Regs) (n v : Nat) :
-    (σ.write n v).read n = v := by
-  simp [read, write]
-
-@[simp] theorem read_write_of_ne (σ : Regs) {n k : Nat} (h : k ≠ n) (v : Nat) :
+theorem read_write_of_ne (σ : Regs) {n k : Nat} (h : k ≠ n) (v : Nat) :
     (σ.write n v).read k = σ.read k := by
-  simp [read, write, h]
+  simp [Regs.read, Regs.write, Function.update_of_ne h]
 
-/-- Load the inputs into registers `0, 1, …`; every other register is zero. -/
-def ofInputs (inputs : List Nat) : Regs := fun n => inputs.getD n 0
+/-! ## An executable interpreter -/
 
-/-- The machine's answer: the contents of register 0. -/
-def output (σ : Regs) : Nat := σ 0
-
-end Regs
-
-/-! ## Programs -/
-
-/-- A URM program is a finite list of instructions. -/
-abbrev Program := List Instr
-
-namespace Program
-
-/-- The largest register index the program mentions. -/
-def maxRegister (p : Program) : Nat :=
-  p.foldl (fun acc i => max acc i.maxRegister) 0
-
-/-- Shift every jump target in the program by `offset`. -/
-def shiftJumps (p : Program) (offset : Nat) : Program :=
-  p.map (Instr.shiftJumps offset)
-
-/-- Shift every register reference in the program by `offset`. -/
-def shiftRegisters (p : Program) (offset : Nat) : Program :=
-  p.map (Instr.shiftRegisters offset)
-
-end Program
-
-/-! ## Machine state -/
-
-/-- A machine configuration: a 0-indexed program counter and the registers. -/
-structure State where
-  pc : Nat
-  regs : Regs
-
-namespace State
-
-/-- The initial configuration for a given input vector. -/
-def init (inputs : List Nat) : State := ⟨0, Regs.ofInputs inputs⟩
-
-/-- A configuration is halted when the counter has run off the end. -/
-def isHalted (s : State) (p : Program) : Prop := p.length ≤ s.pc
-
-instance (s : State) (p : Program) : Decidable (s.isHalted p) :=
-  inferInstanceAs (Decidable (p.length ≤ s.pc))
-
-instance : Inhabited State := ⟨init []⟩
-
-end State
-
-/-! ## Execution, as a relation
-
-This is cslib's `Step`, copied constructor for constructor. -/
-
-/-- Single-step execution. -/
-inductive Step (p : Program) : State → State → Prop where
-  | zero {s : State} {n : Nat}
-      (h : p[s.pc]? = some (Instr.Z n)) :
-      Step p s ⟨s.pc + 1, s.regs.write n 0⟩
-  | succ {s : State} {n : Nat}
-      (h : p[s.pc]? = some (Instr.S n)) :
-      Step p s ⟨s.pc + 1, s.regs.write n (s.regs.read n + 1)⟩
-  | transfer {s : State} {m n : Nat}
-      (h : p[s.pc]? = some (Instr.T m n)) :
-      Step p s ⟨s.pc + 1, s.regs.write n (s.regs.read m)⟩
-  | jump_eq {s : State} {m n q : Nat}
-      (h : p[s.pc]? = some (Instr.J m n q))
-      (heq : s.regs.read m = s.regs.read n) :
-      Step p s ⟨q, s.regs⟩
-  | jump_ne {s : State} {m n q : Nat}
-      (h : p[s.pc]? = some (Instr.J m n q))
-      (hne : s.regs.read m ≠ s.regs.read n) :
-      Step p s ⟨s.pc + 1, s.regs⟩
-
-/-- Multi-step execution: the reflexive-transitive closure of `Step`.
-cslib writes this as `Relation.ReflTransGen (Step p)`. -/
-inductive Steps (p : Program) : State → State → Prop where
-  | refl {s : State} : Steps p s s
-  | tail {s s' s'' : State} : Steps p s s' → Step p s' s'' → Steps p s s''
-
-theorem Steps.single {p : Program} {s s' : State} (h : Step p s s') :
-    Steps p s s' := .tail .refl h
-
-theorem Steps.head {p : Program} {s s' s'' : State} (h : Step p s s')
-    (hs : Steps p s' s'') : Steps p s s'' := by
-  induction hs with
-  | refl => exact .single h
-  | tail _ hlast ih => exact .tail ih hlast
-
-theorem Steps.trans {p : Program} {s s' s'' : State}
-    (h : Steps p s s') (h' : Steps p s' s'') : Steps p s s'' := by
-  induction h' with
-  | refl => exact h
-  | tail _ hlast ih => exact .tail ih hlast
-
-/-! ## Execution, as a function
-
-cslib's `eval` is `Part`-valued and noncomputable. langlib runs its
-machines, so here is the executable version, together with the lemmas that
-tie it back to `Step`. -/
-
-/-- One step of execution, or `none` when the machine has halted. -/
+/-- One step of execution, or `none` when the machine has halted. This is
+the functional counterpart of `Cslib.URM.Step`. -/
 def step (p : Program) (s : State) : Option State :=
   match p[s.pc]? with
   | none => none
@@ -245,32 +68,25 @@ def step (p : Program) (s : State) : Option State :=
     if s.regs.read m = s.regs.read n then some ⟨q, s.regs⟩
     else some ⟨s.pc + 1, s.regs⟩
 
-/-- Run for at most `n` steps. A halted machine stays where it is, so `run`
-is monotone in the step budget in the strong sense that once the machine
-halts more budget changes nothing (`run_halted`). -/
+/-- Run for at most `n` steps; a halted machine stays put. -/
 def run (p : Program) (s : State) : Nat → State
   | 0 => s
   | n + 1 => match step p s with
     | none => s
     | some s' => run p s' n
 
-/-- `p` halts on `s` within `n` steps. -/
+/-- `p` reaches a halted configuration from `s` within `n` steps. -/
 def haltsIn (p : Program) (s : State) (n : Nat) : Prop :=
   (run p s n).isHalted p
 
 instance (p : Program) (s : State) (n : Nat) : Decidable (haltsIn p s n) :=
   inferInstanceAs (Decidable ((run p s n).isHalted p))
 
-/-- `p` halts on `inputs`, cslib's `Halts`. -/
-def Halts (p : Program) (inputs : List Nat) : Prop :=
-  ∃ n, haltsIn p (State.init inputs) n
+/-- The answer register after running `n` steps from the initial state. -/
+def result (p : Program) (inputs : List Nat) (n : Nat) : Nat :=
+  (run p (State.init inputs) n).regs.output
 
-/-- `p` halts on `inputs` with `result` in register 0, cslib's
-`HaltsWithResult`. -/
-def HaltsWithResult (p : Program) (inputs : List Nat) (result : Nat) : Prop :=
-  ∃ n, haltsIn p (State.init inputs) n ∧ (run p (State.init inputs) n).regs.output = result
-
-/-! ### Agreement between the two presentations -/
+/-! ## Agreement with cslib's relation -/
 
 private theorem lt_length_of_getElem?_some {p : Program} {k : Nat} {i : Instr}
     (h : p[k]? = some i) : k < p.length := by
@@ -322,15 +138,15 @@ theorem step_eq_some_iff_Step {p : Program} {s s' : State} :
     | jump_eq hi hq => unfold step; rw [hi]; simp [hq]
     | jump_ne hi hq => unfold step; rw [hi]; simp [hq]
 
-/-- Everything `run` reaches is reachable by `Steps`. -/
-theorem Steps_run (p : Program) (s : State) (n : Nat) : Steps p s (run p s n) := by
+/-- Everything `run` reaches, cslib's `Steps` reaches. -/
+theorem steps_run (p : Program) (s : State) (n : Nat) : Steps p s (run p s n) := by
   induction n generalizing s with
   | zero => exact .refl
   | succ n ih =>
     unfold run
     cases h : step p s with
     | none => exact .refl
-    | some s' => exact Steps.head (step_eq_some_iff_Step.mp h) (ih s')
+    | some s' => exact Relation.ReflTransGen.head (step_eq_some_iff_Step.mp h) (ih s')
 
 /-- A halted machine does not move. -/
 theorem run_halted {p : Program} {s : State} (h : s.isHalted p) (n : Nat) :
@@ -365,5 +181,13 @@ theorem haltsIn_of_le {p : Program} {s : State} {n m : Nat}
     unfold haltsIn at h ⊢
     rw [run_add_of_haltsIn h]
     exact h
+
+/-- The executable interpreter's answer is cslib's answer: a `run` that
+halts witnesses `Cslib.URM.HaltsWithResult`. This is the bridge the
+differential tests rely on. -/
+theorem haltsWithResult_of_haltsIn {p : Program} {inputs : List Nat} {n : Nat}
+    (h : haltsIn p (State.init inputs) n) :
+    HaltsWithResult p inputs (result p inputs n) :=
+  ⟨run p (State.init inputs) n, steps_run p _ n, h, rfl⟩
 
 end Langlib.Computability.URM
