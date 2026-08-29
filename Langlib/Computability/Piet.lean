@@ -1968,6 +1968,301 @@ theorem unitCorridor_of_row (g : Grid) (code : List BlockCmd) (hu : UnitCode cod
         rw [hcur]
         exact chromatic_bne (Ne.symm (advance_ne h l c.op))
 
+/-! ## White transits
+
+Three of the four movements in a generated image are white slides: the
+start, the separator that keeps the return corridor out of the prologue,
+and the return corridor itself.  A slide executes no command; it only
+moves, and each blocked turn rotates the direction pointer and toggles the
+codel chooser. -/
+
+/-- A slide that lands on the very next codel. -/
+theorem slide_land_right (g : Grid) (fuel : Nat)
+    (seen : List ((Nat × Nat) × Dir)) (x y : Nat) (cc : CC)
+    (h : Hue) (l : Lightness)
+    (hseen : seen.contains ((x, y), Dir.right) = false)
+    (hstep : step? g (x, y) .right = some (x + 1, y))
+    (hnext : g.get (x + 1) y = .chromatic h l) :
+    slide g (fuel + 1) seen (x, y) .right cc = .landed (x + 1, y) .right cc := by
+  simp only [slide, hseen, Bool.false_eq_true, if_false, hstep, hnext]
+
+/-- A transition out of a singleton block onto white that slides to a
+landing: no command runs, the position and direction come from the slide. -/
+theorem tryFrom_white (g : Grid) (bl : Blocks) (s : MState)
+    (h₁ : Hue) (l₁ : Lightness) (w p : Nat × Nat) (dp : Dir) (cc : CC)
+    (hinfo : localInfoAt? g s.pos = some (singletonInfo s.pos))
+    (hcurrent : g.get s.pos.1 s.pos.2 = .chromatic h₁ l₁)
+    (hstep : step? g s.pos s.dp = some w)
+    (hwhite : g.get w.1 w.2 = .white)
+    (hslide : slide g (slideFuel g) [] w s.dp s.cc = .landed p dp cc) :
+    tryFrom g bl 8 s = .ok { s with pos := p, dp := dp, cc := cc } := by
+  rw [tryFrom, hinfo, hcurrent]
+  simp only
+  rw [singletonInfo_exit, hstep]
+  simp only
+  rw [hwhite]
+  simp only
+  rw [hslide]
+
+/-- One unit of evaluator fuel follows a white transit. -/
+theorem exec_white (g : Grid) (bl : Blocks) (fuel : Nat) (s : MState)
+    (h₁ : Hue) (l₁ : Lightness) (w p : Nat × Nat) (dp : Dir) (cc : CC)
+    (hinfo : localInfoAt? g s.pos = some (singletonInfo s.pos))
+    (hcurrent : g.get s.pos.1 s.pos.2 = .chromatic h₁ l₁)
+    (hstep : step? g s.pos s.dp = some w)
+    (hwhite : g.get w.1 w.2 = .white)
+    (hslide : slide g (slideFuel g) [] w s.dp s.cc = .landed p dp cc) :
+    exec g bl (fuel + 1) s = exec g bl fuel { s with pos := p, dp := dp, cc := cc } := by
+  rw [show fuel + 1 = Nat.succ fuel from rfl, exec,
+    tryFrom_white g bl s h₁ l₁ w p dp cc hinfo hcurrent hstep hwhite hslide]
+
+theorem contains_false_of_forall {α : Type} [BEq α] (l : List α) (a : α)
+    (h : ∀ b ∈ l, (a == b) = false) : l.contains a = false := by
+  induction l with
+  | nil => rfl
+  | cons b l ih =>
+      simp only [List.contains_cons, Bool.or_eq_false_iff]
+      exact ⟨h b (by simp), ih (fun c hc => h c (by simp [hc]))⟩
+
+theorem dir_beq_of_ne {d d' : Dir} (h : d ≠ d') : (d == d') = false := by
+  cases d <;> cases d' <;> first | rfl | exact absurd rfl h
+
+theorem pair_beq_false (a b a' b' : Nat) (d d' : Dir)
+    (h : a ≠ a' ∨ b ≠ b' ∨ d ≠ d') : (((a, b), d) == ((a', b'), d')) = false := by
+  rcases h with h | h | h
+  · simp [BEq.beq, h]
+  · simp [BEq.beq, h]
+  · simp only [BEq.beq]
+    rw [show instBEqDir.beq d d' = (d == d') from rfl, dir_beq_of_ne h,
+      Bool.and_false]
+
+theorem clockwise_right : Dir.clockwise .right = .down := rfl
+theorem clockwise_down : Dir.clockwise .down = .left := rfl
+theorem clockwise_left : Dir.clockwise .left = .up := rfl
+theorem clockwise_up : Dir.clockwise .up = .right := rfl
+
+/-- Sliding left across a run of white codels. -/
+theorem slide_left_run (g : Grid) (y : Nat) (cc : CC) :
+    ∀ (n x fuel : Nat) (seen : List ((Nat × Nat) × Dir)),
+      (∀ q ∈ seen, q.2 ≠ Dir.left ∨ x < q.1.1) →
+      n ≤ x →
+      (∀ j, j < n → g.get (x - j - 1) y = .white) →
+      ∃ seen', (∀ q ∈ seen', q.2 ≠ Dir.left ∨ (x - n) < q.1.1) ∧
+        (∀ q ∈ seen', q.2 = Dir.left ∨ q ∈ seen) ∧
+        slide g (fuel + n) seen (x, y) .left cc =
+          slide g fuel seen' (x - n, y) .left cc := by
+  intro n
+  induction n with
+  | zero =>
+      intro x fuel seen hseen _ _
+      exact ⟨seen, by simpa using hseen, fun q hq => Or.inr hq, rfl⟩
+  | succ n ih =>
+      intro x fuel seen hseen hn hwhite
+      have hx : 0 < x := by omega
+      have hcontains : seen.contains ((x, y), Dir.left) = false := by
+        apply contains_false_of_forall
+        intro b hb
+        obtain ⟨⟨bx, by'⟩, bd⟩ := b
+        rcases hseen _ hb with h | h
+        · exact pair_beq_false x y bx by' .left bd (Or.inr (Or.inr fun he => h he.symm))
+        · exact pair_beq_false x y bx by' .left bd (Or.inl (by simp at h; omega))
+      have hstep : step? g (x, y) .left = some (x - 1, y) := by simp [step?, hx]
+      have hw0 : g.get (x - 1) y = .white := by
+        have := hwhite 0 (by omega)
+        simpa using this
+      have hstep1 : slide g (fuel + (n + 1)) seen (x, y) .left cc =
+          slide g (fuel + n) (((x, y), Dir.left) :: seen) (x - 1, y) .left cc := by
+        rw [show fuel + (n + 1) = (fuel + n) + 1 from rfl]
+        simp only [slide, hcontains, Bool.false_eq_true, if_false, hstep, hw0]
+      obtain ⟨seen', hinv, hshape, heq⟩ := ih (x - 1) fuel (((x, y), Dir.left) :: seen)
+        (by
+          intro q hq
+          rcases List.mem_cons.mp hq with rfl | hq
+          · exact Or.inr (by simp; omega)
+          · rcases hseen q hq with h | h
+            · exact Or.inl h
+            · exact Or.inr (by omega))
+        (by omega)
+        (by
+          intro j hj
+          have := hwhite (j + 1) (by omega)
+          have harith : x - (j + 1) - 1 = x - 1 - j - 1 := by omega
+          rwa [harith] at this)
+      refine ⟨seen', ?_, ?_, ?_⟩
+      · intro q hq
+        rcases hinv q hq with h | h
+        · exact Or.inl h
+        · exact Or.inr (by omega)
+      · intro q hq
+        rcases hshape q hq with h | h
+        · exact Or.inl h
+        · rcases List.mem_cons.mp h with rfl | h
+          · exact Or.inl rfl
+          · exact Or.inr h
+      · rw [hstep1, heq]
+        congr 2
+        omega
+
+/-- The return corridor: down from the pivot's `pop`, left along the bottom
+white run, up the white column, and back into the first codel of the loop
+body.  Three blocked turns, so the codel chooser comes back toggled once. -/
+theorem slide_return (g : Grid) (A L k : Nat) (cc : CC) (h : Hue) (l : Lightness)
+    (_hL : 0 < L)
+    (hdown : ∀ p, step? g (p, 2) .down = none)
+    (hwhiteRun : ∀ j, j < L → g.get (A + 1 + L - j - 1) 2 = .white)
+    (hblack : g.get A 2 = .black)
+    (hup1 : g.get (A + 1) 1 = .white)
+    (hup0 : g.get (A + 1) 0 = .white)
+    (hbody : g.get (A + 2) 0 = .chromatic h l)
+    (hwide : A + 2 < g.width) :
+    slide g (k + (L + 6)) [] (A + 1 + L, 2) .down cc =
+      .landed (A + 2, 0) .right cc.toggle := by
+  -- 1. down is blocked by the bottom edge
+  have s1 : slide g (k + (L + 6)) [] (A + 1 + L, 2) .down cc =
+      slide g (k + 5 + L) [((A + 1 + L, 2), Dir.down)] (A + 1 + L, 2) .left
+        cc.toggle := by
+    rw [show k + (L + 6) = (k + 5 + L) + 1 from by omega]
+    conv_lhs => rw [slide]
+    simp only [List.contains_nil, Bool.false_eq_true, if_false, hdown,
+      clockwise_down]
+  -- 2. the left run along the bottom white corridor
+  obtain ⟨seen', hinv, hshape, s2⟩ :=
+    slide_left_run g 2 cc.toggle L (A + 1 + L) (k + 5)
+      [((A + 1 + L, 2), Dir.down)]
+      (by
+        intro q hq
+        simp only [List.mem_singleton] at hq
+        subst hq
+        exact Or.inl (by simp))
+      (by omega) hwhiteRun
+  have harith : A + 1 + L - L = A + 1 := by omega
+  rw [harith] at s2 hinv
+  -- a `contains` check fails whenever every entry differs in position or
+  -- in direction
+  have hfree : ∀ (p : Nat × Nat) (d : Dir) (sn : List ((Nat × Nat) × Dir)),
+      (∀ q ∈ sn, p.1 ≠ q.1.1 ∨ p.2 ≠ q.1.2 ∨ d ≠ q.2) →
+      sn.contains (p, d) = false := by
+    intro p d sn hq
+    apply contains_false_of_forall
+    intro b hb
+    obtain ⟨⟨bx, by'⟩, bd⟩ := b
+    obtain ⟨px, py⟩ := p
+    exact pair_beq_false px py bx by' d bd (hq _ hb)
+  -- 3. left is blocked by the black codel under the prologue separator
+  have c3 : seen'.contains ((A + 1, 2), Dir.left) = false := by
+    apply hfree
+    intro q hq
+    rcases hinv _ hq with hd | hx
+    · exact Or.inr (Or.inr fun he => hd he.symm)
+    · exact Or.inl (by omega)
+  have s3 : slide g (k + 5) seen' (A + 1, 2) .left cc.toggle =
+      slide g (k + 4) (((A + 1, 2), Dir.left) :: seen') (A + 1, 2) .up
+        cc.toggle.toggle := by
+    rw [show k + 5 = (k + 4) + 1 from rfl]
+    conv_lhs => rw [slide]
+    simp only [c3, Bool.false_eq_true, if_false,
+      show step? g (A + 1, 2) Dir.left = some (A, 2) from by simp [step?],
+      hblack, clockwise_left]
+  -- 4 and 5. up the white column
+  have c4 : (((A + 1, 2), Dir.left) :: seen').contains ((A + 1, 2), Dir.up)
+      = false := by
+    apply hfree
+    intro q hq
+    rcases List.mem_cons.mp hq with rfl | hq
+    · exact Or.inr (Or.inr (by simp))
+    · rcases hshape _ hq with hd | hd
+      · exact Or.inr (Or.inr (by simp [hd]))
+      · simp only [List.mem_singleton] at hd
+        subst hd
+        exact Or.inr (Or.inr (by simp))
+  have s4 : slide g (k + 4) (((A + 1, 2), Dir.left) :: seen') (A + 1, 2) .up
+        cc.toggle.toggle =
+      slide g (k + 3) (((A + 1, 2), Dir.up) :: ((A + 1, 2), Dir.left) :: seen')
+        (A + 1, 1) .up cc.toggle.toggle := by
+    rw [show k + 4 = (k + 3) + 1 from rfl]
+    conv_lhs => rw [slide]
+    simp only [c4, Bool.false_eq_true, if_false,
+      show step? g (A + 1, 2) Dir.up = some (A + 1, 1) from by simp [step?],
+      hup1]
+  have c5 : (((A + 1, 2), Dir.up) :: ((A + 1, 2), Dir.left) :: seen').contains
+      ((A + 1, 1), Dir.up) = false := by
+    apply hfree
+    intro q hq
+    rcases List.mem_cons.mp hq with rfl | hq
+    · exact Or.inr (Or.inl (by simp))
+    rcases List.mem_cons.mp hq with rfl | hq
+    · exact Or.inr (Or.inl (by simp))
+    · rcases hshape _ hq with hd | hd
+      · exact Or.inr (Or.inr (by simp [hd]))
+      · simp only [List.mem_singleton] at hd
+        subst hd
+        exact Or.inr (Or.inl (by simp))
+  have s5 : slide g (k + 3) (((A + 1, 2), Dir.up) :: ((A + 1, 2), Dir.left) :: seen')
+        (A + 1, 1) .up cc.toggle.toggle =
+      slide g (k + 2) (((A + 1, 1), Dir.up) :: ((A + 1, 2), Dir.up) ::
+          ((A + 1, 2), Dir.left) :: seen') (A + 1, 0) .up cc.toggle.toggle := by
+    rw [show k + 3 = (k + 2) + 1 from rfl]
+    conv_lhs => rw [slide]
+    simp only [c5, Bool.false_eq_true, if_false,
+      show step? g (A + 1, 1) Dir.up = some (A + 1, 0) from by simp [step?],
+      hup0]
+  -- 6. up is blocked by the top edge
+  have c6 : (((A + 1, 1), Dir.up) :: ((A + 1, 2), Dir.up) ::
+      ((A + 1, 2), Dir.left) :: seen').contains ((A + 1, 0), Dir.up) = false := by
+    apply hfree
+    intro q hq
+    rcases List.mem_cons.mp hq with rfl | hq
+    · exact Or.inr (Or.inl (by simp))
+    rcases List.mem_cons.mp hq with rfl | hq
+    · exact Or.inr (Or.inl (by simp))
+    rcases List.mem_cons.mp hq with rfl | hq
+    · exact Or.inr (Or.inl (by simp))
+    · rcases hshape _ hq with hd | hd
+      · exact Or.inr (Or.inr (by simp [hd]))
+      · simp only [List.mem_singleton] at hd
+        subst hd
+        exact Or.inr (Or.inl (by simp))
+  have s6 : slide g (k + 2) (((A + 1, 1), Dir.up) :: ((A + 1, 2), Dir.up) ::
+        ((A + 1, 2), Dir.left) :: seen') (A + 1, 0) .up cc.toggle.toggle =
+      slide g (k + 1) (((A + 1, 0), Dir.up) :: ((A + 1, 1), Dir.up) ::
+          ((A + 1, 2), Dir.up) :: ((A + 1, 2), Dir.left) :: seen') (A + 1, 0)
+        .right cc.toggle.toggle.toggle := by
+    rw [show k + 2 = (k + 1) + 1 from rfl]
+    conv_lhs => rw [slide]
+    simp only [c6, Bool.false_eq_true, if_false,
+      show step? g (A + 1, 0) Dir.up = none from by simp [step?],
+      clockwise_up]
+  -- 7. right lands on the first codel of the loop body
+  have c7 : (((A + 1, 0), Dir.up) :: ((A + 1, 1), Dir.up) ::
+      ((A + 1, 2), Dir.up) :: ((A + 1, 2), Dir.left) :: seen').contains
+        ((A + 1, 0), Dir.right) = false := by
+    apply hfree
+    intro q hq
+    rcases List.mem_cons.mp hq with rfl | hq
+    · exact Or.inr (Or.inr (by simp))
+    rcases List.mem_cons.mp hq with rfl | hq
+    · exact Or.inr (Or.inr (by simp))
+    rcases List.mem_cons.mp hq with rfl | hq
+    · exact Or.inr (Or.inr (by simp))
+    rcases List.mem_cons.mp hq with rfl | hq
+    · exact Or.inr (Or.inr (by simp))
+    · rcases hshape _ hq with hd | hd
+      · exact Or.inr (Or.inr (by simp [hd]))
+      · simp only [List.mem_singleton] at hd
+        subst hd
+        exact Or.inr (Or.inr (by simp))
+  have s7 : slide g (k + 1) (((A + 1, 0), Dir.up) :: ((A + 1, 1), Dir.up) ::
+        ((A + 1, 2), Dir.up) :: ((A + 1, 2), Dir.left) :: seen') (A + 1, 0)
+        .right cc.toggle.toggle.toggle =
+      .landed (A + 2, 0) .right cc.toggle.toggle.toggle := by
+    conv_lhs => rw [slide]
+    simp only [c7, Bool.false_eq_true, if_false,
+      show step? g (A + 1, 0) Dir.right = some (A + 2, 0) from by
+        simp [step?]; omega,
+      hbody]
+  have hcc : cc.toggle.toggle.toggle = cc.toggle := by cases cc <;> rfl
+  rw [s1, s2, s3, s4, s5, s6, s7, hcc]
+
 /-! ## The terminal block
 
 Every command codel in a generated image is an isolated singleton, which

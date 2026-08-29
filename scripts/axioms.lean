@@ -308,6 +308,10 @@ open Langlib.Computability
 #print axioms URMPiet.runCode_dispatcherCode
 #print axioms URMPiet.coloredRuns_getElem?_unit
 #print axioms URMPiet.unitCorridor_of_row
+#print axioms URMPiet.slide_left_run
+#print axioms URMPiet.slide_return
+#print axioms URMPiet.tryFrom_white
+#print axioms URMPiet.exec_white
 #print axioms URMPiet.flood_lblock
 #print axioms URMPiet.localInfoAt?_lblock
 #print axioms URMPiet.tryFrom_lblock
