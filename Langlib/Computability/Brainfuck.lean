@@ -1328,6 +1328,109 @@ theorem dispatchStep_spec {B : Nat} {P : Cslib.URM.Program}
   · simpa [hnextregs]
   · simpa [hnextpc] using hDpc
 
+/-- A saved counter beyond the last block misses the entire dispatch chain. -/
+theorem dispatchBlocks_large {B k : Nat} (is : List Cslib.URM.Instr)
+    (σ : Cslib.URM.Regs) (s : CState) (hsrc : SourceMatches B s.regs σ)
+    (haux : AuxClean B s.regs) (hlarge : k + is.length < s.regs (savedReg B)) :
+    ∃ w', Ev (counterBound B) (dispatchBlocks B k is) s ⟨w', s.out⟩ ∧
+      SourceMatches B w' σ ∧ w' (pcReg B) = s.regs (pcReg B) ∧
+      w' (savedReg B) = s.regs (savedReg B) ∧ AuxClean B w' := by
+  induction is generalizing k s with
+  | nil => exact ⟨s.regs, Ev.nil, hsrc, rfl, rfl, haux⟩
+  | cons i is ih =>
+    have hmiss : s.regs (savedReg B) ≠ k + 1 := by
+      simp only [List.length_cons] at hlarge
+      omega
+    obtain ⟨w₁, h₁, h₁src, h₁pc, h₁saved, h₁aux⟩ :=
+      dispatchBlock_miss i σ s hsrc haux hmiss
+    let s₁ : CState := ⟨w₁, s.out⟩
+    have hlarge' : (k + 1) + is.length < s₁.regs (savedReg B) := by
+      change _ < w₁ (savedReg B)
+      rw [h₁saved]
+      simp only [List.length_cons] at hlarge
+      omega
+    obtain ⟨w₂, h₂, h₂src, h₂pc, h₂saved, h₂aux⟩ :=
+      ih (k := k + 1) s₁ h₁src h₁aux hlarge'
+    refine ⟨w₂, h₁.append h₂, h₂src, ?_, ?_, h₂aux⟩
+    · rw [h₂pc]
+      exact h₁pc
+    · rw [h₂saved]
+      exact h₁saved
+
+/-- A halted source state makes one final pass, finds no block, and clears
+the active program counter to zero. -/
+theorem dispatchStep_halted {B : Nat} {P : Cslib.URM.Program}
+    {u : Cslib.URM.State} (hhalt : u.isHalted P) (s : CState)
+    (hsrc : SourceMatches B s.regs u.regs)
+    (hpc : s.regs (pcReg B) = u.pc + 1) (hclean : ScratchClean B s.regs) :
+    ∃ w', Ev (counterBound B) (dispatchStep B P) s ⟨w', s.out⟩ ∧
+      SourceMatches B w' u.regs ∧ w' (pcReg B) = 0 := by
+  have hp : pcReg B < counterBound B := by simp [pcReg, counterBound]
+  have hsavedB : savedReg B < counterBound B := by simp [savedReg, counterBound]
+  obtain ⟨wM, hM, hMpc, hMsaved, hMfr⟩ := move_spec hp hsavedB
+    (by simp [pcReg, savedReg]) (s.regs (pcReg B)) s rfl
+  let sM : CState := ⟨wM, s.out⟩
+  have hMsrc : SourceMatches B wM u.regs := by
+    intro r hr
+    rw [hMfr r (by simp [pcReg]; omega) (by simp [savedReg]; omega)]
+    exact hsrc r hr
+  have hMaux : AuxClean B wM := by
+    refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
+    · rw [hMfr _ (by simp [cmpXReg, pcReg]) (by simp [cmpXReg, savedReg])]
+      exact hclean.2.1
+    · rw [hMfr _ (by simp [cmpYReg, pcReg]) (by simp [cmpYReg, savedReg])]
+      exact hclean.2.2.1
+    · rw [hMfr _ (by simp [tmpReg, pcReg]) (by simp [tmpReg, savedReg])]
+      exact hclean.2.2.2.1
+    · rw [hMfr _ (by simp [gateReg, pcReg]) (by simp [gateReg, savedReg])]
+      exact hclean.2.2.2.2.1
+    · rw [hMfr _ (by simp [eqReg, pcReg]) (by simp [eqReg, savedReg])]
+      exact hclean.2.2.2.2.2.1
+    · rw [hMfr _ (by simp [fallReg, pcReg]) (by simp [fallReg, savedReg])]
+      exact hclean.2.2.2.2.2.2
+  have hMlarge : P.length < sM.regs (savedReg B) := by
+    change P.length < wM (savedReg B)
+    rw [hMsaved, hclean.1, hpc]
+    have hh : P.length ≤ u.pc := by simpa [Cslib.URM.State.isHalted] using hhalt
+    omega
+  obtain ⟨wD, hD, hDsrc, hDpc, hDsave, hDaux⟩ :=
+    dispatchBlocks_large (B := B) (k := 0) P u.regs sM hMsrc hMaux
+      (by simpa using hMlarge)
+  refine ⟨wD, hM.append hD, hDsrc, ?_⟩
+  rw [hDpc]
+  exact hMpc
+
+/-- The repeated dispatcher loop. -/
+def runCode (B : Nat) (P : Cslib.URM.Program) : Code :=
+  [Cmd.loop (pcReg B) (dispatchStep B P)]
+
+/-- A finite source run followed by a halted state becomes the complete
+counter-machine dispatcher loop. -/
+theorem steps_runCode {B : Nat} {P : Cslib.URM.Program}
+    (hbelow : ProgramBelow B P) {u v : Cslib.URM.State}
+    (hsteps : Cslib.URM.Steps P u v) (hhalt : v.isHalted P)
+    (s : CState) (hsrc : SourceMatches B s.regs u.regs)
+    (hpc : s.regs (pcReg B) = u.pc + 1) (hclean : ScratchClean B s.regs) :
+    ∃ w', Ev (counterBound B) (runCode B P) s ⟨w', s.out⟩ ∧
+      SourceMatches B w' v.regs ∧ w' (pcReg B) = 0 := by
+  induction hsteps using Relation.ReflTransGen.head_induction_on generalizing s with
+  | refl =>
+    obtain ⟨wD, hD, hDsrc, hDpc⟩ := dispatchStep_halted hhalt s hsrc hpc hclean
+    let sD : CState := ⟨wD, s.out⟩
+    have hloopZ : Ev (counterBound B) (runCode B P) sD sD :=
+      Ev.loopZ (by simp [pcReg, counterBound]) hDpc Ev.nil
+    have hpnz : s.regs (pcReg B) ≠ 0 := by rw [hpc]; omega
+    refine ⟨wD, Ev.loopS (by simp [pcReg, counterBound]) hpnz ?_, hDsrc, hDpc⟩
+    exact hD.append hloopZ
+  | head hstep hrest ih =>
+    obtain ⟨wD, hD, hDsrc, hDpc, hDclean⟩ :=
+      dispatchStep_spec hbelow hstep s hsrc hpc hclean
+    let sD : CState := ⟨wD, s.out⟩
+    obtain ⟨wF, hF, hFsrc, hFpc⟩ := ih sD hDsrc hDpc hDclean
+    have hpnz : s.regs (pcReg B) ≠ 0 := by rw [hpc]; omega
+    refine ⟨wF, Ev.loopS (by simp [pcReg, counterBound]) hpnz ?_, hFsrc, hFpc⟩
+    exact hD.append hF
+
 
 /-! ## Paired unary columns on the Brainfuck tape
 
