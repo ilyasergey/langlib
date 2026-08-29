@@ -31,8 +31,8 @@ claimed Turing complete is also a language Turpentine should compile to.
 | [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `lake exe brainfuck` | yes | no | [wip](brainfuck/compiler.md) | - |
 | [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `lake exe whitespace` | yes | no | [yes](whitespace/compiler.md) | - |
 | [subleq](subleq/spec.md) | yes | yes | yes | yes | `lake exe subleq` | yes | no | [yes](subleq/compiler.md) | - |
-| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `lake exe befunge93` | [depends on cell width](befunge93/spec.md) | no | [fragment only](befunge93/compiler.md) | - |
-| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `lake exe malbolge` | no (bounded storage) | no | [bounded fragment](malbolge/compiler.md) | - |
+| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `lake exe befunge93` | [depends on cell width](befunge93/spec.md) | no | [not planned](befunge93/compiler.md) | n/a |
+| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `lake exe malbolge` | no (bounded storage) | no | [not planned](malbolge/compiler.md) | n/a |
 | malbolge-unshackled | wip | wip | wip | wip | `lake exe malbolge-unshackled` | yes | no | planned (unbounded, so a full compiler is possible) | - |
 | [fractran](fractran/spec.md) | yes | yes | yes | yes | `lake exe fractran` | yes | no | [planned](fractran/compiler.md) | - |
 | [thue](thue/spec.md) | yes | yes | yes | yes | `lake exe thue` | yes | no | [planned](thue/compiler.md) | - |
@@ -48,13 +48,19 @@ When a proof lands, its `no` becomes a `yes` linking to the theorem in
 word on the subject.
 
 Note the pattern in the compiler column: **a language cannot host a full
-compiler unless it is Turing complete.** Bounded-storage languages get a
-fragment and nothing more, and the fragment is bounded by their storage,
-not by our effort. [malbolge](malbolge/spec.md) has 59049 words for code
-and data together, so a compiled program must fit in that;
-[befunge93](befunge93/spec.md) has 2000 playfield cells for its code;
-[deadfish](deadfish/spec.md) has no loops at all, so it takes only
-straight-line output. Each of those compiler pages states its own bound.
+compiler unless it is Turing complete.** A bounded-storage language can
+only ever accept a fragment, bounded by its storage rather than by our
+effort, so a backend for one is a demonstration and not a tool. We do not
+plan compilers for [malbolge](malbolge/compiler.md) (59049 words for code
+and data together) or [befunge93](befunge93/compiler.md) (2000 playfield
+cells, shared between code and its only storage); each page explains the
+decision. [deadfish](deadfish/compiler.md) is the exception we keep,
+because its fragment is a straight line of prints and the joke is worth
+the afternoon it costs.
+
+Where the bound is what stops us, the fix is to compile to the unbounded
+relative instead: Malbolge Unshackled rather than Malbolge, and
+Befunge-98 rather than Befunge-93.
 
 Lean code lives in `Langlib/Languages/<Langname>/` (the front end in
 `Langlib/Turpentine/`), examples in `Langlib/Examples/<Langname>/`, golden tests
@@ -62,8 +68,7 @@ in `Langlib/Tests/<Langname>.lean`.
 
 Every language has a `docs/<langname>/compiler.md`: for the backends that
 exist it describes what was built, and for the rest it is a concrete plan
-(or, for befunge93, an argument for why a general backend is the wrong
-thing to build). Planned targets and their sequencing live in
+(or, where we decided against a backend, the argument for that decision). Planned targets and their sequencing live in
 `PLAN.md` (Stage 4);
 `n/a` entries are explained in the language's spec page.
 

@@ -80,12 +80,18 @@ state first-order, I/O explicit.
   See `docs/whitespace/compiler.md`.
 * Turpentine -> subleq `[x]`: the whole language, arrays included via
   self-modifying operand patching. See `docs/subleq/compiler.md`.
-* Turpentine -> befunge93 (stretch goal).
 * Turpentine -> deadfish (straight-line, output-only fragment; a joke, documented
   as such).
-* Turpentine -> malbolge `[ ]`: planned, hard, and worth it. See
-  `docs/malbolge/compiler.md`; the route is a VM written in Malbolge,
-  which is how every substantial Malbolge program has been produced.
+* Turpentine -> malbolge: **not planned**, and Turpentine -> befunge93
+  likewise. Both are bounded-storage languages, so no total translation
+  from a Turing-complete source can exist and any backend would be a
+  demonstration rather than a tool. Their compiler pages record the
+  reasoning. The effort goes to their unbounded relatives instead:
+  malbolge-unshackled, and befunge98 when it lands.
+* Turpentine -> malbolge-unshackled `[ ]`: planned, hard, and worth it.
+  Unbounded values and addresses mean a full compiler is possible. The
+  route is a VM whose bytecode lives in data cells, which are never
+  executed and so never self-encrypt.
 * Turpentine -> thue and -> fractran `[ ]`: planned via a shared register
   machine (RegIR); see their compiler pages.
 

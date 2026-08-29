@@ -5,6 +5,26 @@
 * **Family**: would need its own IR (an "arithmetic" IR; see
   `docs/PLAN.md`, Stage 4).
 
+## Compile and run one, once this exists
+
+Not yet implemented, so these commands do not work today. They are the
+interface this page is a plan for, and they are what the other backends
+already do (see `docs/whitespace/compiler.md` for a working example).
+
+```
+$ lake exe turpentine compile --to fractran -o /tmp/sumdigits.ft Langlib/Examples/Turpentine/sumdigits.turp
+$ lake exe fractran --out final /tmp/sumdigits.ft
+(the answer as an exponent; see below)
+```
+
+Or in one step, compiling in memory and running the result on the
+fractran interpreter:
+
+```
+$ lake exe turpentine exec --via fractran Langlib/Examples/Turpentine/sumdigits.turp
+(the answer as an exponent; see below)
+```
+
 ## The idea
 
 A FRACTRAN program is a list of positive rationals, and its state is one

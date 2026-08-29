@@ -11,8 +11,9 @@ self-modifying trit codes. This knowledge is scattered across personal pages,
 wikis, and long-dead FTP servers. It is nice to have all these designs in one
 place, written down precisely, and executable.
 
-On top of the interpreters sits **Turpentine** (`.turp`), a small readable
-imperative language that compiles to the esoteric ones. It is named for
+On top of the interpreters sits **[Turpentine](docs/turpentine/spec.md)**
+(`.turp`), a small readable imperative language that compiles to the
+esoteric ones. It is named for
 the solvent: a [Turing tarpit](https://en.wikipedia.org/wiki/Turing_tarpit)
 is a language in which everything is possible and nothing is easy, and
 turpentine dissolves tar. Write the program once with variables and loops,

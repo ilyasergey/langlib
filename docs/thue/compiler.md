@@ -4,6 +4,26 @@
 * **Family**: would need its own IR (a "rewriting" IR; see
   `docs/PLAN.md`, Stage 4).
 
+## Compile and run one, once this exists
+
+Not yet implemented, so these commands do not work today. They are the
+interface this page is a plan for, and they are what the other backends
+already do (see `docs/whitespace/compiler.md` for a working example).
+
+```
+$ lake exe turpentine compile --to thue -o /tmp/sumdigits.t Langlib/Examples/Turpentine/sumdigits.turp
+$ echo 9045 | lake exe thue /tmp/sumdigits.t
+18
+```
+
+Or in one step, compiling in memory and running the result on the
+thue interpreter:
+
+```
+$ echo 9045 | lake exe turpentine exec --via thue Langlib/Examples/Turpentine/sumdigits.turp
+18
+```
+
 ## Rewriting is not execution
 
 Every other backend here targets a machine: something with a state, a

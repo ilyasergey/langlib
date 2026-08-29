@@ -60,7 +60,8 @@ what can actually be proved (see `docs/computability.md`):
 
 * the machine's input is a `List Nat` rather than a `URM.Regs`. A `Regs` is
   a function `Nat → Nat`, and no finite input stream can encode one. cslib's
-  own convention is the same: `URM.Regs.ofInputs : List Nat → Regs`.
+  own convention is the same: `Cslib.URM.Regs.ofInputs : List Nat → Regs`,
+  and `Cslib.URM.HaltsWithResult` is stated over `List Nat` too.
 * `compile` takes the input vector as well as the program. Whitespace's
   numeric input goes through `Langlib.Common.Input.readLine?`, which is a
   `partial def` and therefore admits no equational reasoning, so the
@@ -68,48 +69,31 @@ what can actually be proved (see `docs/computability.md`):
   ignores the input stream. A backend whose input reading *is* provable
   supplies a `compile` that ignores its second argument. Universality is
   unaffected: a URM can build any constant in its registers from zero, so
-  quantifying over input vectors on the left is the same claim. -/
+  quantifying over input vectors on the left is the same claim.
+
+The simulation is stated against cslib's `HaltsWithResult`, so the three
+ingredients (`compile`, `encodeInput`, `decodeOutput`) stay explicit fields
+rather than being baked into the statement. That is what makes the claim
+composable: a translation `L → L'` that preserves observable behaviour turns
+a `TuringComplete L` into a `TuringComplete L'` by composing `compile` with
+the translation and leaving the encode and decode functions alone. -/
 structure TuringComplete (L : Type) [Esolang L] where
-  /-- The compiler: a URM program and its input vector become an `L` program. -/
-  compile : URM.Program → List Nat → Esolang.Prog L
+  /-- The compiler: a URM program and its input vector become an `L`
+  program. This is a real, total, runnable function; `#eval` can apply it. -/
+  compile : Program → List Nat → Esolang.Prog L
   /-- The input stream the compiled program is run on. -/
   encodeInput : List Nat → Input
   /-- How to read the machine's answer out of the program's output bytes. -/
   decodeOutput : ByteArray → Option Nat
-  /-- The simulation. Whenever the URM halts within `n` steps, some fuel
-  bound `m` makes the compiled program halt with an output that decodes to
-  the contents of URM register 0. -/
-  simulates : ∀ (P : URM.Program) (inputs : List Nat) (n : Nat),
-    URM.haltsIn P (URM.State.init inputs) n →
+  /-- The simulation. Whenever the URM halts with `result` in register 0,
+  some fuel bound `m` makes the compiled program halt with an output that
+  decodes to `result`. -/
+  simulates : ∀ (P : Program) (inputs : List Nat) (result : Nat),
+    HaltsWithResult P inputs result →
       ∃ m,
         (Esolang.run (compile P inputs) (encodeInput inputs) m).exit = Exit.halted ∧
         decodeOutput (Esolang.run (compile P inputs) (encodeInput inputs) m).output =
-          some ((URM.run P (URM.State.init inputs) n).regs.output)
-
-namespace TuringComplete
-
-variable {L : Type} [Esolang L]
-
-/-- The form the completeness claim usually takes: if the URM computes
-`result` from `inputs`, the compiled program prints something that decodes
-to `result`. Since the URM computes every partial computable function
-(Shepherdson and Sturgis; Cutland, chapter 3), so does `L`. -/
-theorem of_haltsWithResult (tc : TuringComplete L)
-    {P : URM.Program} {inputs : List Nat} {result : Nat}
-    (h : URM.HaltsWithResult P inputs result) :
-    ∃ m,
-      (Esolang.run (tc.compile P inputs) (tc.encodeInput inputs) m).exit = Exit.halted ∧
-      tc.decodeOutput
-          (Esolang.run (tc.compile P inputs) (tc.encodeInput inputs) m).output = some result := by
-  cases h with
-  | intro n hn =>
-    cases hn with
-    | intro hhalt hres =>
-      cases tc.simulates P inputs n hhalt with
-      | intro m hm =>
-        exact ⟨m, hm.1, hres ▸ hm.2⟩
-
-end TuringComplete
+          some result
 
 /-! ## Bounded storage, and the decidability it forces -/
 

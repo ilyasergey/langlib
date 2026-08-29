@@ -53,17 +53,25 @@ declared variables and `D` the number of expression-stack slots.
 | Cells | Contents |
 |-------|----------|
 | `0` | guard, permanently `0`, never written |
-| `1 .. 2V` | variables, two cells each, in declaration order |
-| `2V+1 .. 2V+2D` | expression stack, two cells per slot |
-| `2V+2D+1 ...` | work area (scratch bytes and 16-bit temporaries) |
+| `1`, `2` | the control bytes `ctl0` and `ctl1` |
+| `3 .. 2+2V` | variables, two cells each, in declaration order |
+| `3+2V .. 2+2V+2D` | expression stack, two cells per slot |
+| `3+2V+2D ...` | work area (scratch bytes and 16-bit temporaries) |
 
 Expressions are compiled with a stack discipline: `emitExpr e k` leaves the
 value of `e` in stack slot `k` and may use every slot above `k`. `D` is the
-maximum nesting depth over the whole program, so the stack never overflows;
-depth is computed by `exprDepth` and is a static property of the program.
+maximum nesting depth over the whole program plus four spare slots (division
+needs somewhere for a quotient and a remainder), so the stack never
+overflows; depth is computed by `exprDepth` and is a static property of the
+program.
+
+`ctl0` and `ctl1` are the loop cells of `if`, `while`, `assert` and the
+short-circuit operators. They sit below the variables, out of reach of every
+work area, and every construct clears its own loop cell at the end of its own
+body, which is what makes them safe to reuse at every nesting level.
 
 The work area is a single fixed region, reused by every primitive. Within it,
-`Work.b i` is scratch byte `i` (each primitive uses at most 16 of them) and
+`Work.b i` is scratch byte `i` (each primitive uses at most 24 of them) and
 `Work.t i` is 16-bit temporary `i`. A primitive that holds `n` temporaries
 live across a call to another primitive passes that callee `Work.after n`,
 which is a fresh region starting above its own temporaries. Nesting never

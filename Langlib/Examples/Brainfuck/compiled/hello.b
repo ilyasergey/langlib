@@ -1,0 +1,8 @@
+[Compiled from Turpentine to brainfuck by langlib.
+Run it with the zero end-of-input convention:
+  lake exe brainfuck --eof zero <file>
+Integers are 16-bit two's complement in two cells; cell 0 is a guard
+that stays zero, variables follow it, then the expression stack, then
+the scratch area. See docs/brainfuck/compiler.md.
+]
+>>>>>>>>>>>>>[-]++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++.+++++++++++++++++++++++++++++.+++++++..+++.-------------------------------------------------------------------.------------.++++++++++++++++++++++++++++++++++++++++++++++++++++.+++++++++++++++++++++++++++++++++.---.--.-----------.+++++++++.++++++.-----------.+++++.---------.--------------------------------------------------------------------.-----------------------.[-]

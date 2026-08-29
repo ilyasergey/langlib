@@ -8,6 +8,32 @@
 * **Tests**: `Langlib/Tests/CompileWhitespace.lean`
 * **Language pages**: `docs/turpentine/spec.md`, `docs/whitespace/spec.md`
 
+## Compile and run one
+
+Emit the program, then run it with the whitespace interpreter.
+
+```
+$ lake exe turpentine compile --to whitespace -o /tmp/hello.ws Langlib/Examples/Turpentine/hello.turp
+turpentine: wrote 282 bytes to /tmp/hello.ws
+```
+
+```
+$ lake exe whitespace /tmp/hello.ws
+Hello, Turpentine!
+```
+
+Or do both at once with `exec`, which compiles in memory and runs the
+result on the same interpreter. The output should match
+`turpentine run` exactly, which makes it a differential test.
+
+```
+$ lake exe turpentine exec --via whitespace Langlib/Examples/Turpentine/sieve.turp
+2
+3
+5
+...
+```
+
 ## Summary
 
 Whitespace is a stack machine with a heap, a call stack, and

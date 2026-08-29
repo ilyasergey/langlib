@@ -8,6 +8,29 @@
 * **Tests**: `Langlib/Tests/CompileSubleq.lean`
 * **Language pages**: `docs/turpentine/spec.md`, `docs/subleq/spec.md`
 
+## Compile and run one
+
+Emit the program, then run it with the subleq interpreter.
+
+```
+$ lake exe turpentine compile --to subleq -o /tmp/sumdigits.sq Langlib/Examples/Turpentine/sumdigits.turp
+turpentine: wrote 22553 bytes to /tmp/sumdigits.sq
+```
+
+```
+$ echo 9045 | lake exe subleq /tmp/sumdigits.sq
+18
+```
+
+Or do both at once with `exec`, which compiles in memory and runs the
+result on the same interpreter. The output should match
+`turpentine run` exactly, which makes it a differential test.
+
+```
+$ echo 9045 | lake exe turpentine exec --via subleq Langlib/Examples/Turpentine/sumdigits.turp
+18
+```
+
 ## Summary
 
 Subleq has one instruction, `A B C`, meaning
