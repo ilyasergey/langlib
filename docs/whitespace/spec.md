@@ -194,21 +194,36 @@ Hello world. The program is nothing but spaces, tabs, and newlines, so
 your editor will show you an empty file.
 
 ```
-$ lake exe whitespace Langlib/Examples/Whitespace/hello.ws
+lake exe whitespace Langlib/Examples/Whitespace/hello.ws
+```
+
+Output:
+
+```
 Hello, World!
 ```
 
 Factorial, reading n as a decimal number on its own line.
 
 ```
-$ printf '5\n' | lake exe whitespace Langlib/Examples/Whitespace/fact.ws
+printf '5\n' | lake exe whitespace Langlib/Examples/Whitespace/fact.ws
+```
+
+Output:
+
+```
 120
 ```
 
 A greeter, reading a line of text.
 
 ```
-$ printf 'Ada\n' | lake exe whitespace Langlib/Examples/Whitespace/greet.ws
+printf 'Ada\n' | lake exe whitespace Langlib/Examples/Whitespace/greet.ws
+```
+
+Output:
+
+```
 Hello, Ada!
 ```
 
@@ -217,7 +232,12 @@ reference implementation has no way to test for EOF either (see decision
 12 above).
 
 ```
-$ lake exe whitespace Langlib/Examples/Whitespace/cat.ws < README.md
+lake exe whitespace Langlib/Examples/Whitespace/cat.ws < README.md
+```
+
+Output:
+
+```
 # LangLib: Turing Tarpits, Formally
 ...
 whitespace: runtime error: read char at end of input

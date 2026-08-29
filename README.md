@@ -3,22 +3,9 @@
 An open-source library of the semantics of esoteric and fun programming
 languages, written in [Lean 4](https://lean-lang.org/).
 
-Esoteric languages are not meant for realistic software. They exist to make a
-point, to win a bet, to parody a committee, or simply to be difficult. Over the
-last fifty years they have accumulated into a large body of design knowledge:
-minimal instruction sets, string rewriting, stack machines on a torus,
-self-modifying trit codes. This knowledge is scattered across personal pages,
-wikis, and long-dead FTP servers, and a good deal of it is folklore: claims
-repeated confidently and checked by nobody.
+Esoteric languages are not meant for realistic software. They exist to make a point, to win a bet, to parody a committee, or simply to be difficult. Over the last fifty years they have accumulated into a large body of design knowledge: single-instruction machines, programs that are string-rewriting rules, programs laid out on a grid that wraps at every edge, programs that encrypt themselves as they run. This knowledge is scattered across personal pages, wikis, and long-dead FTP servers, and a good deal of it is folklore: claims repeated confidently and checked by nobody.
 
-The goal is to archive that knowledge in a form that cannot rot. Every
-language gets a written specification, an executable reference semantics,
-and machine-checked answers to the questions people actually argue about,
-starting with what each language can compute. On top of that sits a
-certified compiler from a language a human would willingly write in, so the
-collection is not only a museum: the claim that these machines are
-programmable is backed by a compiler whose correctness is proved rather
-than tested.
+The goal of this project is to archive that knowledge in a form that cannot rot. Every language gets a written specification, an executable reference semantics, and machine-checked answers to the questions people actually argue about, starting with what each language can compute. On top of that sits a certified compiler from a language a human would willingly write in, so the collection is not only a museum: the claim that these machines are programmable is backed by a compiler whose correctness is proved rather than tested.
 
 For each language, LangLib provides:
 
@@ -153,34 +140,54 @@ your terminal. One example per language, with what you should see:
 Brainfuck says hello.
 
 ```
-$ lake exe brainfuck Langlib/Examples/Brainfuck/hello.b
+lake exe brainfuck Langlib/Examples/Brainfuck/hello.b
+```
+
+Output:
+
+```
 Hello World!
 ```
 
 Brainfuck reverses a word, reading it from stdin.
 
 ```
-$ echo -n stressed | lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/rev.b
+echo -n stressed | lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/rev.b
+```
+
+Output:
+
+```
 desserts
 ```
 
 Erik Bosman's 505-byte brainfuck quine prints itself, so `diff` says nothing.
 
 ```
-$ lake exe brainfuck Langlib/Examples/Brainfuck/quine.b | diff - Langlib/Examples/Brainfuck/quine.b
+lake exe brainfuck Langlib/Examples/Brainfuck/quine.b | diff - Langlib/Examples/Brainfuck/quine.b
 ```
 
 Whitespace says hello, using a program made entirely of spaces and tabs.
 
 ```
-$ lake exe whitespace Langlib/Examples/Whitespace/hello.ws
+lake exe whitespace Langlib/Examples/Whitespace/hello.ws
+```
+
+Output:
+
+```
 Hello, World!
 ```
 
 Ook! says hello, because brainfuck was not quite unreadable enough.
 
 ```
-$ lake exe ook Langlib/Examples/Ook/hello.ook
+lake exe ook Langlib/Examples/Ook/hello.ook
+```
+
+Output:
+
+```
 Hello World!
 ```
 
@@ -188,7 +195,12 @@ Deadfish prints the ASCII codes of a greeting, one number per line, since
 printing letters is beyond it.
 
 ```
-$ lake exe deadfish Langlib/Examples/Deadfish/hello.df
+lake exe deadfish Langlib/Examples/Deadfish/hello.df
+```
+
+Output:
+
+```
 72
 101
 108
@@ -198,7 +210,12 @@ $ lake exe deadfish Langlib/Examples/Deadfish/hello.df
 Subleq counts down on a machine with exactly one instruction.
 
 ```
-$ lake exe subleq Langlib/Examples/Subleq/countdown.sq
+lake exe subleq Langlib/Examples/Subleq/countdown.sq
+```
+
+Output:
+
+```
 9876543210
 ```
 
@@ -206,7 +223,12 @@ FRACTRAN runs Conway's PRIMEGAME, which prints the primes as exponents of
 two. It has no halting condition, so cap it with `--fuel`.
 
 ```
-$ lake exe fractran --n 2 --out pow2 --fuel 2000000 Langlib/Examples/Fractran/primegame.ft
+lake exe fractran --n 2 --out pow2 --fuel 2000000 Langlib/Examples/Fractran/primegame.ft
+```
+
+Output:
+
+```
 2
 3
 5
@@ -217,14 +239,24 @@ $ lake exe fractran --n 2 --out pow2 --fuel 2000000 Langlib/Examples/Fractran/pr
 Piet says hi, using a program that is an abstract painting.
 
 ```
-$ lake exe piet Langlib/Examples/Piet/hi.ppm
+lake exe piet Langlib/Examples/Piet/hi.ppm
+```
+
+Output:
+
+```
 Hi
 ```
 
 Brainloller runs a brainfuck program encoded as coloured pixels.
 
 ```
-$ lake exe brainloller Langlib/Examples/Brainloller/hello.ppm
+lake exe brainloller Langlib/Examples/Brainloller/hello.ppm
+```
+
+Output:
+
+```
 Hello World!
 ```
 
@@ -232,14 +264,24 @@ Malbolge prints the hello world that a search program found in 2000,
 because no human could write one. The capitalisation is not a typo.
 
 ```
-$ lake exe malbolge Langlib/Examples/Malbolge/hello.mal
+lake exe malbolge Langlib/Examples/Malbolge/hello.mal
+```
+
+Output:
+
+```
 HEllO WORld
 ```
 
 Turpentine, the readable front end, computes an integer square root.
 
 ```
-$ echo 17 | lake exe turpentine run Langlib/Examples/Turpentine/isqrt.turp
+echo 17 | lake exe turpentine run Langlib/Examples/Turpentine/isqrt.turp
+```
+
+Output:
+
+```
 4
 ```
 
@@ -247,7 +289,12 @@ Turpentine prints the primes up to 20, using the same trial division you would
 write in any language.
 
 ```
-$ echo 20 | lake exe turpentine run Langlib/Examples/Turpentine/primes.turp
+echo 20 | lake exe turpentine run Langlib/Examples/Turpentine/primes.turp
+```
+
+Output:
+
+```
 2
 3
 5

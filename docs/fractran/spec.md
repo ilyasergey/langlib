@@ -125,7 +125,12 @@ The one-fraction adder. Starting from 1944 = 2^3 * 3^5, it moves the 2s
 into the 3s and halts at 3^8 = 6561, having added 3 and 5.
 
 ```
-$ lake exe fractran --n 1944 --out final Langlib/Examples/Fractran/adder.ft
+lake exe fractran --n 1944 --out final Langlib/Examples/Fractran/adder.ft
+```
+
+Output:
+
+```
 6561
 ```
 
@@ -133,7 +138,12 @@ The multiplier: 108 = 2^2 * 3^3, and 5^6 = 15625 comes out, having
 multiplied 2 by 3.
 
 ```
-$ lake exe fractran --n 108 --out final Langlib/Examples/Fractran/multiply.ft
+lake exe fractran --n 108 --out final Langlib/Examples/Fractran/multiply.ft
+```
+
+Output:
+
+```
 15625
 ```
 
@@ -142,7 +152,12 @@ whenever the state is a power of two, which is to say the primes. It never
 halts, so the fuel bound is how you stop it.
 
 ```
-$ lake exe fractran --n 2 --out pow2 --fuel 100000 Langlib/Examples/Fractran/primegame.ft
+lake exe fractran --n 2 --out pow2 --fuel 100000 Langlib/Examples/Fractran/primegame.ft
+```
+
+Output:
+
+```
 2
 3
 5
@@ -155,7 +170,12 @@ Trajectory mode prints every intermediate state, which is the honest way
 to watch a FRACTRAN program think.
 
 ```
-$ echo 1944 | lake exe fractran --out trajectory Langlib/Examples/Fractran/adder.ft
+echo 1944 | lake exe fractran --out trajectory Langlib/Examples/Fractran/adder.ft
+```
+
+Output:
+
+```
 1944
 2916
 4374

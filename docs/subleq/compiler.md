@@ -13,12 +13,22 @@
 Emit the program, then run it with the subleq interpreter.
 
 ```
-$ lake exe turpentine compile --to subleq -o /tmp/sumdigits.sq Langlib/Examples/Turpentine/sumdigits.turp
+lake exe turpentine compile --to subleq -o /tmp/sumdigits.sq Langlib/Examples/Turpentine/sumdigits.turp
+```
+
+Output:
+
+```
 turpentine: wrote 22553 bytes to /tmp/sumdigits.sq
 ```
 
 ```
-$ echo 9045 | lake exe subleq /tmp/sumdigits.sq
+echo 9045 | lake exe subleq /tmp/sumdigits.sq
+```
+
+Output:
+
+```
 18
 ```
 
@@ -27,7 +37,12 @@ result on the same interpreter. The output should match
 `turpentine run` exactly, which makes it a differential test.
 
 ```
-$ echo 9045 | lake exe turpentine exec --via subleq Langlib/Examples/Turpentine/sumdigits.turp
+echo 9045 | lake exe turpentine exec --via subleq Langlib/Examples/Turpentine/sumdigits.turp
+```
+
+Output:
+
+```
 18
 ```
 

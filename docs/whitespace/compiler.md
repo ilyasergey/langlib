@@ -13,12 +13,22 @@
 Emit the program, then run it with the whitespace interpreter.
 
 ```
-$ lake exe turpentine compile --to whitespace -o /tmp/hello.ws Langlib/Examples/Turpentine/hello.turp
+lake exe turpentine compile --to whitespace -o /tmp/hello.ws Langlib/Examples/Turpentine/hello.turp
+```
+
+Output:
+
+```
 turpentine: wrote 282 bytes to /tmp/hello.ws
 ```
 
 ```
-$ lake exe whitespace /tmp/hello.ws
+lake exe whitespace /tmp/hello.ws
+```
+
+Output:
+
+```
 Hello, Turpentine!
 ```
 
@@ -27,7 +37,12 @@ result on the same interpreter. The output should match
 `turpentine run` exactly, which makes it a differential test.
 
 ```
-$ lake exe turpentine exec --via whitespace Langlib/Examples/Turpentine/sieve.turp
+lake exe turpentine exec --via whitespace Langlib/Examples/Turpentine/sieve.turp
+```
+
+Output:
+
+```
 2
 3
 5

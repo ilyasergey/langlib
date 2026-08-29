@@ -104,14 +104,24 @@ and pastes none of the page's text.
 Hello world, spoken entirely in orangutan.
 
 ```
-$ lake exe ook Langlib/Examples/Ook/hello.ook
+lake exe ook Langlib/Examples/Ook/hello.ook
+```
+
+Output:
+
+```
 Hello World!
 ```
 
 The alphabet, since Ook! inherits everything brainfuck can do.
 
 ```
-$ lake exe ook Langlib/Examples/Ook/alphabet.ook
+lake exe ook Langlib/Examples/Ook/alphabet.ook
+```
+
+Output:
+
+```
 ABCDEFGHIJKLMNOPQRSTUVWXYZ
 ```
 
@@ -119,7 +129,12 @@ cat, which needs `--eof zero` for the same reason its brainfuck original
 does.
 
 ```
-$ echo -n "Ook-ook" | lake exe ook --eof zero Langlib/Examples/Ook/cat.ook
+echo -n "Ook-ook" | lake exe ook --eof zero Langlib/Examples/Ook/cat.ook
+```
+
+Output:
+
+```
 Ook-ook
 ```
 

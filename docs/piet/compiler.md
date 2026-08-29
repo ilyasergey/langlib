@@ -13,8 +13,18 @@ interface this page is a plan for, and they are what the other backends
 already do (see `docs/whitespace/compiler.md` for a working example).
 
 ```
-$ lake exe turpentine compile --to piet -o /tmp/hello.ppm Langlib/Examples/Turpentine/hello.turp
-$ lake exe piet /tmp/hello.ppm
+lake exe turpentine compile --to piet -o /tmp/hello.ppm Langlib/Examples/Turpentine/hello.turp
+```
+
+Then run it:
+
+```
+lake exe piet /tmp/hello.ppm
+```
+
+Output:
+
+```
 Hello, Turpentine!
 ```
 
@@ -22,7 +32,12 @@ Or in one step, compiling in memory and running the result on the
 piet interpreter:
 
 ```
-$ lake exe turpentine exec --via piet Langlib/Examples/Turpentine/hello.turp
+lake exe turpentine exec --via piet Langlib/Examples/Turpentine/hello.turp
+```
+
+Output:
+
+```
 Hello, Turpentine!
 ```
 

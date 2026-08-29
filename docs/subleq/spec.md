@@ -140,21 +140,36 @@ with". Self-modifying code is not a trick in subleq, it is the calling
 convention.
 
 ```
-$ lake exe subleq Langlib/Examples/Subleq/hello.sq
+lake exe subleq Langlib/Examples/Subleq/hello.sq
+```
+
+Output:
+
+```
 Hello, World!
 ```
 
 cat, echoing until end of input.
 
 ```
-$ echo -n 'majestic' | lake exe subleq Langlib/Examples/Subleq/cat.sq
+echo -n 'majestic' | lake exe subleq Langlib/Examples/Subleq/cat.sq
+```
+
+Output:
+
+```
 majestic
 ```
 
 A countdown loop, built from subtract-and-branch and nothing else.
 
 ```
-$ lake exe subleq Langlib/Examples/Subleq/countdown.sq
+lake exe subleq Langlib/Examples/Subleq/countdown.sq
+```
+
+Output:
+
+```
 9876543210
 ```
 

@@ -72,7 +72,12 @@ convert anything else first, for example with
 Hello world, as a 12 by 11 picture.
 
 ```
-$ lake exe brainloller Langlib/Examples/Brainloller/hello.ppm
+lake exe brainloller Langlib/Examples/Brainloller/hello.ppm
+```
+
+Output:
+
+```
 Hello World!
 ```
 
@@ -80,7 +85,12 @@ cat, which needs `--eof zero` for the same reason its brainfuck original
 does.
 
 ```
-$ echo -n meow | lake exe brainloller --eof zero Langlib/Examples/Brainloller/cat.ppm
+echo -n meow | lake exe brainloller --eof zero Langlib/Examples/Brainloller/cat.ppm
+```
+
+Output:
+
+```
 meow
 ```
 
@@ -88,14 +98,24 @@ The encoder turns any brainfuck program into a picture. The width
 controls how often the image snakes back on itself with rotation codels.
 
 ```
-$ lake exe brainloller --encode /tmp/hello.ppm --width 12 Langlib/Examples/Brainfuck/hello.b
+lake exe brainloller --encode /tmp/hello.ppm --width 12 Langlib/Examples/Brainfuck/hello.b
+```
+
+Output:
+
+```
 brainloller: wrote 12x12 image to /tmp/hello.ppm
 ```
 
 That picture is a program, so run it.
 
 ```
-$ lake exe brainloller /tmp/hello.ppm
+lake exe brainloller /tmp/hello.ppm
+```
+
+Output:
+
+```
 Hello World!
 ```
 

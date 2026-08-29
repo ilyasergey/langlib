@@ -79,7 +79,12 @@ halting, so divergence is an observable outcome in tests.
 Hello world, the canonical nested-loop version from the esolangs wiki.
 
 ```
-$ lake exe brainfuck Langlib/Examples/Brainfuck/hello.b
+lake exe brainfuck Langlib/Examples/Brainfuck/hello.b
+```
+
+Output:
+
+```
 Hello World!
 ```
 
@@ -87,7 +92,12 @@ Add two ASCII digits. The program reads them from stdin and prints the
 sum as one digit, so `34` gives `7`.
 
 ```
-$ echo -n 34 | lake exe brainfuck Langlib/Examples/Brainfuck/add.b
+echo -n 34 | lake exe brainfuck Langlib/Examples/Brainfuck/add.b
+```
+
+Output:
+
+```
 7
 ```
 
@@ -95,7 +105,12 @@ Reverse a word. This one needs `--eof zero`, because it reads until the
 input runs out and the default convention would loop forever.
 
 ```
-$ echo -n stressed | lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/rev.b
+echo -n stressed | lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/rev.b
+```
+
+Output:
+
+```
 desserts
 ```
 
@@ -103,7 +118,7 @@ Erik Bosman's 505-byte quine prints itself, so `diff` against the source
 file has nothing to say and prints nothing at all.
 
 ```
-$ lake exe brainfuck Langlib/Examples/Brainfuck/quine.b | diff - Langlib/Examples/Brainfuck/quine.b
+lake exe brainfuck Langlib/Examples/Brainfuck/quine.b | diff - Langlib/Examples/Brainfuck/quine.b
 ```
 
 For the rest of the example set, including a truth-machine and xkcd's

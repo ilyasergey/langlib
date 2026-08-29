@@ -12,8 +12,18 @@ interface this page is a plan for, and they are what the other backends
 already do (see `docs/whitespace/compiler.md` for a working example).
 
 ```
-$ lake exe turpentine compile --to brainloller -o /tmp/hello.ppm Langlib/Examples/Turpentine/hello.turp
-$ lake exe brainloller --eof zero /tmp/hello.ppm
+lake exe turpentine compile --to brainloller -o /tmp/hello.ppm Langlib/Examples/Turpentine/hello.turp
+```
+
+Then run it:
+
+```
+lake exe brainloller --eof zero /tmp/hello.ppm
+```
+
+Output:
+
+```
 Hello, Turpentine!
 ```
 
@@ -21,7 +31,12 @@ Or in one step, compiling in memory and running the result on the
 brainloller interpreter:
 
 ```
-$ lake exe turpentine exec --via brainloller Langlib/Examples/Turpentine/hello.turp
+lake exe turpentine exec --via brainloller Langlib/Examples/Turpentine/hello.turp
+```
+
+Output:
+
+```
 Hello, Turpentine!
 ```
 

@@ -169,21 +169,36 @@ divergence is observable in tests.
 Hello world on the playfield.
 
 ```
-$ lake exe befunge93 Langlib/Examples/Befunge93/hello.b93
+lake exe befunge93 Langlib/Examples/Befunge93/hello.b93
+```
+
+Output:
+
+```
 Hello, World!
 ```
 
 cat, echoing input until it runs out.
 
 ```
-$ echo -n "two dimensions" | lake exe befunge93 Langlib/Examples/Befunge93/cat.b93
+echo -n "two dimensions" | lake exe befunge93 Langlib/Examples/Befunge93/cat.b93
+```
+
+Output:
+
+```
 two dimensions
 ```
 
 Factorial, reading n with `&`.
 
 ```
-$ echo 6 | lake exe befunge93 Langlib/Examples/Befunge93/factorial.b93
+echo 6 | lake exe befunge93 Langlib/Examples/Befunge93/factorial.b93
+```
+
+Output:
+
+```
 720
 ```
 
@@ -191,7 +206,7 @@ The 45-byte folklore quine prints itself, so `diff` against the source
 file has nothing to report.
 
 ```
-$ lake exe befunge93 Langlib/Examples/Befunge93/quine.b93 | diff - Langlib/Examples/Befunge93/quine.b93
+lake exe befunge93 Langlib/Examples/Befunge93/quine.b93 | diff - Langlib/Examples/Befunge93/quine.b93
 ```
 
 The `?` instruction picks a direction at random. Our runner seeds it
@@ -199,7 +214,12 @@ explicitly so runs are reproducible, which the reference (seeding from
 the clock) never was.
 
 ```
-$ lake exe befunge93 --seed 42 Langlib/Examples/Befunge93/random.b93
+lake exe befunge93 --seed 42 Langlib/Examples/Befunge93/random.b93
+```
+
+Output:
+
+```
 1
 ```
 

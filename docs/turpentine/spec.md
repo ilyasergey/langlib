@@ -163,7 +163,12 @@ Turpentine answers three different questions, and has a mode for each.
 What does this program do? `run` parses, type-checks, and evaluates.
 
 ```
-$ lake exe turpentine run Langlib/Examples/Turpentine/hello.turp
+lake exe turpentine run Langlib/Examples/Turpentine/hello.turp
+```
+
+Output:
+
+```
 Hello, Turpentine!
 ```
 
@@ -171,14 +176,24 @@ Integer square root of 17, ported from Velvet. The `assert n >= 0` after
 the read is how a precondition is written.
 
 ```
-$ echo 17 | lake exe turpentine run Langlib/Examples/Turpentine/isqrt.turp
+echo 17 | lake exe turpentine run Langlib/Examples/Turpentine/isqrt.turp
+```
+
+Output:
+
+```
 4
 ```
 
 Euclid's algorithm, reading two numbers, one per line.
 
 ```
-$ printf '252
+printf '252
+```
+
+Output:
+
+```
 105
 ' | lake exe turpentine run Langlib/Examples/Turpentine/gcd.turp
 21
@@ -187,7 +202,12 @@ $ printf '252
 `check` type-checks without running, and says what it found.
 
 ```
-$ lake exe turpentine check Langlib/Examples/Turpentine/primes.turp
+lake exe turpentine check Langlib/Examples/Turpentine/primes.turp
+```
+
+Output:
+
+```
 Langlib/Examples/Turpentine/primes.turp: well typed (4 variable(s), 4 declaration(s))
 ```
 
@@ -197,7 +217,12 @@ What does this program look like as somebody else's nightmare? `compile`
 writes the target source to stdout, or to a file with `-o`.
 
 ```
-$ lake exe turpentine compile --to subleq -o /tmp/gcd.sq Langlib/Examples/Turpentine/gcd.turp
+lake exe turpentine compile --to subleq -o /tmp/gcd.sq Langlib/Examples/Turpentine/gcd.turp
+```
+
+Output:
+
+```
 turpentine: wrote 22737 bytes to /tmp/gcd.sq
 ```
 
@@ -205,7 +230,12 @@ The emitted file is an ordinary program in that language, so run it with
 that language's runner.
 
 ```
-$ printf '252
+printf '252
+```
+
+Output:
+
+```
 105
 ' | lake exe subleq /tmp/gcd.sq
 21
@@ -215,7 +245,12 @@ The whitespace backend emits a program made only of spaces, tabs and
 newlines, so piping it through `tr` is the only way to see anything.
 
 ```
-$ lake exe turpentine compile --to whitespace Langlib/Examples/Turpentine/hello.turp | head -c 40 | tr ' 	
+lake exe turpentine compile --to whitespace Langlib/Examples/Turpentine/hello.turp | head -c 40 | tr ' 	
+```
+
+Output:
+
+```
 ' 'STL'
 SSSTSSTSSSLTLSSSSSTTSSTSTLTLSSSSSTTSTTSS
 ```
@@ -228,14 +263,24 @@ interpreter. The output should be identical to `run`, which makes this a
 differential test rather than a convenience.
 
 ```
-$ echo 17 | lake exe turpentine exec --via whitespace Langlib/Examples/Turpentine/isqrt.turp
+echo 17 | lake exe turpentine exec --via whitespace Langlib/Examples/Turpentine/isqrt.turp
+```
+
+Output:
+
+```
 4
 ```
 
 The same program through a machine with one instruction.
 
 ```
-$ echo 17 | lake exe turpentine exec --via subleq Langlib/Examples/Turpentine/isqrt.turp
+echo 17 | lake exe turpentine exec --via subleq Langlib/Examples/Turpentine/isqrt.turp
+```
+
+Output:
+
+```
 4
 ```
 
@@ -243,7 +288,12 @@ $ echo 17 | lake exe turpentine exec --via subleq Langlib/Examples/Turpentine/is
 way to see what a backend costs.
 
 ```
-$ printf '252
+printf '252
+```
+
+Output:
+
+```
 105
 ' | lake exe turpentine exec --via subleq --verbose Langlib/Examples/Turpentine/gcd.turp
 turpentine: compiled to 22737 bytes of subleq
@@ -254,7 +304,12 @@ Insertion sort, which needs arrays, and therefore needs subleq to patch
 its own instruction operands to reach a computed address.
 
 ```
-$ printf '5
+printf '5
+```
+
+Output:
+
+```
 2
 9
 1
@@ -284,12 +339,22 @@ interpreter, and comparing against this interpreter's output.
 Compile Euclid's algorithm to whitespace and run the result.
 
 ```
-$ lake exe turpentine compile --to whitespace -o /tmp/gcd.ws Langlib/Examples/Turpentine/gcd.turp
+lake exe turpentine compile --to whitespace -o /tmp/gcd.ws Langlib/Examples/Turpentine/gcd.turp
+```
+
+Output:
+
+```
 turpentine: wrote 532 bytes to /tmp/gcd.ws
 ```
 
 ```
-$ printf '252\n105\n' | lake exe whitespace /tmp/gcd.ws
+printf '252\n105\n' | lake exe whitespace /tmp/gcd.ws
+```
+
+Output:
+
+```
 21
 ```
 
@@ -298,11 +363,21 @@ multiplication, division, and decimal printing all have to be built from
 subtract-and-branch.
 
 ```
-$ lake exe turpentine compile --to subleq -o /tmp/gcd.sq Langlib/Examples/Turpentine/gcd.turp
+lake exe turpentine compile --to subleq -o /tmp/gcd.sq Langlib/Examples/Turpentine/gcd.turp
+```
+
+Output:
+
+```
 turpentine: wrote 22737 bytes to /tmp/gcd.sq
 ```
 
 ```
-$ printf '252\n105\n' | lake exe subleq /tmp/gcd.sq
+printf '252\n105\n' | lake exe subleq /tmp/gcd.sq
+```
+
+Output:
+
+```
 21
 ```

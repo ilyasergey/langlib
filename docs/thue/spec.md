@@ -129,7 +129,12 @@ wild and works the same, since the runner never inspects the name.
 Hello world: one rule, one rewrite, one line of output.
 
 ```
-$ lake exe thue Langlib/Examples/Thue/hello.t
+lake exe thue Langlib/Examples/Thue/hello.t
+```
+
+Output:
+
+```
 Hello World!
 ```
 
@@ -139,21 +144,36 @@ underscores) into 1024 and halts without printing anything, so
 under every strategy, which is what a well-bred Thue program looks like.
 
 ```
-$ lake exe thue --final-state Langlib/Examples/Thue/increment.t
+lake exe thue --final-state Langlib/Examples/Thue/increment.t
+```
+
+Output:
+
+```
 10000000000
 ```
 
 Parity of a unary number, read from input.
 
 ```
-$ echo 111 | lake exe thue Langlib/Examples/Thue/parity.t
+echo 111 | lake exe thue Langlib/Examples/Thue/parity.t
+```
+
+Output:
+
+```
 odd
 ```
 
 The truth-machine, halting on `0`.
 
 ```
-$ echo 0 | lake exe thue Langlib/Examples/Thue/truth.t
+echo 0 | lake exe thue Langlib/Examples/Thue/truth.t
+```
+
+Output:
+
+```
 0
 ```
 
@@ -161,7 +181,12 @@ The random strategy restores the original interpreter's nondeterminism.
 The seed makes it reproducible, which the original never was.
 
 ```
-$ lake exe thue --strategy random --seed 7 Langlib/Examples/Thue/hello.t
+lake exe thue --strategy random --seed 7 Langlib/Examples/Thue/hello.t
+```
+
+Output:
+
+```
 Hello World!
 ```
 

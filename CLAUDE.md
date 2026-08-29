@@ -58,9 +58,13 @@ human-readable front-end language (Turpentine) and verified compilers from it.
 * Documentation should be precise and entertaining to read. These languages
   are jokes with formal content; keep both.
 * Every spec page ends with a "Trying it" section: one command per code
-  block, each preceded by a sentence saying what to expect, and each block
-  showing the actual output (verified by running it, not guessed). Never
-  collate several commands into one block.
+  block, each preceded by a sentence saying what to expect. Never collate
+  several commands into one block.
+* Keep the command and its output in **separate** blocks, so a reader can
+  copy the command without picking the output out of it. Write the command
+  block with no `$` prefix, then `Output:`, then a second block with the
+  output the command actually produced (verified by running it, never
+  guessed). Omit the output block when the command prints nothing.
 
 ## Dependencies
 

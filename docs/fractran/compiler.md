@@ -14,8 +14,18 @@ interface this page is a plan for, and they are what the other backends
 already do (see `docs/whitespace/compiler.md` for a working example).
 
 ```
-$ lake exe turpentine compile --to fractran -o /tmp/sumdigits.ft Langlib/Examples/Turpentine/sumdigits.turp
-$ lake exe fractran --out final /tmp/sumdigits.ft
+lake exe turpentine compile --to fractran -o /tmp/sumdigits.ft Langlib/Examples/Turpentine/sumdigits.turp
+```
+
+Then run it:
+
+```
+lake exe fractran --out final /tmp/sumdigits.ft
+```
+
+Output:
+
+```
 (the answer as an exponent; see below)
 ```
 
@@ -23,7 +33,12 @@ Or in one step, compiling in memory and running the result on the
 fractran interpreter:
 
 ```
-$ lake exe turpentine exec --via fractran Langlib/Examples/Turpentine/sumdigits.turp
+lake exe turpentine exec --via fractran Langlib/Examples/Turpentine/sumdigits.turp
+```
+
+Output:
+
+```
 (the answer as an exponent; see below)
 ```
 

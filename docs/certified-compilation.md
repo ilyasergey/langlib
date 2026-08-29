@@ -397,7 +397,12 @@ today, lives in the status matrix in [README.md](README.md).
 result:
 
 ```
-$ lake env lean scripts/axioms.lean
+lake env lean scripts/axioms.lean
+```
+
+Output:
+
+```
 'Langlib.Computability.whitespaceComplete' depends on axioms: [propext, Classical.choice, Quot.sound]
 ```
 

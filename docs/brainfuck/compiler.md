@@ -13,28 +13,56 @@
 
 ## Compile and run one
 
-The backend is a library entry point; wiring it to a
-`lake exe turpentine compile --to brainfuck` subcommand belongs to the
-runner, not to this page. What works today is running the committed output:
+Emit the program, then run it with the brainfuck interpreter. Compiled
+programs need `--eof zero`, because the backend's `readByte` reports -1 for
+a zero byte and for end of input alike.
 
 ```
-$ lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/compiled/hello.b
+lake exe turpentine compile --to brainfuck -o /tmp/hello.b Langlib/Examples/Turpentine/hello.turp
+```
+
+Then run it:
+
+```
+lake exe brainfuck --eof zero /tmp/hello.b
+```
+
+Output:
+
+```
 Hello, Turpentine!
-$ echo -n meow | lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/compiled/cat.b
-meow
-$ echo 17 | lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/compiled/isqrt.b
+```
+
+Or do both at once with `exec`, which compiles in memory and runs the
+result on the same interpreter, applying the EOF convention for you. The
+output should match `turpentine run` exactly, which makes it a differential
+test.
+
+```
+echo 17 | lake exe turpentine exec --via brainfuck Langlib/Examples/Turpentine/isqrt.turp
+```
+
+Output:
+
+```
 4
-$ lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/compiled/sieve.b
+```
+
+The committed outputs in `Langlib/Examples/Brainfuck/compiled/` are the
+same programs, checked in so they can be read and diffed.
+
+```
+lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/compiled/sieve.b
+```
+
+Output:
+
+```
 2
 3
 5
 ...
 ```
-
-Those four files were produced by `compileSource` from
-`Langlib/Examples/Turpentine/{hello,cat,isqrt,sieve}.turp` and are ordinary
-brainfuck. From Lean, `compileSource` gives the text and `runCompiled`
-compiles and runs in one step with the right EOF mode already set.
 
 ## Summary
 

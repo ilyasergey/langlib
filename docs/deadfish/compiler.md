@@ -12,8 +12,18 @@ interface this page is a plan for, and they are what the other backends
 already do (see `docs/whitespace/compiler.md` for a working example).
 
 ```
-$ lake exe turpentine compile --to deadfish -o /tmp/hello.df Langlib/Examples/Turpentine/hello.turp
-$ lake exe deadfish /tmp/hello.df
+lake exe turpentine compile --to deadfish -o /tmp/hello.df Langlib/Examples/Turpentine/hello.turp
+```
+
+Then run it:
+
+```
+lake exe deadfish /tmp/hello.df
+```
+
+Output:
+
+```
 72
 101
 108
@@ -24,7 +34,12 @@ Or in one step, compiling in memory and running the result on the
 deadfish interpreter:
 
 ```
-$ lake exe turpentine exec --via deadfish Langlib/Examples/Turpentine/hello.turp
+lake exe turpentine exec --via deadfish Langlib/Examples/Turpentine/hello.turp
+```
+
+Output:
+
+```
 72
 101
 108

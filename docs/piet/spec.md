@@ -168,21 +168,36 @@ library (`Langlib.Common.Image.parsePpm`) for direct API users.
 A painting that says hi.
 
 ```
-$ lake exe piet Langlib/Examples/Piet/hi.ppm
+lake exe piet Langlib/Examples/Piet/hi.ppm
+```
+
+Output:
+
+```
 Hi
 ```
 
 Addition. The program reads two numbers from stdin and prints the sum.
 
 ```
-$ echo -n '3 4' | lake exe piet Langlib/Examples/Piet/add.ppm
+echo -n '3 4' | lake exe piet Langlib/Examples/Piet/add.ppm
+```
+
+Output:
+
+```
 7
 ```
 
 Squaring, to show that `dup` and `mul` work as advertised.
 
 ```
-$ echo -n 12 | lake exe piet Langlib/Examples/Piet/square.ppm
+echo -n 12 | lake exe piet Langlib/Examples/Piet/square.ppm
+```
+
+Output:
+
+```
 144
 ```
 

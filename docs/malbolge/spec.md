@@ -222,14 +222,24 @@ human could write one. The odd capitalisation is not a typo: it is what
 the search found, and fixing it would have meant another search.
 
 ```
-$ lake exe malbolge Langlib/Examples/Malbolge/hello.mal
+lake exe malbolge Langlib/Examples/Malbolge/hello.mal
+```
+
+Output:
+
+```
 HEllO WORld
 ```
 
 The truth-machine halts on input `0`.
 
 ```
-$ echo -n 0 | lake exe malbolge Langlib/Examples/Malbolge/truth.mal
+echo -n 0 | lake exe malbolge Langlib/Examples/Malbolge/truth.mal
+```
+
+Output:
+
+```
 0
 ```
 
@@ -237,7 +247,12 @@ Feed it `1` instead and it prints `1` until the fuel runs out, as a
 truth-machine should.
 
 ```
-$ echo -n 1 | lake exe malbolge --fuel 100000 Langlib/Examples/Malbolge/truth.mal
+echo -n 1 | lake exe malbolge --fuel 100000 Langlib/Examples/Malbolge/truth.mal
+```
+
+Output:
+
+```
 11111111111111111111111111111111111111111111111111111111...
 malbolge: out of fuel after 100000 steps (raise with --fuel)
 ```
@@ -247,7 +262,12 @@ non-ASCII byte, which your terminal will render as garbage) forever,
 hence the fuel bound.
 
 ```
-$ echo -n 'from the eighth circle' | lake exe malbolge --fuel 100000 Langlib/Examples/Malbolge/cat.mal
+echo -n 'from the eighth circle' | lake exe malbolge --fuel 100000 Langlib/Examples/Malbolge/cat.mal
+```
+
+Output:
+
+```
 from the eighth circle
 malbolge: out of fuel after 100000 steps (raise with --fuel)
 ```

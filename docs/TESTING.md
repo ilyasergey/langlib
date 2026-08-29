@@ -171,7 +171,12 @@ they need no test harness. What they do need is an axiom audit, because a
 theorem resting on `sorryAx` type-checks perfectly well:
 
 ```
-$ lake env lean --run scripts/axioms.lean
+lake env lean --run scripts/axioms.lean
+```
+
+Output:
+
+```
 'Langlib.Computability.whitespaceComplete' depends on axioms: [propext, Classical.choice, Quot.sound]
 ```
 

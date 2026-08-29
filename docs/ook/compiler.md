@@ -12,8 +12,18 @@ interface this page is a plan for, and they are what the other backends
 already do (see `docs/whitespace/compiler.md` for a working example).
 
 ```
-$ lake exe turpentine compile --to ook -o /tmp/hello.ook Langlib/Examples/Turpentine/hello.turp
-$ lake exe ook --eof zero /tmp/hello.ook
+lake exe turpentine compile --to ook -o /tmp/hello.ook Langlib/Examples/Turpentine/hello.turp
+```
+
+Then run it:
+
+```
+lake exe ook --eof zero /tmp/hello.ook
+```
+
+Output:
+
+```
 Hello, Turpentine!
 ```
 
@@ -21,7 +31,12 @@ Or in one step, compiling in memory and running the result on the
 ook interpreter:
 
 ```
-$ lake exe turpentine exec --via ook Langlib/Examples/Turpentine/hello.turp
+lake exe turpentine exec --via ook Langlib/Examples/Turpentine/hello.turp
+```
+
+Output:
+
+```
 Hello, Turpentine!
 ```
 

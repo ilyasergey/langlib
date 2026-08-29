@@ -102,7 +102,12 @@ Deadfish greets you in ASCII codes, one per line, because numbers are the
 only thing it can print. The full output spells "Hello, world!".
 
 ```
-$ lake exe deadfish Langlib/Examples/Deadfish/hello.df
+lake exe deadfish Langlib/Examples/Deadfish/hello.df
+```
+
+Output:
+
+```
 72
 101
 108
@@ -114,7 +119,12 @@ The xkcd constant: `iiso` increments twice, squares, and prints. Chosen by
 fair dice roll.
 
 ```
-$ lake exe deadfish Langlib/Examples/Deadfish/xkcd-random.df
+lake exe deadfish Langlib/Examples/Deadfish/xkcd-random.df
+```
+
+Output:
+
+```
 4
 ```
 
@@ -122,7 +132,12 @@ Squaring from 2 walks into the 256 reset and never comes back, which is
 the whole personality of the language.
 
 ```
-$ lake exe deadfish Langlib/Examples/Deadfish/powers.df
+lake exe deadfish Langlib/Examples/Deadfish/powers.df
+```
+
+Output:
+
+```
 2
 4
 16
