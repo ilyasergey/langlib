@@ -20,7 +20,7 @@ Addresses at or beyond the image read as 0 at run time. -/
 abbrev Prog := Array Int
 
 /-- Render a program as raw assembler text (space-separated decimals, three
-words per line). Used in tests and by the future WTF compiler's
+words per line). Used in tests and by the future Turpentine compiler's
 pretty-printer; the output re-assembles to the same image. -/
 def Prog.render (p : Prog) : String :=
   String.intercalate "\n" <|

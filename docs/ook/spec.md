@@ -107,7 +107,7 @@ echo -n "Ook-ook" | lake exe ook --eof zero Langlib/Examples/Ook/cat.ook
 lake exe ook Langlib/Examples/Ook/alphabet.ook
 ```
 
-## Compilation from WTF
+## Compilation from Turpentine
 
-Planned (see `docs/PLAN.md`, Stage 4): WTF compiles to brainfuck, and
+Planned (see `docs/PLAN.md`, Stage 4): Turpentine compiles to brainfuck, and
 `Langlib.Ook.render` turns the result into Ook! for free.

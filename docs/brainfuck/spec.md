@@ -88,8 +88,8 @@ of the example set, including a truth-machine and xkcd's random number
 generator, see `Langlib/Examples/Brainfuck/` and the tests in
 `Langlib/Tests/Brainfuck.lean`.
 
-## Compilation from WTF
+## Compilation from Turpentine
 
 Planned (see `docs/PLAN.md`, Stage 4): variables mapped to fixed tape cells,
 `while` mapped to `[ ]`, arithmetic on byte cells. The compiler will document
-its supported WTF fragment in `docs/brainfuck/compiler.md`.
+its supported Turpentine fragment in `docs/brainfuck/compiler.md`.

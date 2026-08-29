@@ -37,13 +37,13 @@ A complete language contribution consists of:
    a non-Lean reference implementation exists, a differential test entry in
    `scripts/difftest.sh` that skips when the reference is not installed.
 
-## Adding a compiler from WTF
+## Adding a compiler from Turpentine
 
-Compilers from WTF to a target esolang live in `Langlib/WTF/Compile/<Langname>.lean`.
+Compilers from Turpentine to a target esolang live in `Langlib/Turpentine/Compile/<Langname>.lean`.
 A compiler contribution must state (in the module docstring and in
-`docs/<langname>/compiler.md`) which WTF fragment it supports, and add
-compiler tests: each supported WTF example is compiled, run on the target's
-reference interpreter, and compared against the WTF interpreter's output.
+`docs/<langname>/compiler.md`) which Turpentine fragment it supports, and add
+compiler tests: each supported Turpentine example is compiled, run on the target's
+reference interpreter, and compared against the Turpentine interpreter's output.
 Verification of compilers follows the pipeline described in
 `docs/verification.md`; proofs are welcome but may land after the compiler.
 

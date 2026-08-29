@@ -9,7 +9,7 @@ specification, history, and the exact semantic choices are in
 
 * `Syntax.lean`: the instruction AST (`Instr`, `Prog`, `Label`), plus a
   renderer back to concrete syntax (used to generate the examples and, in
-  time, by the WTF compiler).
+  time, by the Turpentine compiler).
 * `Parser.lean`: tokeniser (space/tab/LF; all else is a comment) and IMP
   parser, with errors reporting line, column, and the offending tokens as
   `[Space]`/`[Tab]`/`[LF]`.

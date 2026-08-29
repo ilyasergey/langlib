@@ -34,7 +34,7 @@ deriving Repr, BEq, Inhabited
 abbrev Prog := List Op
 
 /-- Render a program back to concrete syntax (used in tests and by the
-WTF compiler's pretty-printer). -/
+Turpentine compiler's pretty-printer). -/
 partial def Op.render : Op → String
   | .inc => "+"
   | .dec => "-"

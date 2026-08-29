@@ -1,0 +1,15 @@
+// Sum of decimal digits: reads a non-negative n, prints the digit sum.
+// Ported from Velvet's SumOfDigits example (github.com/verse-lab/velvet).
+// Usage: echo 9045 | lake exe turpentine run Langlib/Examples/Turpentine/sumdigits.turp
+var n : int;
+var sum : int := 0;
+n := readInt();
+assert n >= 0;
+while n > 0
+  invariant sum >= 0
+  decreases n
+{
+  sum := sum + n % 10;
+  n := n / 10;
+}
+println(sum);

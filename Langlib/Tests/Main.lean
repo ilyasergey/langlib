@@ -5,8 +5,9 @@ import Langlib.Tests.Deadfish
 import Langlib.Tests.Fractran
 import Langlib.Tests.Ook
 import Langlib.Tests.Subleq
+import Langlib.Tests.Thue
 import Langlib.Tests.Whitespace
-import Langlib.Tests.WTF
+import Langlib.Tests.Turpentine
 
 /-!
 Test driver for langlib, run by `lake test` (from the repository root; the
@@ -24,6 +25,7 @@ def main : IO UInt32 :=
     , Langlib.Tests.Fractran.suites
     , Langlib.Tests.Ook.suites
     , Langlib.Tests.Subleq.suites
+    , Langlib.Tests.Thue.suites
     , Langlib.Tests.Whitespace.suites
-    , Langlib.Tests.WTF.suites
+    , Langlib.Tests.Turpentine.suites
     ]

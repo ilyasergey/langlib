@@ -4,10 +4,16 @@
 #
 # Every section skips gracefully when its reference binary is not installed,
 # so this script always exits 0 unless an installed reference disagrees.
-# Run from the repository root after `lake build`.
+# Run from the repository root after `lake build`. To obtain the reference
+# interpreters in the first place, run ./scripts/get-references.sh, which
+# builds them into .difftools/ without touching your system.
 
 set -u
 cd "$(dirname "$0")/.."
+
+# Locally built references (see ./scripts/get-references.sh) win over
+# anything on PATH, so a checkout can be self-contained.
+PATH="$PWD/.difftools/bin:$PATH"
 
 PASS=0; FAIL=0; SKIP=0
 
@@ -36,12 +42,12 @@ if [ ! -x "$BF_LANGLIB" ]; then
   note "brainfuck: build first (lake build brainfuck); skipping"
 else
   BF_REF=""
-  for cand in beef bf; do
+  for cand in bfi beef bf; do
     if command -v "$cand" >/dev/null 2>&1; then BF_REF=$cand; break; fi
   done
   if [ -z "$BF_REF" ]; then
     SKIP=$((SKIP+1))
-    note "brainfuck: no reference interpreter installed (try: brew install beef); skipping"
+    note "brainfuck: no reference interpreter found (run ./scripts/get-references.sh); skipping"
   else
     note "brainfuck vs $BF_REF:"
     for ex in hello countdown alphabet add truth xkcd-random quine; do
@@ -70,7 +76,7 @@ else
   done
   if [ -z "$WS_REF" ]; then
     SKIP=$((SKIP+1))
-    note "whitespace: no reference interpreter installed (try: cargo install whitespace-rs); skipping"
+    note "whitespace: no reference interpreter found (see docs/TESTING.md); skipping"
   else
     note "whitespace vs $WS_REF:"
     for ex in hello count add fact greet truth; do
@@ -97,7 +103,7 @@ if [ ! -x "$B93_LANGLIB" ]; then
 else
   if ! command -v bef >/dev/null 2>&1; then
     SKIP=$((SKIP+1))
-    note "befunge93: 'bef' not installed (try: brew install befunge93); skipping"
+    note "befunge93: 'bef' not found (run ./scripts/get-references.sh); skipping"
   else
     note "befunge93 vs bef:"
     for ex in hello cat quine factorial; do

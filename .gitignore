@@ -1,6 +1,9 @@
 # Task descriptions for agents (local only)
 task/
 
+# Locally built reference interpreters (scripts/get-references.sh)
+.difftools/
+
 # Lake build artifacts
 .lake/
 build/

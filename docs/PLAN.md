@@ -54,44 +54,44 @@ git diffs and tests. Piet semantics per Morgan-Mar's spec (colour blocks,
 DP/CC, the 17-operation colour wheel, codel size flag); brainloller is a
 pixel-decoder front end onto the brainfuck core.
 
-## Stage 3: WTF front end `[x]`
+## Stage 3: Turpentine front end `[x]`
 
-WTF (Well-Typed Formalism, `.wtf`), a small imperative language inspired by
+Turpentine (Well-Typed Formalism, `.turp`), a small imperative language inspired by
 Velvet (https://github.com/verse-lab/velvet), as a deep embedding:
 
-* AST (`Langlib/WTF/Syntax.lean`): integer and boolean expressions, mutable
+* AST (`Langlib/Turpentine/Syntax.lean`): integer and boolean expressions, mutable
   variables, arrays, `if`, `while`, byte/number input and output. Keep the
   core small; it is a compilation source, not a general-purpose language.
-* Parser for `.wtf` files, Dafny-flavoured concrete syntax (Velvet-like).
+* Parser for `.turp` files, Dafny-flavoured concrete syntax (Velvet-like).
 * Simple type checker (`Nat`-valued vs bool-valued expressions).
 * Reference interpreter: pure, fuel-based, same I/O model as the esolangs.
-* Runner: `lake exe wtf run file.wtf`, `lake exe wtf compile --to bf file.wtf`.
+* Runner: `lake exe turpentine run file.turp`, `lake exe turpentine compile --to bf file.turp`.
 
-Proviso recorded here: WTF is designed so that shallowly-embedded Velvet
+Proviso recorded here: Turpentine is designed so that shallowly-embedded Velvet
 programs can later be compiled to it (restricted fragment, relational
 compilation). Avoid features that would block that: keep expressions total,
 state first-order, I/O explicit.
 
-## Stage 4: compilers from WTF `[~]`
+## Stage 4: compilers from Turpentine `[~]`
 
-* WTF -> brainfuck (cell-mapped variables, while via `[ ]`).
-* WTF -> ook (via the BF isomorphism).
-* WTF -> whitespace (stack machine with heap; the most direct target).
-* WTF -> subleq (memory-mapped variables, subtract-and-branch codegen).
-* WTF -> befunge93 (stretch goal).
-* WTF -> deadfish (straight-line, output-only fragment; a joke, documented
+* Turpentine -> brainfuck (cell-mapped variables, while via `[ ]`).
+* Turpentine -> ook (via the BF isomorphism).
+* Turpentine -> whitespace (stack machine with heap; the most direct target).
+* Turpentine -> subleq (memory-mapped variables, subtract-and-branch codegen).
+* Turpentine -> befunge93 (stretch goal).
+* Turpentine -> deadfish (straight-line, output-only fragment; a joke, documented
   as such).
 * Not planned: malbolge (open research problem; see its spec page), thue and
   fractran (possible in principle via rewriting/arithmetisation, roadmap).
 
-Each compiler documents its supported WTF fragment in
-`docs/<langname>/compiler.md`. Tests: compile every supported WTF example,
-run on the target interpreter, compare with the WTF interpreter's output.
+Each compiler documents its supported Turpentine fragment in
+`docs/<langname>/compiler.md`. Tests: compile every supported Turpentine example,
+run on the target interpreter, compare with the Turpentine interpreter's output.
 
 ## Stage 5: Velvet examples and differential testing `[ ]`
 
 Port examples from Velvet (isqrt, sum of digits, sorting-adjacent loops,
-etc.) to `.wtf`, run them through every compiler, and extend `lake test` to
+etc.) to `.turp`, run them through every compiler, and extend `lake test` to
 cover the full matrix. Differential-test the esolang interpreters against
 non-Lean references where installable.
 
@@ -109,6 +109,6 @@ differential compiler tests are the current evidence, and
 ## Stage 7: website `[ ]`
 
 A Verso-based site with interactive elements, hosted on GitHub Pages under
-the domain `langlib.wtf`: language index, rendered specs, runnable examples.
+the domain `langlib.turp`: language index, rendered specs, runnable examples.
 Verso must match the pinned toolchain; check compatibility before wiring it
 into the build (keep it in a separate Lake package under `site/` if needed).

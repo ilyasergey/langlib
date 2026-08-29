@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# Fetch and build the non-Lean reference interpreters that
+# ./scripts/difftest.sh compares langlib against.
+#
+# Everything lands in .difftools/ (gitignored). Nothing is installed
+# system-wide, and difftest.sh looks in .difftools/bin before PATH, so a
+# reference you already have installed still wins if you prefer it.
+#
+# Usage: ./scripts/get-references.sh [language ...]
+#        with no arguments, fetches everything it knows how to build.
+#
+# Requires: curl, a C compiler. Individual sections say what else they need
+# and are skipped with a message when a prerequisite is missing.
+
+set -u
+cd "$(dirname "$0")/.."
+TOOLS=.difftools
+BIN=$TOOLS/bin
+SRC=$TOOLS/src
+mkdir -p "$BIN" "$SRC"
+
+want() {
+  [ $# -eq 0 ] && return 0
+  for arg in "$@"; do :; done
+  for arg in "${WANTED[@]}"; do
+    [ "$arg" = "$1" ] && return 0
+  done
+  return 1
+}
+
+WANTED=("$@")
+if [ ${#WANTED[@]} -eq 0 ]; then
+  WANTED=(befunge93 brainfuck)
+fi
+
+have_cc() { command -v cc >/dev/null 2>&1 || command -v gcc >/dev/null 2>&1; }
+CC=${CC:-cc}
+
+# ---------------------------------------------------------------- befunge93
+# Chris Pressey's bef.c, the Befunge-93 reference interpreter (BSD-3).
+if want befunge93; then
+  if [ -x "$BIN/bef" ]; then
+    echo "befunge93: $BIN/bef already built"
+  elif ! have_cc; then
+    echo "befunge93: no C compiler found; skipping"
+  else
+    echo "befunge93: fetching and building Pressey's bef..."
+    if curl -sfL https://raw.githubusercontent.com/catseye/Befunge-93/master/src/bef.c \
+         -o "$SRC/bef.c"; then
+      if "$CC" -std=c89 -O2 -w -o "$BIN/bef" "$SRC/bef.c"; then
+        echo "befunge93: built $BIN/bef"
+      else
+        echo "befunge93: compilation failed; skipping"
+      fi
+    else
+      echo "befunge93: download failed; skipping"
+    fi
+  fi
+fi
+
+# ----------------------------------------------------------------- brainfuck
+# No single canonical brainfuck interpreter exists, and the popular ones
+# disagree about EOF (see docs/brainfuck/spec.md). We build Daniel B.
+# Cristofani's widely cited public-domain interpreter, which uses the
+# leave-the-cell-unchanged convention, matching our default.
+if want brainfuck; then
+  if [ -x "$BIN/bfi" ]; then
+    echo "brainfuck: $BIN/bfi already built"
+  elif ! have_cc; then
+    echo "brainfuck: no C compiler found; skipping"
+  else
+    echo "brainfuck: fetching and building Cristofani's dbfi..."
+    if curl -sfL http://brainfuck.org/bfi.c -o "$SRC/bfi.c"; then
+      if "$CC" -O2 -w -o "$BIN/bfi" "$SRC/bfi.c"; then
+        echo "brainfuck: built $BIN/bfi"
+      else
+        echo "brainfuck: compilation failed; skipping"
+      fi
+    else
+      echo "brainfuck: download failed (brainfuck.org may be down); skipping"
+    fi
+  fi
+fi
+
+echo
+echo "References in $BIN:"
+ls -1 "$BIN" 2>/dev/null || echo "  (none)"
+echo "Now run ./scripts/difftest.sh"

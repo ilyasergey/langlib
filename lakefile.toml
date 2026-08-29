@@ -16,8 +16,8 @@ name = "brainfuck"
 root = "Langlib.Languages.Brainfuck.Main"
 
 [[lean_exe]]
-name = "wtf"
-root = "Langlib.WTF.Main"
+name = "turpentine"
+root = "Langlib.Turpentine.Main"
 
 [[lean_exe]]
 name = "fractran"
@@ -42,3 +42,7 @@ root = "Langlib.Languages.Deadfish.Main"
 [[lean_exe]]
 name = "befunge93"
 root = "Langlib.Languages.Befunge93.Main"
+
+[[lean_exe]]
+name = "thue"
+root = "Langlib.Languages.Thue.Main"

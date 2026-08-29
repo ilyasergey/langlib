@@ -109,8 +109,8 @@ one per line, since numbers are the only thing Deadfish can print;
 `xkcd-random.df` is `iiso`, the fair-dice-roll constant 4; `powers.df`
 squares its way from 2 into the 256 reset.
 
-## Compilation from WTF
+## Compilation from Turpentine
 
 Planned as a documented joke (see `docs/PLAN.md`, Stage 4): the supported
-WTF fragment is straight-line, output-only arithmetic, which is all the
+Turpentine fragment is straight-line, output-only arithmetic, which is all the
 target permits.

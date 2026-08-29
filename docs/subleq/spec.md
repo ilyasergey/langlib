@@ -145,9 +145,9 @@ output instruction's own `A` operand, because the only addressing mode is
 subleq; it is the calling convention. The examples and the golden tests
 (`Langlib/Tests/Subleq.lean`) pin down every decision above.
 
-## Compilation from WTF
+## Compilation from Turpentine
 
 Planned (see `docs/PLAN.md`, Stage 4): variables mapped to fixed memory
 cells, arithmetic by subtraction chains, `while` by subtract-and-branch.
-The compiler will document its supported WTF fragment in
+The compiler will document its supported Turpentine fragment in
 `docs/subleq/compiler.md`.

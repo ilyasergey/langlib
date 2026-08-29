@@ -5,20 +5,21 @@ import Langlib.Languages.Deadfish
 import Langlib.Languages.Fractran
 import Langlib.Languages.Ook
 import Langlib.Languages.Subleq
+import Langlib.Languages.Thue
 import Langlib.Languages.Whitespace
-import Langlib.WTF
+import Langlib.Turpentine
 
 /-!
 # Langlib
 
 An open-source library of the semantics of esoteric and fun programming
-languages, with a human-readable front end (WTF) and compilers from it.
+languages, with a human-readable front end (Turpentine) and compilers from it.
 
 * `Langlib.<Langname>`: one module tree per esoteric language (AST, parser,
   pure reference interpreter, standalone runner).
 * `Langlib.Common`: shared infrastructure (I/O model, execution outcomes,
   parser helpers, test harness).
-* `Langlib.WTF`: the Well-Typed Formalism front-end language and its
+* `Langlib.Turpentine`: the Well-Typed Formalism front-end language and its
   compilers to the esolangs.
 * `Langlib.Tests`: the test suite (`lake test`).
 

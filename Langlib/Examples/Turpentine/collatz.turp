@@ -1,0 +1,18 @@
+// Collatz: reads n >= 1, prints the number of steps to reach 1.
+// No decreases annotation: nobody knows one. The fuel bound has our back.
+// Usage: echo 27 | lake exe turpentine run Langlib/Examples/Turpentine/collatz.turp
+var n : int;
+var steps : int := 0;
+n := readInt();
+assert n >= 1;
+while n != 1
+  invariant n >= 1
+{
+  if n % 2 == 0 {
+    n := n / 2;
+  } else {
+    n := 3 * n + 1;
+  }
+  steps := steps + 1;
+}
+println(steps);

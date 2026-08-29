@@ -133,7 +133,7 @@ exponents of 1944 = 2^3 * 3^5 and prints 6561 = 3^8; the second multiplies
 2 by 3 and prints 15625 = 5^6; the third prints the first primes and then
 reports running out of fuel, which for PRIMEGAME is the only way to stop.
 
-## Compilation from WTF
+## Compilation from Turpentine
 
 Not planned (see `docs/PLAN.md`, Stage 4): compiling to FRACTRAN means
 arithmetising a register machine, which is possible in principle and

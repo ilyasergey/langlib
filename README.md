@@ -21,15 +21,16 @@ For each language, langlib provides:
   differential tests against non-Lean reference implementations where
   available.
 
-On top of the interpreters, langlib develops **WTF** (Well-Typed Formalism, the
-`.wtf` file extension), a small imperative language deeply embedded in Lean and
-inspired by [Velvet](https://github.com/verse-lab/velvet), living under
-`Langlib/WTF/`. WTF serves as a
-human-readable front end: langlib builds compilers from WTF to the esoteric
-languages, together with a verification pipeline for proving these compilers
-correct. In the longer term the plan is to compile shallowly-embedded Velvet
-programs to WTF, and from there to any esolang in the library, using relational
-compilation.
+On top of the interpreters, langlib develops **Turpentine** (`.turp`), a
+small imperative language deeply embedded in Lean and inspired by
+[Velvet](https://github.com/verse-lab/velvet). The name is the joke: a
+Turing tarpit is a language in which everything is possible and nothing is
+easy, and turpentine is what dissolves tar. Turpentine is the
+human-readable front end: langlib builds compilers from it to the esoteric
+languages, together with a verification pipeline for proving those
+compilers correct. In the longer term the plan is to compile
+shallowly-embedded Velvet programs to Turpentine, and from there to any
+esolang in the library, using relational compilation.
 
 ## Building
 
@@ -52,11 +53,11 @@ status matrix, including compilers):
 * [whitespace](docs/whitespace/spec.md) (Edwin Brady & Chris Morris, 2003)
 * [ook](docs/ook/spec.md) (David Morgan-Mar, 2001)
 * [deadfish](docs/deadfish/spec.md) (Jonathan Todd Skinner, 2006)
-* [WTF](docs/wtf/spec.md), the Well-Typed Formalism: the library's own
-  human-readable front end
+* [Turpentine](docs/turpentine/spec.md): the library's own human-readable
+  front end, named for what dissolves a Turing tarpit
 
 In progress: malbolge, thue, befunge93, piet, brainloller, and the
-compilers from WTF to each target. The roadmap of languages still to be
+compilers from Turpentine to each target. The roadmap of languages still to be
 implemented lives in
 [docs/ROADMAP.md](docs/ROADMAP.md), and a survey of related efforts in
 [docs/RELATED.md](docs/RELATED.md).
@@ -131,18 +132,18 @@ $ lake exe fractran --n 2 --out pow2 --fuel 2000000 Langlib/Examples/Fractran/pr
 ...
 ```
 
-WTF, the readable front end, computes an integer square root.
+Turpentine, the readable front end, computes an integer square root.
 
 ```
-$ echo 17 | lake exe wtf run Langlib/Examples/WTF/isqrt.wtf
+$ echo 17 | lake exe turpentine run Langlib/Examples/Turpentine/isqrt.turp
 4
 ```
 
-WTF prints the primes up to 20, using the same trial division you would
+Turpentine prints the primes up to 20, using the same trial division you would
 write in any language.
 
 ```
-$ echo 20 | lake exe wtf run Langlib/Examples/WTF/primes.wtf
+$ echo 20 | lake exe turpentine run Langlib/Examples/Turpentine/primes.turp
 2
 3
 5

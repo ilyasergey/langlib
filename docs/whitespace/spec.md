@@ -202,9 +202,9 @@ input; see decision 12 above. The example programs cannot carry comments in
 any useful way (prose is invisible only if it contains no spaces, tabs, or
 newlines), so attribution lives in `Langlib/Languages/Whitespace/README.md`.
 
-## Compilation from WTF
+## Compilation from Turpentine
 
 Planned (see `docs/PLAN.md`, Stage 4): Whitespace is the most direct target,
-with WTF variables in the heap, expressions on the stack, `while` via
-labels and conditional jumps. The compiler will document its supported WTF
+with Turpentine variables in the heap, expressions on the stack, `while` via
+labels and conditional jumps. The compiler will document its supported Turpentine
 fragment in `docs/whitespace/compiler.md`.

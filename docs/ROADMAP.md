@@ -19,12 +19,12 @@ also confirmed wanted: **Piet** and **Brainloller** form the second wave
   `COME FROM`, five bizarre operators. The 1972 design is freely
   implementable (C-INTERCAL is a GPL implementation, which we would not
   reuse, only cite). Large but well documented. A parser and interpreter is
-  a serious, rewarding project; a WTF compiler is plausible.
+  a serious, rewarding project; a Turpentine compiler is plausible.
 * **FALSE** (Wouter van Oortmerssen, 1993). The stack language that
   inspired brainfuck; compact and clean. Interpreter is easy; a good extra
   compilation target.
 * **Unlambda** (David Madore, 1999). SKI combinators plus `call/cc` and
-  side effects. Interpreter is a nice exercise in CPS; compilation from WTF
+  side effects. Interpreter is a nice exercise in CPS; compilation from Turpentine
   is research-grade.
 * **Befunge-98** (Chris Pressey, 1998). Extends our Befunge-93 with an
   unbounded funge-space and fingerprints. Natural follow-up once

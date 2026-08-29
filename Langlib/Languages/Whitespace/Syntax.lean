@@ -102,7 +102,7 @@ def encodeLabel (l : Label) : String :=
   String.ofList (l.toList.map fun c => if c == 'T' then '\t' else ' ') ++ "\n"
 
 /-- Render an instruction back to concrete syntax (used to generate the
-example programs, by tests, and later by the WTF compiler). -/
+example programs, by tests, and later by the Turpentine compiler). -/
 def Instr.render : Instr → String
   | .push n => "  " ++ encodeNum n
   | .dup => " \n "

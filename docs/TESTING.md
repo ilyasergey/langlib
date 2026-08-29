@@ -29,12 +29,12 @@ Only EOF-independent programs are compared, because reference interpreters
 disagree on the EOF convention (see `docs/brainfuck/spec.md`); the EOF
 conventions themselves are pinned down by golden tests instead.
 
-## wtf
+## turpentine
 
-WTF is langlib's own language, so langlib's interpreter is the canonical
+Turpentine is langlib's own language, so langlib's interpreter is the canonical
 one by definition; golden unit tests are the whole story. Once the Stage 4
 compilers exist, every compiled example doubles as a differential test of
-interpreter pairs (WTF output vs target-language output).
+interpreter pairs (Turpentine output vs target-language output).
 
 ## fractran
 
@@ -111,6 +111,17 @@ Programs using `?` are excluded from comparison: bef seeds its PRNG from
 the clock, while our runner takes `--seed`. Everything else, including the
 division-by-zero prompt-and-answer dance, matches bef byte for byte and is
 also pinned by golden tests.
+
+## thue
+
+Reference situation: John Colagioia's C interpreter (`thue.c`) survives in
+Cat's Eye Technologies' distribution (https://github.com/catseye/Thue) but
+is not packaged anywhere and must be built from source. It is random by
+default (seeded from `time()`), and its deterministic `l` flag picks the
+leftmost occurrence across all rules, which differs from our rule-major
+`first` strategy. Golden unit tests are therefore the reference story; the
+spec page records each decision against `thue.c` line by line. Only
+strategy-independent programs could ever be usefully diff-tested.
 
 ## Languages without a canonical interpreter
 

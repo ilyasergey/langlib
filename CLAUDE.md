@@ -1,7 +1,7 @@
 # langlib project policies
 
 langlib is a Lean 4 library of esoteric programming language semantics, with a
-human-readable front-end language (WTF) and verified compilers from it.
+human-readable front-end language (Turpentine) and verified compilers from it.
 
 ## Toolchain and layout
 
@@ -26,8 +26,10 @@ human-readable front-end language (WTF) and verified compilers from it.
   comment (e.g. `Usage: echo -n 34 | lake exe brainfuck ...`), where the
   language has any comment syntax at all; otherwise the usage goes in the
   language README's examples table.
-* The front-end language is spelled WTF (all capitals); its sources use the
-  `.wtf` extension and its Lean code lives under `Langlib/WTF/`.
+* The front-end language is called Turpentine; its sources use the `.turp`
+  extension and its Lean code lives under `Langlib/Turpentine/` (module
+  `Langlib.Turpentine.*`, namespace `Langlib.Turpentine`). Compilers to
+  targets go in `Langlib/Turpentine/Compile/<Langname>.lean`.
 
 ## Workplan and progress
 
@@ -63,8 +65,8 @@ human-readable front-end language (WTF) and verified compilers from it.
 * Differential testing against a non-Lean reference implementation is done by
   `scripts/difftest.sh`; it must skip gracefully when the reference binary is
   not installed.
-* Compiler tests: compile WTF examples to each target and compare the
-  target-language run against the WTF reference interpreter's run.
+* Compiler tests: compile Turpentine examples to each target and compare the
+  target-language run against the Turpentine reference interpreter's run.
 
 ## Git
 

@@ -45,7 +45,7 @@ cover, and how langlib differs. If you know of another one, please add it.
 * **Brainfuck in Coq** (reynir): https://github.com/reynir/Brainfuck
 
   Brainfuck formalized in Coq, with a verified compiler from a small
-  arithmetic language to brainfuck. Close in spirit to our WTF-to-brainfuck
+  arithmetic language to brainfuck. Close in spirit to our Turpentine-to-brainfuck
   pipeline, at a smaller scale.
 
 * **BrainCoqulus** (Harvard CS260r project, 2017):
@@ -54,7 +54,7 @@ cover, and how langlib differs. If you know of another one, please add it.
   A verified compiler from the lambda calculus to brainfuck, in Coq. The
   paper is a useful map of the proof-engineering pain involved in targeting
   brainfuck; it motivates our choice to route verification through a small
-  imperative front end (WTF) rather than a functional one.
+  imperative front end (Turpentine) rather than a functional one.
 
 ## How langlib differs
 
