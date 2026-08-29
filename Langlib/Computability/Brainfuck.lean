@@ -985,6 +985,192 @@ theorem execInstr_spec {B k : Nat} (i : Cslib.URM.Instr) (σ : Cslib.URM.Regs)
           (by simp [gateReg, eqReg]) (by simp [gateReg, fallReg])]
         exact hEg
 
+/-! ## Dispatching on the saved program counter -/
+
+/-- The scratch invariant used while scanning instruction blocks. -/
+def AuxClean (B : Nat) (w : Nat → Nat) : Prop :=
+  w (cmpXReg B) = 0 ∧ w (cmpYReg B) = 0 ∧ w (tmpReg B) = 0 ∧
+    w (gateReg B) = 0 ∧ w (eqReg B) = 0 ∧ w (fallReg B) = 0
+
+/-- Compare the saved encoded program counter to `k + 1`. -/
+def testLiteral (B k : Nat) : Code :=
+  incMany (fallReg B) (k + 1) ++
+    equal (savedReg B) (fallReg B) (cmpXReg B) (cmpYReg B)
+      (tmpReg B) (gateReg B) (eqReg B) ++
+    clear (fallReg B)
+
+theorem testLiteral_spec {B k : Nat} (s : CState) (haux : AuxClean B s.regs) :
+    ∃ w', Ev (counterBound B) (testLiteral B k) s ⟨w', s.out⟩ ∧
+      w' (eqReg B) = (if s.regs (savedReg B) = k + 1 then 1 else 0) ∧
+      w' (cmpXReg B) = 0 ∧ w' (cmpYReg B) = 0 ∧ w' (tmpReg B) = 0 ∧
+      w' (gateReg B) = 0 ∧ w' (fallReg B) = 0 ∧
+      ∀ r, r ≠ cmpXReg B → r ≠ cmpYReg B → r ≠ tmpReg B →
+        r ≠ gateReg B → r ≠ eqReg B → r ≠ fallReg B → w' r = s.regs r := by
+  obtain ⟨wI, hI, hIfall, hIfr⟩ := incMany_spec
+    (R := counterBound B) (r := fallReg B)
+    (by simp [fallReg, counterBound]) (k + 1) s
+  let sI : CState := ⟨wI, s.out⟩
+  have hIsaved : sI.regs (savedReg B) = s.regs (savedReg B) := by
+    change wI (savedReg B) = _
+    exact hIfr _ (by simp [savedReg, fallReg])
+  have hIfall' : sI.regs (fallReg B) = k + 1 := by
+    change wI (fallReg B) = k + 1
+    rw [hIfall, haux.2.2.2.2.2]
+    omega
+  have hd : Distinct5 (cmpXReg B) (cmpYReg B) (tmpReg B)
+      (gateReg B) (eqReg B) := by
+    simp [Distinct5, cmpXReg, cmpYReg, tmpReg, gateReg, eqReg]
+  have hsaved : Away5 (savedReg B) (cmpXReg B) (cmpYReg B) (tmpReg B)
+      (gateReg B) (eqReg B) := by
+    simp [Away5, savedReg, cmpXReg, cmpYReg, tmpReg, gateReg, eqReg]
+  have hfall : Away5 (fallReg B) (cmpXReg B) (cmpYReg B) (tmpReg B)
+      (gateReg B) (eqReg B) := by
+    simp [Away5, fallReg, cmpXReg, cmpYReg, tmpReg, gateReg, eqReg]
+  obtain ⟨wE, hE, hEx, hEy, hEt, hEg, hEe, hEfr⟩ := equal_spec
+    (R := counterBound B) (a := savedReg B) (b := fallReg B)
+    (by simp [savedReg, counterBound]) (by simp [fallReg, counterBound])
+    (by simp [cmpXReg, counterBound]) (by simp [cmpYReg, counterBound])
+    (by simp [tmpReg, counterBound]) (by simp [gateReg, counterBound])
+    (by simp [eqReg, counterBound]) hd hsaved hfall sI
+  let sE : CState := ⟨wE, s.out⟩
+  have hEeq : sE.regs (eqReg B) =
+      (if s.regs (savedReg B) = k + 1 then 1 else 0) := by
+    change wE (eqReg B) = _
+    simpa [hIsaved, hIfall'] using hEe
+  obtain ⟨wC, hC, hCfall, hCfr⟩ := clear_spec
+    (R := counterBound B) (a := fallReg B) (by simp [fallReg, counterBound])
+    (sE.regs (fallReg B)) sE rfl
+  refine ⟨wC, ?_, ?_, ?_, ?_, ?_, ?_, hCfall, ?_⟩
+  · unfold testLiteral
+    simpa [List.append_assoc] using hI.append (hE.append hC)
+  · rw [hCfr (eqReg B) (by simp [eqReg, fallReg])]
+    exact hEeq
+  · rw [hCfr (cmpXReg B) (by simp [cmpXReg, fallReg])]
+    exact hEx
+  · rw [hCfr (cmpYReg B) (by simp [cmpYReg, fallReg])]
+    exact hEy
+  · rw [hCfr (tmpReg B) (by simp [tmpReg, fallReg])]
+    exact hEt
+  · rw [hCfr (gateReg B) (by simp [gateReg, fallReg])]
+    exact hEg
+  · intro r hrx hry hrt hrg hre hrf
+    rw [hCfr r hrf]
+    change wE r = s.regs r
+    rw [hEfr r hrx hry hrt hrg hre]
+    change wI r = s.regs r
+    exact hIfr r hrf
+
+/-- One guarded instruction block in the linear dispatcher. -/
+def dispatchBlock (B k : Nat) (i : Cslib.URM.Instr) : Code :=
+  testLiteral B k ++
+    [Cmd.loop (eqReg B)
+      ([Cmd.dec (eqReg B)] ++ clear (savedReg B) ++ execInstr B k i)]
+
+theorem dispatchBlock_miss {B k : Nat} (i : Cslib.URM.Instr)
+    (σ : Cslib.URM.Regs) (s : CState) (hsrc : SourceMatches B s.regs σ)
+    (haux : AuxClean B s.regs) (hmiss : s.regs (savedReg B) ≠ k + 1) :
+    ∃ w', Ev (counterBound B) (dispatchBlock B k i) s ⟨w', s.out⟩ ∧
+      SourceMatches B w' σ ∧ w' (pcReg B) = s.regs (pcReg B) ∧
+      w' (savedReg B) = s.regs (savedReg B) ∧ AuxClean B w' := by
+  obtain ⟨wT, hT, hTe, hTx, hTy, hTt, hTg, hTf, hTfr⟩ :=
+    testLiteral_spec (B := B) (k := k) s haux
+  have hTe0 : wT (eqReg B) = 0 := by rw [hTe, if_neg hmiss]
+  have hloop : Ev (counterBound B)
+      [Cmd.loop (eqReg B)
+        ([Cmd.dec (eqReg B)] ++ clear (savedReg B) ++ execInstr B k i)]
+      ⟨wT, s.out⟩ ⟨wT, s.out⟩ :=
+    Ev.loopZ (by simp [eqReg, counterBound]) hTe0 Ev.nil
+  refine ⟨wT, hT.append hloop, ?_, ?_, ?_, ?_⟩
+  · intro r hr
+    rw [hTfr r (by simp [cmpXReg]; omega) (by simp [cmpYReg]; omega)
+      (by simp [tmpReg]; omega) (by simp [gateReg]; omega)
+      (by simp [eqReg]; omega) (by simp [fallReg]; omega)]
+    exact hsrc r hr
+  · exact hTfr _ (by simp [pcReg, cmpXReg]) (by simp [pcReg, cmpYReg])
+      (by simp [pcReg, tmpReg]) (by simp [pcReg, gateReg])
+      (by simp [pcReg, eqReg]) (by simp [pcReg, fallReg])
+  · exact hTfr _ (by simp [savedReg, cmpXReg]) (by simp [savedReg, cmpYReg])
+      (by simp [savedReg, tmpReg]) (by simp [savedReg, gateReg])
+      (by simp [savedReg, eqReg]) (by simp [savedReg, fallReg])
+  · exact ⟨hTx, hTy, hTt, hTg, hTe0, hTf⟩
+
+theorem dispatchBlock_hit {B k : Nat} (i : Cslib.URM.Instr)
+    (σ : Cslib.URM.Regs) (hmax : i.maxRegister < B) (s : CState)
+    (hsrc : SourceMatches B s.regs σ) (hpc : s.regs (pcReg B) = 0)
+    (haux : AuxClean B s.regs) (hhit : s.regs (savedReg B) = k + 1) :
+    ∃ w', Ev (counterBound B) (dispatchBlock B k i) s ⟨w', s.out⟩ ∧
+      SourceMatches B w' (instrNextRegs i σ) ∧
+      w' (pcReg B) = instrNextPC k i σ + 1 ∧ ScratchClean B w' := by
+  obtain ⟨wT, hT, hTe, hTx, hTy, hTt, hTg, hTf, hTfr⟩ :=
+    testLiteral_spec (B := B) (k := k) s haux
+  have hTe1 : wT (eqReg B) = 1 := by rw [hTe, if_pos hhit]
+  have hTsrc : SourceMatches B wT σ := by
+    intro r hr
+    rw [hTfr r (by simp [cmpXReg]; omega) (by simp [cmpYReg]; omega)
+      (by simp [tmpReg]; omega) (by simp [gateReg]; omega)
+      (by simp [eqReg]; omega) (by simp [fallReg]; omega)]
+    exact hsrc r hr
+  have hTpc : wT (pcReg B) = 0 := by
+    rw [hTfr _ (by simp [pcReg, cmpXReg]) (by simp [pcReg, cmpYReg])
+      (by simp [pcReg, tmpReg]) (by simp [pcReg, gateReg])
+      (by simp [pcReg, eqReg]) (by simp [pcReg, fallReg]), hpc]
+  have hTsave : wT (savedReg B) = k + 1 := by
+    rw [hTfr _ (by simp [savedReg, cmpXReg]) (by simp [savedReg, cmpYReg])
+      (by simp [savedReg, tmpReg]) (by simp [savedReg, gateReg])
+      (by simp [savedReg, eqReg]) (by simp [savedReg, fallReg]), hhit]
+  let sD := (⟨wT, s.out⟩ : CState).down (eqReg B)
+  have hDe : sD.regs (eqReg B) = 0 := by simp [sD, hTe1]
+  have hDsave : sD.regs (savedReg B) = k + 1 := by
+    rw [CState.down_regs_of_ne _ (by simp [savedReg, eqReg])]
+    simpa using hTsave
+  obtain ⟨wC, hC, hCsave, hCfr⟩ := clear_spec
+    (R := counterBound B) (a := savedReg B) (by simp [savedReg, counterBound])
+    (sD.regs (savedReg B)) sD rfl
+  let sC : CState := ⟨wC, s.out⟩
+  have hCsrc : SourceMatches B wC σ := by
+    intro r hr
+    rw [hCfr r (by simp [savedReg]; omega)]
+    rw [CState.down_regs_of_ne _ (by simp [eqReg]; omega)]
+    exact hTsrc r hr
+  have hCpc : sC.regs (pcReg B) = 0 := by
+    change wC (pcReg B) = 0
+    rw [hCfr _ (by simp [pcReg, savedReg])]
+    rw [CState.down_regs_of_ne _ (by simp [pcReg, eqReg])]
+    simpa using hTpc
+  have hCclean : ScratchClean B wC := by
+    refine ⟨hCsave, ?_, ?_, ?_, ?_, ?_, ?_⟩
+    · rw [hCfr _ (by simp [cmpXReg, savedReg])]
+      rw [CState.down_regs_of_ne _ (by simp [cmpXReg, eqReg])]
+      exact hTx
+    · rw [hCfr _ (by simp [cmpYReg, savedReg])]
+      rw [CState.down_regs_of_ne _ (by simp [cmpYReg, eqReg])]
+      exact hTy
+    · rw [hCfr _ (by simp [tmpReg, savedReg])]
+      rw [CState.down_regs_of_ne _ (by simp [tmpReg, eqReg])]
+      exact hTt
+    · rw [hCfr _ (by simp [gateReg, savedReg])]
+      rw [CState.down_regs_of_ne _ (by simp [gateReg, eqReg])]
+      exact hTg
+    · rw [hCfr _ (by simp [eqReg, savedReg]), hDe]
+    · rw [hCfr _ (by simp [fallReg, savedReg])]
+      rw [CState.down_regs_of_ne _ (by simp [fallReg, eqReg])]
+      exact hTf
+  obtain ⟨wI, hI, hIsrc, hIpc, hIclean⟩ :=
+    execInstr_spec i σ hmax sC hCsrc hCpc hCclean
+  have hIeq : wI (eqReg B) = 0 := hIclean.2.2.2.2.2.1
+  have hloopZ : Ev (counterBound B)
+      [Cmd.loop (eqReg B)
+        ([Cmd.dec (eqReg B)] ++ clear (savedReg B) ++ execInstr B k i)]
+      ⟨wI, s.out⟩ ⟨wI, s.out⟩ :=
+    Ev.loopZ (by simp [eqReg, counterBound]) hIeq Ev.nil
+  have hTenz : (⟨wT, s.out⟩ : CState).regs (eqReg B) ≠ 0 := by
+    change wT (eqReg B) ≠ 0
+    omega
+  refine ⟨wI, hT.append ?_, hIsrc, hIpc, hIclean⟩
+  exact Ev.loopS (by simp [eqReg, counterBound]) hTenz
+    (Ev.dec (by simp [eqReg, counterBound]) hTenz
+      (hC.append (hI.append hloopZ)))
+
 
 /-! ## Paired unary columns on the Brainfuck tape
 
