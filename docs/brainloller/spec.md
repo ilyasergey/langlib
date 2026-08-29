@@ -65,14 +65,41 @@ instead of being one endless row.
 
 ## Trying it
 
+The runner reads program files as text, so feed it ASCII PPM (P3);
+convert anything else first, for example with
+`magick prog.png -compress none prog.ppm`.
+
+Hello world, as a 12 by 11 picture.
+
 ```
-lake exe brainloller Langlib/Examples/Brainloller/hello.ppm
-echo -n meow | lake exe brainloller --eof zero Langlib/Examples/Brainloller/cat.ppm
-lake exe brainloller --encode /tmp/hello.ppm --width 12 Langlib/Examples/Brainfuck/hello.b
+$ lake exe brainloller Langlib/Examples/Brainloller/hello.ppm
+Hello World!
 ```
 
-The runner reads program files as text, so feed it ASCII PPM (P3);
-convert anything else first, e.g. `magick prog.png -compress none
-prog.ppm`. Both examples were produced by our own encoder from the
-brainfuck examples, which makes them langlib originals of programs that
-were already CC0 or folklore.
+cat, which needs `--eof zero` for the same reason its brainfuck original
+does.
+
+```
+$ echo -n meow | lake exe brainloller --eof zero Langlib/Examples/Brainloller/cat.ppm
+meow
+```
+
+The encoder turns any brainfuck program into a picture. The width
+controls how often the image snakes back on itself with rotation codels.
+
+```
+$ lake exe brainloller --encode /tmp/hello.ppm --width 12 Langlib/Examples/Brainfuck/hello.b
+brainloller: wrote 12x12 image to /tmp/hello.ppm
+```
+
+That picture is a program, so run it.
+
+```
+$ lake exe brainloller /tmp/hello.ppm
+Hello World!
+```
+
+Both shipped examples were produced by our own encoder from the brainfuck
+examples, which makes them langlib originals of programs that were
+already CC0 or folklore.
+

@@ -164,6 +164,45 @@ real cost, as in any honest Befunge). The runner's default budget is 200
 million steps (`--fuel N`), and running out is distinct from halting, so
 divergence is observable in tests.
 
+## Trying it
+
+Hello world on the playfield.
+
+```
+$ lake exe befunge93 Langlib/Examples/Befunge93/hello.b93
+Hello, World!
+```
+
+cat, echoing input until it runs out.
+
+```
+$ echo -n "two dimensions" | lake exe befunge93 Langlib/Examples/Befunge93/cat.b93
+two dimensions
+```
+
+Factorial, reading n with `&`.
+
+```
+$ echo 6 | lake exe befunge93 Langlib/Examples/Befunge93/factorial.b93
+720
+```
+
+The 45-byte folklore quine prints itself, so `diff` against the source
+file has nothing to report.
+
+```
+$ lake exe befunge93 Langlib/Examples/Befunge93/quine.b93 | diff - Langlib/Examples/Befunge93/quine.b93
+```
+
+The `?` instruction picks a direction at random. Our runner seeds it
+explicitly so runs are reproducible, which the reference (seeding from
+the clock) never was.
+
+```
+$ lake exe befunge93 --seed 42 Langlib/Examples/Befunge93/random.b93
+1
+```
+
 ## Sources
 
 * Befunge-93 documentation, Chris Pressey, 1993 (revised through 2018):

@@ -160,17 +160,34 @@ recommendations and npiet where the spec is silent:
 
 ## Trying it
 
+The runner reads program files as text, so feed it ASCII PPM (P3);
+convert anything else first, for example with
+`magick prog.png -compress none prog.ppm`. Binary P6 is handled by the
+library (`Langlib.Common.Image.parsePpm`) for direct API users.
+
+A painting that says hi.
+
 ```
-lake exe piet Langlib/Examples/Piet/hi.ppm
-echo -n '3 4' | lake exe piet Langlib/Examples/Piet/add.ppm
-echo -n 12 | lake exe piet Langlib/Examples/Piet/square.ppm
+$ lake exe piet Langlib/Examples/Piet/hi.ppm
+Hi
 ```
 
-The runner reads program files as text, so feed it ASCII PPM (P3);
-convert anything else first, e.g. `magick prog.png -compress none
-prog.ppm`. Binary P6 is handled by the library
-(`Langlib.Common.Image.parsePpm`) for direct API users. Our examples are
-langlib originals, drawn in the least painterly Piet style there is: a
-straight corridor of blocks between black walls, ending in a white codel
-and a full-height bar that no (DP, CC) attempt can leave. Mondrian may
-keep his royalties.
+Addition. The program reads two numbers from stdin and prints the sum.
+
+```
+$ echo -n '3 4' | lake exe piet Langlib/Examples/Piet/add.ppm
+7
+```
+
+Squaring, to show that `dup` and `mul` work as advertised.
+
+```
+$ echo -n 12 | lake exe piet Langlib/Examples/Piet/square.ppm
+144
+```
+
+Our examples are langlib originals, drawn in the least painterly Piet
+style there is: a straight corridor of blocks between black walls, ending
+in a white codel and a full-height bar that no (DP, CC) attempt can leave.
+Mondrian may keep his royalties.
+

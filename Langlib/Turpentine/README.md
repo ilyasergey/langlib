@@ -21,12 +21,19 @@ turpentine dissolves tar. Full language reference:
 
 ## Running
 
+Parse, type-check, and run (`run` is the default subcommand):
+
 ```
 lake exe turpentine run [--fuel N] [--verbose] file.turp
+```
+
+Type-check only:
+
+```
 lake exe turpentine check file.turp
 ```
 
-`run` is the default subcommand. Input comes from stdin (pipe or redirect;
+Input comes from stdin (pipe or redirect;
 a terminal stdin means empty input); `--verbose` reports how the run ended.
 Compilation subcommands arrive with Stage 4 of
 [docs/PLAN.md](../../docs/PLAN.md).

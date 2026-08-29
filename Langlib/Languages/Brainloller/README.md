@@ -19,8 +19,15 @@ else a comment. The specification and semantic notes are in
 
 ## Running
 
+Run a program image:
+
 ```
 lake exe brainloller [--fuel N] [--eof unchanged|zero|minus1] file.ppm
+```
+
+Turn a brainfuck program into a program image:
+
+```
 lake exe brainloller --encode out.ppm [--width N] file.b
 ```
 
