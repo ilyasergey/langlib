@@ -14,10 +14,10 @@ engineering.
 |---|---|
 | `ProgLang`, the class of runnable languages | [Class.lean:40](../Langlib/Computability/Class.lean#L40) |
 | `computes_of_turingComplete`, the bridge to cslib | [Class.lean](../Langlib/Computability/Class.lean) |
-| `TurpentineCompiler`, a compiler bundled with its proof | [Derived.lean:55](../Langlib/Computability/Derived.lean#L56) |
-| **`derived`**, the general correctness theorem | [Derived.lean:83](../Langlib/Computability/Derived.lean#L84) |
-| `derivedWhitespace`, `derivedSubleq`, the instances | [Derived.lean:101](../Langlib/Computability/Derived.lean#L102) |
-| `agree`, two compilers give one answer | [Derived.lean:115](../Langlib/Computability/Derived.lean#L120) |
+| `TurpentineCompiler`, a compiler bundled with its proof | [Derived.lean:59](../Langlib/Computability/Derived.lean#L59) |
+| **`derived`**, the general correctness theorem | [Derived.lean:87](../Langlib/Computability/Derived.lean#L87) |
+| `derivedWhitespace`, `derivedSubleq`, `derivedBrainfuck`, `derivedFractran`, the instances | [Derived.lean](../Langlib/Computability/Derived.lean) |
+| `agree`, two compilers give one answer | [Derived.lean:139](../Langlib/Computability/Derived.lean#L139) |
 | `compileToURM_correct`, the shared first hop | [Compile/URM.lean:3985](../Langlib/Turpentine/Compile/URM.lean#L3985) |
 | **`TuringComplete`**, the completeness claim | [Class.lean:80](../Langlib/Computability/Class.lean#L80) |
 | `BoundedStorage`, the incompleteness claim | [Class.lean:134](../Langlib/Computability/Class.lean#L134) |
@@ -31,12 +31,14 @@ engineering.
 | **`compileToURM`**, Turpentine to the URM | [Compile/URM.lean:661](../Langlib/Turpentine/Compile/URM.lean#L661) |
 | **`compileToURM_correct`**, its simulation | [Compile/URM.lean:3985](../Langlib/Turpentine/Compile/URM.lean#L3985) |
 | `TurpentineHaltsWith`, the answer convention | [Compile/URM.lean:3970](../Langlib/Turpentine/Compile/URM.lean#L3970) |
-| `TurpentineCompiler`, the interface | [Derived.lean:55](../Langlib/Computability/Derived.lean#L56) |
-| `derived`, one construction for every target | [Derived.lean:83](../Langlib/Computability/Derived.lean#L84) |
-| `derivedWhitespace` | [Derived.lean:101](../Langlib/Computability/Derived.lean#L102) |
-| `derivedSubleq` | [Derived.lean:105](../Langlib/Computability/Derived.lean#L106) |
-| `agree`, two compilers give one answer | [Derived.lean:115](../Langlib/Computability/Derived.lean#L120) |
-| its tests | [Tests/DerivedWhitespace.lean](../Langlib/Tests/DerivedWhitespace.lean) |
+| `TurpentineCompiler`, the interface | [Derived.lean:59](../Langlib/Computability/Derived.lean#L59) |
+| `derived`, one construction for every target | [Derived.lean:87](../Langlib/Computability/Derived.lean#L87) |
+| `derivedWhitespace` | [Derived.lean:105](../Langlib/Computability/Derived.lean#L105) |
+| `derivedSubleq` | [Derived.lean:109](../Langlib/Computability/Derived.lean#L109) |
+| `derivedBrainfuck` | [Derived.lean:113](../Langlib/Computability/Derived.lean#L113) |
+| `derivedFractran` | [Derived.lean:118](../Langlib/Computability/Derived.lean#L118) |
+| `agree`, two compilers give one answer | [Derived.lean:139](../Langlib/Computability/Derived.lean#L139) |
+| its tests | [Tests/DerivedWhitespace.lean](../Langlib/Tests/DerivedWhitespace.lean), [Tests/DerivedSubleq.lean](../Langlib/Tests/DerivedSubleq.lean), [Tests/DerivedFractran.lean](../Langlib/Tests/DerivedFractran.lean) |
 | the axiom audit | [scripts/axioms.lean](../scripts/axioms.lean) |
 
 The bespoke backends, for contrast, are
@@ -198,7 +200,14 @@ What the interface buys:
   applying it. `derivedWhitespace := derived whitespaceComplete` is the first
   end-to-end certified compiler in the library, and
   `derivedSubleq := derived subleqComplete` is the second, written on one
-  line with no new proof.
+  line with no new proof. The same construction now supplies
+  `derivedBrainfuck` and `derivedFractran`.
+
+  `derivedFractran` returns a bundled `CompiledProgram` containing both the
+  fraction list and its input-dependent starting integer. The current
+  Turpentine CLI backend interface emits only target source text, so it does
+  not expose this compiler through `--to fractran --tc`; callers and the
+  regression suite run the certified bundle directly.
 
 * **Agreement is a theorem about the interface**, proved once for all
   instances and all targets rather than per pair:
@@ -341,7 +350,7 @@ statement was scoped to. The two are not in competition either: the
 stream-level theorem, restricted to programs that read nothing and print
 nothing and carry the `answer` convention, *implies* the answer-level
 field, so a verified bespoke backend still yields a `TurpentineCompiler`
-instance and the [`agree`](../Langlib/Computability/Derived.lean#L120)
+instance and the [`agree`](../Langlib/Computability/Derived.lean#L139)
 corollary still fires. It fires on the overlap, which is the I/O-free
 fragment, and says nothing about the programs that made the stronger
 theorem necessary.
@@ -1157,6 +1166,7 @@ Output:
 'Langlib.Computability.derived' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Langlib.Computability.derivedWhitespace' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Langlib.Computability.derivedSubleq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Computability.derivedFractran' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Langlib.Computability.agree' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Langlib.Turpentine.Compile.URM.layoutFrom_spec' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Langlib.Turpentine.Compile.URM.goodSlots_of_layout' depends on axioms: [propext, Classical.choice, Quot.sound]

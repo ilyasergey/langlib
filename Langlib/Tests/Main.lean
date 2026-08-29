@@ -10,6 +10,7 @@ import Langlib.Tests.CompileBrainloller
 import Langlib.Tests.CompileOok
 import Langlib.Tests.CompileSubleq
 import Langlib.Tests.CompileWhitespace
+import Langlib.Tests.DerivedFractran
 import Langlib.Tests.DerivedSubleq
 import Langlib.Tests.DerivedWhitespace
 import Langlib.Tests.Deadfish
@@ -18,6 +19,7 @@ import Langlib.Tests.Malbolge
 import Langlib.Tests.Ook
 import Langlib.Tests.Piet
 import Langlib.Tests.Subleq
+import Langlib.Tests.URMFractran
 import Langlib.Tests.URMSubleq
 import Langlib.Tests.Thue
 import Langlib.Tests.Whitespace
@@ -44,6 +46,7 @@ def main : IO UInt32 :=
     , Langlib.Tests.CompileOok.suites
     , Langlib.Tests.CompileSubleq.suites
     , Langlib.Tests.CompileWhitespace.suites
+    , Langlib.Tests.DerivedFractran.suites
     , Langlib.Tests.DerivedSubleq.suites
     , Langlib.Tests.DerivedWhitespace.suites
     , Langlib.Tests.Deadfish.suites
@@ -52,6 +55,7 @@ def main : IO UInt32 :=
     , Langlib.Tests.Ook.suites
     , Langlib.Tests.Piet.suites
     , Langlib.Tests.Subleq.suites
+    , Langlib.Tests.URMFractran.suites
     , Langlib.Tests.URMSubleq.suites
     , Langlib.Tests.Thue.suites
     , Langlib.Tests.Whitespace.suites

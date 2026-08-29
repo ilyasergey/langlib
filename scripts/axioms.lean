@@ -77,6 +77,7 @@ open Langlib.Computability
 #print axioms derivedWhitespace
 #print axioms derivedSubleq
 #print axioms derivedBrainfuck
+#print axioms derivedFractran
 #print axioms agree
 
 -- Brainfuck: Turing complete via paired unary tape columns. The compiler

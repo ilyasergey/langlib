@@ -1,6 +1,7 @@
 import Langlib.Computability.Whitespace
 import Langlib.Computability.Subleq
 import Langlib.Computability.Brainfuck
+import Langlib.Computability.Fractran
 import Langlib.Computability.Ook
 import Langlib.Computability.Brainloller
 import Langlib.Turpentine.Compile.URM
@@ -110,6 +111,11 @@ def derivedSubleq : TurpentineCompiler SubleqLang := derived subleqComplete
 /-- The certified Turpentine-to-Brainfuck compiler obtained by composing the
 shared URM pass with the paired-unary Brainfuck completeness witness. -/
 def derivedBrainfuck : TurpentineCompiler BrainfuckLang := derived brainfuckComplete
+
+/-- The certified Turpentine-to-FRACTRAN compiler obtained by composing the
+shared URM pass with the prime-exponent FRACTRAN completeness witness. Its
+compiled artifact carries both the fraction list and its starting integer. -/
+def derivedFractran : TurpentineCompiler FractranLang := derived fractranComplete
 
 /-- Ook! and Brainloller inherit Brainfuck's completeness witness, so they
 inherit its certified compiler too. Neither needed a new proof: `derived`

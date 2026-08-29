@@ -272,13 +272,14 @@ as the proof.
 
 | Backend | Effective compiler | Simulation | End-to-end theorem | Derived compiler |
 |---------|--------------------|------------|--------------------|------------------|
-| whitespace | yes | [yes](../Langlib/Computability/BespokeWhitespace.lean#L3246) | [yes, scalar fragment](../Langlib/Computability/BespokeWhitespace.lean#L3246) | [yes](../Langlib/Computability/Derived.lean#L102) |
-| subleq | yes | [yes](../Langlib/Computability/BespokeSubleq.lean#L629) | [yes, two shapes](../Langlib/Computability/BespokeSubleq.lean#L629) | [yes](../Langlib/Computability/Derived.lean#L106) |
-| brainfuck | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L110) |
-| ook | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L118) |
-| brainloller | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L123) |
+| whitespace | yes | [yes](../Langlib/Computability/BespokeWhitespace.lean#L3246) | [yes, scalar fragment](../Langlib/Computability/BespokeWhitespace.lean#L3246) | [yes](../Langlib/Computability/Derived.lean#L105) |
+| subleq | yes | [yes](../Langlib/Computability/BespokeSubleq.lean#L629) | [yes, two shapes](../Langlib/Computability/BespokeSubleq.lean#L629) | [yes](../Langlib/Computability/Derived.lean#L109) |
+| brainfuck | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L113) |
+| fractran | - | - | - | [yes](../Langlib/Computability/Derived.lean#L118) |
+| ook | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L124) |
+| brainloller | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L129) |
 | deadfish | - | - | - | n/a (not complete) |
-| thue, fractran, piet, malbolge | - | - | - | the point of Stage 9 |
+| thue, piet, malbolge | - | - | - | the point of Stage 9 |
 
 Fuel monotonicity dropped out of the scoreboard: both proofs use the
 exact-cost `Langlib.Common.Reaches` and never needed it.
