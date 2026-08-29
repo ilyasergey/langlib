@@ -118,6 +118,20 @@ def mkInfo (members : List (Nat × Nat)) : BlockInfo := Id.run do
       exits := exits.push best
   return { size := members.length, exits }
 
+def pushStep (work : List (Nat × Nat)) (q : Option (Nat × Nat)) :
+    List (Nat × Nat) :=
+  match q with
+  | some q => q :: work
+  | none => work
+
+/-- The in-bounds orthogonal neighbours, in the worklist order used by
+`flood`. -/
+def neighbours (g : Grid) (p : Nat × Nat) : List (Nat × Nat) :=
+  let work := pushStep [] (step? g p .right)
+  let work := pushStep work (step? g p .down)
+  let work := pushStep work (step? g p .left)
+  pushStep work (step? g p .up)
+
 /-- Flood fill: collect the 4-connected region of colour `color` reachable
 from the worklist, marking `visited`. The fuel bounds the recursion (each
 codel enters the worklist at most five times: once to seed and once per
@@ -133,13 +147,83 @@ def flood (g : Grid) (color : Codel) :
       flood g color fuel work visited acc
     else
       let visited := visited.set! idx true
-      let push (w : List (Nat × Nat)) (q : Option (Nat × Nat)) :=
-        match q with | some q => q :: w | none => w
-      let work := push work (step? g p .right)
-      let work := push work (step? g p .down)
-      let work := push work (step? g p .left)
-      let work := push work (step? g p .up)
+      let work := neighbours g p ++ work
       flood g color fuel work visited (p :: acc)
+
+theorem neighbours_length_le_four (g : Grid) (p : Nat × Nat) :
+    (neighbours g p).length ≤ 4 := by
+  simp only [neighbours, pushStep]
+  split <;> split <;> split <;> split <;> simp
+
+theorem flood_bad_work (g : Grid) (color : Codel) (visited : Array Bool)
+    (acc work : List (Nat × Nat)) (fuel : Nat)
+    (hfuel : work.length ≤ fuel)
+    (hbad : ∀ p, p ∈ work →
+      (visited[p.2 * g.width + p.1]! || g.get p.1 p.2 != color) = true) :
+    flood g color fuel work visited acc = (visited, acc) := by
+  induction fuel generalizing work with
+  | zero =>
+    have : work = [] := List.eq_nil_of_length_eq_zero (by omega)
+    subst work
+    rfl
+  | succ fuel ih =>
+    cases work with
+    | nil => rfl
+    | cons p work =>
+      simp only [flood]
+      have hp := hbad p (by simp)
+      rw [if_pos hp]
+      apply ih
+      · simpa using hfuel
+      · intro q hq
+        exact hbad q (by simp [hq])
+
+theorem flood_singleton (g : Grid) (color : Codel) (p : Nat × Nat)
+    (hx : p.1 < g.width) (hy : p.2 < g.height)
+    (hcolor : g.get p.1 p.2 = color)
+    (hneighbours : ∀ q, q ∈ neighbours g p → g.get q.1 q.2 != color) :
+    flood g color (5 * (g.width * g.height) + 5) [p]
+        (Array.replicate (g.width * g.height) false) [] =
+      ((Array.replicate (g.width * g.height) false).set!
+        (p.2 * g.width + p.1) true, [p]) := by
+  have hidx : p.2 * g.width + p.1 < g.width * g.height := by
+    have hrow : (p.2 + 1) * g.width ≤ g.height * g.width :=
+      Nat.mul_le_mul_right g.width (by omega)
+    calc
+      p.2 * g.width + p.1 < p.2 * g.width + g.width :=
+        Nat.add_lt_add_left hx _
+      _ = (p.2 + 1) * g.width := by
+        rw [Nat.add_mul]
+        simp
+      _ ≤ g.height * g.width := hrow
+      _ = g.width * g.height := Nat.mul_comm _ _
+  simp only [flood]
+  have hget : (Array.replicate (g.width * g.height) false)[p.2 * g.width + p.1]! =
+      false := by
+    simp [hidx]
+  rw [show ((Array.replicate (g.width * g.height) false)[p.2 * g.width + p.1]! ||
+      g.get p.1 p.2 != color) = false by
+        have hself : (color != color) = false := by
+          cases color with
+          | chromatic h l => cases h <;> cases l <;> rfl
+          | white => rfl
+          | black => rfl
+        simp [hget, hcolor, hself]]
+  simp only [List.append_nil]
+  apply flood_bad_work
+  · have hn := neighbours_length_le_four g p
+    omega
+  · intro q hq
+    simp [hneighbours q hq]
+
+/-- Block information for an isolated chromatic codel. -/
+def singletonInfo (p : Nat × Nat) : BlockInfo :=
+  { size := 1, exits := #[p, p, p, p, p, p, p, p] }
+
+theorem mkInfo_singleton (p : Nat × Nat) :
+    mkInfo [p] = singletonInfo p := by
+  rcases p with ⟨x, y⟩
+  simp [mkInfo, singletonInfo, betterFor]
 
 /-- Label every chromatic codel with its block. -/
 def computeBlocks (g : Grid) : Blocks := Id.run do
@@ -179,6 +263,18 @@ def localInfoAt? (g : Grid) (p : Nat × Nat) : Option BlockInfo :=
       flood g (g.get p.1 p.2) (5 * (g.width * g.height) + 5) [p] visited []
     some (mkInfo members)
   | _ => none
+
+/-- A chromatic codel with no same-coloured orthogonal neighbour is a
+singleton block, with itself selected by every DP/CC exit. -/
+theorem localInfoAt?_isolated (g : Grid) (h : Hue) (l : Lightness)
+    (p : Nat × Nat) (hx : p.1 < g.width) (hy : p.2 < g.height)
+    (hcolor : g.get p.1 p.2 = .chromatic h l)
+    (hneighbours : ∀ q, q ∈ neighbours g p →
+      g.get q.1 q.2 != .chromatic h l) :
+    localInfoAt? g p = some (singletonInfo p) := by
+  simp only [localInfoAt?, hcolor]
+  rw [flood_singleton g (.chromatic h l) p hx hy hcolor hneighbours]
+  exact congrArg some (mkInfo_singleton p)
 
 /-! ## Numeric input -/
 
@@ -281,6 +377,34 @@ def execOp (op : Op) (blockSize : Nat) (s : MState) : MState :=
     { s with stack := st, output := s.output.push (byteOf x) }
   | _, _ => s
 
+theorem execOp_dp_of_ne_pointer (o : Op) (blockSize : Nat) (s : MState)
+    (ho : o ≠ .pointer) : (execOp o blockSize s).dp = s.dp := by
+  rcases s with ⟨pos, dp, cc, stack, input, output⟩
+  rcases stack with _ | ⟨x, _ | ⟨y, st⟩⟩ <;>
+    cases o <;> simp_all [execOp, rollOn] <;> try { split <;> rfl }
+  split <;> try rfl
+  split <;> try rfl
+  split <;> rfl
+
+theorem execOp_cc_of_ne_switch (o : Op) (blockSize : Nat) (s : MState)
+    (ho : o ≠ .switch) : (execOp o blockSize s).cc = s.cc := by
+  rcases s with ⟨pos, dp, cc, stack, input, output⟩
+  rcases stack with _ | ⟨x, _ | ⟨y, st⟩⟩ <;>
+    cases o <;> simp_all [execOp, rollOn] <;> try { split <;> rfl }
+  split <;> try rfl
+  split <;> try rfl
+  split <;> rfl
+
+theorem execOp_set_pos (o : Op) (blockSize : Nat) (s : MState)
+    (p : Nat × Nat) :
+    execOp o blockSize { s with pos := p } = { execOp o blockSize s with pos := p } := by
+  rcases s with ⟨pos, dp, cc, stack, input, output⟩
+  rcases stack with _ | ⟨x, _ | ⟨y, st⟩⟩ <;>
+    cases o <;> simp_all [execOp, rollOn] <;> try { split <;> rfl }
+  split <;> try rfl
+  split <;> try rfl
+  split <;> rfl
+
 /-- Result of a white slide. -/
 inductive SlideResult where
   | landed (pos : Nat × Nat) (dp : Dir) (cc : CC)
@@ -347,6 +471,31 @@ def tryFrom (g : Grid) (_bl : Blocks) : Nat → MState → StepResult
           | none => .ok s -- distinct blocks never share a colour
     | _, _ => .halt s -- not on a chromatic codel: cannot happen
 
+theorem singletonInfo_exit (p : Nat × Nat) (dp : Dir) (cc : CC) :
+    (singletonInfo p).exits[dp.toNat * 2 + cc.toNat]! = p := by
+  cases dp <;> cases cc <;> rfl
+
+/-- A successful transition out of a singleton block.  This theorem exposes
+the exact block size, codel movement, and DP/CC preservation used by regular
+generated corridors. -/
+theorem tryFrom_singleton (g : Grid) (bl : Blocks) (s : MState)
+    (h₁ : Hue) (l₁ : Lightness) (next : Nat × Nat)
+    (h₂ : Hue) (l₂ : Lightness) (o : Op)
+    (hinfo : localInfoAt? g s.pos = some (singletonInfo s.pos))
+    (hcurrent : g.get s.pos.1 s.pos.2 = .chromatic h₁ l₁)
+    (hstep : step? g s.pos s.dp = some next)
+    (hnext : g.get next.1 next.2 = .chromatic h₂ l₂)
+    (hop : opFor (hueSteps h₁ h₂) (lightSteps l₁ l₂) = some o) :
+    tryFrom g bl 8 s = .ok (execOp o 1 { s with pos := next }) := by
+  rw [tryFrom, hinfo, hcurrent]
+  simp only
+  rw [singletonInfo_exit, hstep]
+  simp only
+  rw [hnext]
+  simp only
+  rw [hop]
+  rfl
+
 /-- Execute with the given fuel; one unit pays for one block transition
 (command execution or white transit). -/
 def exec (g : Grid) (bl : Blocks) : Nat → MState → MState × Exit
@@ -356,6 +505,19 @@ def exec (g : Grid) (bl : Blocks) : Nat → MState → MState × Exit
     | .ok s' => exec g bl fuel s'
     | .halt s' => (s', .halted)
     | .noFuel s' => (s', .outOfFuel)
+
+/-- One unit of evaluator fuel follows a successful singleton transition. -/
+theorem exec_singleton (g : Grid) (bl : Blocks) (fuel : Nat) (s : MState)
+    (h₁ : Hue) (l₁ : Lightness) (next : Nat × Nat)
+    (h₂ : Hue) (l₂ : Lightness) (o : Op)
+    (hinfo : localInfoAt? g s.pos = some (singletonInfo s.pos))
+    (hcurrent : g.get s.pos.1 s.pos.2 = .chromatic h₁ l₁)
+    (hstep : step? g s.pos s.dp = some next)
+    (hnext : g.get next.1 next.2 = .chromatic h₂ l₂)
+    (hop : opFor (hueSteps h₁ h₂) (lightSteps l₁ l₂) = some o) :
+    exec g bl (fuel + 1) s = exec g bl fuel (execOp o 1 { s with pos := next }) := by
+  rw [show fuel + 1 = Nat.succ fuel by omega, exec,
+    tryFrom_singleton g bl s h₁ l₁ next h₂ l₂ o hinfo hcurrent hstep hnext hop]
 
 /-- Run a codel grid: the pure interpreter core. Execution starts on the
 top-left codel with DP right and CC left; a white start slides first (no

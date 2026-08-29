@@ -258,6 +258,12 @@ open Langlib.Computability
 #print axioms URMThue.compileRules_match_active
 #print axioms URMThue.compileRules_firstMatch_active
 #print axioms URMThue.control_rule_mem_compileRules
+#print axioms URMThue.phaseRules_active
+#print axioms URMThue.generate_hasPhase
+#print axioms URMThue.finishRules_hasPhase
+#print axioms URMThue.compileAt_origin
+#print axioms URMThue.compileRules_firstMatch_origin
+#print axioms URMThue.outcomes_functional
 
 -- Piet dispatcher and singleton-block normalization. The runnable compiler
 -- supports arbitrary J, while the image-level evalGrid simulation remains open.

@@ -532,6 +532,58 @@ theorem not_mem_factor_prefix (active q : Phase) (pre post a extra b : List Char
   simp [List.count_append, htq] at heq
   exact List.count_eq_zero.mp (by omega)
 
+/-- A token-right rule can match a uniquely marked state only when its
+adjacent character is the actual character immediately after the token. -/
+theorem token_right_match_cell (p : Phase) (actual expected : Char)
+    (pre post : List Char) (hpre : '@' ∉ pre) (hpost : '@' ∉ post)
+    (ha : actual ≠ '@') (pos : Nat)
+    (hm : firstOccurrence? (token p ++ [expected])
+      (pre ++ token p ++ actual :: post) = some pos) :
+    expected = actual ∧ pos = pre.length := by
+  obtain ⟨a, b, hs, hpos⟩ := firstOccurrence_factor _ _ _ hm
+  have htail : '@' ∉ actual :: post := by
+    simp only [List.mem_cons, not_or]
+    exact ⟨ha.symm, hpost⟩
+  have hma : '@' ∉ a :=
+    not_mem_factor_prefix p p pre (actual :: post) a [expected] b
+      hpre htail (by simpa [List.append_assoc] using hs)
+  have hmark : pre ++ '@' :: (encPhase p ++ '$' :: actual :: post) =
+      a ++ '@' :: (encPhase p ++ '$' :: expected :: b) := by
+    simpa [token, List.append_assoc] using hs
+  obtain ⟨hpa, hrest⟩ := marker_decomp_unique pre a _ _ hpre hma hmark
+  have hsuffix : '$' :: actual :: post = '$' :: expected :: b :=
+    (encPhase_append_injective p p ('$' :: actual :: post)
+      ('$' :: expected :: b) (by simpa [List.append_assoc] using hrest)).2
+  have hcells : actual :: post = expected :: b := (List.cons.inj hsuffix).2
+  exact ⟨(List.cons.inj hcells).1.symm, by simpa [hpa] using hpos⟩
+
+/-- A token-left rule can match a uniquely marked state only when its
+adjacent character is the actual character immediately before the token. -/
+theorem token_left_match_cell (p : Phase) (actual expected : Char)
+    (pre post : List Char) (hpre : '@' ∉ pre) (hpost : '@' ∉ post)
+    (ha : actual ≠ '@') (pos : Nat)
+    (hm : firstOccurrence? (expected :: token p)
+      (pre ++ actual :: token p ++ post) = some pos) :
+    expected = actual ∧ pos = pre.length := by
+  obtain ⟨a, b, hs, hpos⟩ := firstOccurrence_factor _ _ _ hm
+  have hleft : '@' ∉ pre ++ [actual] := by
+    simp only [List.mem_append, List.mem_singleton, not_or]
+    exact ⟨hpre, ha.symm⟩
+  have hright : '@' ∉ a ++ [expected] :=
+    not_mem_factor_prefix p p (pre ++ [actual]) post (a ++ [expected]) [] b
+      hleft hpost (by simpa [token, List.append_assoc] using hs)
+  have hmark : (pre ++ [actual]) ++ '@' :: (encPhase p ++ '$' :: post) =
+      (a ++ [expected]) ++ '@' :: (encPhase p ++ '$' :: b) := by
+    simpa [token, List.append_assoc] using hs
+  obtain ⟨hpref, _hrest⟩ :=
+    marker_decomp_unique (pre ++ [actual]) (a ++ [expected]) _ _
+      hleft hright hmark
+  have hlast := congrArg List.getLast? hpref
+  have hcell : actual = expected := by simpa using hlast
+  have hlen := congrArg List.length hpref
+  have hapos : a.length = pre.length := by simp at hlen; omega
+  exact ⟨hcell.symm, by simpa [hapos] using hpos⟩
+
 @[simp] theorem token_marker_count (p : Phase) : (token p).count '@' = 1 := by
   have hc : (encPhase p).count '@' = 0 :=
     List.count_eq_zero.mpr (marker_not_mem_encPhase p)
@@ -569,6 +621,22 @@ inductive ActiveRule (p : Phase) : Rule → Prop where
       ActiveRule p (rule (token p ++ [c]) rhs)
   | left (c : Char) (rhs : List Char) (hc : c ≠ '@') :
       ActiveRule p (rule (c :: token p) rhs)
+
+theorem ActiveRule.phase_unique {p q : Phase} {r : Rule}
+    (hp : ActiveRule p r) (hq : ActiveRule q r) : p = q := by
+  have factor : ∀ {a : Phase} {s : Rule}, ActiveRule a s →
+      ∃ pre post, '@' ∉ pre ∧ s.lhs.toList =
+        pre ++ Langlib.Computability.URMThue.token a ++ post := by
+    intro a s hs
+    cases hs with
+    | token rhs => exact ⟨[], [], by simp, by simp [rule, str]⟩
+    | right c rhs hc => exact ⟨[], [c], by simp, by simp [rule, str]⟩
+    | left c rhs hc => exact ⟨[c], [], by simpa [eq_comm] using hc, by simp [rule, str]⟩
+  obtain ⟨ap, ep, hap, hrp⟩ := factor hp
+  obtain ⟨aq, eq, haq, hrq⟩ := factor hq
+  apply token_infix_phase p q ap ep aq eq [] hap haq
+  rw [← hrp, ← hrq]
+  simp
 
 /-- Any generated-shaped rule that matches a represented state belongs to
 the state's active phase. -/
@@ -942,6 +1010,297 @@ decreasing_by
 /-- Largest unary program-counter value accepted by a dispatch phase. -/
 def maxOutcome (os : List Outcome) : Nat := os.foldl (fun n o => max n o.count) 0
 
+/-- The canonical local rules determined solely by a phase value.  Generator
+traversal may emit a canonical rule more than once, but cannot change it. -/
+def phaseRules : Phase → List Rule
+  | .control _ => []
+  | .exec done [] =>
+      [rule (token (.exec done []) ++ ['b']) ('b' :: token (.seekPC done 0))]
+  | .exec done (.inc r :: rest) =>
+      [rule (token (.exec done (.inc r :: rest)) ++ ['b'])
+        ('b' :: token (.scanInc done rest r 0))]
+  | .exec done (.dec r :: rest) =>
+      [rule (token (.exec done (.dec r :: rest)) ++ ['b'])
+        ('b' :: token (.scanDec done rest r 0))]
+  | .exec done (.emit :: rest) =>
+      [rule (token (.exec done (.emit :: rest)) ++ ['b'])
+        ('o' :: token (.exec done rest) ++ ['b'])]
+  | .exec done ((.loop r body) :: rest) =>
+      [rule (token (.exec done ((.loop r body) :: rest)) ++ ['b'])
+        ('b' :: token (.scanZero done rest (body ++ (.loop r body) :: rest) r 0))]
+  | .scanInc done next target current =>
+      if current < target then
+        [ rule (token (.scanInc done next target current) ++ ['x'])
+            ('x' :: token (.scanInc done next target current))
+        , rule (token (.scanInc done next target current) ++ ['d'])
+            ('d' :: token (.scanInc done next target (current + 1))) ]
+      else
+        [ rule (token (.scanInc done next target current) ++ ['x'])
+            ('x' :: token (.scanInc done next target current))
+        , rule (token (.scanInc done next target current) ++ ['d'])
+            ('x' :: 'd' :: token (.back done next)) ]
+  | .scanDec done next target current =>
+      if current < target then
+        [ rule (token (.scanDec done next target current) ++ ['x'])
+            ('x' :: token (.scanDec done next target current))
+        , rule (token (.scanDec done next target current) ++ ['d'])
+            ('d' :: token (.scanDec done next target (current + 1))) ]
+      else
+        [rule (token (.scanDec done next target current) ++ ['x'])
+          (token (.back done next))]
+  | .scanZero done zero nonzero target current =>
+      if current < target then
+        [ rule (token (.scanZero done zero nonzero target current) ++ ['x'])
+            ('x' :: token (.scanZero done zero nonzero target current))
+        , rule (token (.scanZero done zero nonzero target current) ++ ['d'])
+            ('d' :: token (.scanZero done zero nonzero target (current + 1))) ]
+      else
+        [ rule (token (.scanZero done zero nonzero target current) ++ ['d'])
+            ('d' :: token (.back done zero))
+        , rule (token (.scanZero done zero nonzero target current) ++ ['x'])
+            ('x' :: token (.back done nonzero)) ]
+  | .back done next => backRules done next
+  | .seekPC done current =>
+      if current < done.target then
+        [ rule (token (.seekPC done current) ++ ['x'])
+            ('x' :: token (.seekPC done current))
+        , rule (token (.seekPC done current) ++ ['d'])
+            ('d' :: token (.seekPC done (current + 1))) ]
+      else
+        [rule (token (.seekPC done current) ++ ['x']) (token (.countPC done 1))]
+  | .countPC done count =>
+      rule (token (.countPC done count) ++ ['x'])
+          (token (.countPC done (count + 1))) ::
+        (done.outcomes.filter (fun o => o.count == count)).map fun o =>
+          rule (token (.countPC done count) ++ ['d']) ('d' :: token (.backPC o.pc))
+  | .backPC pc =>
+      [ rule ('x' :: token (.backPC pc)) (token (.backPC pc) ++ ['x'])
+      , rule ('d' :: token (.backPC pc)) (token (.backPC pc) ++ ['d'])
+      , rule ('b' :: token (.backPC pc)) (token (.control pc) ++ ['b']) ]
+
+theorem phaseRules_active (p : Phase) : ∀ r ∈ phaseRules p, ActiveRule p r := by
+  intro r hr
+  cases p with
+  | control pc => simp [phaseRules] at hr
+  | exec done code =>
+      cases code with
+      | nil => simp [phaseRules] at hr; subst r; exact .right _ _ (by decide)
+      | cons cmd rest =>
+        cases cmd <;> simp [phaseRules] at hr <;> subst r
+        all_goals exact .right _ _ (by decide)
+  | scanInc done next target current =>
+      simp only [phaseRules] at hr
+      split at hr
+      all_goals simp only [List.mem_cons, List.not_mem_nil, or_false] at hr
+      all_goals rcases hr with rfl | rfl
+      all_goals exact .right _ _ (by decide)
+  | scanDec done next target current =>
+      simp only [phaseRules] at hr
+      split at hr
+      · simp only [List.mem_cons, List.not_mem_nil, or_false] at hr
+        rcases hr with rfl | rfl <;> exact .right _ _ (by decide)
+      · simp only [List.mem_singleton] at hr
+        subst r
+        exact .right _ _ (by decide)
+  | scanZero done zero nonzero target current =>
+      simp only [phaseRules] at hr
+      split at hr
+      all_goals simp only [List.mem_cons, List.not_mem_nil, or_false] at hr
+      all_goals rcases hr with rfl | rfl
+      all_goals exact .right _ _ (by decide)
+  | back done next =>
+      simp [phaseRules, backRules] at hr
+      rcases hr with rfl | rfl | rfl
+      all_goals exact .left _ _ (by decide)
+
+  | seekPC done current =>
+      simp only [phaseRules] at hr
+      split at hr
+      · simp only [List.mem_cons, List.not_mem_nil, or_false] at hr
+        rcases hr with rfl | rfl <;> exact .right _ _ (by decide)
+      · simp only [List.mem_singleton] at hr
+        subst r
+        exact .right _ _ (by decide)
+  | countPC done count =>
+      simp only [phaseRules, List.mem_cons, List.mem_map] at hr
+      rcases hr with rfl | ⟨o, _ho, rfl⟩
+      · exact .right _ _ (by decide)
+      · exact .right _ _ (by decide)
+  | backPC pc =>
+      simp [phaseRules] at hr
+      rcases hr with rfl | rfl | rfl
+      all_goals exact .left _ _ (by decide)
+
+/-- Dispatch tables used by a live instruction map a unary count to at most
+one destination program counter. -/
+def OutcomeFunctional (os : List Outcome) : Prop :=
+  ∀ a ∈ os, ∀ b ∈ os, a.count = b.count → a.pc = b.pc
+
+/-- The only canonical family whose right-hand side is not syntactically
+fixed by its left-hand side is `countPC`: several outcomes can emit the same
+`token ++ d` lhs.  A functional outcome table makes those rules equal too. -/
+theorem phaseRules_lhs_functional (p : Phase)
+    (hout : ∀ done count, p = .countPC done count →
+      OutcomeFunctional done.outcomes) :
+    ∀ r ∈ phaseRules p, ∀ s ∈ phaseRules p,
+      r.lhs = s.lhs → r = s := by
+  intro r hr s hs hlhs
+  cases p with
+  | control pc => simp [phaseRules] at hr
+  | exec done code =>
+      cases code with
+      | nil => simp [phaseRules] at hr hs; subst r; subst s; rfl
+      | cons cmd rest =>
+        cases cmd <;> simp [phaseRules] at hr hs <;> subst r <;> subst s <;> rfl
+  | scanInc done next target current =>
+      by_cases h : current < target
+      · simp [phaseRules, h] at hr hs
+        rcases hr with rfl | rfl <;> rcases hs with rfl | rfl
+        all_goals simp [rule, str] at hlhs ⊢
+      · simp [phaseRules, h] at hr hs
+        rcases hr with rfl | rfl <;> rcases hs with rfl | rfl
+        all_goals simp [rule, str] at hlhs ⊢
+  | scanDec done next target current =>
+      by_cases h : current < target
+      · simp [phaseRules, h] at hr hs
+        rcases hr with rfl | rfl <;> rcases hs with rfl | rfl
+        all_goals simp [rule, str] at hlhs ⊢
+      · simp [phaseRules, h] at hr hs
+        subst r
+        subst s
+        rfl
+  | scanZero done zero nonzero target current =>
+      by_cases h : current < target
+      · simp [phaseRules, h] at hr hs
+        rcases hr with rfl | rfl <;> rcases hs with rfl | rfl
+        all_goals simp [rule, str] at hlhs ⊢
+      · simp [phaseRules, h] at hr hs
+        rcases hr with rfl | rfl <;> rcases hs with rfl | rfl
+        all_goals simp [rule, str] at hlhs ⊢
+  | back done next =>
+      simp [phaseRules, backRules] at hr hs
+      rcases hr with rfl | rfl | rfl <;> rcases hs with rfl | rfl | rfl
+      all_goals simp [rule, str] at hlhs ⊢
+  | seekPC done current =>
+      by_cases h : current < done.target
+      · simp [phaseRules, h] at hr hs
+        rcases hr with rfl | rfl <;> rcases hs with rfl | rfl
+        all_goals simp [rule, str] at hlhs ⊢
+      · simp [phaseRules, h] at hr hs
+        subst r
+        subst s
+        rfl
+  | countPC done count =>
+      simp only [phaseRules, List.mem_cons, List.mem_map] at hr hs
+      rcases hr with rfl | ⟨a, ha, rfl⟩ <;> rcases hs with rfl | ⟨b, hb, rfl⟩
+      · rfl
+      · simp [rule, str] at hlhs
+      · simp [rule, str] at hlhs
+      · have hac : a.count = count := by
+          have := (List.mem_filter.mp ha).2
+          simpa using this
+        have hbc : b.count = count := by
+          have := (List.mem_filter.mp hb).2
+          simpa using this
+        have hpc : a.pc = b.pc :=
+          hout done count rfl a (List.mem_filter.mp ha).1 b
+            (List.mem_filter.mp hb).1 (by omega)
+        simp [hpc]
+  | backPC pc =>
+      simp [phaseRules] at hr hs
+      rcases hr with rfl | rfl | rfl <;> rcases hs with rfl | rfl | rfl
+      all_goals simp [rule, str] at hlhs ⊢
+
+def HasPhase (r : Rule) : Prop := ∃ p, r ∈ phaseRules p
+
+theorem backRules_hasPhase (done : Done) (next : Code) :
+    ∀ r ∈ backRules done next, HasPhase r := by
+  intro r hr
+  exact ⟨.back done next, by simpa [phaseRules] using hr⟩
+
+theorem incRules_hasPhase (done : Done) (next : Code) (target : Nat) :
+    ∀ r ∈ incRules done next target, HasPhase r := by
+  intro r hr
+  simp only [incRules, List.mem_append, List.mem_flatMap] at hr
+  rcases hr with ⟨current, _, hr⟩ | hr
+  · refine ⟨.scanInc done next target current, ?_⟩
+    simpa [phaseRules] using hr
+  · exact backRules_hasPhase done next r hr
+
+theorem decRules_hasPhase (done : Done) (next : Code) (target : Nat) :
+    ∀ r ∈ decRules done next target, HasPhase r := by
+  intro r hr
+  simp only [decRules, List.mem_append, List.mem_flatMap] at hr
+  rcases hr with ⟨current, _, hr⟩ | hr
+  · refine ⟨.scanDec done next target current, ?_⟩
+    simpa [phaseRules] using hr
+  · exact backRules_hasPhase done next r hr
+
+theorem zeroRules_hasPhase (done : Done) (zero nonzero : Code) (target : Nat) :
+    ∀ r ∈ zeroRules done zero nonzero target, HasPhase r := by
+  intro r hr
+  simp only [zeroRules, List.mem_append, List.mem_flatMap] at hr
+  rcases hr with (⟨current, _, hr⟩ | hr) | hr
+  · refine ⟨.scanZero done zero nonzero target current, ?_⟩
+    simpa [phaseRules] using hr
+  · exact backRules_hasPhase done zero r hr
+  · exact backRules_hasPhase done nonzero r hr
+
+theorem headRules_hasPhase (done : Done) (current : Code) :
+    ∀ r ∈ headRules done current, HasPhase r := by
+  intro r hr
+  cases current with
+  | nil => simp [headRules] at hr
+  | cons cmd rest =>
+    cases cmd with
+    | inc a =>
+      simp only [headRules, List.mem_cons] at hr
+      rcases hr with rfl | hr
+      · exact ⟨.exec done (.inc a :: rest), by simp [phaseRules]⟩
+      · exact incRules_hasPhase done rest a r hr
+    | dec a =>
+      simp only [headRules, List.mem_cons] at hr
+      rcases hr with rfl | hr
+      · exact ⟨.exec done (.dec a :: rest), by simp [phaseRules]⟩
+      · exact decRules_hasPhase done rest a r hr
+    | emit =>
+      simp only [headRules, List.mem_singleton] at hr
+      subst r
+      exact ⟨.exec done (.emit :: rest), by simp [phaseRules]⟩
+    | loop a body =>
+      simp only [headRules, List.mem_cons] at hr
+      rcases hr with rfl | hr
+      · exact ⟨.exec done (.loop a body :: rest), by simp [phaseRules]⟩
+      · exact zeroRules_hasPhase done rest (body ++ Cmd.loop a body :: rest) a r hr
+
+theorem generate_hasPhase : ∀ (done : Done) (code suffix : Code) (r : Rule),
+    r ∈ generate done code suffix → HasPhase r
+  | _, [], _, _, h => by simp [generate] at h
+  | done, .inc a :: rest, suffix, r, h => by
+      simp only [generate, List.mem_append] at h
+      rcases h with hh | ht
+      · exact headRules_hasPhase done (.inc a :: (rest ++ suffix)) r hh
+      · exact generate_hasPhase done rest suffix r ht
+  | done, .dec a :: rest, suffix, r, h => by
+      simp only [generate, List.mem_append] at h
+      rcases h with hh | ht
+      · exact headRules_hasPhase done (.dec a :: (rest ++ suffix)) r hh
+      · exact generate_hasPhase done rest suffix r ht
+  | done, .emit :: rest, suffix, r, h => by
+      simp only [generate, List.mem_append] at h
+      rcases h with hh | ht
+      · exact headRules_hasPhase done (.emit :: (rest ++ suffix)) r hh
+      · exact generate_hasPhase done rest suffix r ht
+  | done, .loop a body :: rest, suffix, r, h => by
+      simp only [generate, List.mem_append] at h
+      rcases h with (hh | hb) | ht
+      · exact headRules_hasPhase done (.loop a body :: (rest ++ suffix)) r hh
+      · exact generate_hasPhase done body (.loop a body :: (rest ++ suffix)) r hb
+      · exact generate_hasPhase done rest suffix r ht
+termination_by done code suffix r _h => codeWeight code
+decreasing_by
+  all_goals simp [codeWeight] <;> omega
+
 /-- Rules that consume the counter-machine program counter and install a
 source URM control marker. -/
 def finishRules (done : Done) : List Rule :=
@@ -997,11 +1356,64 @@ theorem finishRules_shaped (done : Done) :
     · exact .left _ _ _ (by decide)
     · simp at hr
 
+theorem finishRules_hasPhase (done : Done) :
+    ∀ r ∈ finishRules done, HasPhase r := by
+  intro r hr
+  simp only [finishRules, List.mem_cons, List.mem_append, List.mem_flatMap,
+    List.mem_map] at hr
+  rcases hr with (((hr | hr) | hr) | hr) | hr
+  · subst r
+    exact ⟨.exec done [], by simp [phaseRules]⟩
+  · obtain ⟨a, _ha, hr⟩ := hr
+    split at hr
+    all_goals simp only [List.mem_cons, List.not_mem_nil, or_false] at hr
+    · rcases hr with rfl | rfl
+      · exact ⟨.seekPC done a, by simp [phaseRules, *]⟩
+      · exact ⟨.seekPC done a, by simp [phaseRules, *]⟩
+    · subst r
+      exact ⟨.seekPC done a, by simp [phaseRules, *]⟩
+  · obtain ⟨a, _ha, hr⟩ := hr
+    rcases hr with rfl | hr
+    · exact ⟨.countPC done a, by simp [phaseRules]⟩
+    · simp at hr
+  · obtain ⟨o, ho, hr⟩ := hr
+    subst r
+    refine ⟨.countPC done o.count, ?_⟩
+    simp only [phaseRules, List.mem_cons, List.mem_map, List.mem_filter]
+    right
+    exact ⟨o, ⟨ho, by simp⟩, rfl⟩
+  · obtain ⟨o, _ho, hr⟩ := hr
+    rcases hr with rfl | rfl | rfl | hr
+    · exact ⟨.backPC o.pc, by simp [phaseRules]⟩
+    · exact ⟨.backPC o.pc, by simp [phaseRules]⟩
+    · exact ⟨.backPC o.pc, by simp [phaseRules]⟩
+    · simp at hr
+
 /-- Possible values written to the counter-machine program counter by source
 instruction `i` at index `k`. -/
 def outcomes (k : Nat) : Cslib.URM.Instr → List Outcome
   | .J m n q => if m = n then [⟨q + 1, q⟩] else [⟨q + 1, q⟩, ⟨k + 2, k + 1⟩]
   | _ => [⟨k + 2, k + 1⟩]
+
+/-- Dispatch counts emitted for one source instruction determine a unique
+source program counter. Duplicate outcomes can occur, but are equal. -/
+theorem outcomes_functional (k : Nat) (i : Cslib.URM.Instr) :
+    ∀ a ∈ outcomes k i, ∀ b ∈ outcomes k i, a.count = b.count → a.pc = b.pc := by
+  intro a ha b hb hc
+  cases i with
+  | Z r | S r | T r s =>
+      simp [outcomes] at ha hb
+      subst a
+      subst b
+      rfl
+  | J m n q =>
+      by_cases hmn : m = n
+      · simp [outcomes, hmn] at ha hb
+        subst a
+        subst b
+        rfl
+      · simp [outcomes, hmn] at ha hb
+        rcases ha with rfl | rfl <;> rcases hb with rfl | rfl <;> simp_all
 
 /-- The arithmetic successor selected by `execInstr` is one of the dispatch
 outcomes emitted for the source instruction. -/
@@ -1120,6 +1532,17 @@ theorem instrRules_shaped (B k : Nat) (i : Cslib.URM.Instr) :
   · exact generate_shaped _ _ _ r hg
   · exact finishRules_shaped _ r hf
 
+theorem instrRules_origin (B k : Nat) (i : Cslib.URM.Instr) :
+    ∀ r ∈ instrRules B k i,
+      r = rule (token (.control k))
+          (token (.exec ⟨pcReg B, outcomes k i⟩ (macroCode B k i))) ∨ HasPhase r := by
+  intro r hr
+  simp only [instrRules, List.mem_cons, List.mem_append] at hr
+  rcases hr with (rfl | hg) | hf
+  · exact Or.inl rfl
+  · exact Or.inr (generate_hasPhase _ _ _ r hg)
+  · exact Or.inr (finishRules_hasPhase _ r hf)
+
 /-- Generate one finite rule block per URM instruction. -/
 def compileAt (B : Nat) : Nat → Cslib.URM.Program → List Rule
   | _, [] => []
@@ -1133,6 +1556,26 @@ theorem compileAt_shaped (B : Nat) : ∀ (k : Nat) (P : Cslib.URM.Program) (r : 
       rcases h with hi | ht
       · exact instrRules_shaped B k i r hi
       · exact compileAt_shaped B (k + 1) rest r ht
+
+theorem compileAt_origin (B : Nat) :
+    ∀ (base : Nat) (P : Cslib.URM.Program) (r : Rule), r ∈ compileAt B base P →
+      HasPhase r ∨ ∃ offset i, P[offset]? = some i ∧
+        r = rule (token (.control (base + offset)))
+          (token (.exec ⟨pcReg B, outcomes (base + offset) i⟩
+            (macroCode B (base + offset) i)))
+  | _, [], _, h => by simp [compileAt] at h
+  | base, head :: rest, r, h => by
+      simp only [compileAt, List.mem_append] at h
+      rcases h with hi | ht
+      · rcases instrRules_origin B base head r hi with he | hp
+        · exact Or.inr ⟨0, head, by simp, by simpa using he⟩
+        · exact Or.inl hp
+      · rcases compileAt_origin B (base + 1) rest r ht with hp | he
+        · exact Or.inl hp
+        · obtain ⟨offset, i, hi, he⟩ := he
+          refine Or.inr ⟨offset + 1, i, ?_, ?_⟩
+          · exact hi
+          · simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using he
 
 /-- The control-entry rule for any source instruction occurs in its generated
 block at the correspondingly shifted program counter. -/
@@ -1221,6 +1664,17 @@ theorem compileRules_match_active (P : Cslib.URM.Program) (inputs : List Nat)
   · simp [marker_not_mem_encodeRegs]
   · simpa [encodeState, List.append_assoc] using hm
 
+/-- Phase recovery does not depend on the token being at the left boundary
+of the register file.  This form is used for scan and return states, where
+the unique token sits between two unary-tape fragments. -/
+theorem compileRules_match_active_at (P : Cslib.URM.Program) (inputs : List Nat)
+    (phase : Phase) (pre post : List Char) (hpre : '@' ∉ pre) (hpost : '@' ∉ post)
+    (r : Rule) (hr : r ∈ compileRules P inputs) (pos : Nat)
+    (hm : firstOccurrence? r.lhs.toList (pre ++ token phase ++ post) = some pos) :
+    ActiveRule phase r := by
+  exact (compileRules_shaped P inputs r hr).active_of_match
+    phase pre post hpre hpost pos hm
+
 /-- A successful deterministic rule selection records a member of the rule
 list and that rule's concrete leftmost occurrence. -/
 theorem firstMatch_some : ∀ {rules : List Rule} {state : List Char}
@@ -1240,6 +1694,24 @@ theorem firstMatch_some : ∀ {rules : List Rule} {state : List Char}
         obtain ⟨hr, hm⟩ := firstMatch_some h
         exact ⟨List.mem_cons_of_mem a hr, hm⟩
 
+/-- If one listed rule occurs, deterministic selection returns some listed
+rule and its concrete leftmost occurrence. -/
+theorem firstMatch_exists_of_mem {rules : List Rule} {state : List Char}
+    {r : Rule} (hr : r ∈ rules) {pos : Nat}
+    (hm : firstOccurrence? r.lhs.toList state = some pos) :
+    ∃ pos' r', firstMatch rules state = some (pos', r') := by
+  induction rules with
+  | nil => simp at hr
+  | cons a rules ih =>
+      simp only [List.mem_cons] at hr
+      simp only [firstMatch]
+      split
+      next p hp => exact ⟨p, a, rfl⟩
+      next hp =>
+        rcases hr with rfl | hr
+        · exact False.elim (by rw [hm] at hp; simp at hp)
+        · exact ih hr
+
 /-- The rule selected by the actual `.first` strategy on a represented state
 belongs to its active phase. -/
 theorem compileRules_firstMatch_active (P : Cslib.URM.Program) (inputs : List Nat)
@@ -1248,6 +1720,700 @@ theorem compileRules_firstMatch_active (P : Cslib.URM.Program) (inputs : List Na
     ActiveRule phase r := by
   obtain ⟨hr, ho⟩ := firstMatch_some hm
   exact compileRules_match_active P inputs R s phase r hr pos ho
+
+/-- Generator-family functionality at the actual deterministic selection.
+Every selected non-control rule is a member of the canonical rule list for
+the represented phase. A selected control rule is the unique source entry at
+that program counter. -/
+theorem compileRules_firstMatch_origin (P : Cslib.URM.Program) (inputs : List Nat)
+    (R : Nat) (s : CState) (phase : Phase) (pos : Nat) (r : Rule)
+    (hm : firstMatch (compileRules P inputs) (encodeState R s phase) = some (pos, r)) :
+    r ∈ phaseRules phase ∨
+      ∃ k i, phase = .control k ∧ P[k]? = some i ∧
+        r = rule (token (.control k))
+          (token (.exec ⟨pcReg (sourceBound P inputs), outcomes k i⟩
+            (macroCode (sourceBound P inputs) k i))) := by
+  have hactive := compileRules_firstMatch_active P inputs R s phase pos r hm
+  obtain ⟨hr, _⟩ := firstMatch_some hm
+  rcases compileAt_origin (sourceBound P inputs) 0 P r
+      (by simpa [compileRules] using hr) with hp | he
+  · obtain ⟨q, hq⟩ := hp
+    have hqa := phaseRules_active q r hq
+    have heq := hactive.phase_unique hqa
+    subst q
+    exact Or.inl hq
+  · obtain ⟨k, i, hi, he⟩ := he
+    have hcontrol : ActiveRule (.control k) r := by
+      rw [he]
+      simpa using (ActiveRule.token (p := Phase.control k)
+        (token (.exec ⟨pcReg (sourceBound P inputs), outcomes k i⟩
+          (macroCode (sourceBound P inputs) k i))))
+    have hphase := hactive.phase_unique hcontrol
+    refine Or.inr ⟨k, i, hphase, hi, ?_⟩
+    simpa using he
+
+/-- Generator-family functionality for an arbitrary position of the unique
+phase token.  This is the cursor-state version of
+`compileRules_firstMatch_origin`. -/
+theorem compileRules_firstMatch_origin_at (P : Cslib.URM.Program) (inputs : List Nat)
+    (phase : Phase) (pre post : List Char) (hpre : '@' ∉ pre) (hpost : '@' ∉ post)
+    (pos : Nat) (r : Rule)
+    (hm : firstMatch (compileRules P inputs) (pre ++ token phase ++ post) =
+      some (pos, r)) :
+    r ∈ phaseRules phase ∨
+      ∃ k i, phase = .control k ∧ P[k]? = some i ∧
+        r = rule (token (.control k))
+          (token (.exec ⟨pcReg (sourceBound P inputs), outcomes k i⟩
+            (macroCode (sourceBound P inputs) k i))) := by
+  obtain ⟨hr, ho⟩ := firstMatch_some hm
+  have hactive := compileRules_match_active_at P inputs phase pre post
+    hpre hpost r hr pos ho
+  rcases compileAt_origin (sourceBound P inputs) 0 P r
+      (by simpa [compileRules] using hr) with hp | he
+  · obtain ⟨q, hq⟩ := hp
+    have hqa := phaseRules_active q r hq
+    have heq := hactive.phase_unique hqa
+    subst q
+    exact Or.inl hq
+  · obtain ⟨k, i, hi, he⟩ := he
+    have hcontrol : ActiveRule (.control k) r := by
+      rw [he]
+      simpa using (ActiveRule.token (p := Phase.control k)
+        (token (.exec ⟨pcReg (sourceBound P inputs), outcomes k i⟩
+          (macroCode (sourceBound P inputs) k i))))
+    have hphase := hactive.phase_unique hcontrol
+    exact Or.inr ⟨k, i, hphase, hi, by simpa using he⟩
+
+/-- Reduce deterministic selection of a right-looking phase to functionality
+of that phase's canonical rule family. -/
+theorem firstMatch_eq_phase_right (P : Cslib.URM.Program) (inputs : List Nat)
+    (p : Phase) (c : Char) (rep pre post : List Char)
+    (hpre : '@' ∉ pre) (hpost : '@' ∉ post) (hc : c ≠ '@')
+    (hncontrol : ∀ k, p ≠ .control k)
+    (hmem : rule (token p ++ [c]) rep ∈ compileRules P inputs)
+    (hfunctional : ∀ r ∈ phaseRules p, ∀ pos,
+      firstOccurrence? r.lhs.toList (pre ++ token p ++ c :: post) = some pos →
+        r = rule (token p ++ [c]) rep) :
+    firstMatch (compileRules P inputs) (pre ++ token p ++ c :: post) =
+      some (pre.length, rule (token p ++ [c]) rep) := by
+  have heocc : firstOccurrence? (rule (token p ++ [c]) rep).lhs.toList
+      (pre ++ token p ++ c :: post) = some pre.length := by
+    simp only [rule, str, String.toList_ofList]
+    simpa [List.append_assoc] using firstOccurrence_token_right p [c] pre post hpre
+  obtain ⟨pos, r, hselect⟩ := firstMatch_exists_of_mem hmem heocc
+  obtain ⟨hr, hrocc⟩ := firstMatch_some hselect
+  rcases compileRules_firstMatch_origin_at P inputs p pre (c :: post)
+      hpre (by
+        simp only [List.mem_cons, not_or]
+        exact ⟨hc.symm, hpost⟩) pos r hselect with hphase | hcontrol
+  · have hre := hfunctional r hphase pos hrocc
+    subst r
+    have hpos : pos = pre.length := by
+      rw [heocc] at hrocc
+      exact (Option.some.inj hrocc).symm
+    simpa [hpos] using hselect
+  · obtain ⟨k, _i, hp, _hi, _hr⟩ := hcontrol
+    exact False.elim (hncontrol k hp)
+
+/-- Left-looking counterpart of `firstMatch_eq_phase_right`. -/
+theorem firstMatch_eq_phase_left (P : Cslib.URM.Program) (inputs : List Nat)
+    (p : Phase) (c : Char) (rep pre post : List Char)
+    (hpre : '@' ∉ pre) (hpost : '@' ∉ post) (hc : c ≠ '@')
+    (hncontrol : ∀ k, p ≠ .control k)
+    (hmem : rule (c :: token p) rep ∈ compileRules P inputs)
+    (hfunctional : ∀ r ∈ phaseRules p, ∀ pos,
+      firstOccurrence? r.lhs.toList (pre ++ c :: token p ++ post) = some pos →
+        r = rule (c :: token p) rep) :
+    firstMatch (compileRules P inputs) (pre ++ c :: token p ++ post) =
+      some (pre.length, rule (c :: token p) rep) := by
+  have heocc : firstOccurrence? (rule (c :: token p) rep).lhs.toList
+      (pre ++ c :: token p ++ post) = some pre.length := by
+    simp only [rule, str, String.toList_ofList]
+    exact firstOccurrence_token_left p c pre post hc hpre
+  obtain ⟨pos, r, hselect⟩ := firstMatch_exists_of_mem hmem heocc
+  obtain ⟨hr, hrocc⟩ := firstMatch_some hselect
+  rcases compileRules_firstMatch_origin_at P inputs p (pre ++ [c]) post
+      (by
+        simp only [List.mem_append, List.mem_singleton, not_or]
+        exact ⟨hpre, hc.symm⟩) hpost pos r
+      (by simpa [List.append_assoc] using hselect) with hphase | hcontrol
+  · have hre := hfunctional r hphase pos hrocc
+    subst r
+    have hpos : pos = pre.length := by
+      rw [heocc] at hrocc
+      exact (Option.some.inj hrocc).symm
+    simpa [hpos] using hselect
+  · obtain ⟨k, _i, hp, _hi, _hr⟩ := hcontrol
+    exact False.elim (hncontrol k hp)
+
+/-- One deterministic rewrite is a composable `Reaches` step. -/
+theorem reaches_of_step {rules : List Rule} {s t : MState}
+    (h : step ({} : Config) rules s = some t) :
+    Reaches (exec ({} : Config) rules) s t := by
+  apply Reaches.one
+  intro fuel
+  simp only [exec]
+  rw [h]
+
+/-- Apply a proved-functional right-looking generated phase. -/
+theorem reaches_phase_right (P : Cslib.URM.Program) (inputs : List Nat)
+    (p : Phase) (c : Char) (rep pre post : List Char) (st : MState)
+    (hs : st.str = pre ++ token p ++ c :: post)
+    (hpre : '@' ∉ pre) (hpost : '@' ∉ post) (hc : c ≠ '@')
+    (hncontrol : ∀ k, p ≠ .control k)
+    (hmem : rule (token p ++ [c]) rep ∈ compileRules P inputs)
+    (hfunctional : ∀ r ∈ phaseRules p, ∀ pos,
+      firstOccurrence? r.lhs.toList (pre ++ token p ++ c :: post) = some pos →
+        r = rule (token p ++ [c]) rep) :
+    Reaches (exec ({} : Config) (compileRules P inputs)) st
+      { st with str := pre ++ rep ++ post } := by
+  apply reaches_of_step
+  unfold step
+  simp only
+  rw [hs]
+  rw [firstMatch_eq_phase_right P inputs p c rep pre post hpre hpost hc
+    hncontrol hmem hfunctional]
+  simp only [Option.map_some]
+  exact congrArg some (applyAt_rule_right p [c] pre rep post st
+    (by simpa [List.append_assoc] using hs))
+
+/-- Apply a proved-functional left-looking generated phase. -/
+theorem reaches_phase_left (P : Cslib.URM.Program) (inputs : List Nat)
+    (p : Phase) (c : Char) (rep pre post : List Char) (st : MState)
+    (hs : st.str = pre ++ c :: token p ++ post)
+    (hpre : '@' ∉ pre) (hpost : '@' ∉ post) (hc : c ≠ '@')
+    (hncontrol : ∀ k, p ≠ .control k)
+    (hmem : rule (c :: token p) rep ∈ compileRules P inputs)
+    (hfunctional : ∀ r ∈ phaseRules p, ∀ pos,
+      firstOccurrence? r.lhs.toList (pre ++ c :: token p ++ post) = some pos →
+        r = rule (c :: token p) rep) :
+    Reaches (exec ({} : Config) (compileRules P inputs)) st
+      { st with str := pre ++ rep ++ post } := by
+  apply reaches_of_step
+  unfold step
+  simp only
+  rw [hs]
+  rw [firstMatch_eq_phase_left P inputs p c rep pre post hpre hpost hc
+    hncontrol hmem hfunctional]
+  simp only [Option.map_some]
+  exact congrArg some (applyAt_rule_left p c pre rep post st hs)
+
+/-- A singleton right-looking canonical family is immediately functional. -/
+theorem reaches_phase_right_single (P : Cslib.URM.Program) (inputs : List Nat)
+    (p : Phase) (c : Char) (rep pre post : List Char) (st : MState)
+    (hs : st.str = pre ++ token p ++ c :: post)
+    (hpre : '@' ∉ pre) (hpost : '@' ∉ post) (hc : c ≠ '@')
+    (hncontrol : ∀ k, p ≠ .control k)
+    (hrules : ∀ r, r ∈ phaseRules p ↔ r = rule (token p ++ [c]) rep)
+    (hmem : rule (token p ++ [c]) rep ∈ compileRules P inputs) :
+    Reaches (exec ({} : Config) (compileRules P inputs)) st
+      { st with str := pre ++ rep ++ post } := by
+  apply reaches_phase_right P inputs p c rep pre post st hs hpre hpost hc
+    hncontrol hmem
+  intro r hr _pos _hm
+  exact (hrules r).mp hr
+
+/-- Two right-looking rules with different adjacent characters are
+functional on a concrete tape cell. -/
+theorem reaches_phase_right_pair (P : Cslib.URM.Program) (inputs : List Nat)
+    (p : Phase) (c other : Char) (rep otherRep pre post : List Char) (st : MState)
+    (hs : st.str = pre ++ token p ++ c :: post)
+    (hpre : '@' ∉ pre) (hpost : '@' ∉ post)
+    (hc : c ≠ '@') (hne : c ≠ other)
+    (hncontrol : ∀ k, p ≠ .control k)
+    (hrules : ∀ r, r ∈ phaseRules p ↔
+      r = rule (token p ++ [c]) rep ∨
+      r = rule (token p ++ [other]) otherRep)
+    (hmem : rule (token p ++ [c]) rep ∈ compileRules P inputs) :
+    Reaches (exec ({} : Config) (compileRules P inputs)) st
+      { st with str := pre ++ rep ++ post } := by
+  apply reaches_phase_right P inputs p c rep pre post st hs hpre hpost hc
+    hncontrol hmem
+  intro r hr pos hm
+  have hr := (hrules r).mp hr
+  rcases hr with rfl | rfl
+  · rfl
+  · simp only [rule, str, String.toList_ofList] at hm
+    have heq := (token_right_match_cell p c other pre post hpre hpost hc pos hm).1
+    exact False.elim (hne heq.symm)
+
+/-- Three left-looking rules distinguished by their preceding character are
+functional on a concrete tape cell. -/
+theorem reaches_phase_left_triple (P : Cslib.URM.Program) (inputs : List Nat)
+    (p : Phase) (c d e : Char) (rep repD repE pre post : List Char) (st : MState)
+    (hs : st.str = pre ++ c :: token p ++ post)
+    (hpre : '@' ∉ pre) (hpost : '@' ∉ post)
+    (hc : c ≠ '@') (hcd : c ≠ d) (hce : c ≠ e)
+    (hncontrol : ∀ k, p ≠ .control k)
+    (hrules : ∀ r, r ∈ phaseRules p ↔
+      r = rule (c :: token p) rep ∨ r = rule (d :: token p) repD ∨
+      r = rule (e :: token p) repE)
+    (hmem : rule (c :: token p) rep ∈ compileRules P inputs) :
+    Reaches (exec ({} : Config) (compileRules P inputs)) st
+      { st with str := pre ++ rep ++ post } := by
+  apply reaches_phase_left P inputs p c rep pre post st hs hpre hpost hc
+    hncontrol hmem
+  intro r hr pos hm
+  have hr := (hrules r).mp hr
+  rcases hr with rfl | rfl | rfl
+  · rfl
+  · simp only [rule, str, String.toList_ofList] at hm
+    have heq := (token_left_match_cell p c d pre post hpre hpost hc pos hm).1
+    exact False.elim (hcd heq.symm)
+  · simp only [rule, str, String.toList_ofList] at hm
+    have heq := (token_left_match_cell p c e pre post hpre hpost hc pos hm).1
+    exact False.elim (hce heq.symm)
+
+/-- A return token moves left across any finite word of unary cells and
+counter delimiters. -/
+theorem reaches_back_across (P : Cslib.URM.Program) (inputs : List Nat)
+    (done : Done) (next : Code) (tape pre post : List Char) (st : MState)
+    (hs : st.str = pre ++ tape ++ token (.back done next) ++ post)
+    (hpre : '@' ∉ pre) (hpost : '@' ∉ post)
+    (htape : ∀ c ∈ tape, c = 'x' ∨ c = 'd')
+    (hx : rule ('x' :: token (.back done next))
+        (token (.back done next) ++ ['x']) ∈ compileRules P inputs)
+    (hd : rule ('d' :: token (.back done next))
+        (token (.back done next) ++ ['d']) ∈ compileRules P inputs) :
+    Reaches (exec ({} : Config) (compileRules P inputs)) st
+      { st with str := pre ++ token (.back done next) ++ tape ++ post } := by
+  induction tape generalizing pre st with
+  | nil =>
+      simp only [List.append_nil]
+      have heq : { st with str := pre ++ token (.back done next) ++ post } = st := by
+        cases st
+        simp_all [List.append_assoc]
+      rw [heq]
+      exact Reaches.refl (exec ({} : Config) (compileRules P inputs)) st
+  | cons c tape ih =>
+      have hc := htape c List.mem_cons_self
+      have ht : ∀ a ∈ tape, a = 'x' ∨ a = 'd' :=
+        fun a ha => htape a (List.mem_cons_of_mem c ha)
+      have hcmark : c ≠ '@' := by rcases hc with rfl | rfl <;> decide
+      have htmark : '@' ∉ tape := by
+        intro hm
+        rcases ht '@' hm with h | h <;> contradiction
+      let mid : MState :=
+        { st with str := (pre ++ [c]) ++ token (.back done next) ++ tape ++ post }
+      have hfirst : Reaches (exec ({} : Config) (compileRules P inputs)) st mid := by
+        apply ih (pre := pre ++ [c]) (st := st)
+        · simpa [mid, List.append_assoc] using hs
+        · simp only [List.mem_append, List.mem_singleton, not_or]
+          exact ⟨hpre, hcmark.symm⟩
+        · exact ht
+      have hsecond : Reaches (exec ({} : Config) (compileRules P inputs)) mid
+          { mid with str := pre ++ token (.back done next) ++ c :: tape ++ post } := by
+        rcases hc with rfl | rfl
+        · have hmove := reaches_phase_left_triple P inputs (.back done next)
+            'x' 'd' 'b'
+            (token (.back done next) ++ ['x'])
+            (token (.back done next) ++ ['d'])
+            (token (.exec done next) ++ ['b'])
+            pre (tape ++ post) mid
+            (by simp [mid, List.append_assoc]) hpre (by simp [htmark, hpost])
+            (by decide) (by decide) (by decide) (by intro k h; cases h)
+            (by intro r; simp [phaseRules, backRules]) hx
+          simpa [List.append_assoc] using hmove
+        · have hmove := reaches_phase_left_triple P inputs (.back done next)
+            'd' 'x' 'b'
+            (token (.back done next) ++ ['d'])
+            (token (.back done next) ++ ['x'])
+            (token (.exec done next) ++ ['b'])
+            pre (tape ++ post) mid
+            (by simp [mid, List.append_assoc]) hpre (by simp [htmark, hpost])
+            (by decide) (by decide) (by decide) (by intro k h; cases h)
+            (by intro r; simp [phaseRules, backRules, or_comm, or_left_comm]) hd
+          simpa [List.append_assoc] using hmove
+      have htotal := Reaches.trans hfirst hsecond
+      simpa [mid, List.append_assoc] using htotal
+
+/-- A complete return scan crosses the unary prefix and reinstalls the next
+structured-code continuation immediately before the left boundary. -/
+theorem reaches_back_home (P : Cslib.URM.Program) (inputs : List Nat)
+    (done : Done) (next : Code) (tape pre post : List Char) (st : MState)
+    (hs : st.str = pre ++ 'b' :: tape ++ token (.back done next) ++ post)
+    (hpre : '@' ∉ pre) (hpost : '@' ∉ post)
+    (htape : ∀ c ∈ tape, c = 'x' ∨ c = 'd')
+    (hx : rule ('x' :: token (.back done next))
+        (token (.back done next) ++ ['x']) ∈ compileRules P inputs)
+    (hd : rule ('d' :: token (.back done next))
+        (token (.back done next) ++ ['d']) ∈ compileRules P inputs)
+    (hb : rule ('b' :: token (.back done next))
+        (token (.exec done next) ++ ['b']) ∈ compileRules P inputs) :
+    Reaches (exec ({} : Config) (compileRules P inputs)) st
+      { st with str := pre ++ token (.exec done next) ++ 'b' :: tape ++ post } := by
+  let mid : MState :=
+    { st with str := (pre ++ ['b']) ++ token (.back done next) ++ tape ++ post }
+  have hcross : Reaches (exec ({} : Config) (compileRules P inputs)) st mid := by
+    apply reaches_back_across P inputs done next tape (pre ++ ['b']) post st
+    · simpa [mid, List.append_assoc] using hs
+    · simp only [List.mem_append, List.mem_singleton, not_or]
+      exact ⟨hpre, by decide⟩
+    · exact hpost
+    · exact htape
+    · exact hx
+    · exact hd
+  have hboundary := reaches_phase_left_triple P inputs (.back done next)
+    'b' 'x' 'd'
+    (token (.exec done next) ++ ['b'])
+    (token (.back done next) ++ ['x'])
+    (token (.back done next) ++ ['d'])
+    pre (tape ++ post) mid
+    (by simp [mid, List.append_assoc]) hpre (by
+      have htmark : '@' ∉ tape := by
+        intro hm
+        rcases htape '@' hm with h | h <;> contradiction
+      simp [htmark, hpost])
+    (by decide) (by decide) (by decide) (by intro k h; cases h)
+    (by
+      intro r
+      simp [phaseRules, backRules]
+      tauto) hb
+  have htotal := Reaches.trans hcross hboundary
+  simpa [mid, List.append_assoc] using htotal
+
+/-- A right-moving phase crosses a unary run while retaining the same phase
+token. -/
+theorem reaches_across_xs (P : Cslib.URM.Program) (inputs : List Nat)
+    (p : Phase) (dRep pre post : List Char) (n : Nat) (st : MState)
+    (hs : st.str = pre ++ token p ++ List.replicate n 'x' ++ post)
+    (hpre : '@' ∉ pre) (hpost : '@' ∉ post)
+    (hncontrol : ∀ k, p ≠ .control k)
+    (hrules : ∀ r, r ∈ phaseRules p ↔
+      r = rule (token p ++ ['x']) ('x' :: token p) ∨
+      r = rule (token p ++ ['d']) dRep)
+    (hx : rule (token p ++ ['x']) ('x' :: token p) ∈ compileRules P inputs) :
+    Reaches (exec ({} : Config) (compileRules P inputs)) st
+      { st with str := pre ++ List.replicate n 'x' ++ token p ++ post } := by
+  induction n generalizing pre st with
+  | zero =>
+      simp only [List.replicate_zero, List.append_nil] at hs ⊢
+      have heq : { st with str := pre ++ token p ++ post } = st := by
+        cases st
+        simp_all [List.append_assoc]
+      rw [heq]
+      exact Reaches.refl (exec ({} : Config) (compileRules P inputs)) st
+  | succ n ih =>
+      let mid : MState :=
+        { st with str := (pre ++ ['x']) ++ token p ++ List.replicate n 'x' ++ post }
+      have hstep : Reaches (exec ({} : Config) (compileRules P inputs)) st mid := by
+        have h := reaches_phase_right_pair P inputs p 'x' 'd'
+          ('x' :: token p) dRep pre (List.replicate n 'x' ++ post) st
+          (by simpa [List.replicate_succ, List.append_assoc] using hs)
+          hpre (by simp [hpost]) (by decide) (by decide) hncontrol hrules hx
+        simpa [mid, List.append_assoc] using h
+      have hrest : Reaches (exec ({} : Config) (compileRules P inputs)) mid
+          { mid with str := (pre ++ ['x']) ++ List.replicate n 'x' ++ token p ++ post } := by
+        apply ih (pre := pre ++ ['x']) (st := mid)
+        · simp [mid, List.append_assoc]
+        · simp [hpre]
+      have htotal := Reaches.trans hstep hrest
+      simpa [mid, List.replicate_succ, List.append_assoc] using htotal
+
+/-- Every in-range increment scan has its unary-cell rule in the generated
+increment family. -/
+theorem incRules_scan_x_mem (done : Done) (next : Code) (target current : Nat)
+    (hcurrent : current ≤ target) :
+    rule (token (.scanInc done next target current) ++ ['x'])
+        ('x' :: token (.scanInc done next target current)) ∈
+      incRules done next target := by
+  simp only [incRules, List.mem_append, List.mem_flatMap]
+  left
+  refine ⟨current, List.mem_range.mpr (by omega), ?_⟩
+  split <;> simp
+
+/-- A non-target increment scan advances across its delimiter. -/
+theorem incRules_scan_d_mem (done : Done) (next : Code) (target current : Nat)
+    (hcurrent : current < target) :
+    rule (token (.scanInc done next target current) ++ ['d'])
+        ('d' :: token (.scanInc done next target (current + 1))) ∈
+      incRules done next target := by
+  simp only [incRules, List.mem_append, List.mem_flatMap]
+  left
+  refine ⟨current, List.mem_range.mpr (by omega), ?_⟩
+  simp [hcurrent]
+
+/-- The target delimiter rule appends one unary cell and starts the return. -/
+theorem incRules_finish_mem (done : Done) (next : Code) (target : Nat) :
+    rule (token (.scanInc done next target target) ++ ['d'])
+        ('x' :: 'd' :: token (.back done next)) ∈ incRules done next target := by
+  simp only [incRules, List.mem_append, List.mem_flatMap]
+  left
+  refine ⟨target, List.mem_range.mpr (by omega), ?_⟩
+  simp
+
+/-- The three common return rules occur in every increment family. -/
+theorem incRules_back_mem (done : Done) (next : Code) (target : Nat) :
+    (∀ c ∈ ['x', 'd'],
+      rule (c :: token (.back done next)) (token (.back done next) ++ [c]) ∈
+        incRules done next target) ∧
+    rule ('b' :: token (.back done next)) (token (.exec done next) ++ ['b']) ∈
+      incRules done next target := by
+  constructor
+  · intro c hc
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hc
+    rcases hc with rfl | rfl <;> simp [incRules, backRules]
+  · simp [incRules, backRules]
+
+/-- An increment scan crosses any initial block of complete counters,
+advancing the phase's counter index at each delimiter. -/
+theorem reaches_scanInc_prefix (P : Cslib.URM.Program) (inputs : List Nat)
+    (done : Done) (next : Code) (target current n : Nat)
+    (regs : Nat → Nat) (pre post : List Char) (st : MState)
+    (hbound : current + n ≤ target)
+    (hs : st.str = pre ++ token (.scanInc done next target current) ++
+      encodeRegs n regs ++ post)
+    (hpre : '@' ∉ pre) (hpost : '@' ∉ post)
+    (hx : ∀ j, j ≤ target →
+      rule (token (.scanInc done next target j) ++ ['x'])
+        ('x' :: token (.scanInc done next target j)) ∈ compileRules P inputs)
+    (hd : ∀ j, j < target →
+      rule (token (.scanInc done next target j) ++ ['d'])
+        ('d' :: token (.scanInc done next target (j + 1))) ∈ compileRules P inputs) :
+    Reaches (exec ({} : Config) (compileRules P inputs)) st
+      { st with str := pre ++ encodeRegs n regs ++
+        (token (.scanInc done next target (current + n)) ++ post) } := by
+  induction n generalizing current regs pre st with
+  | zero =>
+      simp only [encodeRegs, Nat.add_zero, List.append_nil] at hs ⊢
+      have heq : { st with str := pre ++ (token (.scanInc done next target current) ++ post) } =
+          st := by
+        cases st
+        simp_all [List.append_assoc]
+      rw [heq]
+      exact Reaches.refl (exec ({} : Config) (compileRules P inputs)) st
+  | succ n ih =>
+      have hcur : current < target := by omega
+      let p := Phase.scanInc done next target current
+      let p' := Phase.scanInc done next target (current + 1)
+      let tail := encodeRegs n (fun r => regs (r + 1)) ++ post
+      let mid₁ : MState :=
+        { st with str := pre ++ List.replicate (regs 0) 'x' ++ token p ++ 'd' :: tail }
+      have hacross : Reaches (exec ({} : Config) (compileRules P inputs)) st mid₁ := by
+        have h := reaches_across_xs P inputs p
+          ('d' :: token p') pre ('d' :: tail) (regs 0) st
+          (by simpa [p, tail, encodeRegs, List.append_assoc] using hs)
+          hpre (by simp [tail, hpost, marker_not_mem_encodeRegs])
+          (by intro k; simp [p])
+          (by
+            intro r
+            simp [p, p', phaseRules, hcur])
+          (by simpa [p] using hx current (by omega))
+        simpa [mid₁, List.append_assoc] using h
+      let mid₂ : MState :=
+        { mid₁ with str := pre ++ List.replicate (regs 0) 'x' ++ 'd' :: token p' ++ tail }
+      have hdelim : Reaches (exec ({} : Config) (compileRules P inputs)) mid₁ mid₂ := by
+        have h := reaches_phase_right_pair P inputs p 'd' 'x'
+          ('d' :: token p') ('x' :: token p)
+          (pre ++ List.replicate (regs 0) 'x') tail mid₁
+          (by simp [mid₁, List.append_assoc])
+          (by simp [hpre])
+          (by simp [tail, hpost, marker_not_mem_encodeRegs])
+          (by decide) (by decide) (by intro k; simp [p])
+          (by
+            intro r
+            simp [p, p', phaseRules, hcur]
+            tauto)
+          (by simpa [p, p'] using hd current hcur)
+        simpa [mid₂, List.append_assoc] using h
+      have hrest := ih (current := current + 1) (regs := fun r => regs (r + 1))
+        (pre := pre ++ List.replicate (regs 0) 'x' ++ ['d']) (st := mid₂)
+        (by omega)
+        (by simp [mid₂, p', tail, List.append_assoc])
+        (by simp [hpre])
+      have htotal := Reaches.trans hacross (Reaches.trans hdelim hrest)
+      simpa [mid₁, mid₂, p, p', tail, encodeRegs, List.append_assoc,
+        Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using htotal
+
+/-- Splitting the counter bound splits the unary register tape at the same
+counter index. -/
+theorem encodeRegs_add (a b : Nat) (regs : Nat → Nat) :
+    encodeRegs (a + b) regs = encodeRegs a regs ++
+      encodeRegs b (fun r => regs (a + r)) := by
+  induction a generalizing regs with
+  | zero => simp [encodeRegs]
+  | succ a ih =>
+      simp only [Nat.succ_add, encodeRegs]
+      rw [ih]
+      simp [List.append_assoc, Nat.add_assoc]
+
+/-- Register-tape encoding depends only on the bounded prefix of the register
+function. -/
+theorem encodeRegs_congr (R : Nat) {f g : Nat → Nat}
+    (h : ∀ r, r < R → f r = g r) : encodeRegs R f = encodeRegs R g := by
+  induction R generalizing f g with
+  | zero => rfl
+  | succ R ih =>
+      simp only [encodeRegs]
+      rw [h 0 (by omega)]
+      apply congrArg (List.replicate (g 0) 'x' ++ 'd' :: ·)
+      apply ih
+      intro r hr
+      exact h (r + 1) (by omega)
+
+/-- Incrementing a bounded counter inserts exactly one `x` in its unary run. -/
+theorem encodeRegs_up (R target : Nat) (s : CState) (hbound : target < R) :
+    encodeRegs R (s.up target).regs =
+      encodeRegs target s.regs ++ List.replicate (s.regs target) 'x' ++
+        'x' :: 'd' :: encodeRegs (R - (target + 1))
+          (fun r => s.regs (target + 1 + r)) := by
+  have hR : R = target + (1 + (R - (target + 1))) := by omega
+  conv_lhs => rw [hR, encodeRegs_add target]
+  rw [Nat.one_add]
+  simp only [encodeRegs]
+  have hprefix : encodeRegs target (s.up target).regs = encodeRegs target s.regs := by
+    apply encodeRegs_congr
+    intro r hr
+    exact CState.up_regs_of_ne s (by omega)
+  rw [hprefix]
+  simp only [Nat.add_zero]
+  rw [CState.up_regs_self]
+  have hsuffix : encodeRegs (R - (target + 1))
+      (fun r => (s.up target).regs (target + (r + 1))) =
+      encodeRegs (R - (target + 1)) (fun r => s.regs (target + 1 + r)) := by
+    apply encodeRegs_congr
+    intro r _hr
+    rw [CState.up_regs_of_ne s (by omega)]
+    congr 1
+    omega
+  rw [hsuffix]
+  simp [List.replicate_succ', List.append_assoc]
+
+/-- The original tape has the corresponding split without the inserted cell. -/
+theorem encodeRegs_split_at (R target : Nat) (regs : Nat → Nat)
+    (hbound : target < R) :
+    encodeRegs R regs = encodeRegs target regs ++
+      List.replicate (regs target) 'x' ++ 'd' ::
+        encodeRegs (R - (target + 1)) (fun r => regs (target + 1 + r)) := by
+  have hR : R = target + (1 + (R - (target + 1))) := by omega
+  conv_lhs => rw [hR, encodeRegs_add target]
+  rw [Nat.one_add]
+  simp [encodeRegs, List.append_assoc, Nat.add_comm, Nat.add_left_comm]
+
+theorem encodeRegs_cells (R : Nat) (regs : Nat → Nat) :
+    ∀ c ∈ encodeRegs R regs, c = 'x' ∨ c = 'd' := by
+  induction R generalizing regs with
+  | zero => simp [encodeRegs]
+  | succ R ih =>
+      intro c hc
+      simp only [encodeRegs, List.mem_append, List.mem_replicate, List.mem_cons] at hc
+      rcases hc with ⟨_, rfl⟩ | rfl | hc
+      · exact Or.inl rfl
+      · exact Or.inr rfl
+      · exact ih (fun r => regs (r + 1)) c hc
+
+/-- One complete structured-counter increment is simulated by the actual
+deterministic Thue interpreter, from one home-position encoding to the next. -/
+theorem reaches_inc (P : Cslib.URM.Program) (inputs : List Nat)
+    (done : Done) (next : Code) (R target : Nat) (s : CState)
+    (pre post : List Char) (st : MState) (htarget : target < R)
+    (hs : st.str = pre ++ token (.exec done (.inc target :: next)) ++
+      'b' :: encodeRegs R s.regs ++ post)
+    (hpre : '@' ∉ pre) (hpost : '@' ∉ post)
+    (hstart : rule (token (.exec done (.inc target :: next)) ++ ['b'])
+        ('b' :: token (.scanInc done next target 0)) ∈ compileRules P inputs)
+    (hscanX : ∀ j, j ≤ target →
+      rule (token (.scanInc done next target j) ++ ['x'])
+        ('x' :: token (.scanInc done next target j)) ∈ compileRules P inputs)
+    (hscanD : ∀ j, j < target →
+      rule (token (.scanInc done next target j) ++ ['d'])
+        ('d' :: token (.scanInc done next target (j + 1))) ∈ compileRules P inputs)
+    (hfinish : rule (token (.scanInc done next target target) ++ ['d'])
+        ('x' :: 'd' :: token (.back done next)) ∈ compileRules P inputs)
+    (hbackX : rule ('x' :: token (.back done next))
+        (token (.back done next) ++ ['x']) ∈ compileRules P inputs)
+    (hbackD : rule ('d' :: token (.back done next))
+        (token (.back done next) ++ ['d']) ∈ compileRules P inputs)
+    (hbackB : rule ('b' :: token (.back done next))
+        (token (.exec done next) ++ ['b']) ∈ compileRules P inputs) :
+    Reaches (exec ({} : Config) (compileRules P inputs)) st
+      { st with str := pre ++ token (.exec done next) ++
+        'b' :: encodeRegs R (s.up target).regs ++ post } := by
+  let suffix := encodeRegs (R - (target + 1))
+    (fun r => s.regs (target + 1 + r))
+  let p := Phase.scanInc done next target target
+  let mid₀ : MState :=
+    { st with str := pre ++ 'b' :: token (.scanInc done next target 0) ++
+      encodeRegs R s.regs ++ post }
+  have hentry : Reaches (exec ({} : Config) (compileRules P inputs)) st mid₀ := by
+    have h := reaches_phase_right_single P inputs
+      (.exec done (.inc target :: next)) 'b'
+      ('b' :: token (.scanInc done next target 0))
+      pre (encodeRegs R s.regs ++ post) st
+      (by simpa [List.append_assoc] using hs) hpre
+      (by simp [marker_not_mem_encodeRegs, hpost]) (by decide)
+      (by intro k h; cases h)
+      (by intro r; simp [phaseRules]) hstart
+    simpa [mid₀, List.append_assoc] using h
+  let targetTail := List.replicate (s.regs target) 'x' ++ 'd' :: suffix ++ post
+  let mid₁ : MState :=
+    { mid₀ with str := pre ++ 'b' :: encodeRegs target s.regs ++
+      (token p ++ targetTail) }
+  have hscan : Reaches (exec ({} : Config) (compileRules P inputs)) mid₀ mid₁ := by
+    have h := reaches_scanInc_prefix P inputs done next target 0 target s.regs
+      (pre ++ ['b']) targetTail mid₀ (by omega)
+      (by
+        simp only [mid₀]
+        rw [show encodeRegs R s.regs = encodeRegs target s.regs ++
+          List.replicate (s.regs target) 'x' ++ 'd' :: suffix from by
+            simpa [suffix] using encodeRegs_split_at R target s.regs htarget]
+        simp [targetTail, List.append_assoc])
+      (by simp [hpre])
+      (by simp [targetTail, suffix, hpost, marker_not_mem_encodeRegs])
+      hscanX hscanD
+    simpa [mid₁, p, List.append_assoc] using h
+  let mid₂ : MState :=
+    { mid₁ with str := pre ++ 'b' :: encodeRegs target s.regs ++
+      List.replicate (s.regs target) 'x' ++ token p ++ 'd' :: suffix ++ post }
+  have htargetRun : Reaches (exec ({} : Config) (compileRules P inputs)) mid₁ mid₂ := by
+    have h := reaches_across_xs P inputs p
+      ('x' :: 'd' :: token (.back done next))
+      (pre ++ 'b' :: encodeRegs target s.regs) ('d' :: suffix ++ post)
+      (s.regs target) mid₁
+      (by simp [mid₁, targetTail, List.append_assoc])
+      (by simp [hpre, marker_not_mem_encodeRegs])
+      (by simp [suffix, hpost, marker_not_mem_encodeRegs])
+      (by intro k; simp [p])
+      (by intro r; simp [p, phaseRules])
+      (hscanX target (by omega))
+    simpa [mid₂, List.append_assoc] using h
+  let tape := encodeRegs target s.regs ++
+    List.replicate (s.regs target) 'x' ++ ['x', 'd']
+  let mid₃ : MState :=
+    { mid₂ with str := pre ++ 'b' :: tape ++ token (.back done next) ++ suffix ++ post }
+  have hdo : Reaches (exec ({} : Config) (compileRules P inputs)) mid₂ mid₃ := by
+    have h := reaches_phase_right_pair P inputs p 'd' 'x'
+      ('x' :: 'd' :: token (.back done next)) ('x' :: token p)
+      (pre ++ 'b' :: encodeRegs target s.regs ++
+        List.replicate (s.regs target) 'x') (suffix ++ post) mid₂
+      (by simp [mid₂, List.append_assoc])
+      (by simp [hpre, marker_not_mem_encodeRegs])
+      (by simp [suffix, hpost, marker_not_mem_encodeRegs])
+      (by decide) (by decide) (by intro k; simp [p])
+      (by
+        intro r
+        simp [p, phaseRules]
+        tauto)
+      hfinish
+    simpa [mid₃, tape, List.append_assoc] using h
+  have htape : ∀ c ∈ tape, c = 'x' ∨ c = 'd' := by
+    intro c hc
+    simp only [tape, List.mem_append, List.mem_cons, List.mem_replicate,
+      List.not_mem_nil, or_false] at hc
+    rcases hc with (hc | ⟨_, rfl⟩) | rfl | rfl
+    · exact encodeRegs_cells target s.regs c hc
+    · exact Or.inl rfl
+    · exact Or.inl rfl
+    · exact Or.inr rfl
+  have hreturn := reaches_back_home P inputs done next tape pre (suffix ++ post) mid₃
+    (by simp [mid₃, List.append_assoc]) hpre
+    (by simp [suffix, hpost, marker_not_mem_encodeRegs]) htape
+    hbackX hbackD hbackB
+  have htotal := Reaches.trans hentry
+    (Reaches.trans hscan (Reaches.trans htargetRun (Reaches.trans hdo hreturn)))
+  rw [encodeRegs_up R target s htarget]
+  simpa [mid₀, mid₁, mid₂, mid₃, p, targetTail, tape, suffix,
+    List.append_assoc] using htotal
 
 /-- Total runnable compiler from a URM program and its input vector. -/
 def compile (P : Cslib.URM.Program) (inputs : List Nat) : Prog :=

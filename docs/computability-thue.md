@@ -80,9 +80,17 @@ The file now connects the compiler to the concrete substring operations in
   result to all generated rules and to the actual deterministic selector.
 - `control_rule_mem_compileRules` proves that every in-range source
   instruction has its concrete control-entry rule in the final rulebase.
+- `phaseRules` gives the canonical local rule list determined by a phase.
+  The recursive generator and finish dispatcher are proved to emit only
+  rules from such a list.
+- `compileRules_firstMatch_origin` strengthens phase recovery: the selected
+  non-control rule belongs to `phaseRules` for the represented phase, while
+  a selected control rule is tied to a concrete `P[k]? = some i` entry.
 
-The missing composition must now prove phase functionality and lift the
-structured counter derivation. For every intermediate scan state it must
+`outcomes_functional` closes the dispatch-table ambiguity: two outcomes for
+one instruction with the same unary count have the same destination PC. The
+missing composition must now extend represented states with the token's cursor
+position and lift the structured counter derivation. For every intermediate scan state it must
 establish all of the following:
 
 - membership in the relevant generator family fixes the right-hand side for

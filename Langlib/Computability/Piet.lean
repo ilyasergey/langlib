@@ -49,6 +49,14 @@ theorem runCode_append (a b : List BlockCmd) (s : MState) :
   | nil => rfl
   | cons c cs ih => simp only [List.cons_append, runCode, ih]
 
+theorem runCode_set_pos (code : List BlockCmd) (s : MState) (p : Nat × Nat) :
+    runCode code { s with pos := p } = { runCode code s with pos := p } := by
+  induction code generalizing s with
+  | nil => rfl
+  | cons c cs ih =>
+      rw [runCode, execOp_set_pos, ih]
+      rfl
+
 /-- An operation whose source block has size one. -/
 def op (o : Op) : BlockCmd := ⟨o, 0⟩
 
@@ -411,6 +419,80 @@ theorem advance_ne (h : Hue) (l : Lightness) (o : Op) :
   rw [heq] at hc
   cases h <;> cases l <;> simp [hueSteps, lightSteps, opFor] at hc
 
+/-- A command trace whose operations do not change the direction pointer or
+codel chooser. -/
+def StableCode (code : List BlockCmd) : Prop :=
+  ∀ c, c ∈ code → c.op ≠ .pointer ∧ c.op ≠ .switch
+
+/-- Proof-facing description of a horizontal run of isolated singleton
+blocks.  Every field is stated against the real grid functions used by
+`tryFrom`; generated-grid lemmas discharge these fields. -/
+inductive UnitCorridor (g : Grid) : Nat → Hue → Lightness → List BlockCmd → Prop
+  | nil (x h l) : UnitCorridor g x h l []
+  | cons {x : Nat} {h : Hue} {l : Lightness} (c : BlockCmd) (cs : List BlockCmd)
+      (hunit : c.blockSize = 1)
+      (hinfo : localInfoAt? g (x, 0) = some (singletonInfo (x, 0)))
+      (hcurrent : g.get x 0 = .chromatic h l)
+      (hstep : step? g (x, 0) .right = some (x + 1, 0))
+      (hnext : g.get (x + 1) 0 =
+        .chromatic (advance h l c.op).1 (advance h l c.op).2)
+      (tail : UnitCorridor g (x + 1) (advance h l c.op).1
+        (advance h l c.op).2 cs) :
+      UnitCorridor g x h l (c :: cs)
+
+/-- Exact multi-command bridge from a proof-facing singleton corridor to the
+actual fuel evaluator. -/
+theorem exec_unitCorridor (g : Grid) (bl : Blocks) (code : List BlockCmd)
+    (x : Nat) (h : Hue) (l : Lightness) (trace : UnitCorridor g x h l code)
+    (stable : StableCode code) (fuel : Nat) (s : MState)
+    (hpos : s.pos = (x, 0)) (hdp : s.dp = .right) (hcc : s.cc = .left) :
+    exec g bl (fuel + code.length) s =
+      exec g bl fuel { runCode code s with pos := (x + code.length, 0) } := by
+  induction trace generalizing fuel s with
+  | nil x h l =>
+      simp only [List.length_nil, Nat.add_zero, runCode]
+      rcases s with ⟨pos, dp, cc, stack, input, output⟩
+      simp_all
+  | cons c cs hunit hinfo hcurrent hstep hnext tail ih =>
+      rename_i x' h' l'
+      have hcstable := stable c (by simp)
+      have htailstable : StableCode cs := by
+        intro c' hc'
+        exact stable c' (by simp [hc'])
+      have hcurrent' : g.get s.pos.1 s.pos.2 = .chromatic h' l' := by
+        simpa [hpos] using hcurrent
+      have hinfo' : localInfoAt? g s.pos = some (singletonInfo s.pos) := by
+        simpa [hpos] using hinfo
+      have hstep' : step? g s.pos s.dp = some (x' + 1, 0) := by
+        simpa [hpos, hdp] using hstep
+      rw [show fuel + (c :: cs).length = (fuel + cs.length) + 1 by simp; omega]
+      rw [exec_singleton g bl (fuel + cs.length) s h' l' (x' + 1, 0)
+        (advance h' l' c.op).1 (advance h' l' c.op).2 c.op hinfo' hcurrent'
+        hstep' hnext (opFor_advance h' l' c.op)]
+      let moved : MState := { s with pos := (x' + 1, 0) }
+      let s₁ : MState := execOp c.op 1 moved
+      have hpos₁ : s₁.pos = (x' + 1, 0) := by
+        simp only [s₁, moved, execOp_set_pos]
+      have hdp₁ : s₁.dp = .right := by
+        simp only [s₁]
+        rw [execOp_dp_of_ne_pointer c.op 1 moved hcstable.1]
+        simpa [moved] using hdp
+      have hcc₁ : s₁.cc = .left := by
+        simp only [s₁]
+        rw [execOp_cc_of_ne_switch c.op 1 moved hcstable.2]
+        simpa [moved] using hcc
+      rw [show execOp c.op 1 { s with pos := (x' + 1, 0) } = s₁ from rfl]
+      rw [ih htailstable fuel s₁ hpos₁ hdp₁ hcc₁]
+      rw [runCode, ← hunit, show s₁ = execOp c.op c.blockSize moved by
+        simp [s₁, hunit]]
+      rw [show execOp c.op c.blockSize moved
+            = { execOp c.op c.blockSize s with pos := (x' + 1, 0) } by
+          simp only [moved, execOp_set_pos]]
+      rw [runCode_set_pos cs (execOp c.op c.blockSize s) (x' + 1, 0)]
+      congr 2
+      simp [hunit]
+      omega
+
 /-- Lay command source blocks left to right.  The final singleton is the
 destination block of the final operation. -/
 def coloredRuns : Hue → Lightness → List BlockCmd → List Codel
@@ -746,12 +828,132 @@ def guardedInstr (N next flag : Nat) : Cslib.URM.Instr → List BlockCmd
   | .T m r => guardedT N flag m r
   | .J m r q => guardedJ N next flag m r q
 
+/-- Register indices mentioned by an instruction fit inside a finite stack
+register vector. -/
+def InstrBelow (N : Nat) : Cslib.URM.Instr → Prop
+  | .Z r | .S r => r < N
+  | .T m r | .J m r _ => m < N ∧ r < N
+
+/-- The total list transformation performed by one guarded instruction.
+`getD` makes the definition executable; the correctness theorem below uses
+`InstrBelow` to show every access is in range. -/
+def guardedUpdate (next flag : Nat) (instr : Cslib.URM.Instr)
+    (regs : List Int) : List Int :=
+  match instr with
+  | .Z r => regs.set r (boolNotInt (regs.getD flag 0) * regs.getD r 0)
+  | .S r => regs.set r (regs.getD r 0 + regs.getD flag 0)
+  | .T m r => regs.set r (regs.getD r 0 +
+      regs.getD flag 0 * (regs.getD m 0 - regs.getD r 0))
+  | .J m r q =>
+      let updated := regs.set flag
+        (boolNotInt (regs.getD m 0 - regs.getD r 0) * regs.getD flag 0)
+      updated.set next (boolNotInt (updated.getD flag 0) * updated.getD next 0 +
+        (q : Int) * updated.getD flag 0)
+
+theorem runCode_guardedInstr_list (regs : List Int) (next flag : Nat)
+    (instr : Cslib.URM.Instr) (s : MState)
+    (hnext : next < regs.length) (hflag : flag < regs.length)
+    (hinstr : InstrBelow regs.length instr) (hstack : s.stack = regs) :
+    runCode (guardedInstr regs.length next flag instr) s =
+      { s with stack := guardedUpdate next flag instr regs } := by
+  cases instr with
+  | Z r =>
+      simp only [InstrBelow] at hinstr
+      simpa [guardedInstr, guardedUpdate, List.getD_eq_getElem?_getD,
+        List.getElem?_eq_getElem hflag, List.getElem?_eq_getElem hinstr] using
+        runCode_guardedZ_list regs flag r s hflag hinstr hstack
+  | S r =>
+      simp only [InstrBelow] at hinstr
+      simpa [guardedInstr, guardedUpdate, List.getD_eq_getElem?_getD,
+        List.getElem?_eq_getElem hflag, List.getElem?_eq_getElem hinstr] using
+        runCode_guardedS_list regs flag r s hflag hinstr hstack
+  | T m r =>
+      rcases hinstr with ⟨hm, hr⟩
+      simpa [guardedInstr, guardedUpdate, List.getD_eq_getElem?_getD,
+        List.getElem?_eq_getElem hflag, List.getElem?_eq_getElem hm,
+        List.getElem?_eq_getElem hr] using
+        runCode_guardedT_list regs flag m r s hflag hm hr hstack
+  | J m r q =>
+      rcases hinstr with ⟨hm, hr⟩
+      rw [show guardedInstr regs.length next flag (.J m r q) =
+          guardedJ regs.length next flag m r q from rfl,
+        runCode_guardedJ_list regs next flag m r q s hnext hflag hm hr hstack]
+      let updated := regs.set flag
+        (boolNotInt (regs[m] - regs[r]) * regs[flag])
+      have hflag' : flag < updated.length := by simpa [updated] using hflag
+      have hnext' : next < updated.length := by simpa [updated] using hnext
+      have hgetflag : updated.getD flag 0 = updated[flag] := by
+        simp [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hflag']
+      have hgetnext : updated.getD next 0 = updated[next] := by
+        simp [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hnext']
+      simp only [guardedUpdate]
+      simp only [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hflag,
+        List.getElem?_eq_getElem hm, List.getElem?_eq_getElem hr]
+      simp only [Option.getD_some]
+      rw [← hgetflag, ← hgetnext]
+      rfl
+
+/-- The total list transformation performed by a dispatcher suffix. -/
+def dispatchUpdate (pc next flag : Nat) : Nat → Program → List Int → List Int
+  | _, [], regs => regs
+  | i, instr :: rest, regs =>
+      let selected := regs.set flag
+        (if regs.getD pc 0 = (i : Int) then 1 else 0)
+      dispatchUpdate pc next flag (i + 1) rest
+        (guardedUpdate next flag instr selected)
+
 /-- One linear dispatcher pass, with source positions numbered from `i`. -/
 def dispatchFrom (N pc next flag : Nat) : Nat → Program → List BlockCmd
   | _, [] => []
   | i, instr :: rest =>
       selectInstr N pc flag i ++ guardedInstr N next flag instr ++
         dispatchFrom N pc next flag (i + 1) rest
+
+/-- Exact command semantics of a whole dispatcher suffix. -/
+theorem runCode_dispatchFrom_list (P : Program) (regs : List Int)
+    (pc next flag i : Nat) (s : MState)
+    (hpc : pc < regs.length) (hnext : next < regs.length)
+    (hflag : flag < regs.length)
+    (hbelow : ∀ instr, instr ∈ P → InstrBelow regs.length instr)
+    (hstack : s.stack = regs) :
+    runCode (dispatchFrom regs.length pc next flag i P) s =
+      { s with stack := dispatchUpdate pc next flag i P regs } := by
+  induction P generalizing i regs s with
+  | nil =>
+      rcases s with ⟨pos, dp, cc, stack, input, output⟩
+      simp_all [dispatchFrom, dispatchUpdate, runCode]
+  | cons instr rest ih =>
+      simp only [dispatchFrom, dispatchUpdate, runCode_append]
+      rw [runCode_selectInstr_list regs pc flag i s hpc hflag hstack]
+      have hgetpc : regs.getD pc 0 = regs[pc] := by
+        simp [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hpc]
+      rw [← hgetpc]
+      let selected := regs.set flag
+        (if regs.getD pc 0 = (i : Int) then 1 else 0)
+      have hlen : selected.length = regs.length := by simp [selected]
+      have hpc' : pc < selected.length := by omega
+      have hnext' : next < selected.length := by omega
+      have hflag' : flag < selected.length := by omega
+      have hinstr : InstrBelow selected.length instr := by
+        rw [hlen]
+        exact hbelow instr (by simp)
+      have hguard := runCode_guardedInstr_list selected next flag instr
+        { s with stack := selected } hnext' hflag' hinstr rfl
+      rw [show guardedInstr regs.length next flag instr =
+          guardedInstr selected.length next flag instr by rw [hlen]]
+      rw [hguard]
+      let updated := guardedUpdate next flag instr selected
+      have hulen : updated.length = regs.length := by
+        cases instr <;> simp [updated, guardedUpdate, selected]
+      have hrest : ∀ instr', instr' ∈ rest → InstrBelow updated.length instr' := by
+        intro instr' hi'
+        rw [hulen]
+        exact hbelow instr' (by simp [hi'])
+      have htail := ih updated (i + 1) { s with stack := updated }
+        (by omega) (by omega) (by omega) hrest rfl
+      rw [show dispatchFrom regs.length pc next flag (i + 1) rest =
+          dispatchFrom updated.length pc next flag (i + 1) rest by rw [hulen]]
+      simpa [selected, updated] using htail
 
 /-- Commit `next` to `pc`. -/
 def endDispatch (N pc next : Nat) : List BlockCmd :=
@@ -825,6 +1027,84 @@ def endColor : Hue → Lightness → List BlockCmd → Hue × Lightness
       let next := advance h l c.op
       endColor next.1 next.2 cs
 
+/-- A rectangular three-row grid assembled from row lists.  The loop
+compiler uses equal row lengths; the row lookup lemmas below expose its
+row-major representation to proofs. -/
+def threeRowGrid (top middle bottom : List Codel) : Grid :=
+  { width := top.length, height := 3,
+    codels := (top ++ middle ++ bottom).toArray }
+
+theorem threeRowGrid_get_top (top middle bottom : List Codel) (x : Nat)
+    (hx : x < top.length) :
+    (threeRowGrid top middle bottom).get x 0 = top[x] := by
+  simp [threeRowGrid, Grid.get, hx]
+  rw [List.getElem?_append_left hx, List.getElem?_eq_getElem hx]
+  rfl
+
+theorem threeRowGrid_get_middle (top middle bottom : List Codel) (x : Nat)
+    (hx : x < top.length) (hmiddle : middle.length = top.length) :
+    (threeRowGrid top middle bottom).get x 1 = middle[x]'(by omega) := by
+  simp [threeRowGrid, Grid.get, hx, List.getElem?_append, hmiddle]
+  split <;> simp_all <;> omega
+
+theorem threeRowGrid_get_bottom (top middle bottom : List Codel) (x : Nat)
+    (hx : x < top.length) (hmiddle : middle.length = top.length)
+    (hbottom : bottom.length = top.length) :
+    (threeRowGrid top middle bottom).get x 2 = bottom[x]'(by omega) := by
+  simp [threeRowGrid, Grid.get, hx, List.getElem?_append, hmiddle]
+  split
+  · omega
+  · split
+    · omega
+    · have heq : 2 * top.length + x - top.length - top.length = x := by omega
+      have hxb : x < bottom.length := by omega
+      rw [heq, List.getElem?_eq_getElem hxb]
+      rfl
+
+structure LoopRows where
+  top : List Codel
+  middle : List Codel
+  bottom : List Codel
+
+def loopCode (body : List BlockCmd) : List BlockCmd :=
+  pushNat 1 ++ [op .pop] ++ body
+
+/-- The three concrete rows of the fixed dispatcher loop. -/
+def loopRows (prologue body : List BlockCmd) : LoopRows :=
+  let startH := Hue.red
+  let startL := Lightness.normal
+  let prologuePath := coloredRuns startH startL prologue
+  let main := loopCode body
+  let path := coloredRuns startH startL main
+  let pivot := endColor startH startL main
+  let outBlock := advance pivot.1 pivot.2 .outNum
+  let loopBlock := advance pivot.1 pivot.2 .pop
+  let terminal := Codel.chromatic Hue.yellow Lightness.dark
+  let A := prologuePath.length
+  let L := path.length
+  { top := [.white] ++ prologuePath ++ [.white] ++ path ++
+      [.chromatic outBlock.1 outBlock.2, .white, .white, terminal]
+    middle := List.replicate (A + 1) .black ++ [.white] ++
+      List.replicate (L - 1) .black ++
+      [.chromatic loopBlock.1 loopBlock.2, .black, terminal, terminal, terminal]
+    bottom := List.replicate (A + 1) .black ++ List.replicate (L + 1) .white ++
+      [.black, terminal, terminal, terminal] }
+
+theorem loopRows_middle_length (prologue body : List BlockCmd) :
+    (loopRows prologue body).middle.length = (loopRows prologue body).top.length := by
+  simp only [loopRows, List.length_append, List.length_cons, List.length_nil,
+    List.length_replicate]
+  have hp : 0 < (coloredRuns Hue.red Lightness.normal
+      (loopCode body)).length :=
+    List.length_pos_of_ne_nil (coloredRuns_ne_nil Hue.red Lightness.normal _)
+  omega
+
+theorem loopRows_bottom_length (prologue body : List BlockCmd) :
+    (loopRows prologue body).bottom.length = (loopRows prologue body).top.length := by
+  simp only [loopRows, List.length_append, List.length_cons, List.length_nil,
+    List.length_replicate]
+  omega
+
 /-- A fixed-loop codel layout for the branchless dispatcher.
 
 Execution starts on white at `(0,0)` and slides right into the first source
@@ -834,25 +1114,113 @@ halting iteration continues right, executes `outNum`, then enters the interior
 of the terminal colour block.  None of that block's eight selected exits is
 the entry codel, and every selected exit is blocked. -/
 def loopGrid (prologue body : List BlockCmd) : Grid :=
-  let startH := Hue.red
-  let startL := Lightness.normal
-  let prologuePath := coloredRuns startH startL prologue
-  let main := pushNat 1 ++ [op .pop] ++ body
-  let path := coloredRuns startH startL main
-  let pivot := endColor startH startL main
-  let outBlock := advance pivot.1 pivot.2 .outNum
-  let loopBlock := advance pivot.1 pivot.2 .pop
-  let terminal := Codel.chromatic Hue.yellow Lightness.dark
-  let A := prologuePath.length
-  let L := path.length
-  let top := [.white] ++ prologuePath ++ [.white] ++ path ++
-    [.chromatic outBlock.1 outBlock.2, .white, .white, terminal]
-  let middle := List.replicate (A + 1) .black ++ [.white] ++
-    List.replicate (L - 1) .black ++
-    [.chromatic loopBlock.1 loopBlock.2, .black, terminal, terminal, terminal]
-  let bottom := List.replicate (A + 1) .black ++ List.replicate (L + 1) .white ++
-    [.black, terminal, terminal, terminal]
-  { width := A + L + 6, height := 3, codels := (top ++ middle ++ bottom).toArray }
+  let rows := loopRows prologue body
+  threeRowGrid rows.top rows.middle rows.bottom
+
+theorem loopGrid_get_prologue (prologue body : List BlockCmd) (j : Nat)
+    (hj : j < (coloredRuns Hue.red Lightness.normal prologue).length) :
+    (loopGrid prologue body).get (j + 1) 0 =
+      (coloredRuns Hue.red Lightness.normal prologue)[j] := by
+  let rows := loopRows prologue body
+  have hx : j + 1 < rows.top.length := by
+    simp [rows, loopRows]
+    omega
+  rw [loopGrid, threeRowGrid_get_top rows.top rows.middle rows.bottom (j + 1) hx]
+  simp only [rows, loopRows]
+  simp [List.getElem_append, hj]
+
+theorem loopGrid_get_body (prologue body : List BlockCmd) (j : Nat)
+    (hj : j < (coloredRuns Hue.red Lightness.normal
+      (loopCode body)).length) :
+    let A := (coloredRuns Hue.red Lightness.normal prologue).length
+    (loopGrid prologue body).get (A + 2 + j) 0 =
+      (coloredRuns Hue.red Lightness.normal
+        (loopCode body))[j] := by
+  dsimp only
+  let rows := loopRows prologue body
+  have hx : (coloredRuns Hue.red Lightness.normal prologue).length + 2 + j <
+      rows.top.length := by
+    simp [rows, loopRows]
+    omega
+  rw [loopGrid, threeRowGrid_get_top rows.top rows.middle rows.bottom _ hx]
+  simp only [rows, loopRows]
+  let prologuePath := coloredRuns Hue.red Lightness.normal prologue
+  let path := coloredRuns Hue.red Lightness.normal (loopCode body)
+  let tail :=
+    [Codel.chromatic
+        (advance (endColor Hue.red Lightness.normal (loopCode body)).1
+          (endColor Hue.red Lightness.normal (loopCode body)).2 .outNum).1
+        (advance (endColor Hue.red Lightness.normal (loopCode body)).1
+          (endColor Hue.red Lightness.normal (loopCode body)).2 .outNum).2,
+      .white, .white, Codel.chromatic Hue.yellow Lightness.dark]
+  let whole : List Codel :=
+    (([Codel.white] ++ prologuePath ++ [Codel.white]) ++ path) ++ tail
+  have hwhole : (coloredRuns Hue.red Lightness.normal prologue).length + 2 + j <
+      whole.length := by simp [whole, prologuePath, path]; omega
+  change whole[(coloredRuns Hue.red Lightness.normal prologue).length + 2 + j]'hwhole =
+    path[j]'(by simpa [path] using hj)
+  simp only [whole]
+  rw [List.getElem_append_left (by simp [prologuePath, path]; omega)]
+  rw [List.getElem_append_right (by simp [prologuePath])]
+  have heq : (coloredRuns Hue.red Lightness.normal prologue).length + 2 + j -
+      ([Codel.white] ++ prologuePath ++ [Codel.white]).length = j := by
+    simp [prologuePath]
+  simpa only [heq]
+
+theorem loopGrid_get_prologue_down (prologue body : List BlockCmd) (j : Nat)
+    (hj : j < (coloredRuns Hue.red Lightness.normal prologue).length) :
+    (loopGrid prologue body).get (j + 1) 1 = .black := by
+  let rows := loopRows prologue body
+  have hx : j + 1 < rows.top.length := by
+    simp [rows, loopRows]
+    omega
+  rw [loopGrid, threeRowGrid_get_middle rows.top rows.middle rows.bottom
+    (j + 1) hx (loopRows_middle_length prologue body)]
+  simp only [rows, loopRows]
+  simp [List.getElem_append, hj]
+
+theorem loopGrid_get_body_down (prologue body : List BlockCmd) (j : Nat)
+    (hj : j + 1 < (coloredRuns Hue.red Lightness.normal
+      (loopCode body)).length) :
+    let A := (coloredRuns Hue.red Lightness.normal prologue).length
+    (loopGrid prologue body).get (A + 2 + j) 1 = .black := by
+  dsimp only
+  let rows := loopRows prologue body
+  have hx : (coloredRuns Hue.red Lightness.normal prologue).length + 2 + j <
+      rows.top.length := by
+    simp [rows, loopRows]
+    omega
+  rw [loopGrid, threeRowGrid_get_middle rows.top rows.middle rows.bottom _ hx
+    (loopRows_middle_length prologue body)]
+  simp only [rows, loopRows]
+  let A := (coloredRuns Hue.red Lightness.normal prologue).length
+  let L := (coloredRuns Hue.red Lightness.normal (loopCode body)).length
+  let tail : List Codel :=
+    [Codel.chromatic
+        (advance (endColor Hue.red Lightness.normal (loopCode body)).1
+          (endColor Hue.red Lightness.normal (loopCode body)).2 .pop).1
+        (advance (endColor Hue.red Lightness.normal (loopCode body)).1
+          (endColor Hue.red Lightness.normal (loopCode body)).2 .pop).2,
+      .black, Codel.chromatic Hue.yellow Lightness.dark,
+      Codel.chromatic Hue.yellow Lightness.dark,
+      Codel.chromatic Hue.yellow Lightness.dark]
+  let whole : List Codel :=
+    ((List.replicate (A + 1) Codel.black ++ [Codel.white]) ++
+      List.replicate (L - 1) Codel.black) ++ tail
+  have hwhole : A + 2 + j < whole.length := by
+    simp [whole, A, L]
+    omega
+  change whole[A + 2 + j]'hwhole = .black
+  simp only [whole]
+  rw [List.getElem_append_left (by simp [A, L]; omega)]
+  rw [List.getElem_append_right (by simp [A])]
+  have heq : A + 2 + j -
+      (List.replicate (A + 1) Codel.black ++ [Codel.white]).length = j := by
+    simp
+  have hj' : j < (List.replicate (L - 1) Codel.black).length := by
+    simp [L]
+    omega
+  simpa only [heq] using (List.getElem_replicate hj')
 
 /-- Full runnable compiler, including arbitrary `J` targets.  Its command
 trace proof is developed above; this definition is kept separate from
