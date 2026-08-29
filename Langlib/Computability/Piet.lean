@@ -2978,6 +2978,227 @@ theorem exec_toPivot (prologue body : List BlockCmd) (hu : UnitCode (loopCode bo
   rw [show pw prologue + 2 + (stable.length + 1) + 1 =
     pw prologue + bw body + 1 from by omega]
 
+/-! ## The two branches out of the pivot
+
+`pointer` has consumed the running flag, so the direction pointer is either
+still right, in which case the run prints the answer and slides into the
+terminal, or turned down, in which case it pops the answer and follows the
+return corridor back to the first codel of the loop body. -/
+
+/-- The neighbours of any codel. -/
+theorem mem_neighbours_any (g : Grid) (x y : Nat) (q : Nat × Nat)
+    (hq : q ∈ neighbours g (x, y)) :
+    q = (x + 1, y) ∨ q = (x, y + 1) ∨ (0 < x ∧ q = (x - 1, y)) ∨
+      (0 < y ∧ q = (x, y - 1)) := by
+  by_cases hr : x + 1 < g.width <;> by_cases hd : y + 1 < g.height <;>
+    by_cases hl : 0 < x <;> by_cases hu : 0 < y <;>
+    simp [neighbours, pushStep, step?, hr, hd, hl, hu] at hq <;> tauto
+
+/-- Isolation of a codel from its four neighbours. -/
+theorem localInfoAt?_any (g : Grid) (h : Hue) (l : Lightness) (x y : Nat)
+    (hx : x < g.width) (hy : y < g.height)
+    (hcur : g.get x y = .chromatic h l)
+    (hright : (g.get (x + 1) y != Codel.chromatic h l) = true)
+    (hdown : (g.get x (y + 1) != Codel.chromatic h l) = true)
+    (hleft : 0 < x → (g.get (x - 1) y != Codel.chromatic h l) = true)
+    (hup : 0 < y → (g.get x (y - 1) != Codel.chromatic h l) = true) :
+    localInfoAt? g (x, y) = some (singletonInfo (x, y)) := by
+  apply localInfoAt?_isolated g h l (x, y) hx hy hcur
+  intro q hq
+  rcases mem_neighbours_any g x y q hq with rfl | rfl | ⟨h0, rfl⟩ | ⟨h0, rfl⟩
+  · exact hright
+  · exact hdown
+  · exact hleft h0
+  · exact hup h0
+
+/-- The block that prints the answer is its own colour block. -/
+theorem loopGrid_out_isolated (prologue body : List BlockCmd)
+    (hu : UnitCode (loopCode body)) :
+    localInfoAt? (loopGrid prologue body) (pw prologue + bw body + 2, 0) =
+      some (singletonInfo (pw prologue + bw body + 2, 0)) := by
+  have hbw : bw body = (loopCode body).length + 1 :=
+    coloredRuns_length_of_unit _ _ _ hu
+  have hpivot := loopGrid_body_colour prologue body hu (loopCode body).length (by omega)
+  rw [colourAt_full] at hpivot
+  rw [show pw prologue + 2 + (loopCode body).length = pw prologue + bw body + 1
+    from by omega] at hpivot
+  apply localInfoAt?_top _ _ _ _ (by rw [loopGrid_width]; omega)
+    (by rw [loopGrid_height]; omega) (loopGrid_get_out prologue body)
+  · intro _
+    rw [show pw prologue + bw body + 2 - 1 = pw prologue + bw body + 1 from by omega,
+      hpivot]
+    apply chromatic_bne
+    exact fun he => advance_ne _ _ Op.outNum he.symm
+  · rw [show pw prologue + bw body + 2 + 1 = pw prologue + bw body + 3 from rfl,
+      loopGrid_get_outWhite]
+    rfl
+  · rw [loopGrid_get_midBlack]
+    rfl
+
+/-- The `pop` block the loop turns down through is its own colour block. -/
+theorem loopGrid_loopBlock_isolated (prologue body : List BlockCmd)
+    (hu : UnitCode (loopCode body)) (hlong : 2 ≤ (loopCode body).length) :
+    localInfoAt? (loopGrid prologue body) (pw prologue + bw body + 1, 1) =
+      some (singletonInfo (pw prologue + bw body + 1, 1)) := by
+  have hbw : bw body = (loopCode body).length + 1 :=
+    coloredRuns_length_of_unit _ _ _ hu
+  have hpivot := loopGrid_body_colour prologue body hu (loopCode body).length (by omega)
+  rw [colourAt_full] at hpivot
+  rw [show pw prologue + 2 + (loopCode body).length = pw prologue + bw body + 1
+    from by omega] at hpivot
+  apply localInfoAt?_any _ _ _ _ _ (by rw [loopGrid_width]; omega)
+    (by rw [loopGrid_height]; omega) (loopGrid_get_loopBlock prologue body)
+  · rw [show pw prologue + bw body + 1 + 1 = pw prologue + bw body + 2 from rfl,
+      loopGrid_get_midBlack]
+    rfl
+  · rw [show (1 : Nat) + 1 = 2 from rfl]
+    rw [show pw prologue + bw body + 1 = pw prologue + 1 + bw body from by omega,
+      loopGrid_get_bottomWhite prologue body (bw body) (by omega)]
+    rfl
+  · intro _
+    have hd := loopGrid_get_body_down prologue body ((loopCode body).length - 1)
+      (by show (loopCode body).length - 1 + 1 < bw body; omega)
+    simp only at hd
+    rw [show pw prologue + bw body + 1 - 1 =
+      (coloredRuns Hue.red Lightness.normal prologue).length + 2 +
+        ((loopCode body).length - 1) from by
+      show pw prologue + bw body + 1 - 1 = pw prologue + 2 + ((loopCode body).length - 1)
+      omega]
+    rw [hd]
+    rfl
+  · intro _
+    rw [show (1 : Nat) - 1 = 0 from rfl, hpivot]
+    apply chromatic_bne
+    exact fun he => advance_ne _ _ Op.pop he.symm
+
+/-- The halting branch: the pivot leaves the direction pointing right, so
+the run prints the answer and slides into the terminal block. -/
+theorem exec_halt_branch (prologue body : List BlockCmd)
+    (hu : UnitCode (loopCode body)) (bl : Blocks) (fuel : Nat) (s : MState)
+    (hpos : s.pos = (pw prologue + bw body + 1, 0)) (hdp : s.dp = .right) :
+    exec (loopGrid prologue body) bl (fuel + 3) s =
+      ({ execOp .outNum 1 { s with pos := (pw prologue + bw body + 2, 0) } with
+          pos := (pw prologue + bw body + 4, 0), dp := .right }, Exit.halted) := by
+  have hbw : bw body = (loopCode body).length + 1 :=
+    coloredRuns_length_of_unit _ _ _ hu
+  have hpivot := loopGrid_body_colour prologue body hu (loopCode body).length (by omega)
+  rw [colourAt_full] at hpivot
+  rw [show pw prologue + 2 + (loopCode body).length = pw prologue + bw body + 1
+    from by omega] at hpivot
+  have hsf : slideFuel (loopGrid prologue body) =
+      (4 * (pw prologue + bw body + 5) * 3 + 7) + 1 := by
+    rw [slideFuel, loopGrid_width, loopGrid_height]
+  have hiso : localInfoAt? (loopGrid prologue body) (pw prologue + bw body + 1, 0) =
+      some (singletonInfo (pw prologue + bw body + 1, 0)) := by
+    have h := loopGrid_body_isolated prologue body hu (loopCode body).length (by omega)
+    rwa [show pw prologue + 2 + (loopCode body).length = pw prologue + bw body + 1
+      from by omega] at h
+  -- print the answer
+  rw [show fuel + 3 = (fuel + 2) + 1 from rfl]
+  rw [exec_singleton _ bl (fuel + 2) s _ _ (pw prologue + bw body + 2, 0) _ _ .outNum
+    (by rw [hpos]; exact hiso)
+    (by rw [hpos]; exact hpivot)
+    (by rw [hpos, hdp]; simp only [step?]; rw [if_pos (by rw [loopGrid_width]; omega)])
+    (loopGrid_get_out prologue body) (opFor_advance _ _ _)]
+  -- slide into the terminal
+  rw [show fuel + 2 = (fuel + 1) + 1 from rfl]
+  rw [exec_white _ bl (fuel + 1) _ _ _ (pw prologue + bw body + 3, 0)
+    (pw prologue + bw body + 4, 0) .right _
+    (by
+      simp only [execOp_set_pos]
+      exact loopGrid_out_isolated prologue body hu)
+    (by simp only [execOp_set_pos]; exact loopGrid_get_out prologue body)
+    (by
+      simp only [execOp_set_pos]
+      rw [execOp_dp_of_ne_pointer _ _ _ (by simp), hdp]
+      simp only [step?]
+      rw [if_pos (by rw [loopGrid_width]; omega)])
+    (loopGrid_get_outWhite prologue body)
+    (by
+      simp only [execOp_set_pos]
+      rw [execOp_dp_of_ne_pointer _ _ _ (by simp), hdp, hsf]
+      exact slide_land_right _ _ _ _ _ _ Hue.yellow Lightness.dark (by simp)
+        (by simp only [step?]; rw [if_pos (by rw [loopGrid_width]; omega)])
+        (loopGrid_get_term00 prologue body))]
+  -- and halt
+  rw [loopGrid_exec_halt prologue body bl fuel _ (by simp)]
+  simp [execOp_set_pos]
+
+/-- The looping branch: the pivot turns the direction pointer down, so the
+run pops the answer and follows the return corridor back to the first codel
+of the loop body. -/
+theorem exec_loop_branch (prologue body : List BlockCmd)
+    (hu : UnitCode (loopCode body)) (hlong : 2 ≤ (loopCode body).length)
+    (bl : Blocks) (fuel : Nat) (s : MState)
+    (hpos : s.pos = (pw prologue + bw body + 1, 0)) (hdp : s.dp = .down) :
+    exec (loopGrid prologue body) bl (fuel + 2) s =
+      exec (loopGrid prologue body) bl fuel
+        { execOp .pop 1 { s with pos := (pw prologue + bw body + 1, 1) } with
+          pos := (pw prologue + 2, 0), dp := .right, cc := s.cc.toggle } := by
+  have hbw : bw body = (loopCode body).length + 1 :=
+    coloredRuns_length_of_unit _ _ _ hu
+  have hpivot := loopGrid_body_colour prologue body hu (loopCode body).length (by omega)
+  rw [colourAt_full] at hpivot
+  rw [show pw prologue + 2 + (loopCode body).length = pw prologue + bw body + 1
+    from by omega] at hpivot
+  have hiso : localInfoAt? (loopGrid prologue body) (pw prologue + bw body + 1, 0) =
+      some (singletonInfo (pw prologue + bw body + 1, 0)) := by
+    have h := loopGrid_body_isolated prologue body hu (loopCode body).length (by omega)
+    rwa [show pw prologue + 2 + (loopCode body).length = pw prologue + bw body + 1
+      from by omega] at h
+  have hsf : slideFuel (loopGrid prologue body) =
+      (12 * pw prologue + 11 * bw body + 62) + (bw body + 6) := by
+    rw [slideFuel, loopGrid_width, loopGrid_height]
+    omega
+  have hfirst : (loopGrid prologue body).get (pw prologue + 2) 0 =
+      .chromatic Hue.red Lightness.normal := by
+    have h := loopGrid_body_colour prologue body hu 0 (by omega)
+    simpa using h
+  -- pop the answer
+  rw [show fuel + 2 = (fuel + 1) + 1 from rfl]
+  rw [exec_singleton _ bl (fuel + 1) s _ _ (pw prologue + bw body + 1, 1) _ _ .pop
+    (by rw [hpos]; exact hiso)
+    (by rw [hpos]; exact hpivot)
+    (by rw [hpos, hdp]; simp only [step?]; rw [if_pos (by rw [loopGrid_height]; omega)])
+    (loopGrid_get_loopBlock prologue body) (opFor_advance _ _ _)]
+  -- and follow the return corridor
+  rw [exec_white _ bl fuel _ _ _ (pw prologue + bw body + 1, 2)
+    (pw prologue + 2, 0) .right _
+    (by
+      simp only [execOp_set_pos]
+      exact loopGrid_loopBlock_isolated prologue body hu hlong)
+    (by simp only [execOp_set_pos]; exact loopGrid_get_loopBlock prologue body)
+    (by
+      simp only [execOp_set_pos]
+      rw [execOp_dp_of_ne_pointer _ _ _ (by simp), hdp]
+      simp only [step?]
+      rw [if_pos (by rw [loopGrid_height]; omega)])
+    (by
+      rw [show pw prologue + bw body + 1 = pw prologue + 1 + bw body from by omega]
+      exact loopGrid_get_bottomWhite prologue body (bw body) (by omega))
+    (by
+      simp only [execOp_set_pos]
+      rw [execOp_dp_of_ne_pointer _ _ _ (by simp), hdp, hsf,
+        execOp_cc_of_ne_switch _ _ _ (by simp)]
+      rw [show pw prologue + bw body + 1 = pw prologue + 1 + bw body from by omega]
+      exact slide_return (loopGrid prologue body) (pw prologue) (bw body)
+        (12 * pw prologue + 11 * bw body + 62) s.cc Hue.red Lightness.normal
+        (bw_pos body)
+        (by
+          intro p
+          simp only [step?]
+          rw [if_neg (by rw [loopGrid_height]; omega)])
+        (by
+          intro j hj
+          rw [show pw prologue + 1 + bw body - j - 1 =
+            pw prologue + 1 + (bw body - j - 1) from by omega]
+          exact loopGrid_get_bottomWhite prologue body (bw body - j - 1) (by omega))
+        (loopGrid_get_bottomBlack prologue body)
+        (loopGrid_get_sepMiddle prologue body)
+        (loopGrid_get_sep prologue body)
+        hfirst
+        (by rw [loopGrid_width]; omega))]
+
 /-- Full compiler with singleton command blocks. -/
 def compile (P : Program) (inputs : List Nat) : Grid :=
   let base := registerDepth P inputs
