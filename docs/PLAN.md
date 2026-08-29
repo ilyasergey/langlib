@@ -90,10 +90,29 @@ run on the target interpreter, compare with the Turpentine interpreter's output.
 
 ## Stage 5: Velvet examples and differential testing `[ ]`
 
-Port examples from Velvet (isqrt, sum of digits, sorting-adjacent loops,
-etc.) to `.turp`, run them through every compiler, and extend `lake test` to
-cover the full matrix. Differential-test the esolang interpreters against
-non-Lean references where installable.
+Port examples from Velvet (`/Users/ilyasergey/Work/Lean/velvet-dev`) to
+`.turp`, run them through every compiler, and extend `lake test` to cover
+the full matrix.
+
+Already ported (Stage 3): `isqrt.turp` (Velvet's `Sqrt`) and
+`sumdigits.turp` (`SumOfDigits`). Both are scalar loops, which is all
+Turpentine currently has.
+
+**Blocker, decided deliberately:** the remaining interesting Velvet
+examples (`MaxElem`, `IsSorted`, `InsertionSort`, `RunLengthEncoding`)
+are all about arrays, and Turpentine has no array type. Adding one is a
+Stage 5 prerequisite, not a Stage 3 omission to fix in a hurry: the AST
+change ripples into the type checker, the interpreter, and every backend
+(a brainfuck backend needs a tape layout for a variable-length array; a
+whitespace backend gets it nearly free from the heap; subleq needs
+computed addressing, which subleq does not have, so it needs
+self-modifying address patching). Do it after the first three compilers
+land and their fragments are documented, so the array design can be
+chosen against real backend constraints rather than guessed.
+
+Scalar Velvet examples portable today without arrays: `IsNonPrime`,
+`Loops`, `LoopControl`, `Recursion` (needs procedures, another gap worth
+scoping at the same time).
 
 ## Stage 6: verification pipeline `[~]`
 
