@@ -101,10 +101,77 @@ def runner : Runner where
     , "compiler choice, for compile and exec:"
     , "  --bespoke    hand-written backend: whole language, compact output, unverified."
     , "               This is the default when neither flag is given."
-    , "  --certified  derived from the language's Turing-completeness proof: correct by"
+    , "  --tc         derived from the language's Turing-completeness proof: correct by"
     , "               construction, far larger output, and accepts only the I/O-free"
     , "               fragment (see docs/certified-compilation.md)."
     , "  Either way the chosen scheme is named in the message the command prints." ]
+
+/-- The full help. Turpentine has four subcommands and two compilers, so
+the generic `Runner` usage is not enough; this replaces it. -/
+def helpText : String :=
+  String.intercalate "\n"
+    [ "turpentine: the Well-Typed Formalism, LangLib's source language."
+    , ""
+    , "usage:"
+    , "  lake exe turpentine run     [options] <file.turp>"
+    , "  lake exe turpentine check              <file.turp>"
+    , s!"  lake exe turpentine compile --to  <{backendNames}> [options] <file.turp>"
+    , s!"  lake exe turpentine exec    --via <{backendNames}> [options] <file.turp>"
+    , ""
+    , "subcommands:"
+    , "  run       parse, type-check, and interpret. The default: a bare"
+    , "            file argument with no subcommand runs the program."
+    , "  check     parse and type-check only, then report the variable count."
+    , "            Nothing is executed."
+    , "  compile   translate to a target language and emit its source."
+    , "  exec      translate in memory, then immediately run the result on"
+    , "            that target's own interpreter. The output should match"
+    , "            `run` exactly, so this doubles as a differential test."
+    , ""
+    , "choosing a target (compile and exec):"
+    , s!"  --to <lang>    for compile; one of {backendNames}"
+    , s!"  --via <lang>   for exec; one of {backendNames}"
+    , ""
+    , "choosing a compiler (compile and exec):"
+    , "  --bespoke  hand-written for that target. Accepts the whole language,"
+    , "             emits compact code, and is not verified. This is the"
+    , "             default when neither flag is given."
+    , "  --tc       derived from the target's Turing-completeness proof, by"
+    , "             composing it with the shared Turpentine-to-URM pass."
+    , "             Correct by construction. Accepts only the I/O-free"
+    , "             fragment: no input or output statements, no subtraction,"
+    , "             division or modulo, no arrays, no && or ||, and the"
+    , "             result must be left in a variable named `answer`."
+    , "             Not every target has one; those that do are marked in"
+    , "             docs/README.md. See docs/certified-compilation.md."
+    , "  Passing both is an error. Whichever is used is named in the message"
+    , "  the command prints, so a build log records which compiler ran."
+    , ""
+    , "output (compile):"
+    , "  -o <file>  write the target program to <file>. Without it the"
+    , "             program goes to stdout and the note to stderr, so"
+    , "             redirecting captures only the program."
+    , ""
+    , "execution (run and exec):"
+    , s!"  --fuel N   step budget before giving up (default {200000000})."
+    , "             Running out is reported distinctly from halting."
+    , "  --verbose  report on stderr how the run ended, and for exec how"
+    , "             large the compiled program was."
+    , ""
+    , "other:"
+    , "  --help     print this message."
+    , ""
+    , "input and output:"
+    , "  Input is read from stdin, piped or redirected; when stdin is an"
+    , "  interactive terminal the program sees empty input. Program output"
+    , "  goes to stdout, diagnostics to stderr."
+    , ""
+    , "exit codes:"
+    , "  0  the program halted normally"
+    , "  1  runtime error, type error, or a program outside the compiler's"
+    , "     supported fragment"
+    , "  2  out of fuel"
+    , "  3  parse error, or a problem with the command line" ]
 
 def checkMain (file : String) : IO UInt32 := do
   let src ← try
@@ -137,14 +204,14 @@ def compileMain (args : List String) : IO UInt32 := do
     match rest with
     | [] => break
     | "--to" :: t :: rs => target? := some t; rest := rs
-    | "--certified" :: rs =>
+    | "--tc" :: rs =>
       if bespokeAsked then
-        IO.eprintln "turpentine compile: pass --bespoke or --certified, not both"
+        IO.eprintln "turpentine compile: pass --bespoke or --tc, not both"
         return 3
       useCertified := true; rest := rs
     | "--bespoke" :: rs =>
       if useCertified then
-        IO.eprintln "turpentine compile: pass --bespoke or --certified, not both"
+        IO.eprintln "turpentine compile: pass --bespoke or --tc, not both"
         return 3
       bespokeAsked := true; rest := rs
     | "-o" :: o :: rs => out? := some o; rest := rs
@@ -208,14 +275,14 @@ def execMain (args : List String) : IO UInt32 := do
     match rest with
     | [] => break
     | "--via" :: t :: rs => target? := some t; rest := rs
-    | "--certified" :: rs =>
+    | "--tc" :: rs =>
       if bespokeAsked then
-        IO.eprintln "turpentine exec: pass --bespoke or --certified, not both"
+        IO.eprintln "turpentine exec: pass --bespoke or --tc, not both"
         return 3
       useCertified := true; rest := rs
     | "--bespoke" :: rs =>
       if useCertified then
-        IO.eprintln "turpentine exec: pass --bespoke or --certified, not both"
+        IO.eprintln "turpentine exec: pass --bespoke or --tc, not both"
         return 3
       bespokeAsked := true; rest := rs
     | "--verbose" :: rs => verbose := true; rest := rs
@@ -286,6 +353,9 @@ end Langlib.Turpentine
 
 open Langlib.Turpentine in
 def main (args : List String) : IO UInt32 := do
+  if args.contains "--help" || args.contains "-h" || args.isEmpty then
+    IO.println helpText
+    return (if args.isEmpty then 3 else 0)
   match args with
   | "check" :: [file] => checkMain file
   | "check" :: _ =>

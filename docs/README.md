@@ -52,13 +52,13 @@ columns say which of the two schemes each language has:
 ```
 lake exe turpentine run <file.turp>                          # interpret
 lake exe turpentine check <file.turp>                        # type-check only
-lake exe turpentine compile --to <lang> [--bespoke|--certified] [-o out] <file.turp>
-lake exe turpentine exec --via <lang> [--bespoke|--certified] <file.turp>
+lake exe turpentine compile --to <lang> [--bespoke|--tc] [-o out] <file.turp>
+lake exe turpentine exec --via <lang> [--bespoke|--tc] <file.turp>
 ```
 
 `exec` compiles in memory and immediately runs the result on that
 language's own interpreter, so its output should match `run` exactly.
-`--bespoke` is the default and accepts the whole language; `--certified`
+`--bespoke` is the default and accepts the whole language; `--tc`
 uses the compiler derived from the target's completeness proof and accepts
 only an I/O-free fragment. Worked examples of every mode, with real output,
 are in [certified-compilation.md](certified-compilation.md).

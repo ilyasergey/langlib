@@ -382,7 +382,7 @@ test than a golden file.
 
 ## Every mode, with real output
 
-`compile` and `exec` each take `--bespoke` or `--certified`, so the choice
+`compile` and `exec` each take `--bespoke` or `--tc`, so the choice
 of compiler is explicit; passing both is an error, passing neither uses the
 bespoke one, and whichever runs is named in the message, so a build log
 records which compiler produced an artifact.
@@ -449,7 +449,7 @@ Output:
 ### Compile and run in one step, certified
 
 ```
-lake exe turpentine exec --via whitespace --certified sum.turp
+lake exe turpentine exec --via whitespace --tc sum.turp
 ```
 
 Output:
@@ -487,7 +487,7 @@ Subleq's only output primitive is a single byte, so its `decodeOutput`
 counts bytes: ten of them is the answer.
 
 ```
-lake exe turpentine compile --to subleq --certified -o sum.sq sum.turp
+lake exe turpentine compile --to subleq --tc -o sum.sq sum.turp
 ```
 
 Output:
@@ -543,7 +543,7 @@ Out of fragment, the certified compiler names the construct rather than
 emitting something it cannot justify:
 
 ```
-echo 17 | lake exe turpentine exec --via whitespace --certified Langlib/Examples/Turpentine/isqrt.turp
+echo 17 | lake exe turpentine exec --via whitespace --tc Langlib/Examples/Turpentine/isqrt.turp
 ```
 
 Output:
@@ -555,7 +555,7 @@ turpentine exec: 'x' has an initialiser; the certified URM fragment declares var
 A target with no completeness proof has no certified compiler to offer:
 
 ```
-lake exe turpentine compile --to brainfuck --certified sum.turp
+lake exe turpentine compile --to brainfuck --tc sum.turp
 ```
 
 Output:

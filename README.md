@@ -99,7 +99,7 @@ composing it with a single shared Turpentine-to-register-machine pass,
 [`Compile/URM.lean`](Langlib/Turpentine/Compile/URM.lean), yields a
 correct-by-construction compiler into any language proved Turing complete.
 Choose between them explicitly: `compile` and `exec` each take `--bespoke`
-or `--certified`, they refuse both at once, and each names the scheme it
+or `--tc`, they refuse both at once, and each names the scheme it
 used in its output, so a build log says which compiler made the artifact.
 The certified fragment is I/O-free and names its result in a variable
 called `answer`.
@@ -315,7 +315,7 @@ Output:
 Turpentine programs can be interpreted, compiled to an esolang, or
 compiled and run in one step. Both compilers are available for each
 target: `--bespoke` (hand-written, whole language, compact, unverified) and
-`--certified` (derived from the target's Turing-completeness proof, correct
+`--tc` (derived from the target's Turing-completeness proof, correct
 by construction, larger, and restricted to an I/O-free fragment). Passing
 neither uses the bespoke one; passing both is an error.
 
@@ -373,7 +373,7 @@ The certified compiler needs a program in its fragment: no I/O, and the
 result left in a variable called `answer`.
 
 ```
-lake exe turpentine exec --via whitespace --certified sum.turp
+lake exe turpentine exec --via whitespace --tc sum.turp
 ```
 
 Output:
@@ -386,7 +386,7 @@ Outside that fragment it says which construct is the problem rather than
 emitting something it cannot justify.
 
 ```
-echo 17 | lake exe turpentine exec --via whitespace --certified Langlib/Examples/Turpentine/isqrt.turp
+echo 17 | lake exe turpentine exec --via whitespace --tc Langlib/Examples/Turpentine/isqrt.turp
 ```
 
 Output:

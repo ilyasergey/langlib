@@ -333,14 +333,14 @@ lake exe turpentine compile --to <whitespace|subleq> [-o out] file.turp
 Three backends exist, and all accept the entire language: no statement
 form, operator, or I/O style is out of fragment.
 
-There is also a **certified** compiler, selected with `--certified`, which
+There is also a **certified** compiler, selected with `--tc`, which
 is derived from a language's Turing-completeness proof rather than written
 by hand. It is correct by construction and accepts only an I/O-free
 fragment whose result is named by a variable called `answer`; see
 [certified-compilation.md](../certified-compilation.md). For example:
 
 ```
-echo | lake exe turpentine exec --via whitespace --certified sum.turp
+echo | lake exe turpentine exec --via whitespace --tc sum.turp
 ```
  Each documents
 its layout and its semantic gaps in `docs/<langname>/compiler.md`, and

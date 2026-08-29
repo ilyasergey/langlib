@@ -34,8 +34,9 @@ lake exe turpentine check file.turp
 
 Input comes from stdin (pipe or redirect;
 a terminal stdin means empty input); `--verbose` reports how the run ended.
-`compile` and `exec` each take `--bespoke` (the default: hand-written,
-whole language, compact, unverified) or `--certified` (derived from the
+`lake exe turpentine --help` documents every subcommand, flag and exit
+code. In short: `compile` and `exec` each take `--bespoke` (the default: hand-written,
+whole language, compact, unverified) or `--tc` (derived from the
 target's Turing-completeness proof: correct by construction, much larger,
 and restricted to the I/O-free fragment documented in
 [docs/certified-compilation.md](../../docs/certified-compilation.md)).
