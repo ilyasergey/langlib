@@ -1,7 +1,9 @@
 # Compiling Turpentine to Malbolge
 
-* **Status**: planned. Hard, tractable, and the most valuable thing in
-  Stage 4 if it lands.
+* **Status**: planned, for a bounded fragment only. A full compiler is
+  impossible here: Malbolge cannot express every computation, so no total
+  translation from a Turing-complete source can exist. Malbolge Unshackled
+  is the target to want a full compiler for.
 * **Family**: none. Malbolge is not like anything else here, and that is
   the point.
 
@@ -78,9 +80,18 @@ backend can accept.
 
 ## Fragment
 
-Bounded, and honestly so. Malbolge is a bounded-storage machine (see
-"Turing completeness" below), so no backend can accept all of Turpentine.
-Expect:
+Bounded, and necessarily so: **there can be no full compiler to Malbolge**,
+for the same reason there can be none to Befunge-93. Malbolge is a
+bounded-storage machine, so it cannot express every computation, so no
+translation from a Turing-complete source language can be total. Any
+backend accepts a fragment, and the fragment is bounded by Malbolge's
+59049 words rather than by how hard we are willing to work.
+
+Malbolge Unshackled lifts exactly this bound, which is why a full compiler
+to *that* language is possible and is planned separately; see
+`docs/malbolge-unshackled/compiler.md`.
+
+The bound in detail. Expect:
 
 * a program-size limit, set by whatever the VM leaves of the 59049 words;
 * integers bounded by the VM's word representation, not Turpentine's
@@ -119,11 +130,13 @@ memory is 59049 words of 59049 possible values, a large but finite state
 space, so its halting problem is decidable. `docs/PLAN.md` Stage 8 plans
 that proof, which has the same shape as Befunge-93's.
 
-Turing completeness returns in two variants that lift the bound:
+Turing completeness returns in two variants that lift the bound: Lou
 Scheffer's Malbolge-T, in which a program may re-read its own output, and
-Lutter's Malbolge Unshackled, which extends the addressing. Both are
-roadmap items (`docs/ROADMAP.md`), and a compiler targeting Unshackled
-would have no size bound to apologise for.
+Ørjan Johansen's Malbolge Unshackled (2007), which makes cell values and
+addresses unbounded. Unshackled is Turing complete, settled in 2020 by
+MalbolgeLisp, and it is being implemented here, so a compiler targeting
+*it* has no size bound to apologise for. See
+`docs/malbolge-unshackled/compiler.md`.
 
 ## Credit and copyright
 

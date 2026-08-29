@@ -2,6 +2,25 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-31 (evening)
+
+* The status matrix now separates **TC known** from **TC proved**. The
+  first is what the literature or our spec page argues, and can be wrong;
+  the second is a machine-checked theorem in this repository, with a link.
+  Every entry in the second column is currently empty, which is the honest
+  state of things and the point of having the column.
+* The table also records that **a language cannot host a full compiler
+  unless it is Turing complete**. Malbolge gets a bounded fragment, not a
+  planned full compiler: it has 59049 words for code and data together, so
+  no total translation from a Turing-complete source can exist. Same for
+  befunge93 (2000 code cells) and deadfish (no loops).
+* Fixed a misattribution that had spread to three files: Malbolge
+  Unshackled is Ørjan Johansen's (2007), not Matthias Lutter's. Lutter
+  wrote HeLL and the first Malbolge quine.
+* Malbolge Unshackled and Unlambda are being implemented, the latter to
+  give the library a completeness argument by bracket abstraction rather
+  than machine simulation.
+
 ## 2026-08-31 (later)
 
 * **cslib and Mathlib are now dependencies**, reversing the

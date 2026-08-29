@@ -48,8 +48,14 @@ also confirmed wanted: **Piet** and **Brainloller** form the second wave
 
 ## Candidates needing care
 
-* **Malbolge Unshackled / normalised Malbolge**: only after the Malbolge
-  interpreter is battle-tested; specifications are informal.
+* **Malbolge-T** (Lou Scheffer): Malbolge where a program may re-read its
+  own output, which lifts the storage bound. Scheffer believes it Turing
+  complete but notes it has not been shown that 59049 words of program
+  space suffice. A good companion to Unshackled, which is being
+  implemented now.
+* **Normalised Malbolge**: the de-encrypted form used by the assembler
+  toolchains; useful as an IR for the Malbolge backend rather than as a
+  language in its own right.
 * **Shakespeare** (Kalle Hasselström & Jon Åslund, 2001). Programs are
   plays. The original spec is a course report; check redistribution status
   before writing the doc page.

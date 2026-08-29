@@ -6,27 +6,51 @@ Per-language specifications live in `docs/<langname>/spec.md`; compiler notes
 ## Status matrix
 
 Legend: `yes` done, `wip` in progress, `-` not started, `n/a` not applicable
-(with the reason in the language's spec page). The "Turing complete" column
-records the *claim*; `proved` means there is a machine-checked proof, and a
-bare `yes`/`no` means the claim is the standard one and the proof is
-planned (see [PLAN.md](PLAN.md), Stage 8). Every language claimed Turing
-complete is a language Turpentine should eventually compile to.
+(with the reason in the language's spec page).
 
-| Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | Turpentine compiler | Verified compiler |
-|----------|------|--------|-------------|------------------|--------|-----------------|---------------------|-------------------|
-| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `lake exe brainfuck` | yes | [wip](brainfuck/compiler.md) | - |
-| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `lake exe whitespace` | wip | [yes](whitespace/compiler.md) | - |
-| [subleq](subleq/spec.md) | yes | yes | yes | yes | `lake exe subleq` | yes | [yes](subleq/compiler.md) | - |
-| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `lake exe befunge93` | see spec (depends on cell width) | [fragment only](befunge93/compiler.md) | - |
-| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `lake exe malbolge` | no (bounded storage) | [planned](malbolge/compiler.md) | - |
-| [fractran](fractran/spec.md) | yes | yes | yes | yes | `lake exe fractran` | yes | [planned](fractran/compiler.md) | - |
-| [thue](thue/spec.md) | yes | yes | yes | yes | `lake exe thue` | yes | [planned](thue/compiler.md) | - |
-| [piet](piet/spec.md) | yes | yes | yes | yes | `lake exe piet` | yes | [planned](piet/compiler.md) | - |
-| [ook](ook/spec.md) | yes | yes | yes | yes | `lake exe ook` | yes (via brainfuck) | [free via brainfuck](ook/compiler.md) | - |
-| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `lake exe brainloller` | yes (via brainfuck) | [free via brainfuck](brainloller/compiler.md) | - |
-| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `lake exe deadfish` | no (finite state) | [output-only fragment](deadfish/compiler.md) | - |
-| unlambda / SKI | - | - | - | - | - | yes | n/a | n/a |
-| [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `lake exe turpentine` | wip | (source) | (source) |
+The computational class is split into two columns on purpose, because the
+difference is the whole point of this library:
+
+* **Known** is the claim: what the literature says, or what our spec page
+  argues. It is prose, and it can be wrong.
+* **Proved** is a machine-checked theorem in this repository. A checkmark
+  links to it. Everything else in that column is empty, and stays empty
+  until someone proves it.
+
+Nothing currently has a checkmark. That is honest rather than
+embarrassing: the interpreters and compilers came first, and Stage 8 of
+[PLAN.md](PLAN.md) is where the column starts filling in. Every language
+claimed Turing complete is also a language Turpentine should compile to.
+
+| Language | Spec | Parser | Interpreter | Examples + tests | Runner | TC known | TC proved | Turpentine compiler | Verified compiler |
+|----------|------|--------|-------------|------------------|--------|----------|-----------|---------------------|-------------------|
+| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `lake exe brainfuck` | yes | | [wip](brainfuck/compiler.md) | - |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `lake exe whitespace` | yes | | [yes](whitespace/compiler.md) | - |
+| [subleq](subleq/spec.md) | yes | yes | yes | yes | `lake exe subleq` | yes | | [yes](subleq/compiler.md) | - |
+| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `lake exe befunge93` | [depends on cell width](befunge93/spec.md) | | [fragment only](befunge93/compiler.md) | - |
+| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `lake exe malbolge` | no (bounded storage) | | [bounded fragment](malbolge/compiler.md) | - |
+| malbolge-unshackled | wip | wip | wip | wip | `lake exe malbolge-unshackled` | yes | | planned (unbounded, so a full compiler is possible) | - |
+| [fractran](fractran/spec.md) | yes | yes | yes | yes | `lake exe fractran` | yes | | [planned](fractran/compiler.md) | - |
+| [thue](thue/spec.md) | yes | yes | yes | yes | `lake exe thue` | yes | | [planned](thue/compiler.md) | - |
+| [piet](piet/spec.md) | yes | yes | yes | yes | `lake exe piet` | yes | | [planned](piet/compiler.md) | - |
+| [ook](ook/spec.md) | yes | yes | yes | yes | `lake exe ook` | yes (via brainfuck) | | [free via brainfuck](ook/compiler.md) | - |
+| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `lake exe brainloller` | yes (via brainfuck) | | [free via brainfuck](brainloller/compiler.md) | - |
+| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `lake exe deadfish` | no (finite state) | | [output-only fragment](deadfish/compiler.md) | - |
+| unlambda / SKI | wip | wip | wip | wip | `lake exe unlambda` | yes | | planned | - |
+| [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `lake exe turpentine` | yes | | (source) | (source) |
+
+When a proof lands, its row gets a checkmark linking to the theorem in
+`computability.md`, and the claim in the "known" column stops being the
+last word on the subject.
+
+Note the pattern in the compiler column: **a language cannot host a full
+compiler unless it is Turing complete.** Bounded-storage languages get a
+fragment and nothing more, and the fragment is bounded by their storage,
+not by our effort. [malbolge](malbolge/spec.md) has 59049 words for code
+and data together, so a compiled program must fit in that;
+[befunge93](befunge93/spec.md) has 2000 playfield cells for its code;
+[deadfish](deadfish/spec.md) has no loops at all, so it takes only
+straight-line output. Each of those compiler pages states its own bound.
 
 Lean code lives in `Langlib/Languages/<Langname>/` (the front end in
 `Langlib/Turpentine/`), examples in `Langlib/Examples/<Langname>/`, golden tests

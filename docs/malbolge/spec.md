@@ -51,8 +51,10 @@ a genuine "99 bottles of beer" with loops and conditionals, 22 kilobytes
 long. The first quine followed in 2012, by Matthias Lutter. With 59049
 words of storage Malbolge is a bounded-storage machine, so Turing
 completeness is off the table; Scheffer's thought experiment "Malbolge-T"
-(let the machine re-read its own output) and Lutter's later dialect
-Malbolge Unshackled remove the bound.
+(let the machine re-read its own output) and Ørjan Johansen's 2007 dialect
+Malbolge Unshackled remove the bound. Unshackled is Turing complete, which
+was settled in 2020 by MalbolgeLisp, and langlib implements it too; see
+`docs/malbolge-unshackled/spec.md`.
 
 ## The machine
 
