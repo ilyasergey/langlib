@@ -310,9 +310,6 @@ graph TD
   TC --> DER
   DER --> AGREE
   EFF --> AGREE
-
-  style TC fill:#cfc,stroke:#2a2
-  style EFF fill:#ccf,stroke:#22a
 ```
 
 Every target follows this shape. The only per-language work is the
@@ -338,8 +335,6 @@ graph TD
   S4 -.-> S5
   S5 -.-> S6
   S6 -.-> S7
-
-  style S2 fill:#cfc,stroke:#2a2
 ```
 
 Step 1 gates everything, which is why it is being built first. Steps 3 and
