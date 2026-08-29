@@ -434,6 +434,62 @@ its sign into a boolean. The hand-written `Langlib/Examples/Subleq/cat.sq`
 does the same job in 22 words, which is roughly the going rate for a
 compiler against a person who knows what the program is for.
 
+## A second worked example: one array write
+
+Source:
+
+```
+var a : int[4];
+a[2] := 7;
+```
+
+The interesting half of the emitted code, with the bounds check and the
+value stash elided:
+
+```
+# ax := address of a[i]
+  sc        sc        ?+1       # sc := 0
+  ab_a      sc        ?+1       # sc -= ab_a
+  ax        ax        ?+1       # ax := 0
+  sc        ax        ?+1       # ax := ab_a
+  sc        sc        ?+1       # sc := 0
+  t_0       sc        ?+1       # sc -= t_0
+  sc        ax        ?+1       # ax += t_0
+# mem[ax] := av, by patching L1 and L2
+  sc        sc        ?+1       # sc := 0
+  ax        sc        ?+1       # sc -= ax
+  L1        L1        ?+1       # L1 := 0
+  sc        L1        ?+1       # L1 := ax
+  sc        sc        ?+1       # sc := 0
+  ax        sc        ?+1       # sc -= ax
+  L1+1      L1+1      ?+1       # L1+1 := 0
+  sc        L1+1      ?+1       # L1+1 := ax
+  sc        sc        ?+1       # sc := 0
+  ax        sc        ?+1       # sc -= ax
+  L2+1      L2+1      ?+1       # L2+1 := 0
+  sc        L2+1      ?+1       # L2+1 := ax
+  sc        sc        ?+1       # sc := 0
+  av        sc        ?+1       # sc -= av
+L1:
+  0         0         ?+1       # A and B are patched: mem[address] := 0
+L2:
+  sc        0         ?+1       # B is patched: mem[address] -= sc, storing the value
+```
+
+and the data it refers to:
+
+```
+v_a:        0         # array a, element 0
+# a[1..3]
+  0 0 0
+ab_a:       v_a       # base address of a
+```
+
+`ab_a` assembles to the numeric address of `v_a`, which is how the program
+gets hold of an address it could not otherwise name. The three words after
+`v_a` are the rest of the array, and `L1`/`L2` are the two instructions
+that get rewritten immediately before they run.
+
 ## Round-tripping the assembler text
 
 The emitted text is not decoration. `Langlib.Subleq.assemble` parses it back

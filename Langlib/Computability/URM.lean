@@ -216,6 +216,18 @@ inductive Steps (p : Program) : State → State → Prop where
 theorem Steps.single {p : Program} {s s' : State} (h : Step p s s') :
     Steps p s s' := .tail .refl h
 
+theorem Steps.head {p : Program} {s s' s'' : State} (h : Step p s s')
+    (hs : Steps p s' s'') : Steps p s s'' := by
+  induction hs with
+  | refl => exact .single h
+  | tail _ hlast ih => exact .tail ih hlast
+
+theorem Steps.trans {p : Program} {s s' s'' : State}
+    (h : Steps p s s') (h' : Steps p s' s'') : Steps p s s'' := by
+  induction h' with
+  | refl => exact h
+  | tail _ hlast ih => exact .tail ih hlast
+
 /-! ## Execution, as a function
 
 cslib's `eval` is `Part`-valued and noncomputable. langlib runs its
@@ -262,17 +274,15 @@ def HaltsWithResult (p : Program) (inputs : List Nat) (result : Nat) : Prop :=
 
 private theorem lt_length_of_getElem?_some {p : Program} {k : Nat} {i : Instr}
     (h : p[k]? = some i) : k < p.length := by
-  by_contra hc
-  rw [List.getElem?_eq_none (Nat.le_of_not_lt hc)] at h
-  exact Option.noConfusion h
+  cases Nat.lt_or_ge k p.length with
+  | inl hlt => exact hlt
+  | inr hge => rw [List.getElem?_eq_none hge] at h; exact absurd h (by simp)
 
 theorem step_eq_none_iff_isHalted {p : Program} {s : State} :
     step p s = none ↔ s.isHalted p := by
   unfold step
   cases hi : p[s.pc]? with
-  | none =>
-    simp only [State.isHalted, iff_true]
-    exact List.getElem?_eq_none_iff.mp hi
+  | none => exact iff_of_true rfl (List.getElem?_eq_none_iff.mp hi)
   | some i =>
     have hnh : ¬ (p.length ≤ s.pc) := Nat.not_le.mpr (lt_length_of_getElem?_some hi)
     simp only [State.isHalted, hnh, iff_false]
@@ -320,14 +330,7 @@ theorem Steps_run (p : Program) (s : State) (n : Nat) : Steps p s (run p s n) :=
     unfold run
     cases h : step p s with
     | none => exact .refl
-    | some s' =>
-      have hstep : Step p s s' := step_eq_some_iff_Step.mp h
-      -- `Steps p s s'` then transitively everything `s'` reaches
-      have : Steps p s' (run p s' n) := ih s'
-      clear ih h
-      induction this with
-      | refl => exact .single hstep
-      | tail _ hlast ih => exact .tail ih hlast
+    | some s' => exact Steps.head (step_eq_some_iff_Step.mp h) (ih s')
 
 /-- A halted machine does not move. -/
 theorem run_halted {p : Program} {s : State} (h : s.isHalted p) (n : Nat) :
@@ -338,23 +341,29 @@ theorem run_halted {p : Program} {s : State} (h : s.isHalted p) (n : Nat) :
 
 /-- Once the machine has halted, extra budget changes nothing. -/
 theorem run_add_of_haltsIn {p : Program} {s : State} {n : Nat}
-    (h : haltsIn p s n) (k : Nat) : run p s (n + k) = run p s n := by
+    (h : (run p s n).isHalted p) (k : Nat) : run p s (n + k) = run p s n := by
   induction n generalizing s with
   | zero =>
-    simp only [run] at h ⊢
+    simp only [Nat.zero_add]
+    simp only [run] at h
     exact run_halted h k
   | succ n ih =>
-    simp only [run] at h ⊢
+    rw [show n + 1 + k = (n + k) + 1 from by omega]
+    simp only [run]
     cases hs : step p s with
-    | none => rw [hs] at h ⊢; exact run_halted (step_eq_none_iff_isHalted.mp hs) k
-    | some s' => rw [hs] at h ⊢; exact ih h
+    | none => rfl
+    | some s' =>
+      simp only [run, hs] at h
+      exact ih h
 
 /-- Halting is monotone in the step budget. -/
 theorem haltsIn_of_le {p : Program} {s : State} {n m : Nat}
     (h : haltsIn p s n) (hle : n ≤ m) : haltsIn p s m := by
-  obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le hle
-  unfold haltsIn at h ⊢
-  rw [run_add_of_haltsIn h]
-  exact h
+  cases Nat.exists_eq_add_of_le hle with
+  | intro k hk =>
+    subst hk
+    unfold haltsIn at h ⊢
+    rw [run_add_of_haltsIn h]
+    exact h
 
 end Langlib.Computability.URM

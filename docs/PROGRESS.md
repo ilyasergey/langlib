@@ -2,6 +2,20 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-30 (night)
+
+* **Array codegen** in both backends, so whitespace and subleq again
+  accept the entire language. Whitespace gets arrays nearly free: the heap
+  is integer-addressed and an address is an ordinary stack value. Subleq
+  cannot name a computed address at all, so the backend does what subleq
+  has always done and **patches its own operands before executing them**:
+  an indirect load rewrites the `A` field of the very next instruction,
+  and an indirect store patches three operand words. That is the reason
+  insertion sort and a sieve run on a one-instruction machine.
+* Both check bounds and route to their existing traps, using a distinct
+  forbidden address from the assert trap so the two failures stay
+  distinguishable. 149 compiler tests (up from 105), 508 in total.
+
 ## 2026-08-30 (evening)
 
 * Two corrections that came out of being challenged on the claims, both

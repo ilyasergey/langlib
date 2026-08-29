@@ -739,4 +739,334 @@ def readInt16 (v : Val) (w : Work) : M Unit := do
   ifThen neg (neg16 nn w2)
   copy16 v nn w2
 
+/-! ## Layout -/
+
+/-- The two control bytes. Every `if`, `while`, `assert` and short-circuit
+`&&`/`||` uses these as its loop cell, which is safe under nesting because
+each such loop clears them at the end of its own body. They sit below the
+variables so that no primitive's work area can reach them. -/
+def ctl0 : Nat := 1
+/-- The second control byte; see `ctl0`. -/
+def ctl1 : Nat := 2
+
+/-- Where everything lives on the tape for one program. -/
+structure Layout where
+  /-- Variable name to the address of its low cell. -/
+  vars : Std.HashMap String Nat
+  varCount : Nat
+  /-- Number of expression-stack slots. -/
+  depth : Nat
+
+/-- Expression-stack slot `k`. -/
+def Layout.slot (L : Layout) (k : Nat) : Val :=
+  let b := 3 + 2 * L.varCount + 2 * k
+  ⟨b, b + 1⟩
+
+/-- The one work area, above the whole stack. -/
+def Layout.work (L : Layout) : Work :=
+  ⟨3 + 2 * L.varCount + 2 * L.depth⟩
+
+/-- The cells of a declared variable. Undeclared names cannot occur: the
+program has been type-checked. The fallback points at unused scratch far
+above everything, so a hypothetical bug corrupts nothing that matters. -/
+def Layout.varVal (L : Layout) (x : String) : Val :=
+  match L.vars[x]? with
+  | some a => ⟨a, a + 1⟩
+  | none => ⟨L.work.base + 400, L.work.base + 401⟩
+
+/-- How many stack slots an expression needs. -/
+def exprDepth : Expr → Nat
+  | .intLit _ | .boolLit _ | .var _ | .len _ => 1
+  | .index _ i => exprDepth i
+  | .un _ e => exprDepth e
+  | .bin _ e₁ e₂ => max (exprDepth e₁) (1 + exprDepth e₂)
+
+def stmtDepth : Stmt → Nat
+  | .skip => 1
+  | .seq s₁ s₂ => max (stmtDepth s₁) (stmtDepth s₂)
+  | .assign _ e => exprDepth e
+  | .ite c s₁ s₂ => max (exprDepth c) (max (stmtDepth s₁) (stmtDepth s₂))
+  | .while c _ _ body => max (exprDepth c) (stmtDepth body)
+  | .assert e => exprDepth e
+  | .readInt _ | .readByte _ => 1
+  | .assignIndex _ i e => max (exprDepth i) (exprDepth e)
+  | .readIntIndex _ i | .readByteIndex _ i => exprDepth i
+  | .printExpr e _ => exprDepth e
+  | .printStr _ _ => 1
+  | .printByte e => exprDepth e
+
+def programDepth (p : Program) : Nat :=
+  p.decls.foldl
+    (fun acc (d : String × Ty × Option Expr) =>
+      match d.2.2 with
+      | some e => max acc (exprDepth e)
+      | none => acc)
+    (stmtDepth p.body)
+
+/-! ## The supported fragment -/
+
+private def litLo : Int := -32768
+private def litHi : Int := 32767
+
+def checkExprSupported : Expr → Except String Unit
+  | .intLit n =>
+    if n < litLo then
+      throw s!"integer literal {n} is below the 16-bit range of the brainfuck backend (-32768 .. 32767)"
+    else if n > litHi then
+      throw s!"integer literal {n} is above the 16-bit range of the brainfuck backend (-32768 .. 32767)"
+    else return ()
+  | .boolLit _ | .var _ => return ()
+  | .un .neg (.intLit n) =>
+    -- `-32768` reaches us as a negation of `32768`, which is in range.
+    if n ≥ 0 && n ≤ 32768 then return ()
+    else checkExprSupported (.intLit n)
+  | .un _ e => checkExprSupported e
+  | .bin _ e₁ e₂ => do checkExprSupported e₁; checkExprSupported e₂
+  | .index x _ =>
+    throw s!"arrays are not supported by the brainfuck backend yet ({x}[i])"
+  | .len x =>
+    throw s!"arrays are not supported by the brainfuck backend yet (len({x}))"
+
+def checkStmtSupported : Stmt → Except String Unit
+  | .skip => return ()
+  | .seq s₁ s₂ => do checkStmtSupported s₁; checkStmtSupported s₂
+  | .assign _ e => checkExprSupported e
+  | .ite c s₁ s₂ => do
+    checkExprSupported c; checkStmtSupported s₁; checkStmtSupported s₂
+  | .while c invs dec body => do
+    checkExprSupported c
+    -- Annotations do not execute, so they need not be compilable; they are
+    -- ignored here exactly as the reference interpreter ignores them.
+    let _ := invs; let _ := dec
+    checkStmtSupported body
+  | .assert e => checkExprSupported e
+  | .readInt _ | .readByte _ => return ()
+  | .assignIndex x _ _ =>
+    throw s!"arrays are not supported by the brainfuck backend yet ({x}[i] := e)"
+  | .readIntIndex x _ =>
+    throw s!"arrays are not supported by the brainfuck backend yet ({x}[i] := readInt())"
+  | .readByteIndex x _ =>
+    throw s!"arrays are not supported by the brainfuck backend yet ({x}[i] := readByte())"
+  | .printExpr e _ => checkExprSupported e
+  | .printStr _ _ => return ()
+  | .printByte e => checkExprSupported e
+
+/-- The tape budget: generous enough that no honest program hits it, small
+enough that a runaway one is reported rather than compiled. -/
+def maxVars : Nat := 64
+/-- Maximum expression nesting, in stack slots. -/
+def maxDepth : Nat := 32
+
+def checkProgramSupported (p : Program) : Except String Unit := do
+  if p.decls.length > maxVars then
+    throw s!"the brainfuck backend supports at most {maxVars} variables, this program declares {p.decls.length}"
+  for (x, t, init) in p.decls do
+    match t with
+    | .array _ _ =>
+      throw s!"arrays are not supported by the brainfuck backend yet (declaration of '{x}')"
+    | _ => pure ()
+    match init with
+    | some e => checkExprSupported e
+    | none => pure ()
+  checkStmtSupported p.body
+  let d := programDepth p
+  if d > maxDepth then
+    throw s!"expression nesting of depth {d} exceeds the brainfuck backend's limit of {maxDepth}"
+
+/-! ## Code generation -/
+
+/-- `slot k := e`, using slots `k` and above. -/
+def emitExpr (L : Layout) : Expr → Nat → M Unit
+  | .intLit n, k => set16 (L.slot k) n
+  | .boolLit b, k => set16 (L.slot k) (if b then 1 else 0)
+  | .var x, k => copy16 (L.slot k) (L.varVal x) L.work
+  | .len _, _ => pure ()
+  | .index _ _, _ => pure ()
+  | .un op e, k => do
+    emitExpr L e k
+    let v := L.slot k
+    match op with
+    | .neg => neg16 v L.work
+    | .not =>
+      let t := L.work.b 0
+      clr t; inc t 1
+      mvN t v.lo
+      clr v.lo
+      mv v.lo t
+      clr v.hi
+  | .bin op e₁ e₂, k =>
+    match op with
+    | .and => do
+      emitExpr L e₁ k
+      clr ctl0
+      mv ctl0 (L.slot k).lo
+      clr (L.slot k).hi
+      let sv ← openLoop ctl0
+      emitExpr L e₂ k
+      clr ctl0
+      closeLoop ctl0 sv
+    | .or => do
+      emitExpr L e₁ k
+      clr ctl0
+      mv ctl0 (L.slot k).lo
+      clr (L.slot k).hi
+      clr ctl1; inc ctl1 1
+      let sv ← openLoop ctl0
+      inc (L.slot k).lo 1
+      clr ctl1
+      clr ctl0
+      closeLoop ctl0 sv
+      let sv2 ← openLoop ctl1
+      emitExpr L e₂ k
+      clr ctl1
+      closeLoop ctl1 sv2
+    | _ => do
+      emitExpr L e₁ k
+      emitExpr L e₂ (k + 1)
+      let a := L.slot k
+      let b := L.slot (k + 1)
+      let w := L.work
+      let f := w.b 20
+      let e := w.b 21
+      let t := w.b 22
+      match op with
+      | .add => add16 a b w
+      | .sub => sub16 a b w
+      | .mul => mul16 a b w
+      | .div | .mod => do
+        let q := L.slot (k + 2)
+        let r := L.slot (k + 3)
+        nz16 f b w
+        ifElse f e
+          (do
+            ediv16 q r a b w
+            copy16 a (if op == BinOp.div then q else r) w)
+          (trap w)
+      | .lt => do lt16 f a b w true; zero16 a; mv a.lo f
+      | .gt => do lt16 f b a w true; zero16 a; mv a.lo f
+      | .le => do
+        lt16 f b a w true
+        zero16 a; clr t; inc t 1; mvN t f; mv a.lo t
+      | .ge => do
+        lt16 f a b w true
+        zero16 a; clr t; inc t 1; mvN t f; mv a.lo t
+      | .eq => do eq16 f a b w; zero16 a; mv a.lo f
+      | .ne => do
+        eq16 f a b w
+        zero16 a; clr t; inc t 1; mvN t f; mv a.lo t
+      | .and | .or => pure ()
+
+def emitStmt (Γ : Ctx) (L : Layout) : Stmt → M Unit
+  | .skip => pure ()
+  | .seq s₁ s₂ => do emitStmt Γ L s₁; emitStmt Γ L s₂
+  | .assign x e => do
+    emitExpr L e 0
+    copy16 (L.varVal x) (L.slot 0) L.work
+  | .ite c s₁ s₂ => do
+    emitExpr L c 0
+    clr ctl1; inc ctl1 1
+    clr ctl0
+    mv ctl0 (L.slot 0).lo
+    let sv ← openLoop ctl0
+    emitStmt Γ L s₁
+    clr ctl1; clr ctl0
+    closeLoop ctl0 sv
+    let sv2 ← openLoop ctl1
+    emitStmt Γ L s₂
+    clr ctl1
+    closeLoop ctl1 sv2
+  | .while c _ _ body => do
+    emitExpr L c 0
+    clr ctl0
+    mv ctl0 (L.slot 0).lo
+    let sv ← openLoop ctl0
+    emitStmt Γ L body
+    emitExpr L c 0
+    clr ctl0
+    mv ctl0 (L.slot 0).lo
+    closeLoop ctl0 sv
+  | .assert e => do
+    emitExpr L e 0
+    clr ctl0
+    mv ctl0 (L.slot 0).lo
+    clr ctl1; inc ctl1 1
+    ifThen ctl0 (clr ctl1)
+    ifThen ctl1 (trap L.work)
+  | .readInt x => readInt16 (L.varVal x) L.work
+  | .readByte x => readByte16 (L.varVal x) L.work
+  | .assignIndex _ _ _ | .readIntIndex _ _ | .readByteIndex _ _ => pure ()
+  | .printExpr e nl => do
+    emitExpr L e 0
+    match inferExpr Γ e with
+    | .ok .bool => do
+      clr ctl0
+      mv ctl0 (L.slot 0).lo
+      ifElse ctl0 ctl1 (emitStr L.work "true") (emitStr L.work "false")
+    | _ => printInt16 (L.slot 0) L.work
+    if nl then emitStr L.work "\n"
+  | .printStr s nl => emitStr L.work (if nl then s ++ "\n" else s)
+  | .printByte e => do
+    emitExpr L e 0
+    goto (L.slot 0).lo
+    emitOp .output
+
+def emitProgram (Γ : Ctx) (L : Layout) (p : Program) : M Unit := do
+  -- Uninitialised variables need no code: the tape starts at zero, which is
+  -- `0` for an `int` and `false` for a `bool`.
+  for (x, _, init) in p.decls do
+    match init with
+    | some e => do
+      emitExpr L e 0
+      copy16 (L.varVal x) (L.slot 0) L.work
+    | none => pure ()
+  emitStmt Γ L p.body
+
+/-! ## Entry points -/
+
+/-- Compile a Turpentine program to brainfuck. Type-checks first (the
+generated code for `print` depends on whether the argument is an `int` or a
+`bool`), then rejects everything outside the supported fragment by name. -/
+def compile (p : Program) : Except String BProg := do
+  let Γ ← (checkProgram p).mapError ("type error: " ++ ·)
+  checkProgramSupported p
+  let mut vars : Std.HashMap String Nat := {}
+  let mut i := 0
+  for (x, _, _) in p.decls do
+    vars := vars.insert x (3 + 2 * i)
+    i := i + 1
+  let L : Layout :=
+    { vars, varCount := p.decls.length, depth := programDepth p + 4 }
+  let st := (emitProgram Γ L p).run (⟨#[], 0⟩ : Emit)
+  return st.2.ops.toList
+
+/-- The prose header of a compiled file. Brainfuck has no comment syntax, so
+this is a loop that never runs: the program starts on cell 0, which is the
+guard cell and therefore zero. Square brackets are stripped from the text so
+the loop stays balanced. -/
+def headerComment : String :=
+  let text :=
+    "Compiled from Turpentine to brainfuck by langlib.\n" ++
+    "Run it with the zero end-of-input convention:\n" ++
+    "  lake exe brainfuck --eof zero <file>\n" ++
+    "Integers are 16-bit two's complement in two cells; cell 0 is a guard\n" ++
+    "that stays zero, variables follow it, then the expression stack, then\n" ++
+    "the scratch area. See docs/brainfuck/compiler.md.\n"
+  "[" ++ (text.toList.filter (fun c => c != '[' && c != ']') |> String.ofList) ++ "]\n"
+
+/-- Turpentine source text to brainfuck source text, header included. -/
+def compileSource (src : String) : Except String String := do
+  let prog ← parse src
+  let bf ← compile prog
+  return headerComment ++ _root_.Langlib.Brainfuck.Prog.render bf
+
+/-- Compile and run: the entry point the compiler tests use, so that a test's
+expected output is simultaneously a claim about the reference interpreter and
+about the compiled program. The EOF mode is the one the generated code is
+written for. -/
+def runCompiled (src : String) (input : Langlib.Common.Input) (fuel : Nat) :
+    Except String Langlib.Common.RunResult := do
+  let prog ← parse src
+  let bf ← compile prog
+  return _root_.Langlib.Brainfuck.evalProg { eof := .zero } bf input fuel
+
 end Langlib.Turpentine.Compile.Brainfuck

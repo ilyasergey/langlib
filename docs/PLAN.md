@@ -76,10 +76,10 @@ state first-order, I/O explicit.
 
 * Turpentine -> brainfuck (cell-mapped variables, while via `[ ]`).
 * Turpentine -> ook (via the BF isomorphism).
-* Turpentine -> whitespace `[x]`: the whole language, no fragment
-  restriction. See `docs/whitespace/compiler.md`.
-* Turpentine -> subleq `[x]`: the whole language, no fragment
-  restriction. See `docs/subleq/compiler.md`.
+* Turpentine -> whitespace `[x]`: the whole language, arrays included.
+  See `docs/whitespace/compiler.md`.
+* Turpentine -> subleq `[x]`: the whole language, arrays included via
+  self-modifying operand patching. See `docs/subleq/compiler.md`.
 * Turpentine -> befunge93 (stretch goal).
 * Turpentine -> deadfish (straight-line, output-only fragment; a joke, documented
   as such).
