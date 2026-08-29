@@ -98,9 +98,11 @@ already *contains* a verified compiler from a register machine, so
 composing it with a single shared Turpentine-to-register-machine pass,
 [`Compile/URM.lean`](Langlib/Turpentine/Compile/URM.lean), yields a
 correct-by-construction compiler into any language proved Turing complete.
-Run it with `--certified` on either subcommand, for example
-`lake exe turpentine exec --via whitespace --certified sum.turp`; the
-fragment is I/O-free and names its result in a variable called `answer`.
+Choose between them explicitly: `compile` and `exec` each take `--bespoke`
+or `--certified`, they refuse both at once, and each names the scheme it
+used in its output, so a build log says which compiler made the artifact.
+The certified fragment is I/O-free and names its result in a variable
+called `answer`.
 Both schemes produce instances of one `TurpentineCompiler` interface, and
 the composition that builds the derived instance is proved once for an
 arbitrary target rather than per language (in

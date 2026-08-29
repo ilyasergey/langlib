@@ -382,8 +382,12 @@ test than a golden file.
 
 ## Running it
 
-The certified compiler is behind `--certified` on the two subcommands that
-emit code. Note the fragment: the program must be I/O-free and name its
+`compile` and `exec` each take `--bespoke` or `--certified`, so the choice
+of compiler is explicit; passing both is an error, and passing neither uses
+the bespoke one. Whichever runs, the command names it in the message it
+prints, so a build log records which compiler produced the artifact.
+
+The certified fragment is narrow: the program must be I/O-free and name its
 result in a variable called `answer`, because a URM has no output and the
 theorem reads register 0.
 
@@ -439,7 +443,7 @@ lake exe turpentine compile --to whitespace --certified -o sum.ws sum.turp
 Output:
 
 ```
-turpentine: wrote 1873 bytes to sum.ws
+turpentine: wrote 1873 bytes to sum.ws [certified, derived from the Turing-completeness proof]
 ```
 
 Out of fragment, the compiler says which construct is the problem rather
@@ -455,9 +459,22 @@ Output:
 turpentine compile: 'x' has an initialiser; the certified URM fragment declares variables without one, since every register starts at zero
 ```
 
-Drop `--certified` from any of these to use the hand-written backend
-instead: it accepts the whole language and emits far smaller code, but
-nothing about it is proved.
+Swap `--certified` for `--bespoke` to use the hand-written backend on the
+same source. It accepts the whole language and emits far smaller code, and
+nothing about it is proved:
+
+```
+lake exe turpentine compile --to whitespace --bespoke -o sum.ws sum.turp
+```
+
+Output:
+
+```
+turpentine: wrote 159 bytes to sum.ws [bespoke, hand-written and unverified]
+```
+
+Against 1873 bytes for the certified one on the same program, which is the
+price of routing everything through a register machine.
 
 ## Two diagrams
 

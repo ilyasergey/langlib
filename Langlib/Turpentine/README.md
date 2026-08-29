@@ -34,11 +34,13 @@ lake exe turpentine check file.turp
 
 Input comes from stdin (pipe or redirect;
 a terminal stdin means empty input); `--verbose` reports how the run ended.
-Add `--certified` to `compile` or `exec` to use the compiler derived from
-the target's Turing-completeness proof instead of the hand-written one. It
-is correct by construction and accepts only the I/O-free fragment
-documented in
-[docs/certified-compilation.md](../../docs/certified-compilation.md).
+`compile` and `exec` each take `--bespoke` (the default: hand-written,
+whole language, compact, unverified) or `--certified` (derived from the
+target's Turing-completeness proof: correct by construction, much larger,
+and restricted to the I/O-free fragment documented in
+[docs/certified-compilation.md](../../docs/certified-compilation.md)).
+Passing both is an error, and the command names the scheme it used in its
+output.
 
 ## Examples ([Langlib/Examples/Turpentine/](../Examples/Turpentine/))
 

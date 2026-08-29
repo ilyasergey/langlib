@@ -98,9 +98,13 @@ def runner : Runner where
     , "                                     emit the target program"
     , s!"  exec --via <{backendNames}> <file.turp>"
     , "                                     compile, then run on that language's interpreter"
-    , "  --certified  use the compiler derived from the language's Turing-completeness"
-    , "               proof instead of the hand-written one. Correct by construction;"
-    , "               accepts only the I/O-free fragment (see docs/certified-compilation.md)" ]
+    , "compiler choice, for compile and exec:"
+    , "  --bespoke    hand-written backend: whole language, compact output, unverified."
+    , "               This is the default when neither flag is given."
+    , "  --certified  derived from the language's Turing-completeness proof: correct by"
+    , "               construction, far larger output, and accepts only the I/O-free"
+    , "               fragment (see docs/certified-compilation.md)."
+    , "  Either way the chosen scheme is named in the message the command prints." ]
 
 def checkMain (file : String) : IO UInt32 := do
   let src ← try
@@ -127,12 +131,22 @@ def compileMain (args : List String) : IO UInt32 := do
   let mut out? : Option String := none
   let mut file? : Option String := none
   let mut useCertified := false
+  let mut bespokeAsked := false
   let mut rest := args
   repeat
     match rest with
     | [] => break
     | "--to" :: t :: rs => target? := some t; rest := rs
-    | "--certified" :: rs => useCertified := true; rest := rs
+    | "--certified" :: rs =>
+      if bespokeAsked then
+        IO.eprintln "turpentine compile: pass --bespoke or --certified, not both"
+        return 3
+      useCertified := true; rest := rs
+    | "--bespoke" :: rs =>
+      if useCertified then
+        IO.eprintln "turpentine compile: pass --bespoke or --certified, not both"
+        return 3
+      bespokeAsked := true; rest := rs
     | "-o" :: o :: rs => out? := some o; rest := rs
     | a :: rs =>
       if a.startsWith "-" then
@@ -157,13 +171,13 @@ def compileMain (args : List String) : IO UInt32 := do
     catch e =>
       IO.eprintln s!"turpentine: cannot read '{file}': {e}"
       return 3
-  let emit ← if useCertified then
+  let (emit, scheme) ← if useCertified then
       match backend.certified with
-      | some f => pure f
+      | some f => pure (f, "certified, derived from the Turing-completeness proof")
       | none =>
         IO.eprintln s!"turpentine compile: no certified compiler for '{target}' yet"
         return 3
-    else pure backend.compileSource
+    else pure (backend.compileSource, "bespoke, hand-written and unverified")
   match emit src with
   | .error e =>
     IO.eprintln s!"turpentine compile: {e}"
@@ -172,8 +186,10 @@ def compileMain (args : List String) : IO UInt32 := do
     match out? with
     | some path =>
       IO.FS.writeFile path target
-      IO.eprintln s!"turpentine: wrote {target.length} bytes to {path}"
-    | none => IO.print target
+      IO.eprintln s!"turpentine: wrote {target.length} bytes to {path} [{scheme}]"
+    | none =>
+      IO.eprintln s!"turpentine: emitting {target.length} bytes [{scheme}]"
+      IO.print target
     return 0
 
 /-- `exec --via <lang> [--fuel N] [--verbose] <file.turp>`: compile in
@@ -186,12 +202,22 @@ def execMain (args : List String) : IO UInt32 := do
   let mut fuel := 200_000_000
   let mut verbose := false
   let mut useCertified := false
+  let mut bespokeAsked := false
   let mut rest := args
   repeat
     match rest with
     | [] => break
     | "--via" :: t :: rs => target? := some t; rest := rs
-    | "--certified" :: rs => useCertified := true; rest := rs
+    | "--certified" :: rs =>
+      if bespokeAsked then
+        IO.eprintln "turpentine exec: pass --bespoke or --certified, not both"
+        return 3
+      useCertified := true; rest := rs
+    | "--bespoke" :: rs =>
+      if useCertified then
+        IO.eprintln "turpentine exec: pass --bespoke or --certified, not both"
+        return 3
+      bespokeAsked := true; rest := rs
     | "--verbose" :: rs => verbose := true; rest := rs
     | "--fuel" :: n :: rs =>
       match n.toNat? with
@@ -222,20 +248,20 @@ def execMain (args : List String) : IO UInt32 := do
     catch e =>
       IO.eprintln s!"turpentine: cannot read '{file}': {e}"
       return 3
-  let emit ← if useCertified then
+  let (emit, scheme) ← if useCertified then
       match backend.certified with
-      | some f => pure f
+      | some f => pure (f, "certified, derived from the Turing-completeness proof")
       | none =>
         IO.eprintln s!"turpentine exec: no certified compiler for '{target}' yet"
         return 3
-    else pure backend.compileSource
+    else pure (backend.compileSource, "bespoke, hand-written and unverified")
   match emit src with
   | .error e =>
     IO.eprintln s!"turpentine exec: {e}"
     return 1
   | .ok targetSrc =>
     if verbose then
-      IO.eprintln s!"turpentine: compiled to {targetSrc.length} bytes of {target}"
+      IO.eprintln s!"turpentine: compiled to {targetSrc.length} bytes of {target} [{scheme}]"
     let stdinStream ← IO.getStdin
     let stdinBytes ← if ← stdinStream.isTty then pure ByteArray.empty
                      else stdinStream.readBinToEnd
