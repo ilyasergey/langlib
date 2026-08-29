@@ -8,10 +8,10 @@ import Std.Data.HashMap
 /-!
 # Turpentine to brainfuck
 
-A compiler from the scalar fragment of Turpentine (`.turp`) to brainfuck.
-Turpentine has unbounded integers, structured control flow and line-oriented
-I/O; brainfuck has a tape of 8-bit cells, two brackets and one byte of I/O at
-a time. Everything below is the price of that gap.
+A compiler from Turpentine (`.turp`) to brainfuck. Turpentine has unbounded
+integers, structured control flow, arrays and line-oriented I/O; brainfuck
+has a tape of 8-bit cells, two brackets and one byte of I/O at a time.
+Everything below is the price of that gap.
 
 The full write-up, with a worked example and the example-by-example status
 table, is `docs/brainfuck/compiler.md`. This docstring is the reference for
@@ -46,9 +46,10 @@ comparison and division need to know about signs.
 
 ## Tape layout
 
-Addresses are static: the compiler tracks the data pointer exactly at every
-point, so every `>`/`<` run is a compile-time constant. `V` is the number of
-declared variables and `D` the number of expression-stack slots.
+Addresses are static everywhere except inside an array walk: the compiler
+tracks the data pointer exactly at every point, so every `>`/`<` run is a
+compile-time constant. `V` is the number of declarations and `D` the number
+of expression-stack slots.
 
 | Cells | Contents |
 |-------|----------|
@@ -57,6 +58,10 @@ declared variables and `D` the number of expression-stack slots.
 | `3 .. 2+2V` | variables, two cells each, in declaration order |
 | `3+2V .. 2+2V+2D` | expression stack, two cells per slot |
 | `3+2V+2D ...` | work area (scratch bytes and 16-bit temporaries) |
+| `3+2V+2D+512 ...` | the array region, one slab of six cells per element |
+
+An array declaration takes a pair of variable cells it never uses, which is
+two wasted cells and one fewer special case.
 
 Expressions are compiled with a stack discipline: `emitExpr e k` leaves the
 value of `e` in stack slot `k` and may use every slot above `k`. `D` is the
@@ -139,25 +144,83 @@ I/O helpers:
 * `readInt16` consumes bytes up to a newline or end of input, accepting an
   optional `-` and decimal digits and ignoring anything else.
 
+## Arrays
+
+Brainfuck has no addressing mode: the only way to reach a cell is to walk
+the head there, and a computed index is not known when the `>`s are emitted.
+The way out is the moving-value idiom, which turns "go to element `i`" into
+"take `i` steps", and pays for it by carrying everything it needs along the
+tape.
+
+An array of `n` elements gets `n + 1` **slabs** of six cells each (the last
+is a guard the walk never enters). Slab `j` holds, in order:
+
+| Offset | Name | Contents |
+|--------|------|----------|
+| `0` | `k` | the step counter while a walk passes through; also the walk's scratch cell once it has stopped |
+| `1` | `m` | the return marker |
+| `2`, `3` | `d` | the payload, a 16-bit value riding along with the head |
+| `4`, `5` | `v` | the element itself |
+
+Every access is set up at slab 0, where the address is static: the counter
+cell gets the low byte of the index (the bounds check has already forced
+`0 ≤ i < n ≤ 255`, so the high byte is zero), and the payload cells get the
+value to be stored, or zero for a read. Then `walkRight` is
+
+```
+[ - ; k -> next k ; d -> next d ; move one slab right ; m := 1 ]
+```
+
+Each iteration decrements the counter, hands what is left of it and the
+payload to the next slab, and ends with the head on the next slab's counter
+cell, which is what the closing `]` tests. When the counter is exhausted the
+loop exits with the head standing on slab `i`, the payload beside it, and a
+trail of `1`s in the marker cells of the slabs it walked into.
+
+There the access happens: `fetchElem` copies `v` into `d` (using the spent
+counter cell as its scratch, since it is provably zero at that point), and
+`storeElem` clears `v` and empties `d` into it. `walkBack` then follows the
+trail home,
+
+```
+> [ - ; d -> previous d ; move one slab left ] <
+```
+
+clearing each marker as it passes, and stopping at slab 0 because slab 0 was
+never marked. The counter trail costs `O(i²)` tape units over the walk out;
+the marker trail costs `O(i)` on the way back, which is why the two
+directions are not symmetric.
+
+Net displacement of the whole sequence is zero, and that is what keeps the
+rest of the compiler honest: `walkRight`, the access and `walkBack` are
+emitted with raw `emitOp` calls that never touch `Emit.pos`, so the
+compiler's claim about where the head is stays false only for the length of
+the walk and is true again at the end of it. Nothing else in the backend
+needs to know that arrays exist.
+
+`len(a)` is a literal: lengths are fixed at declaration.
+
+Bounds checking is two signed 16-bit comparisons, `i < 0` and `i < n`, and
+an out-of-range index compiles to the same `+[]` that a failed `assert`
+does. Elements need no initialisation, since the tape starts at zero, which
+is `0` for an `int` and `false` for a `bool`.
+
 ## Supported fragment, and what falls outside it
 
-Supported: every scalar `Stmt` and `Expr` of Turpentine. `if`/`else`, `while`
+Supported: every `Stmt` and `Expr` of Turpentine. `if`/`else`, `while`
 (nested to any depth), `assert`, `print`/`println` of `int` and `bool`,
 `printStr`, `printByte`, `readInt`, `readByte`, all five arithmetic
 operators, all six comparisons, `&&`/`||` (compiled with real
 short-circuiting, so the right operand of a guarded division is never
-evaluated), and unary `-` and `!`.
+evaluated), unary `-` and `!`, and every array form: declarations, `a[i]`,
+`len(a)`, `a[i] := e;`, `a[i] := readInt();`, `a[i] := readByte();`.
 
 Rejected with an `Except.error` that names the construct:
 
-* arrays, in every form: `Ty.array` declarations, `a[i]`, `len(a)`,
-  `a[i] := e;`, `a[i] := readInt();`, `a[i] := readByte();`. A brainfuck
-  backend for arrays needs a reserved contiguous region plus the
-  pointer-walking idiom for computed offsets, since brainfuck has no
-  computed addressing; that is a separate pass.
 * integer literals outside `-32768 .. 32767`.
-* programs with more than 64 variables, or an expression nested deeper than
-  32 stack slots. Both are tape-budget limits, not fundamental ones.
+* programs with more than 64 declarations, an expression nested deeper than
+  32 stack slots, or an array longer than 255. The first two are tape
+  budget; the third is the width of the walk counter, which is one byte.
 
 Differences that are silent rather than rejected, all of them consequences of
 the target machine, and all of them documented in
@@ -165,10 +228,11 @@ the target machine, and all of them documented in
 
 * **Overflow wraps.** Arithmetic outside `-32768 .. 32767` wraps mod 2^16
   instead of being exact.
-* **Runtime errors become divergence.** A failed `assert` and a division or
-  modulo by zero compile to `+[]`, an infinite loop. The reference
-  interpreter reports a runtime error; the compiled program runs out of fuel.
-  Both are observable failures, they are just not the same one.
+* **Runtime errors become divergence.** A failed `assert`, a division or
+  modulo by zero, and an out-of-range array index compile to `+[]`, an
+  infinite loop. The reference interpreter reports a runtime error; the
+  compiled program runs out of fuel. Both are observable failures, they are
+  just not the same one.
 * **EOF is a zero byte.** Under `--eof zero`, `,` cannot distinguish end of
   input from a NUL byte, so compiled `readByte` yields `-1` for both. Input
   containing NUL bytes is outside the fragment. Text input is fine, and
@@ -182,7 +246,8 @@ the target machine, and all of them documented in
 
 Nothing here is free. A byte comparison costs a scan of both operands; a
 16-bit add costs three byte copies and a comparison; a multiply costs a
-handful of adds per bit of the multiplier. Expect a few thousand brainfuck
+handful of adds per bit of the multiplier; an array access costs a bounds
+check plus a walk quadratic in the index. Expect a few thousand brainfuck
 steps per Turpentine assignment and a few hundred thousand for a `println` of
 a large number. The compiled programs are correct, not brisk.
 -/
@@ -757,6 +822,142 @@ def readInt16 (v : Val) (w : Work) : M Unit := do
     recomputeCont
   ifThen neg (neg16 nn w2)
   copy16 v nn w2
+
+/-! ## Arrays: the moving-value walk
+
+Everything in this section is emitted with raw `emitOp` calls, which do not
+update `Emit.pos`. That is deliberate: inside a walk the head is at a slab
+the compiler cannot name, so the compiler stops claiming to know where it
+is, and every routine here is written to have net displacement zero. The
+pointer is back where `Emit.pos` says it is by the time the last `<` is
+emitted. -/
+
+/-- Cells per array element. -/
+def slabSize : Nat := 6
+/-- Offset of the step counter within a slab; also the walk's scratch cell
+once the walk has stopped on the slab, because the counter is zero there. -/
+def kOff : Nat := 0
+/-- Offset of the return marker within a slab. -/
+def mOff : Nat := 1
+/-- Offsets of the travelling payload within a slab. -/
+def dLoOff : Nat := 2
+/-- See `dLoOff`. -/
+def dHiOff : Nat := 3
+/-- Offsets of the element itself within a slab. -/
+def vLoOff : Nat := 4
+/-- See `vLoOff`. -/
+def vHiOff : Nat := 5
+
+/-- Move the head by `d` cells without telling the emitter. -/
+def rMove (d : Int) : M Unit := do
+  if d > 0 then for _ in [0 : d.toNat] do emitOp .right
+  else for _ in [0 : (-d).toNat] do emitOp .left
+
+/-- Add `k` to whatever cell the head is on. -/
+def rInc (k : Int) : M Unit := do
+  if k > 0 then for _ in [0 : k.toNat] do emitOp .inc
+  else for _ in [0 : (-k).toNat] do emitOp .dec
+
+/-- `[body]` at whatever cell the head is on. Unlike `loopAt`, this neither
+walks to a known cell nor asserts that the body returns to one. -/
+def rLoop (body : M Unit) : M Unit := do
+  let saved := (← get).ops
+  modify fun s => { s with ops := #[] }
+  body
+  let inner := (← get).ops
+  modify fun s => { s with ops := saved.push (.loop inner.toList) }
+
+/-- `[-]` at the current cell. -/
+def rClr : M Unit := rLoop (rInc (-1))
+
+/-- Run the current cell down to zero, applying every `(offset, delta)` once
+per unit. Offsets are relative to the current cell. -/
+def rXfer (ts : List (Int × Int)) : M Unit :=
+  rLoop do
+    rInc (-1)
+    for (off, d) in ts do
+      rMove off; rInc d; rMove (-off)
+
+/-- The walk out. Entered with the head on slab 0's counter cell, which
+holds the index, and the payload in slab 0's `d` cells; left with the head
+on slab `i`'s counter cell, the payload beside it, and a `1` in the marker
+cell of every slab from 1 to `i`.
+
+Each iteration spends one step of the counter, hands the rest of it and the
+payload to the next slab, and ends on the next slab's counter cell, which is
+the cell the closing `]` tests. -/
+def walkRight : M Unit :=
+  rLoop do
+    rInc (-1)                     -- one step of the counter
+    rXfer [(Int.ofNat slabSize, 1)]   -- what is left of it goes next door
+    rMove (Int.ofNat dLoOff)
+    rXfer [(Int.ofNat slabSize, 1)]   -- and so does the payload
+    rMove 1
+    rXfer [(Int.ofNat slabSize, 1)]
+    rMove (Int.ofNat slabSize + Int.ofNat mOff - Int.ofNat dHiOff)
+    rInc 1                        -- mark the slab we are moving into
+    rMove (Int.ofNat kOff - Int.ofNat mOff)
+
+/-- The walk home. Entered with the head on slab `i`'s counter cell and the
+payload beside it; left with the head on slab 0's counter cell and the
+payload in slab 0. Follows the marker trail, clearing it as it goes, and
+stops at slab 0 because slab 0 was never marked. -/
+def walkBack : M Unit := do
+  rMove (Int.ofNat mOff - Int.ofNat kOff)
+  rLoop do
+    rInc (-1)                     -- clear the marker
+    rMove (Int.ofNat dLoOff - Int.ofNat mOff)
+    rXfer [(-(Int.ofNat slabSize), 1)]
+    rMove 1
+    rXfer [(-(Int.ofNat slabSize), 1)]
+    rMove (Int.ofNat mOff - Int.ofNat slabSize - Int.ofNat dHiOff)
+  rMove (Int.ofNat kOff - Int.ofNat mOff)
+
+/-- Copy the element under the head into the payload, preserving it. The
+counter cell is the scratch: the walk left it at zero and nothing else on
+this slab is free. Entered and left on the counter cell. -/
+def fetchElem : M Unit := do
+  rMove (Int.ofNat vLoOff)
+  rXfer [(Int.ofNat dLoOff - Int.ofNat vLoOff, 1), (Int.ofNat kOff - Int.ofNat vLoOff, 1)]
+  rMove (Int.ofNat kOff - Int.ofNat vLoOff)
+  rXfer [(Int.ofNat vLoOff - Int.ofNat kOff, 1)]
+  rMove (Int.ofNat vHiOff)
+  rXfer [(Int.ofNat dHiOff - Int.ofNat vHiOff, 1), (Int.ofNat kOff - Int.ofNat vHiOff, 1)]
+  rMove (Int.ofNat kOff - Int.ofNat vHiOff)
+  rXfer [(Int.ofNat vHiOff - Int.ofNat kOff, 1)]
+
+/-- Empty the payload into the element under the head. The payload ends at
+zero, so the walk home carries nothing. Entered and left on the counter
+cell. -/
+def storeElem : M Unit := do
+  rMove (Int.ofNat vLoOff)
+  rClr
+  rMove (Int.ofNat dLoOff - Int.ofNat vLoOff)
+  rXfer [(Int.ofNat vLoOff - Int.ofNat dLoOff, 1)]
+  rMove (Int.ofNat vHiOff - Int.ofNat dLoOff)
+  rClr
+  rMove (Int.ofNat dHiOff - Int.ofNat vHiOff)
+  rXfer [(Int.ofNat vHiOff - Int.ofNat dHiOff, 1)]
+  rMove (Int.ofNat kOff - Int.ofNat dHiOff)
+
+/-- Diverge unless `0 ≤ idx < n`, preserving `idx`. Out-of-range indexing is
+a runtime error in the reference semantics and has no counterpart on a
+brainfuck tape, so it becomes the same `+[]` as a failed `assert`.
+
+`w.b 20 .. 22` are the flags, chosen to sit clear of everything `lt16` and
+its `ltUB` touch. -/
+def checkBounds (idx : Val) (n : Nat) (w : Work) : M Unit := do
+  let lim := w.t 0
+  let w2 := w.after 1
+  let lo := w.b 20; let hi := w.b 21; let bad := w.b 22
+  set16 lim 0
+  lt16 lo idx lim w2 true          -- lo := idx < 0
+  set16 lim (Int.ofNat n)
+  lt16 hi idx lim w2 true          -- hi := idx < n
+  ifThen lo (clr hi)               -- a negative index is out of range too
+  clr bad; inc bad 1
+  ifThen hi (clr bad)
+  ifThen bad (trap w2)
 
 /-! ## Layout -/
 
