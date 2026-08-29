@@ -7,8 +7,10 @@
   the subleq formulation and its community date from the 1990s-2000s
 * **Canonical sources**: https://esolangs.org/wiki/Subleq (CC0);
   O. Mazonka and A. Kolodin, *A Simple Multi-Processor Computer Based on
-  Subleq*, arXiv:1106.2593 (2011); Mazonka's tool page at
-  http://mazonka.com/subleq/
+  Subleq*, arXiv:1106.2593 (2011), https://arxiv.org/abs/1106.2593;
+  Mazonka's tool page at http://mazonka.com/subleq/, which is intermittently
+  down and is archived at
+  http://web.archive.org/web/20230914063923/http://mazonka.com/subleq/
 * **In LangLib**: `Langlib/Languages/Subleq/`, runner `lake exe subleq`,
   examples in `Langlib/Examples/Subleq/`
 

@@ -2,9 +2,11 @@
 
 * **Author**: Urban Müller
 * **Year**: 1993
-* **Canonical sources**: Müller's original distribution (`bf.tar.gz`, Aminet,
-  1993, including a 240-byte Amiga compiler); the community reference point
-  today is https://esolangs.org/wiki/Brainfuck
+* **Canonical sources**: Müller's original distribution, uploaded by him to
+  Aminet in June 1993 as `brainfuck-2.lha` and still there
+  (http://aminet.net/package/dev/lang/brainfuck-2), including the 240-byte
+  Amiga compiler; the community reference point today is
+  https://esolangs.org/wiki/Brainfuck (CC0)
 * **In LangLib**: `Langlib/Languages/Brainfuck/`, runner `lake exe brainfuck`,
   examples in `Langlib/Examples/Brainfuck/`
 

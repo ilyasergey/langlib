@@ -2,10 +2,12 @@
 
 * **Author**: David Madore, 1999.
 * **Canonical reference**: Madore's *The Unlambda Programming Language*
-  page and the 2.0.0 distribution, which ships four interpreters (C,
-  reference-counting C, Java, Scheme) and a specification section. Where
-  they disagree — and they do — this page says which one LangLib follows
-  and why.
+  page, http://www.madore.org/~david/programs/unlambda/, and the
+  `unlambda-2.0.0.tar.gz` distribution it offers, which ships four
+  interpreters (C, reference-counting C, Java, Scheme) and a specification
+  section. Where they disagree, and they do, this page says which one
+  LangLib follows and why. Community page:
+  https://esolangs.org/wiki/Unlambda (CC0).
 * **Implementation**: [`Langlib/Languages/Unlambda/`](../../Langlib/Languages/Unlambda/).
 * **Examples**: [`Langlib/Examples/Unlambda/`](../../Langlib/Examples/Unlambda/).
 

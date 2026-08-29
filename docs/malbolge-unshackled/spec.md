@@ -2,9 +2,15 @@
 
 * **Author**: Ørjan Johansen, 2007, as a variant of Ben Olmstead's
   Malbolge (1998).
-* **Canonical reference**: Johansen's Malbolge Unshackled page and his
-  public-domain Haskell interpreter `Unshackled.hs`, which this
-  implementation follows step for step.
+* **Year**: 2007.
+* **Canonical reference**: there is no separate specification document. The
+  language is defined by Johansen's Haskell interpreter,
+  http://oerjan.nvg.org/esoteric/Unshackled.hs (header: "By Ørjan Johansen
+  (Feb 2007-). This program is in the public domain."), which this
+  implementation follows step for step, together with the prose description
+  of the deviations from Malbolge on the community page
+  https://esolangs.org/wiki/Malbolge_Unshackled (CC0), which links that
+  interpreter as the reference implementation.
 * **Implementation**: [`Langlib/Languages/MalbolgeUnshackled/`](../../Langlib/Languages/MalbolgeUnshackled/).
 * **Examples**: [`Langlib/Examples/MalbolgeUnshackled/`](../../Langlib/Examples/MalbolgeUnshackled/).
 * **See also**: [Malbolge](../malbolge/spec.md), the bounded original, and

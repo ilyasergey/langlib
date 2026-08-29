@@ -2,6 +2,38 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-30 (late): every spec names a resource that defines its language
+
+An audit of the fifteen `docs/*/spec.md` headers against the documentation
+policy. Eleven already cited a reachable canonical source; the other four
+cited something a reader could not follow, and Turpentine cited nothing at
+all because it has no external definition.
+
+* **unlambda**: named Madore's page without linking it. Now
+  http://www.madore.org/~david/programs/unlambda/, with the distribution
+  named as the file the page actually offers (`unlambda-2.0.0.tar.gz`).
+* **ski**: had a bibliography with no locators. Schönfinkel and Curry now
+  carry page ranges and DOIs.
+* **malbolge-unshackled**: claimed a "Malbolge Unshackled page" by
+  Johansen. There isn't one. The language is defined by his public-domain
+  Haskell interpreter, http://oerjan.nvg.org/esoteric/Unshackled.hs (whose
+  header dates it to Feb 2007), plus the deviations described on the
+  esolangs page that links it as the reference implementation. The header
+  now says so, and gains the **Year** field it was missing.
+* **brainfuck**: cited `bf.tar.gz` on Aminet, unlinked. The upload is
+  Müller's own, June 1993, and is called `brainfuck-2.lha`:
+  http://aminet.net/package/dev/lang/brainfuck-2.
+* **subleq**: `mazonka.com` is down (HTTP 523 on every attempt), so the
+  tool page now carries a Wayback snapshot beside it, and the
+  Mazonka-Kolodin paper gets its arXiv link.
+* **turpentine**: not an esoteric language and has no upstream, so the
+  header now says explicitly that the page itself is the specification and
+  `Langlib/Turpentine/` the reference implementation, rather than leaving a
+  reader to wonder what it was written against.
+
+Every URL in every spec page was fetched: all 34 resolve except
+`mazonka.com`, which is the one now archived.
+
 ## 2026-08-30 (night): the Piet dispatcher computes, and the terminal halts
 
 Piet's completeness proof had a shape problem: the command traces were

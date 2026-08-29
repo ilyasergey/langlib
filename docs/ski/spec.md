@@ -2,10 +2,12 @@
 
 * **Authors**: Moses Schönfinkel (1924) and Haskell Curry (1930).
 * **Canonical reference**: Schönfinkel, *Über die Bausteine der
-  mathematischen Logik* (Mathematische Annalen 92, 1924); Curry,
-  *Grundlagen der kombinatorischen Logik* (American Journal of Mathematics
-  52, 1930). Both are the mathematics, not an implementation; the language
-  below is the mathematics with a file extension.
+  mathematischen Logik*, Mathematische Annalen 92 (1924), pp. 305-316,
+  https://doi.org/10.1007/BF01448013; Curry, *Grundlagen der
+  kombinatorischen Logik*, American Journal of Mathematics 52 (1930),
+  pp. 509-536, https://doi.org/10.2307/2370619. Both are the mathematics,
+  not an implementation; the language below is the mathematics with a file
+  extension. Community page: https://esolangs.org/wiki/Combinatory_logic (CC0).
 * **Implementation**: [`Langlib/Languages/Ski/`](../../Langlib/Languages/Ski/).
 * **Examples**: [`Langlib/Examples/Ski/`](../../Langlib/Examples/Ski/).
 
