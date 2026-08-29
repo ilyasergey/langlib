@@ -2,6 +2,48 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-29: Malbolge's halting problem, decided
+
+The finite-control count from earlier this week said nothing about a
+*step*, so it settled nothing. It does now: `malbolgeHaltingDecidable`
+decides halting for every loaded Malbolge image, which is the form
+incompleteness takes in this library.
+
+Three pieces, and only the first was the one the notes predicted.
+
+`Langlib.Malbolge.exec` recurses at the front and returns early on a halt,
+so `exec (n+1)` is not `step (exec n)`. `stepOnce` is the loop body with
+the recursive call replaced by "stop here" (`exec_one` is `rfl`), `advance`
+makes halting absorbing, and `exec_succ` supplies the missing law.
+
+`RunWF` is the invariant a reachable state satisfies, and `runWF_exec`
+carries it through the whole run. This is where the arithmetic lives:
+`rotR`, `crz`, `encrypt`, a read byte and `maxWord` each need their own
+bound, plus `Array.set!` size preservation.
+
+The configuration drops the output, because it grows without bound and no
+instruction reads it, and `config_ext` proves the 59049-word control
+determines the rest: memory by array extensionality, registers and cursor
+by `Fin` injectivity, the input data because the run fixes it.
+
+Two things fell out on the way. First, `BoundedStorage` demands its
+finiteness laws of *every* inhabitant of the configuration type, which
+Malbolge's input-dependent cursor cannot satisfy; but reading
+`halts_iff_search` shows it only ever uses them at reachable
+configurations. So `Class.lean` now also has `BoundedRun`, with the laws
+stated there, the pigeonhole proof moved to it, and
+`BoundedStorage.toBoundedRun` keeping every existing witness and
+`Deadfish.no_boundedStorage` true as stated.
+
+Second, the module could not be imported into a compiled executable at
+all. `deriving Fintype` on `MalbolgeCore` produces a top-level *value*,
+evaluated when the module loads, and enumerating 59049^59049 memories
+overflows the stack immediately. Both `Fintype` instances are now
+noncomputable, which is why `Langlib/Tests/BoundedMalbolge.lean` could
+finally be wired into `lake test`, where it had never run.
+
+718 tests.
+
 ## 2026-09-02: the first certified compilers
 
 `compileToURM` and its correctness theorem landed, which was the piece

@@ -73,6 +73,7 @@ def colourStatus (html : String) : String :=
   html
     |>.replace "<td>yes</td>" "<td><span class=\"s-yes\">yes</span></td>"
     |>.replace "<td>wip</td>" "<td><span class=\"s-wip\">wip</span></td>"
+    |>.replace "<td>open</td>" "<td><span class=\"s-no\">open</span></td>"
     |>.replace "<td>-</td>" "<td><span class=\"s-no\">-</span></td>"
     |>.replace "<td>n/a</td>" "<td><span class=\"s-no\">n/a</span></td>"
 

@@ -579,3 +579,225 @@ lake exe subleq Langlib/Examples/Subleq/compiled/sieve.sq
 `sieve.sq` is the one to read: a `bool[50]` sieved with computed indices,
 so the patch sequences above appear in it half a dozen times, each with the
 comment that says which label it is rewriting.
+
+## Correctness
+
+The backend described above compiles all of Turpentine and is checked by the
+differential tests in the table above. Since 2026-08-30 a *fragment* of it is
+also proved correct, in
+[`Langlib/Computability/BespokeSubleq.lean`](../../Langlib/Computability/BespokeSubleq.lean).
+This section says exactly what that theorem covers, since the gap between the
+compiler and the theorem is large and the point of writing it down is that
+nobody has to guess.
+
+### What is proved
+
+`bespokeSubleq : TurpentineCompiler SubleqLang` is a second inhabitant of the
+structure that `Langlib/Computability/Derived.lean` defines, next to the
+`derivedSubleq` obtained from the subleq completeness proof. Inhabiting it
+means discharging its `correct` field:
+
+```lean
+correct : ∀ (p : Turpentine.Program) (prog : Prog) (result n : Nat),
+  compile p = .ok prog → TurpentineHaltsWith p n result →
+    ∃ m, (Subleq.evalProg prog encodeInput m).exit = Exit.halted ∧
+         decodeOutput (Subleq.evalProg prog encodeInput m).output = some result
+```
+
+Read it as: on a program this instance accepts, whenever the Turpentine
+reference semantics halts with `result` in the variable `answer`, the
+compiled subleq image halts too, for some fuel bound, and its output bytes
+decode to the same number. Nothing is claimed about programs the instance
+refuses, and nothing is claimed about source programs that do not halt.
+
+`#print axioms` on `bespokeSubleq` and on the corollary below reports
+`[propext, Classical.choice, Quot.sound]`, so there is no `sorry` and no
+backend-specific axiom behind it. `scripts/axioms.lean` audits every
+declaration in the file.
+
+`compile` is the hand-written backend itself, restricted: on a program of the
+fragment it returns exactly what `Turpentine.Compile.Subleq.compile` returns,
+and that the emitted image is the one the simulation is about is a theorem
+(`backend_skipZero`, `backend_printLit`), not a run-time check.
+
+### Over what fragment
+
+`compile` returns `Except.error` outside two program shapes, so the fragment
+is data rather than prose. The shapes, and the source text that parses into
+them, are:
+
+```
+var answer : int := k;        var answer : int;
+printByte(answer);
+```
+
+with `1 ≤ k ≤ 255` in the first. Everything else is refused, including the
+same program with `k = 0` (the code generator emits a shorter prologue for a
+zero literal, which is a different image and would need its own proof),
+`print(answer)` in place of `printByte(answer)`, a second variable, an
+assignment in the body, and every loop, array and I/O statement.
+
+The fragment is that narrow for one reason. A `TurpentineCompiler` has to
+report the answer through the compiled program's output bytes, and the only
+way this backend prints an integer is `printint`, which builds a decimal
+numeral by repeated doubling with a quadratic rebuild of powers of ten, and
+does it behind the patched-return calling convention. Verifying that routine
+is an arithmetic development of its own and is not attempted here. What the
+covered fragment does exercise is the whole path around it: variable
+initialisation, the `MOV` macro in both directions, a variable read, the
+byte-output instruction, the halt, and the assembler's label resolution, all
+against the real emitted image.
+
+The self-modifying operand patching that makes `a[i]` work is **outside** the
+fragment: arrays are refused, so no patching lemma is stated. That machinery
+remains covered by tests only.
+
+### With what decoding convention
+
+`bespokeSubleq.decodeOutput` reads the output bytes as a big-endian base-256
+numeral:
+
+```lean
+decodeOutput b = some (b.data.toList.foldl (fun acc x => acc * 256 + x.toNat) 0)
+```
+
+Empty output decodes to `0`, and a single byte decodes to that byte, which is
+what the two covered shapes need. This is *not* the convention of
+`derivedSubleq`, whose decoder is `some b.size` because the URM epilogue
+prints the answer in unary. The two do not have to agree: every
+`TurpentineCompiler` carries its own decoder as a field, and the `agree`
+theorem equates the two *decoded answers*, not the two byte strings. What
+would make the statement empty is a decoder that ignores its argument, and
+this one does not.
+
+### How the two ends are connected: the code generator
+
+`compile` is the hand-written backend restricted to the fragment, and nothing
+else:
+
+```lean
+def compile (p : Turpentine.Program) : Except String Prog :=
+  match shapeOf p with
+  | none   => .error "outside the verified fragment ..."
+  | some _ => Turpentine.Compile.Subleq.compile p
+```
+
+The link to the images is two theorems, not a run-time check:
+
+```lean
+theorem backend_skipZero :
+    Turpentine.Compile.Subleq.compile (progOf .skipZero) = .ok imgSkip
+theorem backend_printLit (k : Int) (hk : 0 < k) :
+    Turpentine.Compile.Subleq.compile (progOf (.printLit k)) = .ok (imgPrint k)
+```
+
+So `compile p = .ok prog` carries `prog = imgOf sh`, which is what the
+simulation consumes, and the fragment is provably inhabited:
+`compile_progSkip` and `compile_progPrint` exhibit members of it.
+
+Proving those two took some care, and the reason is worth recording. The code
+generator threads a `Std.HashMap`-carrying state monad through the emitter and
+then resolves labels through a second hash map. `String.hash` is `opaque` in
+Lean, so neither the kernel nor `decide` can evaluate a single step of the
+generator, and `#eval` is no help in a proof. The proof is therefore symbolic:
+`simp` unfolds the emitter with the `StateT.run_*` laws and reasons about both
+hash maps through their lemma API, which never mentions the hash function. Two
+practical points:
+
+* it runs in three stages per shape (`checkProgram`, then `buildChecked` to an
+  explicit item list, then `assembleItems` to the image), because one `simp`
+  over the whole pipeline exhausts a million heartbeats while the three
+  stages together elaborate in a couple of seconds;
+* the emitter's helpers are `private`, so the file uses Batteries' `open
+  private` to name them. That changes nothing about the backend; `simp` simply
+  needs the names.
+
+The one fact about strings the assembler proof needs is `km_ne`: a
+literal-pool cell is named `km<k>`, whose name is not a literal since `k` is
+a variable, and it has to be distinguishable from the ten fixed cell names.
+It is, because it starts with `k` and none of them do.
+
+### How the proof is organised
+
+`docs/verification.md` prescribes a state relation, per-construct simulation
+lemmas, and a composition step. At this size the three are:
+
+* `stepSub` and `stepOut` wrap `URMSubleq.reaches_sub` and
+  `URMSubleq.reaches_out` so that a call site names the instruction it runs
+  (`A`, `B`, `C`), the two values it reads, and where it lands, discharging
+  each as a side goal.
+* `M0 … M11` are the twelve memories the printing image passes through, and
+  they are the state relation: the invariant is "memory is `M i`", which is
+  decidable by `simp` because the image is a closed array and every write
+  goes to a known address. Only three cells are ever written (`t_0`,
+  `v_answer`, `sc`), and the code region is never touched, which is why the
+  self-modifying-code question does not arise inside the fragment.
+* `reaches_print` composes the twelve steps with `Reaches.trans`, and
+  `eval_of_reaches` turns a chain ending at a negative program counter into
+  a statement about `evalProg`.
+
+Every instruction in the printing image has the next instruction's address
+as its third word, so no branch is taken until the halt and the value of `k`
+never decides control flow. The proof needs `1 ≤ k ≤ 255` only for the
+output byte: subleq emits `mem[A] mod 256`, and that is `k` exactly in this
+range.
+
+The Turpentine side is `haltsWith_progSkip` and `haltsWith_progPrint`, which
+read the answer out of the reference semantics for the two shapes.
+
+### The corollary: two compilers, one answer
+
+With a second inhabitant in hand, `agree` from `Derived.lean` instantiates:
+
+```lean
+theorem bespoke_agrees_derived
+    (p : Turpentine.Program) (prog₁ prog₂ : Subleq.Prog) (result n : Nat)
+    (h₁ : bespokeSubleq.compile p = .ok prog₁)
+    (h₂ : derivedSubleq.compile p = .ok prog₂)
+    (hp : TurpentineHaltsWith p n result) :
+    ∃ m₁ m₂, … ∧ bespokeSubleq.decodeOutput … = derivedSubleq.decodeOutput …
+```
+
+"The derived compiler is an oracle for the hand-written one" stops being a
+testing practice and becomes a corollary of the two `correct` fields against
+the one specification. The two images are entirely different programs and
+their decoders are different functions; what agrees is the answer each run
+reports.
+
+A hypothesis of the form "both compilers accept `p`" is easy to state and,
+for two compilers with disjoint fragments, impossible to satisfy, so
+`bespoke_agrees_derived_nonvacuous` discharges it once: `var answer : int;`
+with an empty body is in both fragments, both compilers accept it, both
+compiled programs halt, and both report `0`.
+
+The overlap is exactly that narrow, because the derived compiler refuses
+every I/O statement (a URM has no output, so its answer is register 0 at
+halt) while this instance needs the answer printed. Widening it means either
+verifying `printint` here or teaching the URM pass to compile `printByte`.
+
+### What is not proved
+
+For the avoidance of doubt, none of the following is covered by any theorem
+today, and all of it is covered by tests only:
+
+* `print`/`println` of an integer, that is, the `printint` routine;
+* `mul`, `divmod` and `readint`, and the patched-return calling convention
+  that reaches them;
+* arrays, bounds checking, and the self-modifying operand patching in
+  `mLoadInd` and `mStoreInd`;
+* every control-flow construct: `if`, `while`, `&&`, `||`;
+* `assert` and the trap, and the claim that a Turpentine runtime error
+  becomes a subleq runtime error;
+* `readByte` and `readInt`, and the end-of-input convention;
+* divergence preservation, which `docs/verification.md` defers for every
+  backend;
+* the code generator on any program outside the two shapes: `backend_skipZero`
+  and `backend_printLit` are statements about those two, not about the
+  emitter in general.
+
+The differential tests in
+[`Langlib/Tests/BespokeSubleq.lean`](../../Langlib/Tests/BespokeSubleq.lean)
+run the five accepting shapes from source text through the parser, the type
+checker, the backend and the subleq interpreter, comparing the decoded answer
+and the output bytes against the Turpentine reference run, and pin the eight
+rejections that mark the fragment boundary.

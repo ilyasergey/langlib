@@ -52,18 +52,44 @@ def opWords : Op → List Word
   | .output => [.bang, .dot]
   | .loop body => [.bang, .quest] ++ body.flatMap opWords ++ [.quest, .bang]
 
-/-- Split a list into chunks of `n` (the last may be shorter). -/
-private partial def chunks (n : Nat) : List α → List (List α)
+/-- The last of a word's four characters, the one that distinguishes it. -/
+def lastChar : Word → Char
+  | .dot => '.'
+  | .quest => '?'
+  | .bang => '!'
+
+/-- The four characters of one Ook! word. -/
+def wordChars (w : Word) : List Char := ['O', 'o', 'k', lastChar w]
+
+/-- The words a program spells, in order. -/
+def wordsOf (p : Prog) : List Word := p.flatMap opWords
+
+/-- Each word followed by the whitespace character that separates it from
+the next. -/
+def spelled : List (Word × Char) → List Char
   | [] => []
-  | xs => xs.take n :: chunks n (xs.drop n)
+  | (w, c) :: t => wordChars w ++ c :: spelled t
+
+/-- The layout: a space between words, a newline after every sixteenth word
+and after the last. `k` counts words already placed on the current line. -/
+def renderPairs : List Word → Nat → List (Word × Char)
+  | [], _ => []
+  | [w], _ => [(w, '\n')]
+  | w :: ws, k =>
+    (w, if k == 15 then '\n' else ' ')
+      :: renderPairs ws (if k == 15 then 0 else k + 1)
 
 /-- Render a program as Ook! source: space-separated words, sixteen to a
 line (the customary layout), with a trailing newline. This is the
 `Prog → Ook!` direction of the brainfuck isomorphism; `parse` is its
-inverse. -/
+inverse, and `Langlib.Computability.OokSyntax.parse_render` proves it.
+
+Spelled out character by character rather than with `String.intercalate`
+over a chunked list, because the chunker was necessarily `partial` and
+Lean compiles a `partial def` to an opaque constant with no equations, which
+no theorem can mention. This definition is structural, so the round-trip
+theorem is about the string this function actually returns. -/
 def render (p : Prog) : String :=
-  let ws := (p.flatMap opWords).map Word.render
-  if ws.isEmpty then ""
-  else String.intercalate "\n" ((chunks 16 ws).map (String.intercalate " ")) ++ "\n"
+  String.ofList (spelled (renderPairs (wordsOf p) 0))
 
 end Langlib.Ook

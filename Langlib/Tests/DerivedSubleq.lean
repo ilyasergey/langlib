@@ -68,9 +68,10 @@ def suite : Suite where
     , { name := "rejects printing", source := .inline
           "var answer : int; println(1);",
         expect := .parseError "outside the certified URM fragment" }
-    , { name := "rejects arrays", source := .inline
-          "var answer : int; var a : int[2];",
-        expect := .parseError "array" }
+      -- arrays are inside the fragment since the dispatch-chain work
+    , { name := "array element and length", source := .inline
+          "var answer : int; var a : int[3]; a[1] := 4; answer := a[1] + len(a);",
+        expect := .outputs "7" }
     ]
 
 def suites : List Suite := [suite]

@@ -164,14 +164,18 @@ shortest route onto the URM and brainfuck for the hardest. **ook** and
 **brainloller** are free now that brainfuck is proved, by composing with
 `parse ∘ render = id`, and nobody has collected them yet.
 
-For the negative side, the target is a decided halting problem, usually
-through `BoundedStorage`. **byte-celled befunge93** is done that way, and
-**deadfish** is done the other way: it halts on `length + 1` units of fuel
-for every program, so halting is decided directly, and `no_boundedStorage`
-proves the interface could not have witnessed it. **malbolge** is half
-done, with its finite control counted exactly but no
-`BoundedStorage` witness, because the interface takes a fixed `Config` and
-malbolge's cursor type depends on the input length. Widening the interface
-to cover it is the open piece. The decidability consequence is proved once
-in `halting_decidable`, so each language supplies only its bound. Those
-briefs are shorter and the proofs are usually an afternoon.
+For the negative side, the target is a decided halting problem. All three
+languages that have one are done: **byte-celled befunge93** through a
+`BoundedStorage` witness, **deadfish** directly (it halts on `length + 1`
+units of fuel for every program, and `no_boundedStorage` proves the
+interface could not have witnessed it), and **malbolge** through a
+`BoundedRun`, the reachable-only form of the same interface. The
+decidability consequence is proved once in `halting_decidable`, so a new
+language supplies only its bound.
+
+If you take a bounded language next, read
+[computability-malbolge.md](computability-malbolge.md) first: it is the one
+whose state type is not finite by construction, so it shows the general
+shape (a step function the evaluator does not give you, an invariant
+carried through every instruction, and a proof that the finite part
+determines the run).

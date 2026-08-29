@@ -124,8 +124,13 @@ applies costs one more unit.
 
 The focused build succeeds with warnings absent:
 
+```
+lake build Langlib.Tests.URMFractran
+```
+
+Output:
+
 ```text
-$ lake build Langlib.Tests.URMFractran
 ✔ [1050/1050] Built Langlib.Tests.URMFractran (880ms)
 Build completed successfully (1050 jobs).
 ```

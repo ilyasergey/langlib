@@ -1,8 +1,12 @@
 import Langlib.Common.TestHarness
 import Langlib.Tests.Befunge93
 import Langlib.Tests.Brainfuck
+import Langlib.Tests.BoundedMalbolge
 import Langlib.Tests.Brainloller
+import Langlib.Tests.BespokeSubleq
 import Langlib.Tests.CompileBrainfuck
+import Langlib.Tests.CompileBrainloller
+import Langlib.Tests.CompileOok
 import Langlib.Tests.CompileSubleq
 import Langlib.Tests.CompileWhitespace
 import Langlib.Tests.DerivedSubleq
@@ -30,8 +34,12 @@ def main : IO UInt32 :=
   runSuites <| List.flatten
     [ Langlib.Tests.Befunge93.suites
     , Langlib.Tests.Brainfuck.suites
+    , Langlib.Tests.BoundedMalbolge.suites
     , Langlib.Tests.Brainloller.suites
+    , Langlib.Tests.BespokeSubleq.suites
     , Langlib.Tests.CompileBrainfuck.suites
+    , Langlib.Tests.CompileBrainloller.suites
+    , Langlib.Tests.CompileOok.suites
     , Langlib.Tests.CompileSubleq.suites
     , Langlib.Tests.CompileWhitespace.suites
     , Langlib.Tests.DerivedSubleq.suites

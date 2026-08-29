@@ -41,9 +41,15 @@ Accepted:
   into a prelude of assignments (`declPrelude`) run at the head of the body,
   which is what `Turpentine.initEnv` does: initialisers in declaration
   order, each in scope of the earlier ones, and `0` / `false` for the rest;
+* declarations of **arrays** of `int` or `bool`, which take one register per
+  element and no initialiser, since every element starts at `0` / `false`
+  and so does every register. Declaration names must be distinct, which is
+  what the type checker demands anyway;
 * expressions: non-negative integer literals, boolean literals, variables,
-  `!`, `+`, `*`, `/`, `%`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `&&`, `||`;
-* statements: `skip`, sequencing, assignment, `if`, `while`, `assert`.
+  **`a[i]`**, **`len(a)`**, `!`, `+`, `*`, `/`, `%`, `==`, `!=`, `<`, `<=`,
+  `>`, `>=`, `&&`, `||`;
+* statements: `skip`, sequencing, assignment, **`a[i] := e`**, `if`,
+  `while`, `assert`.
 
 Rejected, each with a message saying so:
 
@@ -53,16 +59,22 @@ Rejected, each with a message saying so:
   value to relate the intermediate to. `/` and `%` are *not* in this list:
   `Int.ediv` and `Int.emod` of non-negative operands are non-negative, so
   they stay in range;
-* arrays, in declarations and in expressions;
+* an array access in the **right operand of `&&` or `||`**, because the
+  emitted select evaluates that operand whether the source did or not, and
+  an out-of-range index diverges (see below);
+* a whole array as a value (`a` on its own, or `a := …`), which the type
+  checker rejects too: the fragment reaches an array only through `a[i]` and
+  `len(a)`;
 * every I/O statement: `readInt`, `readByte`, `print`, `println`,
-  `printByte`.
+  `printByte`, `a[i] := readInt()`, `a[i] := readByte()`.
 
-Two behaviours are outside the theorem and worth knowing:
+Three behaviours are outside the theorem and worth knowing:
 
 * **`&&` and `||` evaluate both operands.** The source short-circuits them.
-  The two agree because a compiled expression's code runs to its own end
-  from any register state (`reaches_compileExpr_total`), so evaluating a
-  right operand the source skipped costs time and nothing else.
+  The two agree because a compiled index-free expression's code runs to its
+  own end from any register state (`reaches_compileExpr_total`), so
+  evaluating a right operand the source skipped costs time and nothing else.
+  That lemma is exactly why an array access is refused there.
 * **A zero divisor does not trap.** `divModCode` counts the dividend down
   whatever the divisor is, and with a divisor of zero it settles on a
   quotient of `0` and a remainder equal to the dividend. The reference
@@ -71,6 +83,12 @@ Two behaviours are outside the theorem and worth knowing:
   rather than trap, because `&&` compiles its right operand
   unconditionally: a diverging `/` would break short-circuit programs the
   source runs happily. That is why this is not handled the way `assert` is.
+* **An out-of-range index diverges.** The dispatch chain for `a[i]` compares
+  `i` against `0, 1, …, n-1`; anything else falls through into a
+  one-instruction self-loop. The reference semantics makes such an index a
+  runtime error, so the source does not halt and the theorem claims nothing;
+  diverging is the choice that cannot be mistaken for an answer, and it is
+  what a failing `assert` already does.
 
 `docs/certified-compilation.md` records what it would take to remove each
 remaining restriction.
@@ -80,8 +98,11 @@ remaining restriction.
     register 0        the answer; written once, by the epilogue
     register 1        a permanent zero, never written, so `J r 1 q` is
                       "jump if register r is zero"
-    registers 2…      one per declared variable, in declaration order
-    registers 2+n…    scratch, used by the arithmetic macros
+    registers 2…      one block per declared variable, in declaration order:
+                      one register for a scalar, `n` for an array of length
+                      `n`, and the blocks do not overlap
+    above them        scratch, used by the arithmetic macros and the
+                      dispatch chains
 
 Unconditional jumps are `J 0 0 q`, which is taken whatever register 0 holds.
 
@@ -106,6 +127,13 @@ the machine has:
   `a`, `b` it reaches first;
 * `a && b` and `a || b` are branch-free selects over the two already
   computed operands.
+
+Array access is not a macro over registers but a **dispatch chain**: a URM
+instruction names its registers statically, so `a[i]` with a computed `i`
+compares `i` against `0, 1, …, n-1` and jumps to the block that touches that
+element's register. `4n + 2` instructions, entirely static, and no
+self-modifying code, because register indices are compile-time constants and
+so is the length. `dispatchCode` builds it and `reaches_dispatchT` runs it.
 
 `subCode` is the one macro `compileExpr` does not reach. It is kept because
 `opSize_eq_length` checks its size and because it is where a signed
@@ -134,8 +162,8 @@ abbrev UProg := Cslib.URM.Program
 /-! ## Register layout -/
 
 /-- Where one Turpentine variable lives: `size` consecutive registers from
-`base`. In the certified fragment `size` is always 1; the field is kept
-because a wider fragment with arrays needs it. -/
+`base`. A scalar has `size = 1`; an array of length `n` has `size = n` and
+occupies the block `base … base + n - 1`, one register per element. -/
 structure Slot where
   name : String
   ty : Ty
@@ -150,20 +178,62 @@ def firstVarReg : Nat := 2
 /-- The variable whose final value is the machine's answer. -/
 def answerVar : String := "answer"
 
-/-- Assign registers to declarations, in order, starting at `next`. Arrays
-are rejected here, so a successful layout means every declared variable is a
-scalar. Initialisers are not the layout's business: `compileToURM` desugars
+/-- Is this an array type? -/
+def isArrayTy : Ty → Bool
+  | .array _ _ => true
+  | _ => false
+
+/-- The declared types the certified fragment lays out: the two scalars, and
+one-dimensional arrays of a scalar. Turpentine's arrays are already
+one-dimensional with scalar elements, so the only case this rules out is a
+hand-built AST. -/
+def declTyOk : Ty → Bool
+  | .int | .bool => true
+  | .array .int _ | .array .bool _ => true
+  | .array (.array _ _) _ => false
+
+/-- How many registers a declared type occupies: one for a scalar, one per
+element for an array. -/
+def tySize : Ty → Nat
+  | .array _ n => n
+  | _ => 1
+
+/-- Assign registers to declarations, in order, starting at `next`. A scalar
+takes one register and an array of length `n` takes `n`, so a successful
+layout gives every declaration a contiguous block and the blocks do not
+overlap.
+
+Three declaration lists are refused here rather than later:
+
+* one that declares a name twice. A name has exactly one slot and exactly
+  one value, and with arrays in the language those two can disagree (a
+  scalar slot for `a` and an array value for `a`), so the fragment asks for
+  distinct names. `Turpentine.checkProgram` rejects redeclaration anyway;
+* an array of arrays, which the surface language cannot write;
+* an array with an initialiser, which the surface language cannot write
+  either: an array starts at `0` / `false`, which is where the registers
+  start.
+
+Scalar initialisers are not the layout's business: `compileToURM` desugars
 them into assignments at the head of the body (`declPrelude`), which is what
 `Turpentine.initEnv` does anyway. -/
 def layoutFrom (next : Nat) :
     List (String × Ty × Option Expr) → Except String (List Slot)
   | [] => .ok []
-  | (x, t, _) :: rest =>
-    match t with
-    | .array _ _ => .error s!"'{x}' is an array; arrays are outside the certified URM fragment"
-    | _ => do
-      let tl ← layoutFrom (next + 1) rest
-      return { name := x, ty := t, base := next, size := 1 } :: tl
+  | (x, t, init) :: rest =>
+    if rest.any (fun d => d.1 == x) then
+      .error s!"'{x}' is declared twice; the certified URM fragment gives every \
+        declaration its own registers, so declaration names must be distinct"
+    else if !declTyOk t then
+      .error s!"'{x}': the certified URM fragment lays out int, bool, and \
+        one-dimensional arrays of those"
+    else if isArrayTy t && init.isSome then
+      .error s!"'{x}' is an array with an initialiser; Turpentine's arrays start \
+        at 0 / false and take none"
+    else
+      match layoutFrom (next + tySize t) rest with
+      | .error m => .error m
+      | .ok tl => .ok ({ name := x, ty := t, base := next, size := tySize t } :: tl)
 
 /-- The first scratch register: past every variable. -/
 def scratchBase (slots : List Slot) : Nat :=
@@ -172,6 +242,14 @@ def scratchBase (slots : List Slot) : Nat :=
 /-- The slot of a variable, by name. -/
 def findSlot (slots : List Slot) (x : String) : Option Slot :=
   slots.find? (·.name == x)
+
+/-- How many registers the variable `x` occupies, or `0` if it has no slot.
+This is an array's length, which is what `len(x)` compiles to and how long
+its dispatch chain is. -/
+def slotSize (slots : List Slot) (x : String) : Nat :=
+  match findSlot slots x with
+  | some s => s.size
+  | none => 0
 
 /-! ## Sizes
 
@@ -195,13 +273,18 @@ def opSize : BinOp → Nat
   | .and => 4
   | .or => 5
 
+/-- The length of a dispatch chain over an array of `n` elements: a `Z`, `n`
+two-instruction comparisons, the out-of-range self-loop, and `n`
+two-instruction element blocks. -/
+def dispatchSize (n : Nat) : Nat := 4 * n + 2
+
 /-- The size of the code for an expression. -/
 def exprSize (slots : List Slot) : Expr → Nat
   | .intLit n => n.toNat + 1
   | .boolLit b => if b then 2 else 1
   | .var _ => 1
-  | .index _ _ => 1
-  | .len x => (match findSlot slots x with | some s => s.size | none => 0) + 1
+  | .index x i => exprSize slots i + dispatchSize (slotSize slots x)
+  | .len x => slotSize slots x + 1
   | .un .not e => exprSize slots e + 5
   | .un .neg e => exprSize slots e
   | .bin op e₁ e₂ => exprSize slots e₁ + exprSize slots e₂ + opSize op
@@ -211,7 +294,8 @@ def stmtSize (slots : List Slot) : Stmt → Nat
   | .skip => 0
   | .seq a b => stmtSize slots a + stmtSize slots b
   | .assign _ e => exprSize slots e + 1
-  | .assignIndex _ _ e => exprSize slots e + 1
+  | .assignIndex x i e =>
+    exprSize slots e + exprSize slots i + dispatchSize (slotSize slots x)
   | .ite c a b => exprSize slots c + 2 + stmtSize slots a + stmtSize slots b
   | .while c b => exprSize slots c + 2 + stmtSize slots b
   | .assert e => exprSize slots e + 1
@@ -324,6 +408,70 @@ theorem opSize_eq_length (q d : Nat) (op : BinOp) : (binCode q d op).length = op
 def constCode (d n : Nat) : List UInstr :=
   .Z d :: List.replicate n (.S d)
 
+/-! ### The dispatch chain
+
+A URM instruction names its registers statically, so `a[i]` with a computed
+`i` cannot be one instruction. It does not need self-modifying code either,
+because the register indices are compile-time constants and so is the
+array's length: the code can simply compare `i` against `0, 1, …, n-1` and
+jump to the block that touches that element's register. That is `O(n)`
+instructions per access, entirely static, which is what makes it provable.
+
+The chain for an array of `n` elements, placed at `q`, with the index in
+register `d` and `d+1` free as a counter:
+
+    q                Z (d+1)                        counter := 0
+    q+1+2j           J d (d+1) (q+2n+2+2j)          i = j ? go to block j
+    q+2+2j           S (d+1)                        counter := counter + 1
+    q+2n+1           J 0 0 (q+2n+1)                 out of range: spin
+    q+2n+2+2j        hit j                          the element instruction
+    q+2n+3+2j        J 0 0 (q+4n+2)                 leave the chain
+
+`hit j` is `T (base+j) d` for a read and `T v (base+j)` for a write.
+
+**Out of range the chain falls through into a one-instruction self-loop, so
+the compiled program diverges.** The reference semantics makes an index
+outside `0 … n-1` a runtime error, and `TurpentineHaltsWith` assumes the
+source *halts*, so the theorem claims nothing about such a program and the
+target is free to do anything; diverging is the choice that cannot be
+mistaken for an answer, and it is what a failing `assert` already does. The
+price is that a compiled expression is no longer total, which is why
+`compileExpr` refuses an array access on the right of `&&` or `||`, where
+the emitted code evaluates an operand the source may skip. -/
+def dispatchAt (q d n : Nat) (hit : Nat → UInstr) (k : Nat) : UInstr :=
+  if k = 0 then .Z (d+1)
+  else if k < 2 * n + 1 then
+    (if (k - 1) % 2 = 0 then .J d (d+1) (q + (2 * n + 2 + (k - 1))) else .S (d+1))
+  else if k = 2 * n + 1 then .J 0 0 (q + (2 * n + 1))
+  else if (k - (2 * n + 2)) % 2 = 0 then hit ((k - (2 * n + 2)) / 2)
+  else .J 0 0 (q + (4 * n + 2))
+
+/-- The dispatch chain itself, as a list. Writing it as a `map` over
+`List.range` keeps `getElem` on it a one-liner, which is most of what the
+proof does with it. -/
+def dispatchCode (q d n : Nat) (hit : Nat → UInstr) : List UInstr :=
+  (List.range (dispatchSize n)).map (dispatchAt q d n hit)
+
+@[simp] theorem length_dispatchCode (q d n : Nat) (hit : Nat → UInstr) :
+    (dispatchCode q d n hit).length = dispatchSize n := by
+  simp [dispatchCode]
+
+theorem getElem_dispatchCode (q d n : Nat) (hit : Nat → UInstr) (k : Nat)
+    (hk : k < (dispatchCode q d n hit).length) :
+    (dispatchCode q d n hit)[k] = dispatchAt q d n hit k := by
+  simp [dispatchCode]
+
+/-- An expression with no array access. The compiled code for one of these
+runs to its own end from any register state (`reaches_compileExpr_total`),
+which a dispatch chain does not, so this is the side condition on the right
+operand of `&&` and `||`. -/
+def indexFree : Expr → Bool
+  | .index _ _ => false
+  | .len _ => true
+  | .intLit _ | .boolLit _ | .var _ => true
+  | .un _ e => indexFree e
+  | .bin _ e₁ e₂ => indexFree e₁ && indexFree e₂
+
 /-- The operators the certified fragment admits. `-` is the only arithmetic
 one left out: a register holds a `Nat`, and `a - b` is the one operation on
 non-negative operands whose result can be negative. `/` and `%` are in,
@@ -360,12 +508,29 @@ def compileExpr (slots : List Slot) (q : Nat) : Expr → Nat → Except String (
   | .boolLit b, d => .ok (if b then [.Z d, .S d] else [.Z d])
   | .var x, d =>
     match findSlot slots x with
-    | some s => .ok [.T s.base d]
+    | some s =>
+      if isArrayTy s.ty then
+        .error s!"'{x}' is an array, and a whole array is not a value here; the certified \
+          URM fragment reaches it through '{x}[…]' and 'len({x})'"
+      else .ok [.T s.base d]
     | none => .error s!"undeclared variable '{x}'"
-  | .index x _, _ =>
-    .error s!"'{x}[…]': arrays are outside the certified URM fragment"
-  | .len x, _ =>
-    .error s!"'len({x})': arrays are outside the certified URM fragment"
+  | .index x i, d =>
+    match findSlot slots x with
+    | some s =>
+      if isArrayTy s.ty then
+        match compileExpr slots q i d with
+        | .ok ci =>
+          .ok (ci ++ dispatchCode (q + exprSize slots i) d s.size
+            (fun j => .T (s.base + j) d))
+        | .error m => .error m
+      else .error s!"'{x}[…]': '{x}' is not an array"
+    | none => .error s!"undeclared variable '{x}'"
+  | .len x, d =>
+    match findSlot slots x with
+    | some s =>
+      if isArrayTy s.ty then .ok (constCode d s.size)
+      else .error s!"'len({x})': '{x}' is not an array"
+    | none => .error s!"undeclared variable '{x}'"
   | .un .neg _, _ =>
     .error "unary minus (the certified URM fragment is non-negative)"
   | .un .not e, d =>
@@ -377,7 +542,12 @@ def compileExpr (slots : List Slot) (q : Nat) : Expr → Nat → Except String (
       match compileExpr slots q e₁ d,
             compileExpr slots (q + exprSize slots e₁) e₂ (d + 1) with
       | .ok c₁, .ok c₂ =>
-        .ok (c₁ ++ c₂ ++ binCode (q + exprSize slots e₁ + exprSize slots e₂) d op)
+        if shortOp op && !indexFree e₂ then
+          .error s!"the right operand of '{binOpName op}' indexes an array. The certified \
+            fragment compiles '{binOpName op}' to a select over two operands it has both \
+            evaluated, and an out-of-range index diverges, so the source's short circuit \
+            would not be safe to drop here"
+        else .ok (c₁ ++ c₂ ++ binCode (q + exprSize slots e₁ + exprSize slots e₂) d op)
       | .error m, _ => .error m
       | _, .error m => .error m
     else
@@ -395,12 +565,28 @@ def compileStmt (slots : List Slot) (sb : Nat) (q : Nat) :
     | .error m, _ => .error m
     | _, .error m => .error m
   | .assign x e =>
-    match findSlot slots x, compileExpr slots q e sb with
-    | some s, .ok c => .ok (c ++ [.T sb s.base])
-    | none, _ => .error s!"undeclared variable '{x}'"
-    | _, .error m => .error m
-  | .assignIndex x _ _ =>
-    .error s!"'{x}[…] := …': arrays are outside the certified URM fragment"
+    match findSlot slots x with
+    | some s =>
+      if isArrayTy s.ty then
+        .error s!"'{x} := …': '{x}' is an array; assign to its elements instead"
+      else
+        match compileExpr slots q e sb with
+        | .ok c => .ok (c ++ [.T sb s.base])
+        | .error m => .error m
+    | none => .error s!"undeclared variable '{x}'"
+  | .assignIndex x i e =>
+    match findSlot slots x with
+    | some s =>
+      if isArrayTy s.ty then
+        match compileExpr slots q e sb,
+              compileExpr slots (q + exprSize slots e) i (sb + 1) with
+        | .ok ce, .ok ci =>
+          .ok (ce ++ ci ++ dispatchCode (q + exprSize slots e + exprSize slots i) (sb + 1)
+            s.size (fun j => .T sb (s.base + j)))
+        | .error m, _ => .error m
+        | _, .error m => .error m
+      else .error s!"'{x}[…] := …': '{x}' is not an array"
+    | none => .error s!"undeclared variable '{x}'"
   | .ite c a b =>
     match compileExpr slots q c sb,
           compileStmt slots sb (q + exprSize slots c + 1) a,
@@ -444,15 +630,22 @@ variables get an explicit assignment too, rather than being skipped: it costs
 two instructions each and it makes the desugaring agree with `initEnv` step
 for step, whatever the declaration list looks like. -/
 
-/-- The literal a declaration without an initialiser starts from. Only `int`
-and `bool` reach here, because `layoutFrom` rejects arrays first. -/
+/-- The literal a scalar declaration without an initialiser starts from. -/
 def declDefault : Ty → Expr
   | .bool => .boolLit false
   | _ => .intLit 0
 
-/-- One declaration as an assignment: its initialiser, or its type's
-default. -/
+/-- One declaration as a statement: its initialiser, or its type's default.
+
+**An array declaration emits nothing.** There is no expression that denotes
+an array, so it could not be an assignment; and it does not need to be, since
+an array starts with every element at `0` / `false` and every register starts
+at zero. This is the one place the desugaring is not step for step with
+`Turpentine.initEnv`, and it is why `layoutFrom` insists on distinct
+declaration names: the name has to still denote its default array when the
+prelude is done with it. -/
 def declInit : String × Ty × Option Expr → Stmt
+  | (_, .array _ _, _) => .skip
   | (x, t, none) => .assign x (declDefault t)
   | (x, _, some e) => .assign x e
 
@@ -501,7 +694,9 @@ theorem length_compileExpr (slots : List Slot) :
   | var x =>
     intro q d code h
     rw [compileExpr] at h; split at h
-    · simp only [Except.ok.injEq] at h; subst h; simp [exprSize]
+    · split at h
+      · simp at h
+      · simp only [Except.ok.injEq] at h; subst h; simp [exprSize]
     · simp at h
   | un op e ih =>
     intro q d code h
@@ -518,14 +713,36 @@ theorem length_compileExpr (slots : List Slot) :
     rw [compileExpr] at h; split at h
     · split at h
       · next c₁ c₂ hc₁ hc₂ =>
-        simp only [Except.ok.injEq] at h; subst h
-        simp only [List.length_append, opSize_eq_length, exprSize,
-          ih₁ q d c₁ hc₁, ih₂ (q + exprSize slots e₁) (d + 1) c₂ hc₂]
+        split at h
+        · simp at h
+        · simp only [Except.ok.injEq] at h; subst h
+          simp only [List.length_append, opSize_eq_length, exprSize,
+            ih₁ q d c₁ hc₁, ih₂ (q + exprSize slots e₁) (d + 1) c₂ hc₂]
       · simp at h
       · simp at h
     · simp at h
-  | index x i => intro q d code h; rw [compileExpr] at h; simp at h
-  | len x => intro q d code h; rw [compileExpr] at h; simp at h
+  | index x i ih =>
+    intro q d code h
+    rw [compileExpr] at h; split at h
+    · next s hs =>
+      split at h
+      · split at h
+        · next ci hci =>
+          simp only [Except.ok.injEq] at h; subst h
+          simp only [List.length_append, length_dispatchCode, exprSize,
+            ih q d ci hci, slotSize, hs]
+        · simp at h
+      · simp at h
+    · simp at h
+  | len x =>
+    intro q d code h
+    rw [compileExpr] at h; split at h
+    · next s hs =>
+      split at h
+      · simp only [Except.ok.injEq] at h; subst h
+        simp [exprSize, constCode, slotSize, hs]
+      · simp at h
+    · simp at h
 
 theorem length_compileStmt (slots : List Slot) (sb : Nat) :
     ∀ (st : Stmt) (q : Nat) (code : List UInstr),
@@ -546,10 +763,14 @@ theorem length_compileStmt (slots : List Slot) (sb : Nat) :
   | assign x e =>
     intro q code h
     rw [compileStmt] at h; split at h
-    · next s c _ hc =>
-      simp only [Except.ok.injEq] at h; subst h
-      simp [stmtSize, length_compileExpr slots e q sb c hc]
-    · simp at h
+    · next s hs =>
+      split at h
+      · simp at h
+      · split at h
+        · next c hc =>
+          simp only [Except.ok.injEq] at h; subst h
+          simp [stmtSize, length_compileExpr slots e q sb c hc]
+        · simp at h
     · simp at h
   | ite c a b iha ihb =>
     intro q code h
@@ -580,7 +801,22 @@ theorem length_compileStmt (slots : List Slot) (sb : Nat) :
       simp only [Except.ok.injEq] at h; subst h
       simp [stmtSize, length_compileExpr slots e q sb ce hc]
     · simp at h
-  | assignIndex x i e => intro q code h; rw [compileStmt] at h; simp at h
+  | assignIndex x i e =>
+    intro q code h
+    rw [compileStmt] at h; split at h
+    · next s hs =>
+      split at h
+      · split at h
+        · next ce ci hce hci =>
+          simp only [Except.ok.injEq] at h; subst h
+          simp only [List.length_append, length_dispatchCode, stmtSize,
+            length_compileExpr slots e q sb ce hce,
+            length_compileExpr slots i (q + exprSize slots e) (sb + 1) ci hci,
+            slotSize, hs]
+        · simp at h
+        · simp at h
+      · simp at h
+    · simp at h
   | printExpr e nl => intro q code h; rw [compileStmt] at h; simp at h
   | printStr s nl => intro q code h; rw [compileStmt] at h; simp at h
   | printByte e => intro q code h; rw [compileStmt] at h; simp at h
@@ -682,6 +918,17 @@ theorem reaches_jump {P : UProg} {p t : Nat} {regs : Cslib.URM.Regs}
     (h : P[p]? = some (.J 0 0 t)) : Reaches (Ex P) ⟨p, regs⟩ ⟨t, regs⟩ :=
   reaches_J_eq h rfl
 
+/-- Rewriting the target program counter of a `Reaches`, which the size
+arithmetic below needs constantly. -/
+theorem reaches_pc {P : UProg} {a b b' : Nat} {r r' : Cslib.URM.Regs}
+    (h : Reaches (Ex P) ⟨a, r⟩ ⟨b, r'⟩) (hb : b = b') :
+    Reaches (Ex P) ⟨a, r⟩ ⟨b', r'⟩ := hb ▸ h
+
+/-- Rewriting the source program counter of a `Reaches`. -/
+theorem reaches_from {P : UProg} {a a' b : Nat} {r r' : Cslib.URM.Regs}
+    (h : Reaches (Ex P) ⟨a, r⟩ ⟨b, r'⟩) (ha : a = a') :
+    Reaches (Ex P) ⟨a', r⟩ ⟨b, r'⟩ := ha ▸ h
+
 /-! ### Registers -/
 
 theorem write_self (σ : Cslib.URM.Regs) (n v : Nat) : σ.write n v n = v := by
@@ -756,6 +1003,122 @@ theorem reaches_constCode (P : UProg) (q d n : Nat) (regs : Cslib.URM.Regs)
   · rw [hd, write_self]; omega
   · intro k hk'
     rw [hk k (by omega), write_ne _ (by omega)]
+
+/-! ### The dispatch chain
+
+`reaches_dispatchT` is the whole chain in one statement, for the case both
+callers need: the element instruction is a copy. The scan below it is the
+induction, on how far down the chain the index still is.
+
+The value claim assumes the index is in range (`j < n`). Out of range the
+chain reaches its self-loop instead and the machine never halts, which is
+sound because the theorem's hypothesis is that the source halted, and the
+reference semantics does not halt on an out-of-range index. -/
+
+theorem write_write (σ : Cslib.URM.Regs) (n a b : Nat) :
+    (σ.write n a).write n b = σ.write n b := by
+  funext k
+  by_cases h : k = n
+  · subst h; rw [write_self, write_self]
+  · rw [write_ne _ h, write_ne _ h, write_ne _ h]
+
+theorem dispatch_get {P : UProg} {q d n : Nat} {hit : Nat → UInstr}
+    (hcode : CodeAt P q (dispatchCode q d n hit)) (k : Nat) (hk : k < dispatchSize n) :
+    P[q + k]? = some (dispatchAt q d n hit k) := by
+  have h := hcode.get k (by simpa using hk)
+  rwa [getElem_dispatchCode] at h
+
+private theorem dispatchAt_cmp (q d n : Nat) (hit : Nat → UInstr) (m : Nat) (hm : m < n) :
+    dispatchAt q d n hit (1 + 2 * m) = .J d (d+1) (q + (2 * n + 2 + 2 * m)) := by
+  simp only [dispatchAt]
+  rw [if_neg (by omega), if_pos (by omega), if_pos (by omega),
+    show 1 + 2 * m - 1 = 2 * m from by omega]
+
+private theorem dispatchAt_inc (q d n : Nat) (hit : Nat → UInstr) (m : Nat) (hm : m + 1 < n) :
+    dispatchAt q d n hit (2 + 2 * m) = .S (d+1) := by
+  simp only [dispatchAt]
+  rw [if_neg (by omega), if_pos (by omega), if_neg (by omega)]
+
+private theorem dispatchAt_hit (q d n : Nat) (hit : Nat → UInstr) (j : Nat) :
+    dispatchAt q d n hit (2 * n + 2 + 2 * j) = hit j := by
+  simp only [dispatchAt]
+  rw [if_neg (by omega), if_neg (by omega), if_neg (by omega), if_pos (by omega),
+    show (2 * n + 2 + 2 * j - (2 * n + 2)) / 2 = j from by omega]
+
+private theorem dispatchAt_leave (q d n : Nat) (hit : Nat → UInstr) (j : Nat) :
+    dispatchAt q d n hit (2 * n + 3 + 2 * j) = .J 0 0 (q + (4 * n + 2)) := by
+  simp only [dispatchAt]
+  rw [if_neg (by omega), if_neg (by omega), if_neg (by omega), if_neg (by omega)]
+
+private theorem reaches_dispatch_scan (P : UProg) (q d n : Nat) (hit : Nat → UInstr)
+    (hcode : CodeAt P q (dispatchCode q d n hit)) (regs : Cslib.URM.Regs) (j : Nat)
+    (hj : j < n) (hidx : regs d = j) :
+    ∀ (c m : Nat), m + c = j →
+      Reaches (Ex P) ⟨q + (1 + 2 * m), regs.write (d+1) m⟩
+        ⟨q + (2 * n + 2 + 2 * j), regs.write (d+1) j⟩ := by
+  have hJ : ∀ m, m < n → P[q + (1 + 2 * m)]? =
+      some (Cslib.URM.Instr.J d (d+1) (q + (2 * n + 2 + 2 * m))) := by
+    intro m hm
+    rw [dispatch_get hcode (1 + 2 * m) (by simp only [dispatchSize]; omega),
+      dispatchAt_cmp q d n hit m hm]
+  have hS : ∀ m, m + 1 < n → P[q + (2 + 2 * m)]? = some (Cslib.URM.Instr.S (d+1)) := by
+    intro m hm
+    rw [dispatch_get hcode (2 + 2 * m) (by simp only [dispatchSize]; omega),
+      dispatchAt_inc q d n hit m hm]
+  have hread : ∀ m : Nat, (regs.write (d+1) m) d = j := by
+    intro m; rw [write_ne _ (by omega), hidx]
+  have hcnt : ∀ m : Nat, (regs.write (d+1) m) (d+1) = m := fun m => write_self _ _ _
+  intro c
+  induction c with
+  | zero =>
+    intro m hm
+    have hmj : m = j := by omega
+    subst hmj
+    exact reaches_J_eq (hJ m (by omega)) (by rw [hread, hcnt])
+  | succ c ih =>
+    intro m hm
+    have hstep1 : Reaches (Ex P) ⟨q + (1 + 2 * m), regs.write (d+1) m⟩
+        ⟨q + (2 + 2 * m), regs.write (d+1) m⟩ :=
+      reaches_pc (reaches_J_ne (hJ m (by omega)) (by rw [hread, hcnt]; omega)) (by omega)
+    have hw : (regs.write (d+1) m).write (d+1) ((regs.write (d+1) m) (d+1) + 1)
+        = regs.write (d+1) (m+1) := by rw [hcnt, write_write]
+    have hstep2 : Reaches (Ex P) ⟨q + (2 + 2 * m), regs.write (d+1) m⟩
+        ⟨q + (1 + 2 * (m+1)), regs.write (d+1) (m+1)⟩ := by
+      have h := reaches_S (P := P) (regs := regs.write (d+1) m) (hS m (by omega))
+      rw [hw] at h
+      exact reaches_pc h (by omega)
+    exact Reaches.trans hstep1 (Reaches.trans hstep2 (ih (m+1) (by omega)))
+
+/-- The dispatch chain whose element instruction is a copy, run on an index
+that is in range. -/
+theorem reaches_dispatchT (P : UProg) (q d n : Nat) (src dst : Nat → Nat)
+    (regs : Cslib.URM.Regs) (j : Nat) (hj : j < n) (hidx : regs d = j)
+    (hcode : CodeAt P q (dispatchCode q d n (fun i => .T (src i) (dst i)))) :
+    Reaches (Ex P) ⟨q, regs⟩
+      ⟨q + dispatchSize n,
+        (regs.write (d+1) j).write (dst j) ((regs.write (d+1) j) (src j))⟩ := by
+  have hZ : P[q]? = some (Cslib.URM.Instr.Z (d+1)) := by
+    have h := dispatch_get hcode 0 (by simp [dispatchSize])
+    simpa [dispatchAt] using h
+  have hHit : P[q + (2 * n + 2 + 2 * j)]? = some (Cslib.URM.Instr.T (src j) (dst j)) := by
+    rw [dispatch_get hcode (2 * n + 2 + 2 * j) (by simp only [dispatchSize]; omega),
+      dispatchAt_hit]
+  have hLeave : P[q + (2 * n + 3 + 2 * j)]? =
+      some (Cslib.URM.Instr.J 0 0 (q + (4 * n + 2))) := by
+    rw [dispatch_get hcode (2 * n + 3 + 2 * j) (by simp only [dispatchSize]; omega),
+      dispatchAt_leave]
+  have r0 : Reaches (Ex P) ⟨q, regs⟩ ⟨q + (1 + 2 * 0), regs.write (d+1) 0⟩ :=
+    reaches_pc (reaches_Z hZ) (by omega)
+  have r1 := reaches_dispatch_scan P q d n _ hcode regs j hj hidx j 0 (by omega)
+  have r2 : Reaches (Ex P) ⟨q + (2 * n + 2 + 2 * j), regs.write (d+1) j⟩
+      ⟨q + (2 * n + 3 + 2 * j),
+        (regs.write (d+1) j).write (dst j) ((regs.write (d+1) j) (src j))⟩ :=
+    reaches_pc (reaches_T (P := P) (p := q + (2 * n + 2 + 2 * j))
+      (regs := regs.write (d+1) j) hHit) (by omega)
+  have r3 := reaches_jump (P := P) (regs :=
+    (regs.write (d+1) j).write (dst j) ((regs.write (d+1) j) (src j))) hLeave
+  exact reaches_pc (Reaches.trans r0 (Reaches.trans r1 (Reaches.trans r2 r3)))
+    (by simp [dispatchSize])
 
 /-! ### Addition
 
@@ -1404,15 +1767,98 @@ theorem findSlot_mem {slots : List Slot} {x : String} {s : Slot}
     (h : findSlot slots x = some s) : s ∈ slots :=
   List.mem_of_find?_eq_some h
 
-/-- The shape of a successful layout: names in declaration order, every type
-scalar, and one register per variable starting at `next`. -/
+/-- Declaration names are distinct, which `layoutFrom` insists on. -/
+def DistinctNames : List (String × Ty × Option Expr) → Prop
+  | [] => True
+  | d :: rest => (∀ e ∈ rest, e.1 ≠ d.1) ∧ DistinctNames rest
+
+/-- The slots occupy consecutive register blocks from `lo` upwards, so a
+variable's registers are `base … base + size - 1` and two variables' blocks
+never meet. -/
+def Packed (lo : Nat) : List Slot → Prop
+  | [] => True
+  | s :: rest => s.base = lo ∧ Packed (lo + s.size) rest
+
+/-- One step of a successful layout, with everything the checks guarantee. -/
+theorem layoutFrom_cons {x : String} {t : Ty} {init : Option Expr}
+    {rest : List (String × Ty × Option Expr)} {next : Nat} {slots : List Slot}
+    (h : layoutFrom next ((x, t, init) :: rest) = .ok slots) :
+    ∃ tl, layoutFrom (next + tySize t) rest = .ok tl ∧
+      slots = { name := x, ty := t, base := next, size := tySize t } :: tl ∧
+      (∀ d ∈ rest, d.1 ≠ x) ∧ declTyOk t = true ∧
+      (isArrayTy t = true → init = none) := by
+  rw [layoutFrom] at h
+  by_cases hdup : rest.any (fun d => d.1 == x) = true
+  · rw [if_pos hdup] at h; simp at h
+  · rw [if_neg hdup] at h
+    by_cases hty : (!declTyOk t) = true
+    · rw [if_pos hty] at h; simp at h
+    · rw [if_neg hty] at h
+      by_cases harr : (isArrayTy t && init.isSome) = true
+      · rw [if_pos harr] at h; simp at h
+      · rw [if_neg harr] at h
+        split at h
+        · simp at h
+        · next tl hr =>
+          simp only [Except.ok.injEq] at h
+          refine ⟨tl, hr, h.symm, ?_, by simpa using hty, ?_⟩
+          · intro d hd he
+            exact hdup (by simp only [List.any_eq_true]; exact ⟨d, hd, by simp [he]⟩)
+          · intro ha
+            simp only [ha, Bool.true_and] at harr
+            cases init with
+            | none => rfl
+            | some e => simp at harr
+
+theorem packed_le : ∀ (slots : List Slot) (lo : Nat), Packed lo slots →
+    ∀ s ∈ slots, lo ≤ s.base := by
+  intro slots
+  induction slots with
+  | nil => intro lo _ s hs; simp at hs
+  | cons a rest ih =>
+    intro lo hp s hs
+    obtain ⟨hb, hr⟩ := hp
+    rcases List.mem_cons.mp hs with he | he
+    · subst he; omega
+    · have := ih (lo + a.size) hr s he; omega
+
+theorem packed_disj : ∀ (slots : List Slot) (lo : Nat), Packed lo slots →
+    ∀ (i j : Nat) (hi : i < slots.length) (hj : j < slots.length), i < j →
+      (slots[i]'hi).base + (slots[i]'hi).size ≤ (slots[j]'hj).base := by
+  intro slots
+  induction slots with
+  | nil => intro lo _ i j hi _ _; simp at hi
+  | cons a rest ih =>
+    intro lo hp i j hi hj hij
+    obtain ⟨hb, hr⟩ := hp
+    cases i with
+    | zero =>
+      cases j with
+      | zero => omega
+      | succ k =>
+        have hk : k < rest.length := by simpa using hj
+        have := packed_le rest (lo + a.size) hr (rest[k]'hk) (List.getElem_mem hk)
+        simp only [List.getElem_cons_zero, List.getElem_cons_succ]
+        omega
+    | succ m =>
+      cases j with
+      | zero => omega
+      | succ k =>
+        simp only [List.getElem_cons_succ]
+        exact ih (lo + a.size) hr m k (by simpa using hi) (by simpa using hj) (by omega)
+
+/-- The shape of a successful layout: names in declaration order, distinct;
+consecutive non-overlapping blocks from `next`, one register per scalar and
+one per array element; and every declared type laid out. -/
 theorem layoutFrom_spec :
     ∀ (decls : List (String × Ty × Option Expr)) (next : Nat) (slots : List Slot),
       layoutFrom next decls = .ok slots →
       slots.map (·.name) = decls.map (·.1) ∧
-      (∀ d ∈ decls, d.2.1 = Ty.int ∨ d.2.1 = Ty.bool) ∧
-      (∀ (i : Nat) (h : i < slots.length),
-        (slots[i]'h).size = 1 ∧ (slots[i]'h).base = next + i) := by
+      Packed next slots ∧
+      DistinctNames decls ∧
+      (∀ d ∈ decls, declTyOk d.2.1 = true ∧ (isArrayTy d.2.1 = true → d.2.2 = none)) ∧
+      (∀ s ∈ slots, s.size = tySize s.ty ∧ declTyOk s.ty = true ∧
+        ∃ init, (s.name, s.ty, init) ∈ decls) := by
   intro decls
   induction decls with
   | nil =>
@@ -1420,94 +1866,116 @@ theorem layoutFrom_spec :
     rw [layoutFrom] at h
     simp only [Except.ok.injEq] at h
     subst h
-    exact ⟨rfl, by simp, by intro i hi; simp at hi⟩
+    exact ⟨rfl, trivial, trivial, by simp, by simp⟩
   | cons dd rest ih =>
     obtain ⟨x, t, init⟩ := dd
     intro next slots h
-    simp only [layoutFrom] at h
-    have main : ∀ (tl : List Slot), layoutFrom (next + 1) rest = .ok tl →
-        slots = { name := x, ty := t, base := next, size := 1 } :: tl →
-        (t = Ty.int ∨ t = Ty.bool) →
-        slots.map (·.name) = ((x, t, init) :: rest).map (·.1) ∧
-        (∀ d ∈ (x, t, init) :: rest, d.2.1 = Ty.int ∨ d.2.1 = Ty.bool) ∧
-        (∀ (i : Nat) (hi : i < slots.length),
-          (slots[i]'hi).size = 1 ∧ (slots[i]'hi).base = next + i) := by
-      intro tl hr hs ht
-      subst hs
-      obtain ⟨hn, hd, hi⟩ := ih (next + 1) tl hr
-      refine ⟨by simpa using hn, ?_, ?_⟩
-      · intro d hd'
-        rcases List.mem_cons.mp hd' with he | he
-        · subst he; exact ht
-        · exact hd d he
-      · intro i hi'
-        cases i with
-        | zero => exact ⟨rfl, by simp⟩
-        | succ j =>
-          have hj : j < tl.length := by simpa using hi'
-          obtain ⟨hs', hb⟩ := hi j hj
-          refine ⟨by simpa using hs', ?_⟩
-          simp only [List.getElem_cons_succ]
-          rw [hb]; omega
-    cases t with
-    | array el n => simp at h
-    | int =>
-      cases hr : layoutFrom (next + 1) rest with
-      | error m => rw [hr] at h; simp at h
-      | ok tl =>
-        simp only [hr, exc_bind_ok, exc_pure, Except.ok.injEq] at h
-        exact main tl hr h.symm (Or.inl rfl)
-    | bool =>
-      cases hr : layoutFrom (next + 1) rest with
-      | error m => rw [hr] at h; simp at h
-      | ok tl =>
-        simp only [hr, exc_bind_ok, exc_pure, Except.ok.injEq] at h
-        exact main tl hr h.symm (Or.inr rfl)
+    obtain ⟨tl, hr, hs, hdup, hty, harr⟩ := layoutFrom_cons h
+    obtain ⟨hn, hp, hdn, hdt, hsl⟩ := ih (next + tySize t) tl hr
+    subst hs
+    refine ⟨by simpa using hn, ⟨rfl, hp⟩, ⟨hdup, hdn⟩, ?_, ?_⟩
+    · intro d hd
+      rcases List.mem_cons.mp hd with he | he
+      · subst he; exact ⟨hty, harr⟩
+      · exact hdt d he
+    · intro s hsm
+      rcases List.mem_cons.mp hsm with he | he
+      · subst he; exact ⟨rfl, hty, ⟨init, by simp⟩⟩
+      · obtain ⟨h1, h2, i2, h3⟩ := hsl s he
+        exact ⟨h1, h2, i2, by simp [h3]⟩
 
-/-- What the proofs need of a layout: one register per variable, above the
-two reserved registers, below the scratch area, and distinct per name. -/
+/-- What the proofs need of a layout: every variable's block sits above the
+two reserved registers and below the scratch area, its size is its type's,
+and two variables' blocks are disjoint. -/
 structure GoodSlots (slots : List Slot) : Prop where
-  size_one : ∀ x s, findSlot slots x = some s → s.size = 1
+  size_ty : ∀ x s, findSlot slots x = some s → s.size = tySize s.ty
   base_ge : ∀ x s, findSlot slots x = some s → firstVarReg ≤ s.base
-  base_lt : ∀ x s, findSlot slots x = some s → s.base < scratchBase slots
-  base_inj : ∀ x y s t, findSlot slots x = some s → findSlot slots y = some t →
-    s.base = t.base → x = y
+  top_le : ∀ x s, findSlot slots x = some s → s.base + s.size ≤ scratchBase slots
+  disj : ∀ x y s t, findSlot slots x = some s → findSlot slots y = some t → x ≠ y →
+    s.base + s.size ≤ t.base ∨ t.base + t.size ≤ s.base
 
 theorem goodSlots_of_layout {decls : List (String × Ty × Option Expr)} {slots : List Slot}
     (h : layoutFrom firstVarReg decls = .ok slots) : GoodSlots slots := by
-  obtain ⟨_, _, hi⟩ := layoutFrom_spec decls firstVarReg slots h
-  have hidx : ∀ x s, findSlot slots x = some s →
-      ∃ i, ∃ hi' : i < slots.length, (slots[i]'hi') = s := fun x s hx =>
-    List.getElem_of_mem (findSlot_mem hx)
+  obtain ⟨_, hp, _, _, hsl⟩ := layoutFrom_spec decls firstVarReg slots h
   refine ⟨?_, ?_, ?_, ?_⟩
-  · intro x s hx
-    obtain ⟨i, hi', he⟩ := hidx x s hx
-    rw [← he]; exact (hi i hi').1
-  · intro x s hx
-    obtain ⟨i, hi', he⟩ := hidx x s hx
-    rw [← he, (hi i hi').2]; omega
-  · intro x s hx
-    have h1 := base_add_size_le_scratchBase (findSlot_mem hx)
-    obtain ⟨i, hi', he⟩ := hidx x s hx
-    have h2 := (hi i hi').1
-    rw [he] at h2
-    omega
-  · intro x y s t hx hy hb
-    obtain ⟨i, hi', hei⟩ := hidx x s hx
-    obtain ⟨j, hj', hej⟩ := hidx y t hy
-    have hbi := (hi i hi').2
-    have hbj := (hi j hj').2
-    rw [hei] at hbi
-    rw [hej] at hbj
-    have hij : i = j := by omega
-    subst hij
-    have hst : s = t := by rw [← hei, ← hej]
-    rw [← findSlot_name hx, ← findSlot_name hy, hst]
+  · intro x s hx; exact (hsl s (findSlot_mem hx)).1
+  · intro x s hx; exact packed_le slots firstVarReg hp s (findSlot_mem hx)
+  · intro x s hx; exact base_add_size_le_scratchBase (findSlot_mem hx)
+  · intro x y s t hx hy hxy
+    have hst : s ≠ t := by
+      intro he; exact hxy (by rw [← findSlot_name hx, ← findSlot_name hy, he])
+    obtain ⟨i, hi, hei⟩ := List.getElem_of_mem (findSlot_mem hx)
+    obtain ⟨j, hj, hej⟩ := List.getElem_of_mem (findSlot_mem hy)
+    rcases Nat.lt_trichotomy i j with hij | hij | hij
+    · left; rw [← hei, ← hej]; exact packed_disj slots firstVarReg hp i j hi hj hij
+    · subst hij; exact absurd (hei.symm.trans hej) hst
+    · right; rw [← hei, ← hej]; exact packed_disj slots firstVarReg hp j i hj hi hij
+
+/-- One variable's value against its register block. A scalar occupies one
+register; an array of length `n` occupies `n`, one per element, in index
+order. -/
+def AgreeVal : Ty → Nat → Nat → Value → Cslib.URM.Regs → Prop
+  | .int, base, _, v, regs => valNat v = some (regs base)
+  | .bool, base, _, v, regs => valNat v = some (regs base)
+  | .array _ _, base, size, v, regs =>
+    ∃ elems : Array Value, v = .arr elems ∧ elems.size = size ∧
+      ∀ (j : Nat) (h : j < elems.size), valNat elems[j] = some (regs (base + j))
+
+theorem agreeVal_scalar {t : Ty} {base size : Nat} {v : Value} {regs : Cslib.URM.Regs}
+    (ht : isArrayTy t = false) (h : AgreeVal t base size v regs) :
+    valNat v = some (regs base) := by
+  cases t with
+  | int => exact h
+  | bool => exact h
+  | array => simp [isArrayTy] at ht
+
+theorem agreeVal_of_scalar {t : Ty} {base size : Nat} {v : Value} {regs : Cslib.URM.Regs}
+    (ht : isArrayTy t = false) (h : valNat v = some (regs base)) :
+    AgreeVal t base size v regs := by
+  cases t with
+  | int => exact h
+  | bool => exact h
+  | array => simp [isArrayTy] at ht
+
+/-- A scalar type has size one, which is what lets a scalar assignment write
+a single register. -/
+theorem size_one_of_scalar {t : Ty} {size : Nat} (hsz : size = tySize t)
+    (ht : isArrayTy t = false) : size = 1 := by
+  cases t with
+  | int => simpa [tySize] using hsz
+  | bool => simpa [tySize] using hsz
+  | array => simp [isArrayTy] at ht
+
+/-- Writing a register outside a variable's block leaves its agreement
+alone. -/
+theorem agreeVal_write {t : Ty} {base size : Nat} {v : Value} {regs : Cslib.URM.Regs}
+    {r c : Nat} (hsz : size = tySize t) (hne : ∀ j, j < size → base + j ≠ r)
+    (h : AgreeVal t base size v regs) : AgreeVal t base size v (regs.write r c) := by
+  cases t with
+  | int =>
+    have h1 : size = 1 := by simpa [tySize] using hsz
+    have hb : (regs.write r c) base = regs base := by
+      have := write_ne regs (hne 0 (by omega)) c
+      simpa using this
+    simp only [AgreeVal] at h ⊢; rw [hb]; exact h
+  | bool =>
+    have h1 : size = 1 := by simpa [tySize] using hsz
+    have hb : (regs.write r c) base = regs base := by
+      have := write_ne regs (hne 0 (by omega)) c
+      simpa using this
+    simp only [AgreeVal] at h ⊢; rw [hb]; exact h
+  | array el n =>
+    simp only [AgreeVal] at h ⊢
+    obtain ⟨elems, he, hs1, hs2⟩ := h
+    refine ⟨elems, he, hs1, fun j hj => ?_⟩
+    rw [write_ne _ (hne j (by omega)) c]
+    exact hs2 j hj
 
 /-- The correspondence between a Turpentine environment and the registers. -/
 def Agree (slots : List Slot) (env : Std.HashMap String Value)
     (regs : Cslib.URM.Regs) : Prop :=
-  ∀ x s, findSlot slots x = some s → ∃ v, env[x]? = some v ∧ valNat v = some (regs s.base)
+  ∀ x s, findSlot slots x = some s →
+    ∃ v, env[x]? = some v ∧ AgreeVal s.ty s.base s.size v regs
 
 theorem Agree.frame {slots : List Slot} {env : Std.HashMap String Value}
     {regs regs' : Cslib.URM.Regs} {d : Nat} (hg : GoodSlots slots)
@@ -1515,35 +1983,108 @@ theorem Agree.frame {slots : List Slot} {env : Std.HashMap String Value}
     Agree slots env regs' := by
   intro x s hx
   obtain ⟨v, hv, hn⟩ := hA x s hx
+  have htop := hg.top_le x s hx
+  have hsz := hg.size_ty x s hx
   refine ⟨v, hv, ?_⟩
-  rw [hf s.base (by have := hg.base_lt x s hx; omega)]
-  exact hn
+  revert hn
+  cases ht : s.ty with
+  | int =>
+    rw [ht] at hsz
+    intro hn
+    simp only [AgreeVal] at hn ⊢
+    rw [hf s.base (by simp [tySize] at hsz; omega)]; exact hn
+  | bool =>
+    rw [ht] at hsz
+    intro hn
+    simp only [AgreeVal] at hn ⊢
+    rw [hf s.base (by simp [tySize] at hsz; omega)]; exact hn
+  | array el n =>
+    intro hn
+    simp only [AgreeVal] at hn ⊢
+    obtain ⟨elems, he, hs1, hs2⟩ := hn
+    refine ⟨elems, he, hs1, fun j hj => ?_⟩
+    rw [hf (s.base + j) (by omega)]
+    exact hs2 j hj
 
 theorem zero_of_frame {regs regs' : Cslib.URM.Regs} {d : Nat} (hd : 2 ≤ d)
     (h1 : regs 1 = 0) (hf : Frame d regs regs') : regs' 1 = 0 := by
   rw [hf 1 (by omega)]; exact h1
 
+/-- Assigning to a scalar variable: one register changes, and no other
+variable's block contains it. -/
 theorem Agree.update {slots : List Slot} {env : Std.HashMap String Value}
     {regs : Cslib.URM.Regs} {x : String} {s : Slot} {v : Value} {k : Nat}
     (hg : GoodSlots slots) (hA : Agree slots env regs)
-    (hx : findSlot slots x = some s) (hv : valNat v = some k) :
+    (hx : findSlot slots x = some s) (hsc : isArrayTy s.ty = false)
+    (hv : valNat v = some k) :
     Agree slots (env.insert x v) (regs.write s.base k) := by
+  have hs1 : s.size = 1 := size_one_of_scalar (hg.size_ty x s hx) hsc
   intro y t hy
-  by_cases hb : t.base = s.base
-  · have hxy : y = x := hg.base_inj y x t s hy hx hb
-    subst hxy
+  by_cases hxy : y = x
+  · subst hxy
+    have hts : s = t := by rw [hx] at hy; simpa using hy
+    subst hts
     refine ⟨v, by simp, ?_⟩
-    rw [hb, write_self]
-    exact hv
-  · have hne : y ≠ x := by
-      intro he
-      subst he
-      rw [hx, Option.some.injEq] at hy
-      exact hb (by rw [hy])
-    obtain ⟨w, hw, hn⟩ := hA y t hy
+    exact agreeVal_of_scalar hsc (by rw [write_self]; exact hv)
+  · obtain ⟨w, hw, hn⟩ := hA y t hy
     refine ⟨w, ?_, ?_⟩
-    · rw [Std.HashMap.getElem?_insert, if_neg (by simp [Ne.symm hne])]; exact hw
-    · rw [write_ne _ hb]; exact hn
+    · rw [Std.HashMap.getElem?_insert, if_neg (by simp [Ne.symm hxy])]; exact hw
+    · refine agreeVal_write (hg.size_ty y t hy) ?_ hn
+      intro j hj hcontra
+      have hd := hg.disj y x t s hy hx hxy
+      omega
+
+/-- Assigning to one array element: one register inside that array's block
+changes, and no other variable's block contains it. -/
+theorem Agree.updateIndex {slots : List Slot} {env : Std.HashMap String Value}
+    {regs : Cslib.URM.Regs} {x : String} {s : Slot} {elems : Array Value}
+    {v : Value} {k kv : Nat}
+    (hg : GoodSlots slots) (hA : Agree slots env regs)
+    (hx : findSlot slots x = some s) (hcur : env[x]? = some (.arr elems))
+    (hk : k < elems.size) (hv : valNat v = some kv) :
+    Agree slots (env.insert x (.arr (elems.set! k v))) (regs.write (s.base + k) kv) := by
+  obtain ⟨w, hw, hn⟩ := hA x s hx
+  have hwe : w = Value.arr elems := by rw [hcur, Option.some.injEq] at hw; exact hw.symm
+  subst hwe
+  have hsz := hg.size_ty x s hx
+  -- the slot is an array slot, because its value is one
+  have harr : ∃ el n, s.ty = .array el n := by
+    cases ht : s.ty with
+    | int => rw [ht] at hn; simp [AgreeVal, valNat] at hn
+    | bool => rw [ht] at hn; simp [AgreeVal, valNat] at hn
+    | array el n => exact ⟨el, n, rfl⟩
+  obtain ⟨el, n, hty⟩ := harr
+  rw [hty] at hn hsz
+  simp only [AgreeVal] at hn
+  obtain ⟨elems', he, hs1, hs2⟩ := hn
+  have hee : elems' = elems := by simpa using he.symm
+  rw [hee] at hs1 hs2
+  have hksz : k < s.size := by omega
+  intro y t hy
+  by_cases hxy : y = x
+  · subst hxy
+    have hts : s = t := by rw [hx] at hy; simpa using hy
+    subst hts
+    refine ⟨Value.arr (elems.set! k v), by simp, ?_⟩
+    rw [hty]
+    simp only [AgreeVal]
+    refine ⟨elems.set! k v, rfl, by simpa using hs1, fun j hj => ?_⟩
+    have hjs : j < elems.size := by simpa using hj
+    by_cases hjk : j = k
+    · subst hjk
+      rw [write_self]
+      simpa using hv
+    · rw [write_ne _ (by omega) kv]
+      simp only [Array.set!_eq_setIfInBounds,
+        Array.getElem_setIfInBounds_ne hjs (fun h => hjk h.symm)]
+      exact hs2 j hjs
+  · obtain ⟨u, hu, hnu⟩ := hA y t hy
+    refine ⟨u, ?_, ?_⟩
+    · rw [Std.HashMap.getElem?_insert, if_neg (by simp [Ne.symm hxy])]; exact hu
+    · refine agreeVal_write (hg.size_ty y t hy) ?_ hnu
+      intro j hj hcontra
+      have hd := hg.disj y x t s hy hx hxy
+      omega
 
 /-! ### Inverting the reference evaluator
 
@@ -1653,6 +2194,85 @@ theorem evalExpr_not_inv {env : Std.HashMap String Value} {e : Expr} {v : Value}
     | bool b =>
       simp only [exc_pure, Except.ok.injEq] at h
       exact ⟨b, rfl, h.symm⟩
+
+/-- `evalExpr` at an index, unfolded once. -/
+theorem evalExpr_index_eq (E : Std.HashMap String Value) (x : String) (i : Expr) :
+    Turpentine.evalExpr E (.index x i) =
+      (match E[x]? with
+       | some (.arr elems) =>
+         Turpentine.evalExpr E i >>= fun wi =>
+           match wi with
+           | .int n =>
+             if n < 0 || n ≥ elems.size then
+               .error s!"index {n} out of bounds for '{x}' of length {elems.size}"
+             else .ok elems[n.toNat]!
+           | _ => .error s!"index of '{x}' is not an int"
+       | some _ => .error s!"'{x}' is not an array"
+       | none => .error s!"undeclared variable '{x}' (was the program type-checked?)") := rfl
+
+/-- `evalExpr` at a `len`, unfolded once. -/
+theorem evalExpr_len_eq (E : Std.HashMap String Value) (x : String) :
+    Turpentine.evalExpr E (.len x) =
+      (match E[x]? with
+       | some (.arr elems) => .ok (Value.int (Int.ofNat elems.size))
+       | some _ => .error s!"'{x}' is not an array"
+       | none => .error s!"undeclared variable '{x}' (was the program type-checked?)") := rfl
+
+/-- Inverting the reference evaluator at `a[i]`: `a` is bound to an array,
+the index evaluates to a natural, and it is in range. The out-of-range case
+is a runtime error, so it produces no value and nothing below has to hold
+for it. -/
+theorem evalExpr_index_inv {env : Std.HashMap String Value} {x : String} {i : Expr}
+    {v : Value} (h : Turpentine.evalExpr env (.index x i) = .ok v) :
+    ∃ (elems : Array Value) (k : Nat),
+      env[x]? = some (.arr elems) ∧
+      Turpentine.evalExpr env i = .ok (.int (k : Int)) ∧
+      k < elems.size ∧ v = elems[k]! := by
+  rw [evalExpr_index_eq] at h
+  cases hx : env[x]? with
+  | none => rw [hx] at h; simp at h
+  | some w =>
+    cases w with
+    | int m => rw [hx] at h; simp at h
+    | bool b => rw [hx] at h; simp at h
+    | arr elems =>
+      rw [hx] at h
+      simp only at h
+      cases hi : Turpentine.evalExpr env i with
+      | error m => rw [hi, exc_bind_err] at h; simp at h
+      | ok wi =>
+        rw [hi, exc_bind_ok] at h
+        cases wi with
+        | bool b => simp at h
+        | arr a => simp at h
+        | int m =>
+          simp only at h
+          split at h
+          · simp at h
+          · next hb =>
+            simp only [Except.ok.injEq] at h
+            simp only [Bool.or_eq_true, decide_eq_true_eq, not_or] at hb
+            have hm0 : 0 ≤ m := by omega
+            have hmk : (m.toNat : Int) = m := Int.toNat_of_nonneg hm0
+            refine ⟨elems, m.toNat, rfl, ?_, ?_, h.symm⟩
+            · rw [hmk]
+            · omega
+
+/-- Inverting the reference evaluator at `len(a)`. -/
+theorem evalExpr_len_inv {env : Std.HashMap String Value} {x : String} {v : Value}
+    (h : Turpentine.evalExpr env (.len x) = .ok v) :
+    ∃ elems : Array Value, env[x]? = some (.arr elems) ∧ v = .int (elems.size : Int) := by
+  rw [evalExpr_len_eq] at h
+  cases hx : env[x]? with
+  | none => rw [hx] at h; simp at h
+  | some w =>
+    cases w with
+    | int m => rw [hx] at h; simp at h
+    | bool b => rw [hx] at h; simp at h
+    | arr elems =>
+      rw [hx] at h
+      simp only [Except.ok.injEq] at h
+      exact ⟨elems, rfl, h.symm⟩
 
 theorem evalExpr_var_inv {env : Std.HashMap String Value} {x : String} {v : Value}
     (h : evalExpr env (.var x) = .ok v) : env[x]? = some v := by
@@ -1881,19 +2501,25 @@ theorem binCode_total (P : UProg) (op : BinOp) (hop : certOp op = true)
     exact ⟨r, by simpa [opSize] using hr, hf⟩
   all_goals simp [certOp] at hop
 
-/-- Every compilable expression's code runs to its own end, whatever the
-registers hold and whether or not the source semantics would have evaluated
-it. -/
+/-- An index-free compilable expression's code runs to its own end, whatever
+the registers hold and whether or not the source semantics would have
+evaluated it. That is what lets `&&` and `||` be compiled as branch-free
+selects over two operands the code has both evaluated: the right one costs
+instructions and changes no answer.
+
+The side condition is exactly the dispatch chain: an array access whose index
+is out of range runs into a self-loop instead of reaching its own end, so
+`compileExpr` refuses one on the right of `&&` or `||`. -/
 theorem reaches_compileExpr_total (slots : List Slot) (P : UProg) :
     ∀ (e : Expr) (q d : Nat) (code : List UInstr) (regs : Cslib.URM.Regs),
       compileExpr slots q e d = .ok code →
-      CodeAt P q code → regs 1 = 0 → 2 ≤ d →
+      CodeAt P q code → regs 1 = 0 → 2 ≤ d → indexFree e = true →
       ∃ (regs' : Cslib.URM.Regs),
         Reaches (Ex P) ⟨q, regs⟩ ⟨q + exprSize slots e, regs'⟩ ∧ Frame d regs regs' := by
   intro e
   induction e with
   | intLit n =>
-    intro q d code regs hcomp hcode _ _
+    intro q d code regs hcomp hcode _ _ _
     rw [compileExpr] at hcomp
     split at hcomp
     · simp at hcomp
@@ -1902,7 +2528,7 @@ theorem reaches_compileExpr_total (slots : List Slot) (P : UProg) :
       obtain ⟨regs', hr, _, hf⟩ := reaches_constCode P q d n.toNat regs hcode
       exact ⟨regs', by simpa [exprSize, ← Nat.add_assoc] using hr, hf⟩
   | boolLit b =>
-    intro q d code regs hcomp hcode _ _
+    intro q d code regs hcomp hcode _ _ _
     rw [compileExpr] at hcomp
     simp only [Except.ok.injEq] at hcomp
     subst hcomp
@@ -1922,20 +2548,22 @@ theorem reaches_compileExpr_total (slots : List Slot) (P : UProg) :
       · exact Frame.trans (Frame.write regs 0 (Nat.le_refl d))
           (Frame.write _ _ (Nat.le_refl d))
   | var x =>
-    intro q d code regs hcomp hcode _ _
+    intro q d code regs hcomp hcode _ _ _
     rw [compileExpr] at hcomp
     split at hcomp
     · next s hs =>
-      simp only [Except.ok.injEq] at hcomp
-      subst hcomp
-      have h0 : P[q]? = some (Cslib.URM.Instr.T s.base d) := by
-        have := hcode.head (by simp); simpa using this
-      exact ⟨regs.write d (regs s.base),
-        by simpa [exprSize] using reaches_T (P := P) (p := q) h0,
-        Frame.write regs _ (Nat.le_refl d)⟩
+      split at hcomp
+      · simp at hcomp
+      · simp only [Except.ok.injEq] at hcomp
+        subst hcomp
+        have h0 : P[q]? = some (Cslib.URM.Instr.T s.base d) := by
+          have := hcode.head (by simp); simpa using this
+        exact ⟨regs.write d (regs s.base),
+          by simpa [exprSize] using reaches_T (P := P) (p := q) h0,
+          Frame.write regs _ (Nat.le_refl d)⟩
     · simp at hcomp
   | un op e ih =>
-    intro q d code regs hcomp hcode h1 hd
+    intro q d code regs hcomp hcode h1 hd hfree
     cases op with
     | neg => rw [compileExpr] at hcomp; simp at hcomp
     | not =>
@@ -1945,7 +2573,8 @@ theorem reaches_compileExpr_total (slots : List Slot) (P : UProg) :
         simp only [Except.ok.injEq] at hcomp
         subst hcomp
         have hlen : c.length = exprSize slots e := length_compileExpr slots e q d c hc
-        obtain ⟨regs₁, hr₁, hf₁⟩ := ih q d c regs hc hcode.left h1 hd
+        obtain ⟨regs₁, hr₁, hf₁⟩ :=
+          ih q d c regs hc hcode.left h1 hd (by simpa [indexFree] using hfree)
         have hcode₂ : CodeAt P (q + exprSize slots e) (notCode (q + exprSize slots e) d) := by
           have := hcode.right (c₁ := c); rwa [hlen] at this
         have hz : regs₁ 1 = 0 := zero_of_frame hd h1 hf₁
@@ -1955,42 +2584,62 @@ theorem reaches_compileExpr_total (slots : List Slot) (P : UProg) :
           Frame.trans hf₁ hf₂⟩
       · simp at hcomp
   | bin op e₁ e₂ ih₁ ih₂ =>
-    intro q d code regs hcomp hcode h1 hd
+    intro q d code regs hcomp hcode h1 hd hfree
+    simp only [indexFree, Bool.and_eq_true] at hfree
     rw [compileExpr] at hcomp
     split at hcomp
     · next hop =>
       split at hcomp
       · next c₁ c₂ hc₁ hc₂ =>
-        simp only [Except.ok.injEq] at hcomp
-        subst hcomp
-        have hl₁ : c₁.length = exprSize slots e₁ := length_compileExpr slots e₁ q d c₁ hc₁
-        have hl₂ : c₂.length = exprSize slots e₂ :=
-          length_compileExpr slots e₂ (q + exprSize slots e₁) (d + 1) c₂ hc₂
-        have hco : CodeAt P q (c₁ ++ c₂) := hcode.left
-        obtain ⟨regs₁, hr₁, hf₁⟩ := ih₁ q d c₁ regs hc₁ hco.left h1 hd
-        have hz₁ : regs₁ 1 = 0 := zero_of_frame hd h1 hf₁
-        have hco₂ : CodeAt P (q + exprSize slots e₁) c₂ := by
-          have := hco.right (c₁ := c₁); rwa [hl₁] at this
-        obtain ⟨regs₂, hr₂, hf₂⟩ :=
-          ih₂ (q + exprSize slots e₁) (d + 1) c₂ regs₁ hc₂ hco₂ hz₁ (by omega)
-        have hz₂ : regs₂ 1 = 0 := zero_of_frame (by omega) hz₁ hf₂
-        have hcm : CodeAt P (q + exprSize slots e₁ + exprSize slots e₂)
-            (binCode (q + exprSize slots e₁ + exprSize slots e₂) d op) := by
-          have hrest := hcode.right (c₁ := c₁ ++ c₂)
-          rw [List.length_append, hl₁, hl₂] at hrest
-          rwa [show q + (exprSize slots e₁ + exprSize slots e₂)
-            = q + exprSize slots e₁ + exprSize slots e₂ from by omega] at hrest
-        obtain ⟨regs₃, hr₃, hf₃⟩ := binCode_total P op hop
-          (q + exprSize slots e₁ + exprSize slots e₂) d regs₂ hz₂ hcm
-        refine ⟨regs₃, ?_, ?_⟩
-        · have hstep := Reaches.trans (Reaches.trans hr₁ hr₂) hr₃
-          simpa [exprSize, Nat.add_assoc] using hstep
-        · exact Frame.trans (Frame.trans hf₁ (hf₂.mono (by omega))) hf₃
+        split at hcomp
+        · simp at hcomp
+        · simp only [Except.ok.injEq] at hcomp
+          subst hcomp
+          have hl₁ : c₁.length = exprSize slots e₁ := length_compileExpr slots e₁ q d c₁ hc₁
+          have hl₂ : c₂.length = exprSize slots e₂ :=
+            length_compileExpr slots e₂ (q + exprSize slots e₁) (d + 1) c₂ hc₂
+          have hco : CodeAt P q (c₁ ++ c₂) := hcode.left
+          obtain ⟨regs₁, hr₁, hf₁⟩ := ih₁ q d c₁ regs hc₁ hco.left h1 hd hfree.1
+          have hz₁ : regs₁ 1 = 0 := zero_of_frame hd h1 hf₁
+          have hco₂ : CodeAt P (q + exprSize slots e₁) c₂ := by
+            have := hco.right (c₁ := c₁); rwa [hl₁] at this
+          obtain ⟨regs₂, hr₂, hf₂⟩ :=
+            ih₂ (q + exprSize slots e₁) (d + 1) c₂ regs₁ hc₂ hco₂ hz₁ (by omega) hfree.2
+          have hz₂ : regs₂ 1 = 0 := zero_of_frame (by omega) hz₁ hf₂
+          have hcm : CodeAt P (q + exprSize slots e₁ + exprSize slots e₂)
+              (binCode (q + exprSize slots e₁ + exprSize slots e₂) d op) := by
+            have hrest := hcode.right (c₁ := c₁ ++ c₂)
+            rw [List.length_append, hl₁, hl₂] at hrest
+            rwa [show q + (exprSize slots e₁ + exprSize slots e₂)
+              = q + exprSize slots e₁ + exprSize slots e₂ from by omega] at hrest
+          obtain ⟨regs₃, hr₃, hf₃⟩ := binCode_total P op hop
+            (q + exprSize slots e₁ + exprSize slots e₂) d regs₂ hz₂ hcm
+          refine ⟨regs₃, ?_, ?_⟩
+          · have hstep := Reaches.trans (Reaches.trans hr₁ hr₂) hr₃
+            simpa [exprSize, Nat.add_assoc] using hstep
+          · exact Frame.trans (Frame.trans hf₁ (hf₂.mono (by omega))) hf₃
       · simp at hcomp
       · simp at hcomp
     · simp at hcomp
-  | index x i => intro q d code regs hcomp; rw [compileExpr] at hcomp; simp at hcomp
-  | len x => intro q d code regs hcomp; rw [compileExpr] at hcomp; simp at hcomp
+  | index x i _ =>
+    intro q d code regs hcomp hcode _ _ hfree
+    simp [indexFree] at hfree
+  | len x =>
+    intro q d code regs hcomp hcode _ _ _
+    rw [compileExpr] at hcomp
+    split at hcomp
+    · next s hs =>
+      split at hcomp
+      · simp only [Except.ok.injEq] at hcomp
+        subst hcomp
+        obtain ⟨regs', hr, _, hf⟩ := reaches_constCode P q d s.size regs hcode
+        refine ⟨regs', ?_, hf⟩
+        have hsz : exprSize slots (Expr.len x) = s.size + 1 := by
+          simp only [exprSize, slotSize, hs]
+        rw [hsz, ← Nat.add_assoc]
+        exact hr
+      · simp at hcomp
+    · simp at hcomp
 
 /-! ## Expressions
 
@@ -2056,18 +2705,22 @@ theorem reaches_compileExpr (slots : List Slot) (hg : GoodSlots slots) (P : UPro
     rw [compileExpr] at hcomp
     split at hcomp
     · next s hs =>
-      simp only [Except.ok.injEq] at hcomp
-      subst hcomp
-      have h0 : P[q]? = some (Cslib.URM.Instr.T s.base d) := by
-        have := hcode.head (by simp); simpa using this
-      obtain ⟨w, hw, hn⟩ := hA x s hs
-      have hvw : v = w := by
-        have hx := evalExpr_var_inv hev
-        rw [hx, Option.some.injEq] at hw
-        exact hw
-      exact ⟨regs.write d (regs s.base), regs s.base,
-        by simpa [exprSize] using reaches_T (P := P) (p := q) h0,
-        by rw [hvw]; exact hn, write_self _ _ _, Frame.write regs _ (Nat.le_refl d)⟩
+      split at hcomp
+      · simp at hcomp
+      · next hsc =>
+        simp only [Except.ok.injEq] at hcomp
+        subst hcomp
+        have h0 : P[q]? = some (Cslib.URM.Instr.T s.base d) := by
+          have := hcode.head (by simp); simpa using this
+        obtain ⟨w, hw, hn⟩ := hA x s hs
+        have hvw : v = w := by
+          have hx := evalExpr_var_inv hev
+          rw [hx, Option.some.injEq] at hw
+          exact hw
+        exact ⟨regs.write d (regs s.base), regs s.base,
+          by simpa [exprSize] using reaches_T (P := P) (p := q) h0,
+          by rw [hvw]; exact agreeVal_scalar (by simpa using hsc) hn,
+          write_self _ _ _, Frame.write regs _ (Nat.le_refl d)⟩
     · simp at hcomp
   | un op e ih =>
     intro q d code env v regs hcomp hcode hev hA h1 hd
@@ -2103,6 +2756,9 @@ theorem reaches_compileExpr (slots : List Slot) (hg : GoodSlots slots) (P : UPro
     · next hop =>
       split at hcomp
       · next c₁ c₂ hc₁ hc₂ =>
+        have hguard : ¬((shortOp op && !indexFree e₂) = true) := by
+          intro hg'; rw [if_pos hg'] at hcomp; simp at hcomp
+        rw [if_neg hguard] at hcomp
         simp only [Except.ok.injEq] at hcomp
         subst hcomp
         have hl₁ : c₁.length = exprSize slots e₁ := length_compileExpr slots e₁ q d c₁ hc₁
@@ -2183,8 +2839,10 @@ theorem reaches_compileExpr (slots : List Slot) (hg : GoodSlots slots) (P : UPro
                 valNat w = some k₂ ∧ regs₂ (d+1) = k₂) := by
             cases h2' : Turpentine.evalExpr env e₂ with
             | error m =>
+              have hif : indexFree e₂ = true := by
+                rw [hsc] at hguard; simpa using hguard
               obtain ⟨regs₂, hr₂, hf₂⟩ := reaches_compileExpr_total slots P e₂
-                (q + exprSize slots e₁) (d + 1) c₂ regs₁ hc₂ hco₂ hz₁ (by omega)
+                (q + exprSize slots e₁) (d + 1) c₂ regs₁ hc₂ hco₂ hz₁ (by omega) hif
               exact ⟨regs₂, 0, hr₂, hf₂, by intro w hw; simp at hw⟩
             | ok v₂ =>
               obtain ⟨regs₂, k₂, hr₂, hk₂, hd₂, hf₂⟩ :=
@@ -2241,12 +2899,101 @@ theorem reaches_compileExpr (slots : List Slot) (hg : GoodSlots slots) (P : UPro
       · simp at hcomp
       · simp at hcomp
     · simp at hcomp
-  | index x i =>
-    intro q d code env v regs hcomp
-    rw [compileExpr] at hcomp; simp at hcomp
+  | index x i ih =>
+    intro q d code env v regs hcomp hcode hev hA h1 hd
+    rw [compileExpr] at hcomp
+    split at hcomp
+    · next s hs =>
+      split at hcomp
+      · next harr =>
+        split at hcomp
+        · next ci hci =>
+          simp only [Except.ok.injEq] at hcomp
+          subst hcomp
+          obtain ⟨elems, k, hxe, hie, hk, hvv⟩ := evalExpr_index_inv hev
+          have hlc : ci.length = exprSize slots i := length_compileExpr slots i q d ci hci
+          -- the index, in register `d`
+          obtain ⟨regs₁, k₁, hr₁, hk₁, hd₁, hf₁⟩ :=
+            ih q d ci env (.int (k : Int)) regs hci hcode.left hie hA h1 hd
+          simp only [valNat_ofNat, Option.some.injEq] at hk₁
+          subst hk₁
+          have hA₁ : Agree slots env regs₁ := hA.frame hg hd hf₁
+          -- the array's block still holds its elements
+          obtain ⟨w, hw, hn⟩ := hA₁ x s hs
+          have hwe : w = Value.arr elems := by
+            rw [hxe, Option.some.injEq] at hw; exact hw.symm
+          subst hwe
+          obtain ⟨el, m, hty⟩ : ∃ el m, s.ty = .array el m := by
+            cases ht : s.ty with
+            | int => rw [ht] at harr; simp [isArrayTy] at harr
+            | bool => rw [ht] at harr; simp [isArrayTy] at harr
+            | array el m => exact ⟨el, m, rfl⟩
+          rw [hty] at hn
+          simp only [AgreeVal] at hn
+          obtain ⟨elems', he, hs1, hs2⟩ := hn
+          have hee : elems' = elems := by simpa using he.symm
+          rw [hee] at hs1 hs2
+          have hksz : k < s.size := by omega
+          -- the dispatch chain
+          have hcodeD : CodeAt P (q + exprSize slots i)
+              (dispatchCode (q + exprSize slots i) d s.size
+                (fun j => .T (s.base + j) d)) := by
+            have := hcode.right (c₁ := ci); rwa [hlc] at this
+          have hrd := reaches_dispatchT P (q + exprSize slots i) d s.size
+            (fun j => s.base + j) (fun _ => d) regs₁ k hksz hd₁ hcodeD
+          have htop := hg.top_le x s hs
+          have hsrc : (regs₁.write (d+1) k) (s.base + k) = regs₁ (s.base + k) :=
+            write_ne _ (by omega) _
+          rw [hsrc] at hrd
+          refine ⟨(regs₁.write (d+1) k).write d (regs₁ (s.base + k)),
+            regs₁ (s.base + k), ?_, ?_, write_self _ _ _, ?_⟩
+          · have hstep := Reaches.trans hr₁ hrd
+            have hsz : exprSize slots (Expr.index x i)
+                = exprSize slots i + dispatchSize s.size := by
+              simp only [exprSize, slotSize, hs]
+            rw [hsz, ← Nat.add_assoc]
+            exact hstep
+          · rw [hvv, getElem!_pos elems k hk]
+            exact hs2 k hk
+          · exact Frame.trans hf₁ (Frame.trans (Frame.write _ _ (by omega))
+              (Frame.write _ _ (Nat.le_refl d)))
+        · simp at hcomp
+      · simp at hcomp
+    · simp at hcomp
   | len x =>
-    intro q d code env v regs hcomp
-    rw [compileExpr] at hcomp; simp at hcomp
+    intro q d code env v regs hcomp hcode hev hA h1 hd
+    rw [compileExpr] at hcomp
+    split at hcomp
+    · next s hs =>
+      split at hcomp
+      · next harr =>
+        simp only [Except.ok.injEq] at hcomp
+        subst hcomp
+        obtain ⟨elems, hxe, hvv⟩ := evalExpr_len_inv hev
+        obtain ⟨w, hw, hn⟩ := hA x s hs
+        have hwe : w = Value.arr elems := by
+          rw [hxe, Option.some.injEq] at hw; exact hw.symm
+        subst hwe
+        obtain ⟨el, m, hty⟩ : ∃ el m, s.ty = .array el m := by
+          cases ht : s.ty with
+          | int => rw [ht] at harr; simp [isArrayTy] at harr
+          | bool => rw [ht] at harr; simp [isArrayTy] at harr
+          | array el m => exact ⟨el, m, rfl⟩
+        rw [hty] at hn
+        simp only [AgreeVal] at hn
+        obtain ⟨elems', he, hs1, _⟩ := hn
+        have hee : elems' = elems := by simpa using he.symm
+        rw [hee] at hs1
+        obtain ⟨regs', hr, hval, hf⟩ := reaches_constCode P q d s.size regs hcode
+        refine ⟨regs', s.size, ?_, ?_, hval, hf⟩
+        · have hsz : exprSize slots (Expr.len x) = s.size + 1 := by
+            simp only [exprSize, slotSize, hs]
+          rw [hsz, ← Nat.add_assoc]
+          exact hr
+        · rw [hvv, ← hs1]
+          simp
+      · simp at hcomp
+    · simp at hcomp
 
 /-! ## Statements
 
@@ -2258,11 +3005,81 @@ Fuel does not appear in the conclusion. `Reaches` carries an exact target
 cost, so the source bound `n` and the target bound are unrelated, which is
 what the composition with `TuringComplete.simulates` needs. -/
 
-/-- Rewriting the target program counter of a `Reaches`, which the size
-arithmetic below needs constantly. -/
-private theorem reaches_pc {P : UProg} {a b b' : Nat} {r r' : Cslib.URM.Regs}
-    (h : Reaches (Ex P) ⟨a, r⟩ ⟨b, r'⟩) (hb : b = b') :
-    Reaches (Ex P) ⟨a, r⟩ ⟨b', r'⟩ := hb ▸ h
+/-- `Turpentine.exec` at an element assignment, unfolded once, with
+`storeIndex` inlined. -/
+private theorem exec_assignIndex_eq (x : String) (i e : Expr) (f : Nat)
+    (σ : Turpentine.State) :
+    Turpentine.exec (f + 1) (.assignIndex x i e) σ =
+      (match Turpentine.evalExpr σ.env e with
+       | .error m => (σ, Exit.error m)
+       | .ok v =>
+         match (match σ.env[x]? with
+                | some (.arr elems) =>
+                  (Turpentine.evalExpr σ.env i >>= fun wi =>
+                    match wi with
+                    | .int n =>
+                      if n < 0 || n ≥ elems.size then
+                        Except.error
+                          s!"index {n} out of bounds for '{x}' of length {elems.size}"
+                      else Except.ok (σ.env.insert x (.arr (elems.set! n.toNat v)))
+                    | _ => Except.error s!"index of '{x}' is not an int")
+                | some _ => Except.error s!"'{x}' is not an array"
+                | none =>
+                  Except.error
+                    s!"undeclared variable '{x}' (was the program type-checked?)") with
+         | .ok env' => ({ σ with env := env' }, Exit.halted)
+         | .error m => (σ, Exit.error m)) := by
+  rw [Turpentine.exec]; rfl
+
+/-- Inverting an element assignment that halted: the right-hand side has a
+value, the variable is an array, and the index is in range. -/
+private theorem exec_assignIndex_inv {x : String} {i e : Expr} {f : Nat}
+    {σ σ' : Turpentine.State}
+    (h : Turpentine.exec (f + 1) (.assignIndex x i e) σ = (σ', Exit.halted)) :
+    ∃ (v : Value) (elems : Array Value) (k : Nat),
+      Turpentine.evalExpr σ.env e = .ok v ∧
+      σ.env[x]? = some (.arr elems) ∧
+      Turpentine.evalExpr σ.env i = .ok (.int (k : Int)) ∧
+      k < elems.size ∧
+      σ' = { σ with env := σ.env.insert x (.arr (elems.set! k v)) } := by
+  rw [exec_assignIndex_eq] at h
+  cases hve : Turpentine.evalExpr σ.env e with
+  | error m => rw [hve] at h; simp at h
+  | ok v =>
+    rw [hve] at h
+    simp only at h
+    cases hx : σ.env[x]? with
+    | none => rw [hx] at h; simp at h
+    | some w =>
+      cases w with
+      | int m => rw [hx] at h; simp at h
+      | bool b => rw [hx] at h; simp at h
+      | arr elems =>
+        rw [hx] at h
+        simp only at h
+        cases hi : Turpentine.evalExpr σ.env i with
+        | error m => rw [hi, exc_bind_err] at h; simp at h
+        | ok wi =>
+          rw [hi, exc_bind_ok] at h
+          cases wi with
+          | bool b => simp at h
+          | arr a => simp at h
+          | int m =>
+            simp only at h
+            split at h
+            · next env' heq =>
+              split at heq
+              · simp at heq
+              · next hb =>
+                simp only [Except.ok.injEq] at heq
+                subst heq
+                simp only [Prod.mk.injEq] at h
+                simp only [Bool.or_eq_true, decide_eq_true_eq, not_or] at hb
+                have hm0 : 0 ≤ m := by omega
+                have hmk : (m.toNat : Int) = m := Int.toNat_of_nonneg hm0
+                refine ⟨v, elems, m.toNat, rfl, rfl, ?_, by omega, h.1.symm⟩
+                rw [hmk]
+            · simp at h
 
 theorem reaches_compileStmt (slots : List Slot) (hg : GoodSlots slots) (P : UProg) :
     ∀ (n : Nat) (stm : Stmt) (q : Nat) (code : List UInstr)
@@ -2325,39 +3142,45 @@ theorem reaches_compileStmt (slots : List Slot) (hg : GoodSlots slots) (P : UPro
       intro q code s s' regs hcomp hcode hex hA h1
       rw [compileStmt] at hcomp
       split at hcomp
-      · next s₀ c hs₀ hc =>
-        simp only [Except.ok.injEq] at hcomp
-        subst hcomp
-        have hlc : c.length = exprSize slots e := length_compileExpr slots e q _ c hc
-        rw [Turpentine.exec] at hex
-        cases hev : Turpentine.evalExpr s.env e with
-        | error m => rw [hev] at hex; simp at hex
-        | ok v =>
-          rw [hev] at hex
-          simp only [Prod.mk.injEq] at hex
-          obtain ⟨hs', _⟩ := hex
-          obtain ⟨regs₁, k, hr₁, hk, hd₁, hf₁⟩ :=
-            reaches_compileExpr slots hg P e q (scratchBase slots) c s.env v regs hc
-              hcode.left hev hA h1 (Nat.le_refl _)
-          have htail : CodeAt P (q + exprSize slots e)
-              [Cslib.URM.Instr.T (scratchBase slots) s₀.base] := by
-            have := hcode.right (c₁ := c); rwa [hlc] at this
-          obtain ⟨hT, _⟩ := htail.cons
-          have hbase : s₀.base ≠ 1 := by
-            have := hg.base_ge x s₀ hs₀
-            simp only [firstVarReg] at this
-            omega
-          subst hs'
-          refine ⟨regs₁.write s₀.base k, ?_, ?_, ?_⟩
-          · have hstep : Reaches (Ex P) ⟨q + exprSize slots e, regs₁⟩
-                ⟨q + exprSize slots e + 1, regs₁.write s₀.base k⟩ := by
-              have := reaches_T (P := P) (p := q + exprSize slots e) (regs := regs₁) hT
-              rwa [hd₁] at this
-            exact reaches_pc (Reaches.trans hr₁ hstep) (by simp only [stmtSize]; omega)
-          · exact Agree.update hg (hA.frame hg (Nat.le_refl _) hf₁) hs₀ hk
-          · rw [write_ne _ (Ne.symm hbase)]
-            exact zero_of_frame (by omega) h1 hf₁
-      · simp at hcomp
+      · next s₀ hs₀ =>
+        split at hcomp
+        · simp at hcomp
+        · next hsc =>
+          split at hcomp
+          · next c hc =>
+            simp only [Except.ok.injEq] at hcomp
+            subst hcomp
+            have hlc : c.length = exprSize slots e := length_compileExpr slots e q _ c hc
+            rw [Turpentine.exec] at hex
+            cases hev : Turpentine.evalExpr s.env e with
+            | error m => rw [hev] at hex; simp at hex
+            | ok v =>
+              rw [hev] at hex
+              simp only [Prod.mk.injEq] at hex
+              obtain ⟨hs', _⟩ := hex
+              obtain ⟨regs₁, k, hr₁, hk, hd₁, hf₁⟩ :=
+                reaches_compileExpr slots hg P e q (scratchBase slots) c s.env v regs hc
+                  hcode.left hev hA h1 (Nat.le_refl _)
+              have htail : CodeAt P (q + exprSize slots e)
+                  [Cslib.URM.Instr.T (scratchBase slots) s₀.base] := by
+                have := hcode.right (c₁ := c); rwa [hlc] at this
+              obtain ⟨hT, _⟩ := htail.cons
+              have hbase : s₀.base ≠ 1 := by
+                have := hg.base_ge x s₀ hs₀
+                simp only [firstVarReg] at this
+                omega
+              subst hs'
+              refine ⟨regs₁.write s₀.base k, ?_, ?_, ?_⟩
+              · have hstep : Reaches (Ex P) ⟨q + exprSize slots e, regs₁⟩
+                    ⟨q + exprSize slots e + 1, regs₁.write s₀.base k⟩ := by
+                  have := reaches_T (P := P) (p := q + exprSize slots e) (regs := regs₁) hT
+                  rwa [hd₁] at this
+                exact reaches_pc (Reaches.trans hr₁ hstep) (by simp only [stmtSize]; omega)
+              · exact Agree.update hg (hA.frame hg (Nat.le_refl _) hf₁) hs₀
+                  (by simpa using hsc) hk
+              · rw [write_ne _ (Ne.symm hbase)]
+                exact zero_of_frame (by omega) h1 hf₁
+          · simp at hcomp
       · simp at hcomp
     | ite c a b iha ihb =>
       intro q code s s' regs hcomp hcode hex hA h1
@@ -2551,7 +3374,85 @@ theorem reaches_compileStmt (slots : List Slot) (hg : GoodSlots slots) (P : UPro
               exact reaches_pc (Reaches.trans hr₁ hfall) (by simp only [stmtSize]; omega)
       · simp at hcomp
     | assignIndex x i e =>
-      intro q code s s' regs hcomp; rw [compileStmt] at hcomp; simp at hcomp
+      intro q code s s' regs hcomp hcode hex hA h1
+      rw [compileStmt] at hcomp
+      split at hcomp
+      · next s₀ hs₀ =>
+        split at hcomp
+        · next harr =>
+          split at hcomp
+          · next ce ci hce hci =>
+            simp only [Except.ok.injEq] at hcomp
+            subst hcomp
+            obtain ⟨v, elems, k, hve, hxe, hie, hk, hs'⟩ := exec_assignIndex_inv hex
+            have hlce : ce.length = exprSize slots e := length_compileExpr slots e q _ ce hce
+            have hlci : ci.length = exprSize slots i :=
+              length_compileExpr slots i (q + exprSize slots e) _ ci hci
+            -- the right-hand side, into the first scratch register
+            obtain ⟨regs₁, kv, hr₁, hkv, hd₁, hf₁⟩ :=
+              reaches_compileExpr slots hg P e q (scratchBase slots) ce s.env v regs hce
+                hcode.left.left hve hA h1 (Nat.le_refl _)
+            have hz₁ : regs₁ 1 = 0 := zero_of_frame (by omega) h1 hf₁
+            have hA₁ : Agree slots s.env regs₁ := hA.frame hg (Nat.le_refl _) hf₁
+            -- the index, into the next one
+            have hcodei : CodeAt P (q + exprSize slots e) ci := by
+              have := hcode.left.right (c₁ := ce); rwa [hlce] at this
+            obtain ⟨regs₂, k₂, hr₂, hk₂, hd₂, hf₂⟩ :=
+              reaches_compileExpr slots hg P i (q + exprSize slots e) (scratchBase slots + 1)
+                ci s.env (.int (k : Int)) regs₁ hci hcodei hie hA₁ hz₁ (by omega)
+            have hkk : k₂ = k := by simpa using hk₂.symm
+            rw [hkk] at hd₂
+            have hz₂ : regs₂ 1 = 0 := zero_of_frame (by omega) hz₁ hf₂
+            have hA₂ : Agree slots s.env regs₂ := hA₁.frame hg (by omega) hf₂
+            -- the array's block, and the length its slot claims
+            obtain ⟨w, hw, hn⟩ := hA₂ x s₀ hs₀
+            have hwe : w = Value.arr elems := by
+              rw [hxe, Option.some.injEq] at hw; exact hw.symm
+            subst hwe
+            obtain ⟨el, m, hty⟩ : ∃ el m, s₀.ty = .array el m := by
+              cases ht : s₀.ty with
+              | int => rw [ht] at harr; simp [isArrayTy] at harr
+              | bool => rw [ht] at harr; simp [isArrayTy] at harr
+              | array el m => exact ⟨el, m, rfl⟩
+            rw [hty] at hn
+            simp only [AgreeVal] at hn
+            obtain ⟨elems', he, hs1, _⟩ := hn
+            have hee : elems' = elems := by simpa using he.symm
+            rw [hee] at hs1
+            have hksz : k < s₀.size := by omega
+            -- the dispatch chain
+            have hcodeD : CodeAt P (q + exprSize slots e + exprSize slots i)
+                (dispatchCode (q + exprSize slots e + exprSize slots i)
+                  (scratchBase slots + 1) s₀.size
+                  (fun j => .T (scratchBase slots) (s₀.base + j))) := by
+              have h2 := hcode.right (c₁ := ce ++ ci)
+              rw [List.length_append, hlce, hlci] at h2
+              rwa [show q + (exprSize slots e + exprSize slots i)
+                = q + exprSize slots e + exprSize slots i from by omega] at h2
+            have hrd := reaches_dispatchT P (q + exprSize slots e + exprSize slots i)
+              (scratchBase slots + 1) s₀.size (fun _ => scratchBase slots)
+              (fun j => s₀.base + j) regs₂ k hksz hd₂ hcodeD
+            have hval : (regs₂.write (scratchBase slots + 1 + 1) k) (scratchBase slots) = kv := by
+              rw [write_ne _ (by omega), hf₂ (scratchBase slots) (by omega), hd₁]
+            rw [hval] at hrd
+            have hbase := hg.base_ge x s₀ hs₀
+            subst hs'
+            refine ⟨(regs₂.write (scratchBase slots + 1 + 1) k).write (s₀.base + k) kv,
+              ?_, ?_, ?_⟩
+            · have hstep := Reaches.trans hr₁ (Reaches.trans hr₂ hrd)
+              refine reaches_pc hstep ?_
+              simp only [stmtSize, slotSize, hs₀]
+              omega
+            · refine Agree.updateIndex hg ?_ hs₀ hxe hk hkv
+              exact hA₂.frame hg (Nat.le_refl _)
+                (Frame.write regs₂ k (by omega))
+            · rw [write_ne _ (by simp only [firstVarReg] at hbase; omega),
+                write_ne _ (by omega)]
+              exact hz₂
+          · simp at hcomp
+          · simp at hcomp
+        · simp at hcomp
+      · simp at hcomp
     | printExpr e nl =>
       intro q code s s' regs hcomp; rw [compileStmt] at hcomp; simp at hcomp
     | printStr str nl =>
@@ -2620,48 +3521,70 @@ def defEnv : Std.HashMap String Value → List (String × Ty × Option Expr) →
   | env, [] => env
   | env, (x, t, _) :: rest => defEnv (env.insert x (Turpentine.initEnv.default t)) rest
 
-/-- With only scalar types, the defaults environment maps every declared name
-to a value whose register content is zero, which is what the machine's
-registers start at. -/
-theorem defEnv_zero :
-    ∀ (decls : List (String × Ty × Option Expr)) (env : Std.HashMap String Value),
-      (∀ d ∈ decls, valNat (Turpentine.initEnv.default d.2.1) = some 0) →
-      (∀ (y : String) (w : Value), env[y]? = some w → valNat w = some 0) →
-      (∀ (y : String) (w : Value), (defEnv env decls)[y]? = some w → valNat w = some 0) ∧
-      (∀ (y : String), ((∃ w : Value, env[y]? = some w) ∨ y ∈ decls.map (·.1)) →
-        ∃ w : Value, (defEnv env decls)[y]? = some w) := by
+/-- A name the tail does not declare keeps whatever value it came in with. -/
+theorem defEnv_not_mem :
+    ∀ (decls : List (String × Ty × Option Expr)) (env : Std.HashMap String Value)
+      (y : String), (∀ d ∈ decls, d.1 ≠ y) → (defEnv env decls)[y]? = env[y]? := by
   intro decls
   induction decls with
-  | nil =>
-    intro env _ hz
-    refine ⟨hz, ?_⟩
-    intro y hy
-    rcases hy with ⟨w, hw⟩ | hy
-    · exact ⟨w, hw⟩
-    · simp at hy
-  | cons dd rest ihd =>
+  | nil => intro env y _; rfl
+  | cons dd rest ih =>
     obtain ⟨x, t, init⟩ := dd
-    intro env hall hz
-    have hdef : valNat (Turpentine.initEnv.default t) = some 0 := hall (x, t, init) (by simp)
-    have hz' : ∀ (y : String) (w : Value),
-        (env.insert x (Turpentine.initEnv.default t))[y]? = some w →
-        valNat w = some 0 := by
-      intro y w hw
-      rw [Std.HashMap.getElem?_insert] at hw
-      split at hw
-      · simp only [Option.some.injEq] at hw; subst hw; exact hdef
-      · exact hz y w hw
-    obtain ⟨hz'', hp⟩ := ihd (env.insert x (Turpentine.initEnv.default t))
-      (fun d hd => hall d (by simp [hd])) hz'
-    refine ⟨hz'', ?_⟩
-    intro y hy
-    apply hp
-    rcases hy with ⟨w, hw⟩ | hy
-    · exact Or.inl (insert_isSome hw)
-    · simp only [List.map_cons, List.mem_cons] at hy
-      rcases hy with hy | hy
-      · exact Or.inl ⟨Turpentine.initEnv.default t, by rw [hy]; simp⟩
-      · exact Or.inr hy
+    intro env y hy
+    have hne : x ≠ y := hy (x, t, init) (by simp)
+    show (defEnv (env.insert x (Turpentine.initEnv.default t)) rest)[y]? = env[y]?
+    rw [ih _ y (fun d hd => hy d (by simp [hd])),
+      Std.HashMap.getElem?_insert, if_neg (by simp [hne])]
+
+/-- With distinct declaration names, the defaults environment maps every
+declared name to its own type's default. -/
+theorem defEnv_get :
+    ∀ (decls : List (String × Ty × Option Expr)) (env : Std.HashMap String Value),
+      DistinctNames decls →
+      ∀ d ∈ decls, (defEnv env decls)[d.1]? = some (Turpentine.initEnv.default d.2.1) := by
+  intro decls
+  induction decls with
+  | nil => intro env _ d hd; simp at hd
+  | cons dd rest ih =>
+    obtain ⟨x, t, init⟩ := dd
+    intro env hdn d hd
+    obtain ⟨hne, hdn'⟩ := hdn
+    show (defEnv (env.insert x (Turpentine.initEnv.default t)) rest)[d.1]? = _
+    rcases List.mem_cons.mp hd with he | he
+    · subst he
+      rw [defEnv_not_mem rest _ x (fun e hem => hne e hem),
+        Std.HashMap.getElem?_insert, if_pos (by simp)]
+    · exact ih _ hdn' d he
+
+/-- The value a scalar declaration starts from sits in a zeroed register. -/
+theorem valNat_default_scalar {t : Ty} (h : isArrayTy t = false) :
+    valNat (Turpentine.initEnv.default t) = some 0 := by
+  cases t with
+  | int => rfl
+  | bool => rfl
+  | array => simp [isArrayTy] at h
+
+/-- Every declaration's default agrees with a block of zeroed registers,
+which is what the compiled machine starts with. -/
+theorem agreeVal_default {t : Ty} {base size : Nat} {regs : Cslib.URM.Regs}
+    (hsz : size = tySize t) (hdt : declTyOk t = true) (hz : ∀ k, regs k = 0) :
+    AgreeVal t base size (Turpentine.initEnv.default t) regs := by
+  cases t with
+  | int => simp only [AgreeVal]; rw [hz]; exact valNat_default_scalar rfl
+  | bool => simp only [AgreeVal]; rw [hz]; exact valNat_default_scalar rfl
+  | array el nn =>
+    have hel : isArrayTy el = false := by
+      cases el with
+      | int => rfl
+      | bool => rfl
+      | array => simp [declTyOk] at hdt
+    simp only [AgreeVal]
+    refine ⟨Array.replicate nn (Turpentine.initEnv.default el), rfl, ?_, ?_⟩
+    · simp only [tySize] at hsz; simp [hsz]
+    · intro j hj
+      rw [hz]
+      simp only [Array.getElem_replicate]
+      exact valNat_default_scalar hel
 
 /-- Every declared name is bound in the reference initial environment,
 whatever the initialisers do, provided they all evaluate. -/
@@ -2881,30 +3804,41 @@ private theorem exec_assign_eq (y : String) (e : Expr) (f : Nat) (σ : Turpentin
        | .error msg => (σ, Exit.error msg)) := by
   rw [Turpentine.exec]; rfl
 
+/-- The prelude reproduces `Turpentine.initEnv` from the defaults
+environment.
+
+The last hypothesis is what array declarations cost: they emit no code, so
+the name has to already hold its type's default when the prelude reaches it.
+`layoutFrom`'s distinct-names check is what keeps that true as the earlier
+assignments run. -/
 theorem exec_declPrelude :
     ∀ (decls : List (String × Ty × Option Expr))
       (envR envR' : Std.HashMap String Value) (s : Turpentine.State),
-      (∀ d ∈ decls, d.2.1 = Ty.int ∨ d.2.1 = Ty.bool) →
+      DistinctNames decls →
+      (∀ d ∈ decls, declTyOk d.2.1 = true ∧ (isArrayTy d.2.1 = true → d.2.2 = none)) →
       declEnv envR decls = .ok envR' →
       (∀ (y : String) (w : Value), envR[y]? = some w → s.env[y]? = some w) →
+      (∀ d ∈ decls, isArrayTy d.2.1 = true →
+        s.env[d.1]? = some (Turpentine.initEnv.default d.2.1)) →
       ∃ (m : Nat) (envD : Std.HashMap String Value),
         Turpentine.exec m (declPrelude decls) s = ({ s with env := envD }, Exit.halted) ∧
         (∀ (y : String) (w : Value), envR'[y]? = some w → envD[y]? = some w) := by
   intro decls
   induction decls with
   | nil =>
-    intro envR envR' s _ hR hext
-    have : envR' = envR := by
-      have : declEnv envR ([] : List (String × Ty × Option Expr)) = .ok envR := rfl
-      rw [this] at hR; simpa using hR.symm
-    subst this
+    intro envR envR' s _ _ hR hext _
+    have heq : envR' = envR := by
+      have h0 : declEnv envR ([] : List (String × Ty × Option Expr)) = .ok envR := rfl
+      rw [h0] at hR; simpa using hR.symm
+    subst heq
     refine ⟨1, s.env, ?_, hext⟩
     show Turpentine.exec (0 + 1) Stmt.skip s = _
     rw [exec_skip_eq]
   | cons dd rest ihd =>
     obtain ⟨x, t, init⟩ := dd
-    intro envR envR' s hty hR hext
-    -- one step of both sides, with the same value
+    intro envR envR' s hdn hty hR hext harr
+    obtain ⟨hdn1, hdn2⟩ := hdn
+    -- one step of both sides, with the same value: the scalar case
     have step : ∀ (v : Value) (e : Expr), declInit (x, t, init) = .assign x e →
         Turpentine.evalExpr s.env e = .ok v →
         declEnv (envR.insert x v) rest = .ok envR' →
@@ -2920,8 +3854,14 @@ theorem exec_declPrelude :
         split at hw
         · next hy => rw [if_pos hy]; exact hw
         · next hy => rw [if_neg hy]; exact hext y w hw
+      have harr' : ∀ d ∈ rest, isArrayTy d.2.1 = true →
+          (s.env.insert x v)[d.1]? = some (Turpentine.initEnv.default d.2.1) := by
+        intro d hd hda
+        rw [Std.HashMap.getElem?_insert, if_neg (by simp [Ne.symm (hdn1 d hd)])]
+        exact harr d (by simp [hd]) hda
       obtain ⟨m, envD, hm, hmono⟩ := ihd (envR.insert x v) envR'
-        { s with env := s.env.insert x v } (fun d hd => hty d (by simp [hd])) hR' hext'
+        { s with env := s.env.insert x v } hdn2 (fun d hd => hty d (by simp [hd])) hR'
+        hext' harr'
       refine ⟨m + 1, envD, ?_, hmono⟩
       have hassign : Turpentine.exec (m + 1) (Stmt.assign x e) s
           = ({ s with env := s.env.insert x v }, Exit.halted) := by
@@ -2929,25 +3869,81 @@ theorem exec_declPrelude :
       show Turpentine.exec (m + 1) (.seq (declInit (x, t, init)) (declPrelude rest)) s = _
       rw [hdi, exec_seq_eq, hassign]
       exact hm
-    cases init with
-    | none =>
-      have hev : Turpentine.evalExpr s.env (declDefault t)
-          = .ok (Turpentine.initEnv.default t) := by
-        rcases hty (x, t, none) (by simp) with ht | ht <;>
-          simp only at ht <;> subst ht <;> rfl
-      refine step _ (declDefault t) rfl hev ?_
-      have : declEnv envR ((x, t, none) :: rest)
+    -- the scalar declarations, whose two types behave alike
+    have scalarCase : ∀ (u : Ty), t = u → isArrayTy u = false →
+        ∃ (m : Nat) (envD : Std.HashMap String Value),
+          Turpentine.exec m (declPrelude ((x, t, init) :: rest)) s
+            = ({ s with env := envD }, Exit.halted) ∧
+          (∀ (y : String) (w : Value), envR'[y]? = some w → envD[y]? = some w) := by
+      intro u hu hsc
+      subst hu
+      cases init with
+      | none =>
+        have hev : Turpentine.evalExpr s.env (declDefault t)
+            = .ok (Turpentine.initEnv.default t) := by
+          cases t with
+          | int => rfl
+          | bool => rfl
+          | array => simp [isArrayTy] at hsc
+        have hdi : declInit (x, t, none) = Stmt.assign x (declDefault t) := by
+          cases t with
+          | int => rfl
+          | bool => rfl
+          | array => simp [isArrayTy] at hsc
+        refine step _ (declDefault t) hdi hev ?_
+        have h0 : declEnv envR ((x, t, none) :: rest)
+            = declEnv (envR.insert x (Turpentine.initEnv.default t)) rest := rfl
+        rwa [h0] at hR
+      | some e =>
+        have hdi : declInit (x, t, some e) = Stmt.assign x e := by
+          cases t with
+          | int => rfl
+          | bool => rfl
+          | array => simp [isArrayTy] at hsc
+        have hsplit : declEnv envR ((x, t, some e) :: rest)
+            = (Turpentine.evalExpr envR e >>= fun v => declEnv (envR.insert x v) rest) := rfl
+        rw [hsplit] at hR
+        cases he : Turpentine.evalExpr envR e with
+        | error m => rw [he, exc_bind_err] at hR; simp at hR
+        | ok v =>
+          rw [he, exc_bind_ok] at hR
+          exact step v e hdi (evalExpr_mono hext e v he) hR
+    by_cases harrT : isArrayTy t = true
+    · -- an array declaration emits nothing: the name already holds its default
+      obtain ⟨el, nn, ht⟩ : ∃ el nn, t = Ty.array el nn := by
+        cases t with
+        | int => simp [isArrayTy] at harrT
+        | bool => simp [isArrayTy] at harrT
+        | array el nn => exact ⟨el, nn, rfl⟩
+      have hinit : init = none := (hty (x, t, init) (by simp)).2 harrT
+      subst hinit
+      have hdi : declInit (x, t, none) = Stmt.skip := by rw [ht]; rfl
+      have h0 : declEnv envR ((x, t, none) :: rest)
           = declEnv (envR.insert x (Turpentine.initEnv.default t)) rest := rfl
-      rwa [this] at hR
-    | some e =>
-      have hsplit : declEnv envR ((x, t, some e) :: rest)
-          = (Turpentine.evalExpr envR e >>= fun v => declEnv (envR.insert x v) rest) := rfl
-      rw [hsplit] at hR
-      cases he : Turpentine.evalExpr envR e with
-      | error m => rw [he, exc_bind_err] at hR; simp at hR
-      | ok v =>
-        rw [he, exc_bind_ok] at hR
-        exact step v e rfl (evalExpr_mono hext e v he) hR
+      rw [h0] at hR
+      have hext' : ∀ (y : String) (w : Value),
+          (envR.insert x (Turpentine.initEnv.default t))[y]? = some w →
+            s.env[y]? = some w := by
+        intro y w hw
+        rw [Std.HashMap.getElem?_insert] at hw
+        split at hw
+        · next hy =>
+          simp only [Option.some.injEq] at hw
+          subst hw
+          have hb := harr (x, t, none) (by simp) (by rw [ht]; simp [isArrayTy])
+          simp only at hb
+          rw [show y = x from by simpa using (by simpa using hy : x = y).symm]
+          exact hb
+        · exact hext y w hw
+      obtain ⟨m, envD, hm, hmono⟩ :=
+        ihd (envR.insert x (Turpentine.initEnv.default t)) envR' s hdn2
+          (fun d hd => hty d (by simp [hd])) hR hext'
+          (fun d hd hda => harr d (by simp [hd]) hda)
+      refine ⟨m + 1, envD, ?_, hmono⟩
+      show Turpentine.exec (m + 1) (.seq (declInit (x, t, none)) (declPrelude rest)) s = _
+      rw [hdi, exec_seq_eq, exec_skip_eq]
+      exact hm
+    · exact scalarCase t rfl (by simpa using harrT)
 
 /-- The compiler's input vector is always empty: the fragment is I/O-free,
 so the compiled machine builds every value it needs from zero. -/
@@ -3011,7 +4007,8 @@ theorem compileToURM_correct
         have hlen : body.length = stmtSize slots (.seq (declPrelude p.decls) p.body) :=
           length_compileStmt slots (scratchBase slots) _ 0 body hbody
         simp only [stmtSize] at hlen
-        obtain ⟨hnames, hdecls, _⟩ := layoutFrom_spec p.decls firstVarReg slots hlay
+        obtain ⟨hnames, _, hdistinct, hdecls, hslotinfo⟩ :=
+          layoutFrom_spec p.decls firstVarReg slots hlay
         have hcodeAll : CodeAt (body ++ [Cslib.URM.Instr.T ans.base 0]) 0
             (body ++ [Cslib.URM.Instr.T ans.base 0]) := by
           intro j hj; simp
@@ -3042,29 +4039,34 @@ theorem compileToURM_correct
         -- the initial registers, and the environment they stand for
         have hz0 : (Cslib.URM.Regs.ofInputs ([] : List Nat)) 1 = 0 := by
           simp [Cslib.URM.Regs.ofInputs]
-        have hdefzero : ∀ d ∈ p.decls,
-            valNat (Turpentine.initEnv.default d.2.1) = some 0 := by
-          intro d hd
-          rcases hdecls d hd with ht | ht <;> rw [ht] <;>
-            simp [Turpentine.initEnv.default, valNat]
-        obtain ⟨hzero, hpres⟩ :=
-          defEnv_zero p.decls ∅ hdefzero (by intro y w hw; simp at hw)
+        have hzall : ∀ k, (Cslib.URM.Regs.ofInputs ([] : List Nat)) k = 0 := by
+          intro k; simp [Cslib.URM.Regs.ofInputs]
         have hmemOf : ∀ (x : String) (s : Slot), findSlot slots x = some s →
             x ∈ p.decls.map (·.1) := by
           intro x s hx
           rw [← hnames]
           exact List.mem_map.mpr ⟨s, findSlot_mem hx, findSlot_name hx⟩
+        -- every declared name starts at its type's default, in zeroed registers
+        have hdefOf : ∀ (x : String) (s : Slot), findSlot slots x = some s →
+            (defEnv ∅ p.decls)[x]? = some (Turpentine.initEnv.default s.ty) := by
+          intro x s hx
+          obtain ⟨_, _, init, hmem⟩ := hslotinfo s (findSlot_mem hx)
+          have h := defEnv_get p.decls ∅ hdistinct (s.name, s.ty, init) hmem
+          rwa [findSlot_name hx] at h
         have hA0 : Agree slots (defEnv ∅ p.decls)
             (Cslib.URM.Regs.ofInputs ([] : List Nat)) := by
           intro x s hx
-          obtain ⟨w, hw⟩ := hpres x (Or.inr (hmemOf x s hx))
-          exact ⟨w, hw, by rw [hzero x w hw]; simp [Cslib.URM.Regs.ofInputs]⟩
+          obtain ⟨hsz, hdt, _, _⟩ := hslotinfo s (findSlot_mem hx)
+          exact ⟨_, hdefOf x s hx, agreeVal_default hsz hdt hzall⟩
         -- the prelude: the source's initialisers, run as assignments
         have hinit' : declEnv ∅ p.decls = .ok env₀ := by rw [← initEnv_eq p]; exact hinit
         obtain ⟨mf, envD, hpreExec, hpreMono⟩ :=
           exec_declPrelude p.decls ∅ env₀
             { env := defEnv ∅ p.decls, input := Input.ofString "" }
-            hdecls hinit' (by intro y w hw; simp at hw)
+            hdistinct hdecls hinit' (by intro y w hw; simp at hw)
+            (by
+              intro d hd _
+              exact defEnv_get p.decls ∅ hdistinct d hd)
         obtain ⟨regs₁, hr₁, hA₁, hz₁⟩ :=
           reaches_compileStmt slots hg (body ++ [Cslib.URM.Instr.T ans.base 0]) mf
             (declPrelude p.decls) 0 cpre
@@ -3101,8 +4103,18 @@ theorem compileToURM_correct
         have hansv : regs' ans.base = result := by
           rw [hans, Option.some.injEq] at hw
           subst hw
-          simp only [valNat_ofNat, Option.some.injEq] at hwv
-          exact hwv.symm
+          have hsc : isArrayTy ans.ty = false := by
+            cases ht : ans.ty with
+            | int => rfl
+            | bool => rfl
+            | array el nn =>
+              rw [ht] at hwv
+              simp only [AgreeVal] at hwv
+              obtain ⟨elems, he, _⟩ := hwv
+              exact absurd he (by simp)
+          have hv := agreeVal_scalar hsc hwv
+          simp only [valNat_ofNat, Option.some.injEq] at hv
+          exact hv.symm
         have hfull : Reaches (Ex (body ++ [Cslib.URM.Instr.T ans.base 0]))
             ⟨0, Cslib.URM.Regs.ofInputs ([] : List Nat)⟩
             ⟨(body ++ [Cslib.URM.Instr.T ans.base 0]).length,

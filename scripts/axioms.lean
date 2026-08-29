@@ -22,10 +22,17 @@ incompleteness instance lands.
 import Langlib.Computability.Whitespace
 import Langlib.Computability.Subleq
 import Langlib.Computability.Derived
+import Langlib.Computability.BespokeWhitespace
 import Langlib.Computability.Brainfuck
 import Langlib.Computability.Deadfish
 import Langlib.Computability.Malbolge
 import Langlib.Computability.Befunge93
+import Langlib.Computability.Thue
+import Langlib.Computability.Ook
+import Langlib.Computability.Brainloller
+import Langlib.Computability.Piet
+import Langlib.Computability.Fractran
+import Langlib.Computability.BespokeSubleq
 
 open Langlib.Computability
 
@@ -89,9 +96,12 @@ open Langlib.Computability
 #print axioms Deadfish.haltingDecidable
 #print axioms Deadfish.no_boundedStorage
 
--- Malbolge: exact finite-control cardinality for each fixed input length.
--- The current BoundedStorage interface cannot package the input-dependent
--- cursor type, so this audit covers the proved finite-core fallback only.
+-- Malbolge: exact finite-control cardinality for each fixed input length,
+-- and the halting decision that now rests on it. The witness is a
+-- `BoundedRun` rather than a `BoundedStorage`, because a faithful input
+-- cursor's range depends on the input, so the configuration type is not
+-- globally finite; `BoundedRun` asks for finiteness along a run, which is
+-- all the pigeonhole argument uses.
 #print axioms malbolgeCore_card
 #print axioms malbolgeControlBound_eq
 #print axioms malbolgeControlIndex_lt
@@ -100,12 +110,43 @@ open Langlib.Computability
 #print axioms malbolgeInitialState_wellFormed
 #print axioms malbolgeStateControl_index_lt
 
+-- The dynamic half: one iteration as a function, the successor law the
+-- reference loop does not give directly, the run invariant, and the
+-- configuration injectivity the pigeonhole needs.
+#print axioms Langlib.Computability.exec_one
+#print axioms Langlib.Computability.exec_succ
+#print axioms Langlib.Computability.runWF_exec
+#print axioms Langlib.Computability.stepOnce_congr
+#print axioms Langlib.Computability.config_ext
+#print axioms Langlib.Computability.malbolgeBoundedRun
+#print axioms Langlib.Computability.malbolgeHaltingDecidable
+
+-- The weakened interface the Malbolge witness needs, and the fact that the
+-- globally finite one still implies it.
+#print axioms BoundedRun.halts_iff_search
+#print axioms BoundedRun.halting_decidable
+#print axioms BoundedStorage.toBoundedRun
+
 -- Bounded byte Befunge-93 core: the playfield and stack alphabet are bytes,
 -- stack depth is fixed at 16, and input, output, and random direction are
 -- excluded. These claims do not apply to bef.c or LangLib's Int semantics.
 #print axioms BoundedByteBefunge93.exec_succ
 #print axioms BoundedByteBefunge93.boundedStorage
 #print axioms BoundedByteBefunge93.haltingDecidable
+
+-- Thue: executable URM generator and proved local obligations.  The
+-- counter-macro arithmetic, unique-marker encoding, and final-state decoder
+-- are proved.  The rewrite-level simulation remains open, so there is no
+-- thueComplete declaration to audit.
+#print axioms URMThue.control_token_injective
+#print axioms URMThue.encodeState_marker_count
+#print axioms URMThue.RuleAnchored
+#print axioms URMThue.headRules_anchored
+#print axioms URMThue.nextPC_mem_outcomes
+#print axioms URMThue.instruction_macro_correct
+#print axioms URMThue.macroCode_correct
+#print axioms URMThue.initial_macro_invariant
+#print axioms URMThue.decodeOutput_encodeState
 
 -- Piet: axiom-clean stack and colour-transition foundations for the partial
 -- straight-corridor compiler. Arbitrary J routing and pietComplete remain open.
@@ -119,3 +160,252 @@ open Langlib.Computability
 #print axioms URMPiet.opFor_advance
 #print axioms URMPiet.compileStraight
 #print axioms URMPiet.advance_ne
+
+-- FRACTRAN: axiom-clean prime-exponent arithmetic and the runnable
+-- URM-to-FRACTRAN compiler. The whole-program simulation remains open.
+#print axioms URMFractran.encodeTokens_injective
+#print axioms URMFractran.factorization_encodeTokens
+#print axioms URMFractran.encodeTokens_dvd_iff
+#print axioms URMFractran.rule_den_dvd_iff
+#print axioms URMFractran.encodeTokens_apply
+#print axioms URMFractran.step_single_rule
+#print axioms URMFractran.step_single_rule_disabled
+#print axioms URMFractran.tokenProduct_coprime
+#print axioms URMFractran.frac_eq_of_disjoint
+#print axioms URMFractran.registerBound_pos
+#print axioms URMFractran.encodeInput_pos
+
+-- The hand-written Turpentine-to-subleq backend, verified on the fragment
+-- `var answer : int := k; printByte(answer);` (1 <= k <= 255) and
+-- `var answer : int;` with an empty body.  `bespokeSubleq` is the second
+-- inhabitant of `TurpentineCompiler SubleqLang`; `bespoke_agrees_derived`
+-- is `agree` instantiated at it and the derived compiler.
+#print axioms BespokeSubleq.stepSub
+#print axioms BespokeSubleq.stepOut
+#print axioms BespokeSubleq.eval_of_reaches
+#print axioms BespokeSubleq.reaches_print
+#print axioms BespokeSubleq.reaches_skip
+#print axioms BespokeSubleq.run_print
+#print axioms BespokeSubleq.run_skip
+#print axioms BespokeSubleq.progOf_shapeOf
+#print axioms BespokeSubleq.printLit_range
+#print axioms BespokeSubleq.haltsWith_progSkip
+#print axioms BespokeSubleq.haltsWith_progPrint
+#print axioms BespokeSubleq.decodeOutput_empty
+#print axioms BespokeSubleq.decodeOutput_push
+#print axioms BespokeSubleq.km_ne
+#print axioms BespokeSubleq.backend_skipZero
+#print axioms BespokeSubleq.backend_printLit
+#print axioms BespokeSubleq.compile_eq
+#print axioms BespokeSubleq.compile_progSkip
+#print axioms BespokeSubleq.compile_progPrint
+#print axioms bespokeSubleq
+#print axioms bespoke_agrees_derived
+#print axioms bespoke_agrees_derived_nonvacuous
+
+-- Ook!: Turing complete, by re-labelling the brainfuck witness (the program
+-- type and the evaluator are literally brainfuck's), plus the syntactic half
+-- that makes it a claim about the language: parsing the rendering of any
+-- program gives that program back, through the shipped `Langlib.Ook.parse`.
+#print axioms ookComplete
+#print axioms OokSyntax.parse_render
+#print axioms parse_render_compile
+#print axioms OokSyntax.tokenize_render
+#print axioms OokSyntax.pairKey
+
+-- Brainloller: Turing complete, the same way. Of the pictorial round trip
+-- this proves the brainfuck parser is a left inverse of the renderer, that a
+-- rendered program is all command characters (so the encoder's filter drops
+-- nothing), and the composition of the two. The pixel walk itself is not
+-- proved; see the header of Langlib/Computability/Brainloller.lean and the
+-- `walks` suites in Langlib/Tests/CompileBrainloller.lean.
+#print axioms brainlollerComplete
+#print axioms BrainlollerSyntax.parse_renderBf
+#print axioms BrainlollerSyntax.bfCommands_renderBf
+#print axioms BrainlollerSyntax.decodeProg_of_decode
+#print axioms BrainlollerSyntax.colour_roundTrip
+#print axioms decode_compile
+
+-- Arrays in the certified fragment: the slot layout past one register per
+-- variable (disjoint blocks, sized by the declared type), the dispatch chain
+-- that turns a computed index into static code, the element write, and the
+-- inversions of the reference evaluator at `a[i]` and `len(a)`. The
+-- defaults lemmas are what an array declaration rests on, since it emits no
+-- code and relies on the registers already being zero.
+#print axioms Langlib.Turpentine.Compile.URM.layoutFrom_spec
+#print axioms Langlib.Turpentine.Compile.URM.goodSlots_of_layout
+#print axioms Langlib.Turpentine.Compile.URM.reaches_dispatchT
+#print axioms Langlib.Turpentine.Compile.URM.Agree.updateIndex
+#print axioms Langlib.Turpentine.Compile.URM.agreeVal_write
+#print axioms Langlib.Turpentine.Compile.URM.evalExpr_index_inv
+#print axioms Langlib.Turpentine.Compile.URM.evalExpr_len_inv
+#print axioms Langlib.Turpentine.Compile.URM.defEnv_get
+#print axioms Langlib.Turpentine.Compile.URM.agreeVal_default
+
+-- Thue rule-family separation under the concrete substring selector.
+#print axioms URMThue.encCode_injective
+#print axioms URMThue.encPhase_injective
+#print axioms URMThue.token_injective
+#print axioms URMThue.firstOccurrence_token_right
+#print axioms URMThue.firstOccurrence_token_left
+#print axioms URMThue.applyAt_rule_right
+#print axioms URMThue.applyAt_rule_left
+#print axioms URMThue.generate_shaped
+#print axioms URMThue.finishRules_shaped
+#print axioms URMThue.compileRules_shaped
+#print axioms URMThue.RuleShape.active_of_match
+#print axioms URMThue.compileRules_match_active
+#print axioms URMThue.compileRules_firstMatch_active
+#print axioms URMThue.control_rule_mem_compileRules
+
+-- Piet dispatcher and singleton-block normalization. The runnable compiler
+-- supports arbitrary J, while the image-level evalGrid simulation remains open.
+#print axioms URMPiet.runCode_copyAt_list
+#print axioms URMPiet.runCode_storeTop_list
+#print axioms URMPiet.runCode_initialCode
+#print axioms URMPiet.runCode_beginDispatch_list
+#print axioms URMPiet.runCode_selectInstr_list
+#print axioms URMPiet.runCode_guardedZ_list
+#print axioms URMPiet.runCode_guardedS_list
+#print axioms URMPiet.runCode_guardedT_list
+#print axioms URMPiet.runCode_guardedEq_list
+#print axioms URMPiet.runCode_guardedNext_list
+#print axioms URMPiet.runCode_guardedJ_list
+#print axioms URMPiet.runCode_pushNatUnit
+#print axioms URMPiet.unitCode_unitize
+#print axioms URMPiet.coloredRuns_length_of_unit
+#print axioms URMPiet.runCode_unitize
+#print axioms URMPiet.compile
+
+-- The first hand-written backend proved correct: Turpentine to Whitespace,
+-- over the fragment `BespokeWhitespace.checkFragment` accepts (scalar
+-- declarations with no initialiser, one of them `answer : int`; `skip`,
+-- sequencing, assignment, `if`, `while`, `assert`; every operator except `/`
+-- and `%`). `bespokeCompile_correct` is the end-to-end theorem and
+-- `bespokeWhitespace_agrees_derived` is `agree` instantiated at the bespoke and derived
+-- compilers for Whitespace.
+#print axioms bespokeWhitespace
+#print axioms bespokeWhitespace_agrees_derived
+#print axioms BespokeWhitespace.bespokeCompile
+#print axioms BespokeWhitespace.binOfChars_spell_toDigits
+#print axioms BespokeWhitespace.labelOf_inj
+#print axioms BespokeWhitespace.Emits.pure
+#print axioms BespokeWhitespace.Emits.bind
+#print axioms BespokeWhitespace.Emits.seq
+#print axioms BespokeWhitespace.Emits.det
+#print axioms BespokeWhitespace.emits_emit
+#print axioms BespokeWhitespace.emits_emits
+#print axioms BespokeWhitespace.emits_fresh
+#print axioms BespokeWhitespace.labelsOf_append
+#print axioms BespokeWhitespace.unlabel_labelOf
+#print axioms BespokeWhitespace.labelIdxs_append
+#print axioms BespokeWhitespace.labelIdxs_label
+#print axioms BespokeWhitespace.Clean.labels_nodup
+#print axioms BespokeWhitespace.Clean.mono
+#print axioms BespokeWhitespace.Clean.ofNoLabels
+#print axioms BespokeWhitespace.Clean.ofEq
+#print axioms BespokeWhitespace.nodup_app
+#print axioms BespokeWhitespace.Clean.appendUp
+#print axioms BespokeWhitespace.clean_label
+#print axioms BespokeWhitespace.CodeAt.get
+#print axioms BespokeWhitespace.CodeAt.left
+#print axioms BespokeWhitespace.CodeAt.right
+#print axioms BespokeWhitespace.codeAt_of_eq
+#print axioms BespokeWhitespace.LabelsOk.left
+#print axioms BespokeWhitespace.LabelsOk.right
+#print axioms BespokeWhitespace.labelsOk_of_eq
+#print axioms BespokeWhitespace.noLabel_iff
+#print axioms BespokeWhitespace.labelsOk_of_nodup
+#print axioms BespokeWhitespace.reaches_dup
+#print axioms BespokeWhitespace.reaches_drop
+#print axioms BespokeWhitespace.reaches_mul
+#print axioms BespokeWhitespace.reaches_jump
+#print axioms BespokeWhitespace.reaches_jn_taken
+#print axioms BespokeWhitespace.reaches_jn_untaken
+#print axioms BespokeWhitespace.Agrees.update
+#print axioms BespokeWhitespace.emits_addrOf
+#print axioms BespokeWhitespace.emits_emitBool
+#print axioms BespokeWhitespace.emits_cmpTail
+#print axioms BespokeWhitespace.emitsE_intLit
+#print axioms BespokeWhitespace.emitsE_boolLit
+#print axioms BespokeWhitespace.emitsE_var
+#print axioms BespokeWhitespace.emitsE_neg
+#print axioms BespokeWhitespace.emitsE_not
+#print axioms BespokeWhitespace.emitsE_arith
+#print axioms BespokeWhitespace.emitsE_cmp
+#print axioms BespokeWhitespace.emitsE_cmpLe
+#print axioms BespokeWhitespace.emitsE_ne
+#print axioms BespokeWhitespace.emitsE_and
+#print axioms BespokeWhitespace.emitsE_or
+#print axioms BespokeWhitespace.clean_boolTail
+#print axioms BespokeWhitespace.clean_boolTail_jz
+#print axioms BespokeWhitespace.clean_boolTail_jn
+#print axioms BespokeWhitespace.clean_neTail
+#print axioms BespokeWhitespace.mem_of_contains
+#print axioms BespokeWhitespace.emitsExpr
+#print axioms BespokeWhitespace.reaches_cast
+#print axioms BespokeWhitespace.CodeAt.head
+#print axioms BespokeWhitespace.CodeAt.right'
+#print axioms BespokeWhitespace.LabelsOk.right'
+#print axioms BespokeWhitespace.LabelsOk.single
+#print axioms BespokeWhitespace.reaches_boolTail
+#print axioms BespokeWhitespace.reaches_boolTail_jz
+#print axioms BespokeWhitespace.reaches_boolTail_jn
+#print axioms BespokeWhitespace.reaches_neTail
+#print axioms BespokeWhitespace.exc_pure
+#print axioms BespokeWhitespace.exc_throw
+#print axioms BespokeWhitespace.exc_bind_ok
+#print axioms BespokeWhitespace.exc_bind_err
+#print axioms BespokeWhitespace.evalExpr_bin_eq
+#print axioms BespokeWhitespace.evalExpr_bin_inv
+#print axioms BespokeWhitespace.evalExpr_and_eq
+#print axioms BespokeWhitespace.evalExpr_or_eq
+#print axioms BespokeWhitespace.evalExpr_var_inv
+#print axioms BespokeWhitespace.evalExpr_neg_inv
+#print axioms BespokeWhitespace.evalExpr_not_inv
+#print axioms BespokeWhitespace.encV_bool_eq_ite
+#print axioms BespokeWhitespace.encV_bool_ne_ite
+#print axioms BespokeWhitespace.encV_bool_sub_eq_zero
+#print axioms BespokeWhitespace.evalBin_add_enc
+#print axioms BespokeWhitespace.evalBin_sub_enc
+#print axioms BespokeWhitespace.evalBin_mul_enc
+#print axioms BespokeWhitespace.evalBin_lt_enc
+#print axioms BespokeWhitespace.evalBin_le_enc
+#print axioms BespokeWhitespace.evalBin_gt_enc
+#print axioms BespokeWhitespace.evalBin_ge_enc
+#print axioms BespokeWhitespace.evalBin_eq_enc
+#print axioms BespokeWhitespace.evalBin_ne_enc
+#print axioms BespokeWhitespace.layout_forIn
+#print axioms BespokeWhitespace.compileChecked_unfold
+#print axioms BespokeWhitespace.slotSize_scalar
+#print axioms BespokeWhitespace.layoutGo_notMem
+#print axioms BespokeWhitespace.layoutGo_ok
+#print axioms BespokeWhitespace.typesGo_notMem
+#print axioms BespokeWhitespace.typesGo_get
+#print axioms BespokeWhitespace.zeroHeap_empty
+#print axioms BespokeWhitespace.ZeroHeap.insertZero
+#print axioms BespokeWhitespace.emits_declLoop
+#print axioms BespokeWhitespace.initEnv_unfold
+#print axioms BespokeWhitespace.initEnv_forIn
+#print axioms BespokeWhitespace.allZeroEnv_empty
+#print axioms BespokeWhitespace.encV_default
+#print axioms BespokeWhitespace.initGo_zero
+#print axioms BespokeWhitespace.agrees_of_zero
+#print axioms BespokeWhitespace.boolTail_length
+#print axioms BespokeWhitespace.sim_twoOps
+#print axioms BespokeWhitespace.simExpr_bin
+#print axioms BespokeWhitespace.simExpr
+#print axioms BespokeWhitespace.emitsS_skip
+#print axioms BespokeWhitespace.emitsS_seq
+#print axioms BespokeWhitespace.emitsS_assign
+#print axioms BespokeWhitespace.emitsS_ite
+#print axioms BespokeWhitespace.emitsS_while
+#print axioms BespokeWhitespace.emitsS_assert
+#print axioms BespokeWhitespace.emitsStmt
+#print axioms BespokeWhitespace.simStmt
+#print axioms BespokeWhitespace.nodupB_spec
+#print axioms BespokeWhitespace.isIntTy_eq
+#print axioms BespokeWhitespace.checkFragment_ok
+#print axioms BespokeWhitespace.emitsS_printAnswer
+#print axioms BespokeWhitespace.compileChecked_of_gen
+#print axioms BespokeWhitespace.bespokeCompile_correct

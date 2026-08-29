@@ -2,14 +2,12 @@ import Langlib.Common.TestHarness
 import Langlib.Computability.Piet
 
 /-!
-Differential tests for the verified stack macros and straight-corridor
-lowerer in `Langlib.Computability.URMPiet`.
-
-The current compiler intentionally accepts only `Z`, `S`, and `T`.  A `J`
-is rejected because the image-level routing proof needed for a back edge has
-not landed.  Every accepted case runs the generated codel grid with Piet's
-reference evaluator and compares the decoded answer with the executable URM
-interpreter.
+Differential tests for both Piet lowerers in
+`Langlib.Computability.URMPiet`.  The proved straight-corridor fragment
+rejects `J`.  The full runnable compiler uses a branchless dispatcher and one
+geometric loop, so its tests include taken and untaken jumps and a backward
+loop.  Every accepted case runs the generated grid with Piet's reference
+evaluator and compares its decimal output with the executable URM interpreter.
 -/
 
 namespace Langlib.Tests.URMPiet
@@ -51,7 +49,7 @@ private def parseURM (src : String) : Except String (Program × List Nat) := do
 
 private def urmSteps : Nat := 100000
 
-def run (src : String) (_input : Input) (fuel : Nat) : Except String RunResult := do
+def runStraight (src : String) (_input : Input) (fuel : Nat) : Except String RunResult := do
   let (P, inputs) ← parseURM src
   if ¬ Langlib.Computability.URM.haltsIn P (Cslib.URM.State.init inputs) urmSteps then
     .error s!"the URM program did not halt within {urmSteps} steps"
@@ -71,15 +69,41 @@ def run (src : String) (_input : Input) (fuel : Nat) : Except String RunResult :
     | .outOfFuel => return { exit := .error s!"compiled Piet ran out of fuel ({fuel})" }
     | .error msg => return { exit := .error s!"compiled Piet failed: {msg}" }
 
-def sizeOf (src : String) (_input : Input) (_fuel : Nat) : Except String RunResult := do
+def runFull (src : String) (_input : Input) (fuel : Nat) : Except String RunResult := do
+  let (P, inputs) ← parseURM src
+  if ¬ Langlib.Computability.URM.haltsIn P (Cslib.URM.State.init inputs) urmSteps then
+    .error s!"the URM program did not halt within {urmSteps} steps"
+  else
+    let want := Langlib.Computability.URM.result P inputs urmSteps
+    let grid := Langlib.Computability.URMPiet.compile P inputs
+    let r := Langlib.Piet.evalGrid grid (Input.ofString "") fuel
+    match r.exit with
+    | .halted =>
+      match Langlib.Computability.URMPiet.decodeOutput r.output with
+      | some got =>
+        if got == want then
+          return { output := s!"ok {want}".toUTF8, exit := .halted }
+        else
+          return { exit := .error s!"URM says {want}, compiled Piet says {got}" }
+      | none => return { exit := .error "the Piet output did not decode" }
+    | .outOfFuel => return { exit := .error s!"compiled Piet ran out of fuel ({fuel})" }
+    | .error msg => return { exit := .error s!"compiled Piet failed: {msg}" }
+
+def sizeOfStraight (src : String) (_input : Input) (_fuel : Nat) : Except String RunResult := do
   let (P, inputs) ← parseURM src
   let grid ← Langlib.Computability.URMPiet.compileStraight P inputs
   let message := s!"{grid.width}x{grid.height}={grid.codels.size}"
   return { output := message.toUTF8, exit := .halted }
 
+def sizeOfFull (src : String) (_input : Input) (_fuel : Nat) : Except String RunResult := do
+  let (P, inputs) ← parseURM src
+  let grid := Langlib.Computability.URMPiet.compile P inputs
+  let message := s!"{grid.width}x{grid.height}={grid.codels.size}"
+  return { output := message.toUTF8, exit := .halted }
+
 def suite : Suite where
   name := "urm -> piet (verified stack macros, straight corridor)"
-  run := run
+  run := runStraight
   cases :=
     [ { name := "empty program preserves register zero",
         source := .inline "in 9", expect := .outputs "ok 9", fuel := 1000000 }
@@ -97,7 +121,7 @@ def suite : Suite where
 
 def sizeSuite : Suite where
   name := "urm -> piet (partial corridor size)"
-  run := sizeOf
+  run := sizeOfStraight
   cases :=
     [ { name := "three increments",
         source := .inline "S 0\nS 0\nS 0", expect := .outputs "112x3=336" }
@@ -105,6 +129,34 @@ def sizeSuite : Suite where
         source := .inline "in 0 6\nT 1 0", expect := .outputs "67x3=201" }
     ]
 
-def suites : List Suite := [suite, sizeSuite]
+def fullSuite : Suite where
+  name := "urm -> piet (branchless dispatcher, real evaluator)"
+  run := runFull
+  cases :=
+    [ { name := "empty program preserves register zero",
+        source := .inline "in 9", expect := .outputs "ok 9", fuel := 5000 }
+    , { name := "a taken forward jump halts immediately",
+        source := .inline "in 2 2\nJ 0 1 4\nS 0\nS 0\nS 0",
+        expect := .outputs "ok 2", fuel := 20000 }
+    , { name := "an untaken forward jump falls through",
+        source := .inline "in 1 2\nJ 0 1 4\nS 0\nS 0\nS 0",
+        expect := .outputs "ok 4", fuel := 20000 }
+    , { name := "backward jumps implement addition",
+        source := .inline "in 3 4\nJ 2 1 5\nS 0\nS 2\nJ 0 0 0",
+        expect := .outputs "ok 7", fuel := 100000 }
+    ]
+
+def fullSizeSuite : Suite where
+  name := "urm -> piet (singleton dispatcher size)"
+  run := sizeOfFull
+  cases :=
+    [ { name := "three increments",
+        source := .inline "S 0\nS 0\nS 0", expect := .outputs "916x3=2748" }
+    , { name := "backward-loop addition",
+        source := .inline "in 3 4\nJ 2 1 5\nS 0\nS 2\nJ 0 0 0",
+        expect := .outputs "2417x3=7251" }
+    ]
+
+def suites : List Suite := [suite, sizeSuite, fullSuite, fullSizeSuite]
 
 end Langlib.Tests.URMPiet

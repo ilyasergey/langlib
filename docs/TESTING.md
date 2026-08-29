@@ -146,8 +146,15 @@ Reference: **npiet** (Erik Schoenfelder) is the community's de-facto
 reference. It is not in Homebrew; build it from source (PPM input needs no
 image library, since libpng and gd are only for PNG and GIF):
 
+Fetch the tarball.
+
 ```
 curl -O https://www.bertnase.de/npiet/npiet-1.3f.tar.gz
+```
+
+Then unpack and build it.
+
+```
 tar xf npiet-1.3f.tar.gz && cd npiet-1.3f && ./configure && make
 ```
 

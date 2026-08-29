@@ -68,8 +68,8 @@ The roadmap of languages still to be implemented lives in
 
 Where each one stands. The two middle columns answer different questions.
 **Turing-complete (TC)** is the answer itself, as the literature or our own
-spec page gives it. **TC proven here** is whether that answer is backed by
-a machine-checked theorem in this repository, and links it.
+spec page gives it. **TC claim mechanised** is whether that answer is backed
+by a machine-checked theorem in this repository, and links it.
 
 So `yes` in the second column means settled, whichever way the first column
 came out: brainfuck is proved complete, malbolge is proved *not* complete
@@ -95,12 +95,12 @@ keeps both kinds.
 |----------|--------------------------|------------------------------|---------------------|
 | [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L2888)** | [bespoke](Langlib/Turpentine/Compile/Brainfuck.lean#L1317) (trusted), and [derived](Langlib/Computability/Derived.lean#L110) (certified) |
 | [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1117)** | [bespoke](Langlib/Turpentine/Compile/Whitespace.lean#L530) (trusted), and [derived](Langlib/Computability/Derived.lean#L102) (certified) |
-| [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1201)** | [bespoke](Langlib/Turpentine/Compile/Subleq.lean#L1125) (trusted), and [derived](Langlib/Computability/Derived.lean#L106) (certified) |
+| [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1201)** | [bespoke](Langlib/Turpentine/Compile/Subleq.lean#L1125) ([certified on a fragment](Langlib/Computability/BespokeSubleq.lean#L629)), and [derived](Langlib/Computability/Derived.lean#L106) (certified) |
 | [fractran](docs/fractran/spec.md) | yes | [in progress](docs/computability-fractran.md) | [planned](docs/fractran/compiler.md) |
 | [piet](docs/piet/spec.md) | yes | [in progress](docs/computability-piet.md) | [planned](docs/piet/compiler.md) |
 | [thue](docs/thue/spec.md) | yes | open | [planned](docs/thue/compiler.md) |
-| [ook](docs/ook/spec.md) | yes, via brainfuck | open | [planned, free via brainfuck](docs/ook/compiler.md) |
-| [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | open | [planned, free via brainfuck](docs/brainloller/compiler.md) |
+| [ook](docs/ook/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Ook.lean#L540)** | [bespoke](Langlib/Turpentine/Compile/Ook.lean#L49) (trusted), and [derived](Langlib/Computability/Derived.lean#L118) (certified) |
+| [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Brainloller.lean#L329)**, bar the [pixel walk](docs/brainloller/compiler.md) | [bespoke](Langlib/Turpentine/Compile/Brainloller.lean#L57) (trusted), and [derived](Langlib/Computability/Derived.lean#L123) (certified) |
 | [befunge93](docs/befunge93/spec.md) | [no with byte cells, yes with ours](docs/befunge93/spec.md#computational-class-and-why-our-deviations-matter) | **[yes](Langlib/Computability/Befunge93.lean#L326)**, for the byte core | [none: 2000 cells](docs/befunge93/compiler.md) |
 | [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[yes](Langlib/Computability/Malbolge.lean#L743)** | [none: bounded](docs/malbolge/compiler.md) |
 | [deadfish](docs/deadfish/spec.md) | no, every program halts | **[yes](Langlib/Computability/Deadfish.lean#L89)** | [planned, output only](docs/deadfish/compiler.md) |
@@ -486,7 +486,8 @@ Output:
 ```
 
 The certified compiler needs a program in its fragment: no I/O, no
-subtraction, no arrays, and the result left in a variable called `answer`.
+subtraction, and the result left in a variable called `answer`. Arrays are
+in, since the dispatch-chain work landed.
 `sumsq.turp` is written that way, and sums the squares below 5.
 
 ```

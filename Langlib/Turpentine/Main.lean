@@ -144,7 +144,8 @@ def helpText : String :=
     , "             composing it with the shared Turpentine-to-URM pass."
     , "             Correct by construction. Accepts only the I/O-free"
     , "             fragment: no input or output statements, no subtraction,"
-    , "             division or modulo, no arrays, no && or ||, and the"
+    , "             division or modulo, and no && or || whose right operand"
+    , "             indexes an array. Arrays themselves are supported. The"
     , "             result must be left in a variable named `answer`."
     , "             Not every target has one; those that do are marked in"
     , "             docs/README.md. See docs/certified-compilation.md."
@@ -254,8 +255,9 @@ def compileMain (args : List String) : IO UInt32 := do
     IO.eprintln s!"turpentine compile: {e}"
     if useCertified then
       IO.eprintln "turpentine: the certified compiler accepts only the I/O-free fragment"
-      IO.eprintln "  (no input or output, no subtraction, no arrays,"
-      IO.eprintln "  and the result in a variable named 'answer')."
+      IO.eprintln "  (no input or output, no subtraction, division or modulo,"
+      IO.eprintln "  and the result in a variable named 'answer'). Arrays are"
+      IO.eprintln "  supported; the message above names what was rejected."
       IO.eprintln s!"turpentine: retry with --bespoke to compile the whole language."
     match out? with
     | some path => IO.eprintln s!"turpentine: nothing written to {path}"
@@ -339,8 +341,9 @@ def execMain (args : List String) : IO UInt32 := do
     IO.eprintln s!"turpentine exec: {e}"
     if useCertified then
       IO.eprintln "turpentine: the certified compiler accepts only the I/O-free fragment"
-      IO.eprintln "  (no input or output, no subtraction, no arrays,"
-      IO.eprintln "  and the result in a variable named 'answer')."
+      IO.eprintln "  (no input or output, no subtraction, division or modulo,"
+      IO.eprintln "  and the result in a variable named 'answer'). Arrays are"
+      IO.eprintln "  supported; the message above names what was rejected."
       IO.eprintln "turpentine: retry with --bespoke to compile the whole language."
     IO.eprintln "turpentine: nothing was run"
     return 1

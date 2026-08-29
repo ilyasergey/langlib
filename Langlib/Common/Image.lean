@@ -140,6 +140,60 @@ def toPpm3 (img : Image) : String := Id.run do
     out := out ++ line ++ "\n"
   return out
 
+/-- One lowercase hex digit. -/
+private def hexDigit (n : Nat) : Char :=
+  if n < 10 then Char.ofNat (48 + n) else Char.ofNat (87 + n)
+
+/-- Two hex digits for one channel. -/
+private def hex2 (b : UInt8) : String :=
+  String.ofList [hexDigit (b.toNat / 16), hexDigit (b.toNat % 16)]
+
+/-- `#rrggbb` for one pixel. -/
+def hexOf (c : Rgb) : String := "#" ++ hex2 c.r ++ hex2 c.g ++ hex2 c.b
+
+/-- Sample one pixel per `size × size` block, from each block's upper-left
+corner, which is how Piet reads a program at a codel size. `size = 1`
+returns the image unchanged. -/
+def sample (img : Image) (size : Nat) : Image :=
+  if size ≤ 1 then img else Id.run do
+    let w := img.width / size
+    let h := img.height / size
+    let mut pixels : Array Rgb := Array.mkEmpty (w * h)
+    for y in [0:h] do
+      for x in [0:w] do
+        pixels := pixels.push ((img.get? (x * size) (y * size)).getD default)
+    return { width := w, height := h, pixels }
+
+/-- Render as SVG: one square per pixel, `scale` pixels on a side.
+
+Runs of one colour in a row become a single rectangle, which keeps the file
+small and readable for programs made of wide blocks. `grid` draws hairlines
+between cells, which is what makes a program's codels countable on a
+documentation page. -/
+def toSvg (img : Image) (scale : Nat := 12) (grid : Bool := false) : String := Id.run do
+  let w := img.width
+  let h := img.height
+  let mut out :=
+    s!"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{w * scale}\" \
+      height=\"{h * scale}\" viewBox=\"0 0 {w} {h}\" shape-rendering=\"crispEdges\">\n"
+  for y in [0:h] do
+    let mut x := 0
+    while x < w do
+      let colour := (img.get? x y).getD default
+      let mut run := 1
+      while x + run < w && (img.get? (x + run) y).getD default == colour do
+        run := run + 1
+      out := out ++
+        s!"<rect x=\"{x}\" y=\"{y}\" width=\"{run}\" height=\"1\" fill=\"{hexOf colour}\"/>\n"
+      x := x + run
+  if grid then
+    let line := "stroke=\"#00000022\" stroke-width=\"0.04\""
+    for x in [0:w+1] do
+      out := out ++ s!"<line x1=\"{x}\" y1=\"0\" x2=\"{x}\" y2=\"{h}\" {line}/>\n"
+    for y in [0:h+1] do
+      out := out ++ s!"<line x1=\"0\" y1=\"{y}\" x2=\"{w}\" y2=\"{y}\" {line}/>\n"
+  return out ++ "</svg>\n"
+
 end Image
 
 end Langlib.Common

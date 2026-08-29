@@ -3,7 +3,8 @@
 `Langlib/Computability/Thue.lean` contains a total runnable generator from an
 unlimited register machine program and input vector to a parsed Thue program.
 It also proves the arithmetic effect of every generated instruction macro,
-the initial and final encodings, and local marker invariants.
+the initial and final encodings, prefix-free phase encoding, and the
+generator-wide marker and rule-family invariants.
 
 The rewrite-level simulation is still open. There is no
 `thueComplete : TuringComplete ThueLang` declaration.
@@ -31,11 +32,13 @@ The `@phase$` token contains one of these states:
 - a return scan;
 - the dispatch phase that consumes the unary next-PC counter.
 
-All token payloads avoid `@`, and `$` terminates the token. Lean proves that
-every represented state has exactly one `@` and that source control tokens
-are injective. The local rule families for increment, decrement, zero test,
-return, and counter-code heads are proved to have one marker in every left
-hand side.
+All token payloads avoid `@`, and `$` terminates the token. Lean proves
+prefix cancellation and injectivity for unary naturals, nested counter code,
+dispatch outcomes, completed-macro descriptors, all phase payloads, and full
+tokens. Every represented state has exactly one `@`. Every rule produced by
+the recursive generator, finish dispatcher, instruction block, and complete
+compiler has one of three shapes: token only, token plus a right-hand cell,
+or a left-hand cell plus token.
 
 ## Generated execution
 
@@ -62,21 +65,42 @@ least one register.
 
 ## Remaining proof
 
-The missing composition must relate the counter derivation to the reference
-Thue semantics in `Langlib/Languages/Thue/Semantics.lean`. For every
-intermediate scan state it must establish all of the following:
+The file now connects the compiler to the concrete substring operations in
+`Langlib/Languages/Thue/Semantics.lean`:
 
-- the intended left-hand side occurs at the active marker;
-- every other distinct generated rule has no occurrence;
-- duplicate list entries denote the same rule and rewrite result;
+- `firstOccurrence_token_right` and `firstOccurrence_token_left` calculate
+  the exact leftmost match position;
+- `applyAt_rule_right` and `applyAt_rule_left` calculate the exact rewritten
+  machine state;
+- `firstOccurrence_factor` turns a successful substring search into an
+  explicit prefix/pattern/suffix factorization;
+- `RuleShape.active_of_match` proves that any shaped rule which matches a
+  represented state carries that state's active phase;
+- `compileRules_match_active` and `compileRules_firstMatch_active` apply that
+  result to all generated rules and to the actual deterministic selector.
+- `control_rule_mem_compileRules` proves that every in-range source
+  instruction has its concrete control-entry rule in the final rulebase.
+
+The missing composition must now prove phase functionality and lift the
+structured counter derivation. For every intermediate scan state it must
+establish all of the following:
+
+- membership in the relevant generator family fixes the right-hand side for
+  the active phase and adjacent cell;
+- duplicate entries and repeated return continuations denote the same rule
+  and rewrite result;
 - `firstMatch` and every seeded random choice therefore call `applyAt` with
   the same rule and occurrence;
 - the resulting character list represents the next macro state.
 
-The unique `@` invariant supplies the anchor for this proof. The current file
-does not prove the substring and phase-encoding lemmas needed to complete it.
-Consequently the executable generator is not described as certified and no
-Turing-completeness witness is asserted.
+For a random strategy, `Thue.step` advances the `rng` field before calling
+`applyAt`. Strategy independence must therefore compare the observable
+`str`, `input`, and `output` fields, or quotient away `rng`. Literal equality
+with the `.first` successor is false even when there is exactly one match.
+
+The unique `@` invariant and phase-recovery result supply the anchor for this
+last local obligation. The executable generator is not yet described as
+certified and no Turing-completeness witness is asserted.
 
 Once that composition is proved, a halting URM run can be handled by induction
 over `Cslib.URM.Steps`, followed by `decodeOutput_encodeState`. The shared
@@ -117,7 +141,8 @@ Output:
 ```
 
 The differential scratch runner checks constants, zeroing, transfer, a
-forward jump, and the backward addition loop. Expect seven passing tests.
+forward jump, the backward addition loop, and a transfer inside a backward
+loop. Expect eight passing tests.
 
 ```console
 lake env lean --run /private/tmp/run-thue-tests.lean
@@ -126,16 +151,17 @@ lake env lean --run /private/tmp/run-thue-tests.lean
 Output:
 
 ```text
-── urm -> thue (executable generator) (5 tests)
+── urm -> thue (executable generator) (6 tests)
   ok   a constant built by increments
   ok   zero clears the answer register
   ok   transfer copies into the answer register
   ok   an unconditional jump skips an increment
   ok   addition by a backward jump (0 + 1)
+  ok   copy inside a backward loop
 ── urm -> thue (generated size) (2 tests)
   ok   two increments
   ok   one transfer
-all 7 tests passed
+all 8 tests passed
 ```
 
 The isolated axiom audit covers every main theorem in this module. Expect
@@ -157,6 +183,20 @@ Output:
 'Langlib.Computability.URMThue.macroCode_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Langlib.Computability.URMThue.initial_macro_invariant' depends on axioms: [propext, Quot.sound]
 'Langlib.Computability.URMThue.decodeOutput_encodeState' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Computability.URMThue.encCode_injective' depends on axioms: [propext, Quot.sound]
+'Langlib.Computability.URMThue.encPhase_injective' depends on axioms: [propext, Quot.sound]
+'Langlib.Computability.URMThue.token_injective' depends on axioms: [propext, Quot.sound]
+'Langlib.Computability.URMThue.firstOccurrence_token_right' depends on axioms: [propext, Quot.sound]
+'Langlib.Computability.URMThue.firstOccurrence_token_left' depends on axioms: [propext, Quot.sound]
+'Langlib.Computability.URMThue.applyAt_rule_right' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Computability.URMThue.applyAt_rule_left' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Computability.URMThue.generate_shaped' depends on axioms: [propext, Quot.sound]
+'Langlib.Computability.URMThue.finishRules_shaped' depends on axioms: [propext, Quot.sound]
+'Langlib.Computability.URMThue.compileRules_shaped' depends on axioms: [propext, Quot.sound]
+'Langlib.Computability.URMThue.RuleShape.active_of_match' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Computability.URMThue.compileRules_match_active' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Computability.URMThue.compileRules_firstMatch_active' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Computability.URMThue.control_rule_mem_compileRules' depends on axioms: [propext, Quot.sound]
 ```
 
 The same declarations are listed in `scripts/axioms.lean`. During this work,

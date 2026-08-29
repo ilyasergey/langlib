@@ -1,6 +1,8 @@
 import Langlib.Computability.Whitespace
 import Langlib.Computability.Subleq
 import Langlib.Computability.Brainfuck
+import Langlib.Computability.Ook
+import Langlib.Computability.Brainloller
 import Langlib.Turpentine.Compile.URM
 
 /-!
@@ -108,6 +110,17 @@ def derivedSubleq : TurpentineCompiler SubleqLang := derived subleqComplete
 /-- The certified Turpentine-to-Brainfuck compiler obtained by composing the
 shared URM pass with the paired-unary Brainfuck completeness witness. -/
 def derivedBrainfuck : TurpentineCompiler BrainfuckLang := derived brainfuckComplete
+
+/-- Ook! and Brainloller inherit Brainfuck's completeness witness, so they
+inherit its certified compiler too. Neither needed a new proof: `derived`
+quantifies over the witness, and the witnesses are `brainfuckComplete`'s
+under a different concrete syntax. -/
+def derivedOok : TurpentineCompiler OokLang := derived ookComplete
+
+/-- See `derivedOok`. The emitted program is a `Brainfuck.Prog`; painting it
+as an image is `Langlib.Brainloller.encode`, and that the walk reads it back
+is carried by test rather than by proof (`docs/brainloller/compiler.md`). -/
+def derivedBrainloller : TurpentineCompiler BrainlollerLang := derived brainlollerComplete
 
 /-- **Two verified compilers for one target agree.** On a program both accept
 and a source run that halts with `result`, both compiled programs halt and

@@ -6,6 +6,9 @@
   and `compileSource : String → Except String String` (`.turp` text to `.ws`
   text)
 * **Tests**: [Langlib/Tests/CompileWhitespace.lean](../../Langlib/Tests/CompileWhitespace.lean)
+* **Correctness proof**: [Langlib/Computability/BespokeWhitespace.lean](../../Langlib/Computability/BespokeWhitespace.lean)
+  (module `Langlib.Computability.BespokeWhitespace`), tested by
+  [Langlib/Tests/BespokeWhitespace.lean](../../Langlib/Tests/BespokeWhitespace.lean)
 * **Language pages**: `docs/turpentine/spec.md`, `docs/whitespace/spec.md`
 
 ## Compile and run one
@@ -66,6 +69,12 @@ fixed-size `int[n]` and `bool[n]` arrays with checked bounds.
 
 `compile` returns `Except.error` only when the program does not parse or
 does not type-check. There is no unsupported construct to name.
+
+The *verified* entry point is narrower. `bespokeWhitespace.compile`
+(["Correctness"](#correctness)) is the same code generator behind a fragment
+check, so that the programs it accepts are exactly the ones the theorem
+covers. `compile` and `compileSource`, which is what `lake exe turpentine`
+runs, are unchanged and still take the whole language.
 
 ### The integers really are the same integers
 
@@ -304,6 +313,183 @@ and they even agree on the padding they tolerate: within a line,
 Turpentine's `String.trimAscii` strips exactly space, tab and carriage
 return, which is the set whitespace's `readnum` strips. Only the wording of
 the failure differs.
+
+## Correctness
+
+This backend is the first hand-written compiler in the library with a
+machine-checked correctness theorem. The proof is
+[Langlib/Computability/BespokeWhitespace.lean](../../Langlib/Computability/BespokeWhitespace.lean);
+it reasons about the code generator in
+`Langlib/Turpentine/Compile/Whitespace.lean` itself, not about a copy of it.
+
+### What is proved
+
+```lean
+theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
+    (hc : bespokeCompile p = .ok prog) (hp : HaltsWithAnswer p n result) :
+    ∃ m, (Whitespace.evalProg prog (Input.ofString "") m).exit = Exit.halted ∧
+      URMWhitespace.decodeOutput
+        (Whitespace.evalProg prog (Input.ofString "") m).output = some result
+```
+
+`HaltsWithAnswer p n result` is the specification the library states
+compiler correctness against
+(`Langlib/Computability/Derived.lean`, via
+`Langlib.Turpentine.Compile.URM.TurpentineHaltsWith`): within fuel `n`, the
+source program halts on empty input with `result` in a variable called
+`answer`. The theorem says the compiled whitespace program then halts, for
+some fuel bound of its own, having printed `result` in decimal. Source fuel
+is universally quantified and target fuel existentially, so the two cost
+models stay unrelated.
+
+`bespokeCompile` is a fragment check followed by the backend's own
+`compileChecked`, applied to the source program with one statement appended,
+`print(answer)`. The appended statement is what makes the specification's
+single `Nat` observable: a program in the covered fragment prints nothing of
+its own.
+
+Packaged as a `TurpentineCompiler WhitespaceLang`:
+
+```lean
+def bespokeWhitespace : TurpentineCompiler WhitespaceLang where
+  compile := BespokeWhitespace.bespokeCompile
+  encodeInput := Input.ofString ""
+  decodeOutput := URMWhitespace.decodeOutput
+  correct := …
+```
+
+### Over what fragment
+
+`bespokeWhitespace.compile` returns `Except.error` for everything outside
+the covered fragment, so the theorem's hypothesis and the compiler's
+acceptance are the same predicate and there is no gap to describe in prose.
+The fragment is:
+
+* **declarations**: scalar `int` and `bool` only, **no initialisers**, names
+  pairwise distinct, and one of them `answer : int`;
+* **expressions**: integer literals (negative ones included), boolean
+  literals, variables, unary `-` and `!`, and
+  `+  -  *  ==  !=  <  <=  >  >=  &&  ||`, with `&&` and `||`
+  short-circuiting exactly as the reference semantics does;
+* **statements**: `skip`, sequencing, assignment, `if`, `while`, `assert`.
+
+Left out, and why:
+
+| left out | why |
+|---|---|
+| `/` and `%` | the Euclidean correction above branches on the sign of the divisor; that is a separate arithmetic obligation, not yet discharged |
+| arrays, `a[i]`, `len(a)` | a second address space and the bounds-check trap |
+| all I/O (`readInt`, `readByte`, `print`, `println`, `printByte`) | the specification names one `Nat` in `answer` and runs on an empty input stream; there is nowhere for a byte stream to go |
+| declaration initialisers | they are the reference interpreter's `initEnv` loop, which the proof does not cover; write them as leading assignments instead |
+
+Note what is *in* and is not in the certified URM fragment
+(`docs/certified-compilation.md`): subtraction, unary minus and negative
+integers. Whitespace cells are signed, so those cost this proof nothing,
+while a URM register holds a natural and cannot represent them at all. The
+two fragments are incomparable; their intersection is what
+`bespokeWhitespace_agrees_derived` can be applied to.
+
+The unrestricted backend is untouched: `lake exe turpentine compile --to
+whitespace` still uses `Turpentine.Compile.Whitespace.compile`, which
+accepts the whole language. The restriction lives in
+`BespokeWhitespace.checkFragment` and applies only to the verified compiler.
+
+### The shape of the proof
+
+`docs/verification.md` prescribes a state relation, per-construct simulation
+lemmas, and a composition step. Here they are:
+
+1. **The state relation is `Agrees`**: every declared variable's heap cell
+   holds the encoding of its value, an `int` as itself and a `bool` as `1` or
+   `0`. That is the whole invariant; because both languages have unbounded
+   signed integers there is no representation to prove anything about.
+2. **An emission algebra.** The generator is a state monad over an
+   instruction array and a label counter. `Emits f c code c' a` says that
+   running `f` from counter `c` appends exactly `code`, leaves the counter at
+   `c'`, and returns `a`. It composes along `>>=` and it is deterministic, so
+   a decomposition derived one way matches any other. One `Emits` lemma per
+   syntactic form, each read off the generator by `rfl`.
+3. **Labels.** `labelOf` is injective (it is the binary expansion of the
+   counter, and reading the spelling back recovers it), and every block
+   records which counter values it defines. Since a `fresh` taken early can
+   emit its `label` late, the bookkeeping tracks counter *values* rather than
+   an interval per block. With no label defined twice,
+   `Whitespace.labelMap`'s first-definition-wins rule gives every label the
+   position just past its own `label` instruction, which is all a jump lemma
+   needs to know.
+4. **Per-construct simulation.** `simExpr`: an expression's code leaves
+   exactly one extra value on the stack, the encoding of what `evalExpr`
+   returns, and changes nothing else. `simStmt`: a statement's code leaves
+   the stack as it found it and moves the heap to one that agrees with the
+   updated environment.
+5. **Composition.** `Langlib.Common.Reaches` carries the fuel exactly, so
+   costs add and no monotonicity lemma is needed. The statement induction is
+   strong induction on the source fuel with a structural induction inside,
+   because `seq` runs its first component at the same fuel while `if` and
+   `while` drop it by one. The loop needs one extra step: a jump back lands
+   *after* the `label` instruction, so the induction hypothesis for `while`
+   cannot be applied at the block's own start, and the `loop` lemma inside
+   the `while` case is stated at the entry point instead.
+6. **The whole program.** `compileChecked_unfold` names the backend's two
+   `for` loops (the address layout and the declaration prologue) so they can
+   be reasoned about; the layout is shown to be injective and non-negative,
+   the prologue to leave the heap all zeros, and the epilogue to print the
+   `answer` cell with `outnum`.
+
+`#print axioms` reports only `propext`, `Classical.choice` and `Quot.sound`
+(a subset for most lemmas) for every declaration in the file; the audit lines
+are in `scripts/axioms.lean`.
+
+### The derived compiler is no longer an oracle
+
+`Langlib/Computability/Derived.lean` proves `agree`: two verified compilers
+for one target, on a program both accept, decode the same answer. Until now
+Whitespace had one inhabitant of `TurpentineCompiler`, so `agree` had nothing
+to say. It now has two:
+
+```lean
+theorem bespokeWhitespace_agrees_derived (p : Turpentine.Program)
+    (prog₁ prog₂ : ProgLang.Prog WhitespaceLang) (result n : Nat)
+    (h₁ : bespokeWhitespace.compile p = .ok prog₁)
+    (h₂ : derivedWhitespace.compile p = .ok prog₂)
+    (hp : TurpentineHaltsWith p n result) :
+    ∃ m₁ m₂,
+      (ProgLang.run prog₁ bespokeWhitespace.encodeInput m₁).exit = Exit.halted ∧
+      (ProgLang.run prog₂ derivedWhitespace.encodeInput m₂).exit = Exit.halted ∧
+      bespokeWhitespace.decodeOutput
+          (ProgLang.run prog₁ bespokeWhitespace.encodeInput m₁).output =
+        derivedWhitespace.decodeOutput
+          (ProgLang.run prog₂ derivedWhitespace.encodeInput m₂).output
+```
+
+"The derived compiler is an oracle for the hand-written one" was a testing
+practice; it is now a corollary of two theorems. The `bespoke whitespace vs
+derived whitespace` suite runs it on concrete programs, which still earns its
+keep: it checks the plumbing around the two theorems (input encoding,
+decoder, renderer, parser) that the statement does not constrain.
+
+### What is not proved
+
+* **Everything outside the fragment above.** The backend compiles arrays,
+  I/O, `/` and `%` and the tests say it compiles them correctly; nothing in
+  this file says so.
+* **Non-halting source programs.** The theorem is conditional on the source
+  halting. Divergence preservation is a separate statement
+  (`docs/verification.md`, "Later").
+* **Runtime errors.** A failed `assert` and a division by zero make the
+  hypothesis false, so the theorem says nothing about them. The four
+  semantic gaps above are still documented and tested, not proved: in
+  particular, the wording of a trapped `assert` differs, and the theorem
+  never reaches it.
+* **The whitespace text.** The theorem is about the compiled
+  `Whitespace.Prog`, not about `Prog.render` and the whitespace parser. The
+  test suites go through the text, so a round-trip bug would show up there,
+  but `parse ∘ render = id` is not proved.
+* **The type checker.** `bespokeWhitespace.compile` does not call
+  `Turpentine.checkProgram`; its own fragment check subsumes what the
+  backend needs from a typing context, which is one lookup (`answer : int`)
+  to pick the `outnum` branch of `print`. `compileSource` still parses and
+  type-checks first, as every entry point in the library does.
 
 ## Worked example
 

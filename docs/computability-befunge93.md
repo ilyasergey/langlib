@@ -95,8 +95,13 @@ would require a compiler and simulation theorem and remains open here.
 
 The focused targets build successfully. Expect the final line below.
 
+```
+lake build Langlib.Computability.Befunge93 Langlib.Tests.BoundedBefunge93
+```
+
+Output:
+
 ```text
-$ lake build Langlib.Computability.Befunge93 Langlib.Tests.BoundedBefunge93
 Build completed successfully (788 jobs).
 ```
 
@@ -104,8 +109,13 @@ The scratch runner checks 19 operational cases, including the exact stack
 limit, torus movement, self-modification, rejected commands, parser bounds,
 and divergence. Expect all cases to pass.
 
+```
+lake env lean --run /private/tmp/run-bounded-befunge93.lean
+```
+
+Output:
+
 ```text
-$ lake env lean --run /private/tmp/run-bounded-befunge93.lean
 ── bounded byte Befunge-93 core (19 tests)
   ok   immediate halt
   ok   full stack can halt
@@ -132,8 +142,13 @@ all 19 tests passed
 The focused axiom audit reports only Lean's standard logical axioms. Expect
 the following three lines.
 
+```
+lake env lean /private/tmp/audit-bounded-befunge93.lean
+```
+
+Output:
+
 ```text
-$ lake env lean /private/tmp/audit-bounded-befunge93.lean
 'Langlib.Computability.BoundedByteBefunge93.exec_succ' depends on axioms: [propext, Quot.sound]
 'Langlib.Computability.BoundedByteBefunge93.boundedStorage' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Langlib.Computability.BoundedByteBefunge93.haltingDecidable' depends on axioms: [propext, Classical.choice, Quot.sound]

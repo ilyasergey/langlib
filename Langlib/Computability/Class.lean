@@ -199,29 +199,64 @@ structure BoundedStorage (L : Type) [ProgLang L] where
   halted_congr : ∀ p i n m, configOf p i n = configOf p i m →
     ((ProgLang.run p i n).isHalted = (ProgLang.run p i m).isHalted)
 
-namespace BoundedStorage
+/-- The same bound, asked only of the configurations a run actually
+reaches.
+
+`BoundedStorage` demands its two finiteness laws of *every* inhabitant of
+`Config`, which forces the configuration type to be finite on the nose.
+That is the right shape for a language whose state is finite by
+construction, and the wrong one for a language whose state type is wide
+(an unbounded array, an input cursor of unbounded range) but whose
+reachable states are few. `BoundedRun` asks for the laws at `configOf`
+values only, which is all the pigeonhole argument below ever uses.
+
+Every `BoundedStorage` gives a `BoundedRun` (`BoundedStorage.toBoundedRun`),
+so this is a weakening, and the decidability consequence is proved here
+once for both. -/
+structure BoundedRun (L : Type) [ProgLang L] where
+  /-- The configuration space. Need not be finite; only the reachable part
+  is constrained. -/
+  Config : Type
+  /-- The configuration reached after `n` steps. -/
+  configOf : ProgLang.Prog L → Input → Nat → Config
+  /-- The size bound on the reachable configuration space. -/
+  bound : ProgLang.Prog L → Input → Nat
+  /-- The index, injective on reachable configurations. -/
+  index : ProgLang.Prog L → Input → Config → Nat
+  index_lt : ∀ p i n, index p i (configOf p i n) < bound p i
+  index_inj : ∀ p i n m,
+    index p i (configOf p i n) = index p i (configOf p i m) →
+      configOf p i n = configOf p i m
+  /-- The machine is deterministic: equal configurations have equal successors. -/
+  succ_congr : ∀ p i n m, configOf p i n = configOf p i m →
+    configOf p i (n + 1) = configOf p i (m + 1)
+  /-- Halting is a property of the configuration alone. -/
+  halted_congr : ∀ p i n m, configOf p i n = configOf p i m →
+    ((ProgLang.run p i n).isHalted = (ProgLang.run p i m).isHalted)
+
+namespace BoundedRun
 
 variable {L : Type} [ProgLang L]
 
 /-- The bounded search that decides halting. -/
-def search (b : BoundedStorage L) (p : ProgLang.Prog L) (i : Input) : Bool :=
+def search (b : BoundedRun L) (p : ProgLang.Prog L) (i : Input) : Bool :=
   (List.range (b.bound p i + 1)).any fun n => (ProgLang.run p i n).isHalted
 
 /-- The heart of the argument: a run that has not halted within `bound`
 steps has entered a cycle and will never halt. -/
-theorem halts_iff_search (b : BoundedStorage L) (p : ProgLang.Prog L) (i : Input) :
+theorem halts_iff_search (b : BoundedRun L) (p : ProgLang.Prog L) (i : Input) :
     (∃ n, (ProgLang.run p i n).isHalted = true) ↔ b.search p i = true := by
   constructor
   · intro h
     -- Find a repeated configuration in the first `bound + 1` steps.
     have hrep := exists_repeat (b.bound p i) (fun n => b.index p i (b.configOf p i n))
-      (fun k => b.index_lt p i _)
+      (fun k => b.index_lt p i k)
     cases hrep with
     | intro a hrest => cases hrest with
       | intro c hc =>
         have hac : a < c := hc.1
         have hcB : c ≤ b.bound p i := hc.2.1
-        have hcfg : b.configOf p i a = b.configOf p i c := b.index_inj p i _ _ hc.2.2
+        have hcfg : b.configOf p i a = b.configOf p i c := b.index_inj p i a c hc.2.2
         -- The configuration sequence is eventually periodic with period `c - a`.
         have hshift : ∀ k, b.configOf p i (a + k) = b.configOf p i (c + k) := by
           intro k
@@ -262,12 +297,47 @@ theorem halts_iff_search (b : BoundedStorage L) (p : ProgLang.Prog L) (i : Input
     cases h with
     | intro n hn => exact ⟨n, hn.2⟩
 
+/-- Halting is decidable for a language whose runs have bounded storage.
+Since the halting problem for a Turing complete language is undecidable, no
+language with a `BoundedRun` witness has a `TuringComplete` witness. -/
+def halting_decidable (b : BoundedRun L) (p : ProgLang.Prog L) (i : Input) :
+    Decidable (∃ n, (ProgLang.run p i n).isHalted = true) :=
+  decidable_of_iff _ (b.halts_iff_search p i).symm
+
+end BoundedRun
+
+namespace BoundedStorage
+
+variable {L : Type} [ProgLang L]
+
+/-- A globally finite configuration space is in particular a bound on the
+reachable one. Everything `BoundedStorage` proves goes through this. -/
+def toBoundedRun (b : BoundedStorage L) : BoundedRun L where
+  Config := b.Config
+  configOf := b.configOf
+  bound := b.bound
+  index := b.index
+  index_lt p i _ := b.index_lt p i _
+  index_inj p i _ _ h := b.index_inj p i _ _ h
+  succ_congr := b.succ_congr
+  halted_congr := b.halted_congr
+
+/-- The bounded search that decides halting. -/
+def search (b : BoundedStorage L) (p : ProgLang.Prog L) (i : Input) : Bool :=
+  b.toBoundedRun.search p i
+
+/-- The heart of the argument: a run that has not halted within `bound`
+steps has entered a cycle and will never halt. -/
+theorem halts_iff_search (b : BoundedStorage L) (p : ProgLang.Prog L) (i : Input) :
+    (∃ n, (ProgLang.run p i n).isHalted = true) ↔ b.search p i = true :=
+  b.toBoundedRun.halts_iff_search p i
+
 /-- Halting is decidable for a language with bounded storage. Since the
 halting problem for a Turing complete language is undecidable, no language
 with a `BoundedStorage` witness has a `TuringComplete` witness. -/
 def halting_decidable (b : BoundedStorage L) (p : ProgLang.Prog L) (i : Input) :
     Decidable (∃ n, (ProgLang.run p i n).isHalted = true) :=
-  decidable_of_iff _ (b.halts_iff_search p i).symm
+  b.toBoundedRun.halting_decidable p i
 
 end BoundedStorage
 

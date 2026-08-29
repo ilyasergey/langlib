@@ -18,7 +18,7 @@ engineering.
 | **`derived`**, the general correctness theorem | [Derived.lean:83](../Langlib/Computability/Derived.lean#L84) |
 | `derivedWhitespace`, `derivedSubleq`, the instances | [Derived.lean:101](../Langlib/Computability/Derived.lean#L102) |
 | `agree`, two compilers give one answer | [Derived.lean:115](../Langlib/Computability/Derived.lean#L120) |
-| `compileToURM_correct`, the shared first hop | [Compile/URM.lean:2989](../Langlib/Turpentine/Compile/URM.lean#L2989) |
+| `compileToURM_correct`, the shared first hop | [Compile/URM.lean:3985](../Langlib/Turpentine/Compile/URM.lean#L3985) |
 | **`TuringComplete`**, the completeness claim | [Class.lean:80](../Langlib/Computability/Class.lean#L80) |
 | `BoundedStorage`, the incompleteness claim | [Class.lean:134](../Langlib/Computability/Class.lean#L134) |
 | `halts_iff_search`, decidability from a bound | [Class.lean:162](../Langlib/Computability/Class.lean#L162) |
@@ -28,9 +28,9 @@ engineering.
 | its `simulation` theorem | [Whitespace.lean:1048](../Langlib/Computability/Whitespace.lean#L1048) |
 | our URM helpers over cslib's | [URM.lean](../Langlib/Computability/URM.lean) |
 | cslib's `Instr` and `Program` | `Cslib/Computability/URM/Defs.lean` |
-| **`compileToURM`**, Turpentine to the URM | [Compile/URM.lean:468](../Langlib/Turpentine/Compile/URM.lean#L468) |
-| **`compileToURM_correct`**, its simulation | [Compile/URM.lean:2989](../Langlib/Turpentine/Compile/URM.lean#L2989) |
-| `TurpentineHaltsWith`, the answer convention | [Compile/URM.lean:2974](../Langlib/Turpentine/Compile/URM.lean#L2974) |
+| **`compileToURM`**, Turpentine to the URM | [Compile/URM.lean:661](../Langlib/Turpentine/Compile/URM.lean#L661) |
+| **`compileToURM_correct`**, its simulation | [Compile/URM.lean:3985](../Langlib/Turpentine/Compile/URM.lean#L3985) |
+| `TurpentineHaltsWith`, the answer convention | [Compile/URM.lean:3970](../Langlib/Turpentine/Compile/URM.lean#L3970) |
 | `TurpentineCompiler`, the interface | [Derived.lean:55](../Langlib/Computability/Derived.lean#L56) |
 | `derived`, one construction for every target | [Derived.lean:83](../Langlib/Computability/Derived.lean#L84) |
 | `derivedWhitespace` | [Derived.lean:101](../Langlib/Computability/Derived.lean#L102) |
@@ -100,9 +100,10 @@ The URM instruction set is four instructions: `Z n` (zero a register),
 and `n` are equal). Everything else is a macro.
 
 * **Registers.** Register 0 is the answer, register 1 is a permanent zero so
-  that `J r 1 k` reads as "jump if `r` is zero", registers 2 upward hold one
-  Turpentine variable each in declaration order, and the block above them is
-  scratch for the arithmetic macros.
+  that `J r 1 k` reads as "jump if `r` is zero", registers 2 upward hold the
+  Turpentine variables in declaration order (one register for a scalar, `n`
+  consecutive registers for an array of length `n`), and the block above
+  them is scratch for the arithmetic macros and the dispatch chains.
 * **Arithmetic.** Addition counts a scratch register up to the second operand
   while incrementing the accumulator; multiplication is that loop nested
   inside another; division and modulo share one loop, which counts up to the
@@ -118,11 +119,15 @@ and `n` are equal). Everything else is a macro.
   is what `Turpentine.initEnv` computes: initialisers in declaration order,
   each in scope of the earlier ones, and `0` / `false` for the rest.
   `declPrelude` builds that statement and `compileToURM` runs it at the head
-  of the body, so initialisers need no machinery of their own. Variables
+  of the body, so initialisers need no machinery of their own. Scalars
   without an initialiser are assigned their default explicitly rather than
   skipped; two instructions each, and it makes the desugaring match `initEnv`
-  step for step whatever the declaration list looks like, duplicate names
-  included.
+  step for step. Arrays are the one exception: no expression denotes an
+  array, so an array declaration emits nothing and relies on the registers
+  starting at zero, which is why declaration names have to be distinct.
+* **Array access.** `a[i]` and `a[i] := e` are dispatch chains, `4n + 2`
+  instructions of static code that compare the index against every valid one
+  in turn; section 4 has the layout and the reasoning.
 * **Control flow.** `if` and `while` are jumps, and the targets are absolute
   from the moment the code is emitted: `compileExpr slots q e d` places the
   code for `e` *at position `q`*, so there is no label-resolution pass. The
@@ -283,7 +288,8 @@ above:
 
 **The shape of the proof.** `Agree slots env regs` relates a Turpentine
 environment to the registers: each declared variable's value is the content
-of its register. `Frame d regs regs'` says a macro at destination `d` touches
+of its register block, which is one register for a scalar and one per
+element for an array. `Frame d regs regs'` says a macro at destination `d` touches
 no register below `d`, which is what lets an operator's left operand survive
 while its right operand is computed. `reaches_compileExpr` is a structural
 induction on expressions; `reaches_compileStmt` is the induction `exec`
@@ -359,18 +365,77 @@ of `compileToURM` leaves it; section 4b says what moved and what is left.
   which is what `Turpentine.initEnv` does anyway: initialisers in
   declaration order, each in scope of the earlier ones, and `0` / `false`
   for the rest, which is where the registers start;
+* declarations of **arrays** of `int` or `bool`. An array of length `n` gets
+  a block of `n` consecutive registers, one per element. It takes no
+  initialiser, and needs none: every element starts at `0` / `false` and so
+  does every register, so an array declaration emits no code at all.
+  Declaration names have to be distinct, which is what
+  `Turpentine.checkProgram` already demands;
 * expressions: non-negative integer literals, boolean literals, variables,
-  `!`, `+`, `*`, `/`, `%`, `&&`, `||`, `==`, `!=`, `<`, `<=`, `>`, `>=`;
-* statements: `skip`, sequencing, assignment, `if`, `while`, `assert`.
+  **`a[i]`**, **`len(a)`**, `!`, `+`, `*`, `/`, `%`, `&&`, `||`, `==`, `!=`,
+  `<`, `<=`, `>`, `>=`. `len(a)` is a compile-time constant, so it compiles
+  to a literal;
+* statements: `skip`, sequencing, assignment, **`a[i] := e`**, `if`,
+  `while`, `assert`.
 
 and **rejects**, each with a message naming the construct:
 
 | rejected | why |
 |---|---|
 | `-`, unary minus, negative literals | Turpentine's integers are `Int` and a register is a `Nat`. Subtraction is the one operation on non-negative operands whose result can be negative, and the machine can only saturate at zero, so the relation between a variable and its register has no value to hold on the intermediate. |
-| arrays, in declarations, expressions and assignments | one register per variable is baked into the slot layout and its lemmas. A static index needs those generalised; a computed one needs a dispatch chain on top. |
-| `readInt`, `readByte`, `print`, `println`, `printByte` | a URM has neither an input stream nor an output stream. |
+| an array access in the **right operand of `&&` or `||`** | the emitted select evaluates that operand whether the source did or not, and an out-of-range index diverges. See "bounds" below. |
+| a whole array as a value: `a` on its own, `a := …` | there is no expression that denotes an array, and no register block to copy it into. The type checker rejects these too; the fragment reaches an array only through `a[i]` and `len(a)`. |
+| `readInt`, `readByte`, `print`, `println`, `printByte`, `a[i] := readInt()`, `a[i] := readByte()` | a URM has neither an input stream nor an output stream. |
 | a program with no `answer` variable | for the same reason: register 0 at halt is the entire result, so something has to name it. |
+
+**How `a[i]` is compiled: a dispatch chain.** A URM instruction names its
+registers statically, so `a[i]` with a computed `i` cannot be one
+instruction. It does not need self-modifying code either. Register indices
+are compile-time constants and so is the array's length, so the compiler can
+simply emit `n` guarded blocks comparing `i` against `0, 1, …, n-1` and
+jumping to the block that touches that element's register:
+
+```
+q            Z (d+1)                    the counter
+q+1+2j       J d (d+1) (q+2n+2+2j)      i = j ? go to block j
+q+2+2j       S (d+1)
+q+2n+1       J 0 0 (q+2n+1)             out of range: spin
+q+2n+2+2j    T (base+j) d               the element instruction
+q+2n+3+2j    J 0 0 (q+4n+2)             leave the chain
+```
+
+`4n + 2` instructions per access, entirely static, which is what makes it
+provable: `reaches_dispatchT` is one induction on how far down the chain the
+index still is. The element instruction is `T (base+j) d` for a read and
+`T v (base+j)` for a write, which is the only difference between `a[i]` and
+`a[i] := e`.
+
+**The contrast with the subleq backend is worth drawing**, because it is the
+same problem with a different machine. Subleq has no computed addressing
+either, and the hand-written backend answers it by **patching its own
+operands**: it computes the element's address into a cell and writes that
+cell into the address field of a later instruction before reaching it. That
+is a correct trick and an unpleasant one to verify, because the program text
+is no longer a constant. Here the program text *is* a constant; the cost is
+`O(n)` instructions per access instead of `O(1)`, paid at compile time.
+
+**Bounds: out of range, the compiled program diverges.** The reference
+semantics makes an index outside `0 … n-1` a runtime error, and
+`TurpentineHaltsWith` assumes the source *halts*, so a program that indexes
+out of range has no halting run and the theorem claims nothing about it. The
+compiled code is therefore free to do anything, and it falls off the end of
+the dispatch chain into the one-instruction self-loop at `q+2n+1`. That is
+the same treatment a failing `assert` gets, and it is chosen over the other
+obvious option, halting with a junk value, precisely because a junk answer
+would be indistinguishable from a real one to anybody reading the output.
+
+The price of that choice is the `&&` / `||` restriction in the table above.
+The two boolean operators compile to a select over operands the code has
+**both** evaluated, which is sound only because a compiled expression runs
+to its own end from any register state (`reaches_compileExpr_total`). A
+dispatch chain does not, so `i < len(a) && a[i] > 0` would hang on exactly
+the inputs the source's short circuit was there to protect. Rather than
+quietly break such a program, `compileExpr` refuses it and says why.
 
 Two things the widened fragment does that are worth stating, because both
 look like they should be unsound and are not:
@@ -385,11 +450,13 @@ look like they should be unsound and are not:
   the macro must nevertheless *halt* on every input, for the next reason.
 * **`&&` and `||` evaluate both operands.** The source short-circuits them
   and the emitted code does not, which is sound because every compiled
-  expression runs to its own end from any register state
+  index-free expression runs to its own end from any register state
   (`reaches_compileExpr_total`): evaluating a right operand the source
   skipped costs instructions and changes no answer. This is why a zero
   divisor may not diverge. `b != 0 && a / b == 1` is a program the source
   runs happily with `b = 0`, and the compiled code has to reach the `&&`.
+  It is also why an array access is refused there: a dispatch chain is the
+  one compiled expression that can fail to reach its own end.
 
 `assert` **is** compiled, and a failing assert becomes a one-instruction
 self-loop: `J sb 1 q` at position `q`, taken exactly when the asserted
@@ -405,26 +472,49 @@ often hit. Compiling every example in `Langlib/Examples/Turpentine/` with
 `--tc` and recording the *first* complaint gives the real ranking, and it is
 the ranking the work followed.
 
-**Landed.** Initialisers, `&&` and `||`, and division and modulo are now in
-the fragment. The first two went as predicted: initialisers desugar to a
-prelude of assignments, and the booleans needed a totality lemma rather than
-a redesign. Division was the surprise. It was filed with subtraction as "the
-real work", needing a `Nat`-valued reference semantics or a sign
-representation, and it turned out to need neither: Euclidean division of
-non-negative operands is non-negative, so it stays inside the existing
-relation and only wanted a macro that halts on a zero divisor.
+**Landed.** Initialisers, `&&` and `||`, division and modulo, and **arrays**
+are now in the fragment. The first two went as predicted: initialisers
+desugar to a prelude of assignments, and the booleans needed a totality
+lemma rather than a redesign. Division was the surprise. It was filed with
+subtraction as "the real work", needing a `Nat`-valued reference semantics
+or a sign representation, and it turned out to need neither: Euclidean
+division of non-negative operands is non-negative, so it stays inside the
+existing relation and only wanted a macro that halts on a zero divisor.
+
+Arrays cost three things, and the addressing was the cheapest of them.
+
+* **The layout.** `Slot` already carried a `size`; making it anything but
+  `1` is what the work actually was. `GoodSlots` no longer says "one
+  register per variable and distinct bases"; it says each variable's block
+  is `base … base + size - 1`, sized by its declared type, inside the
+  variable area, and disjoint from every other block. `layoutFrom` now
+  builds consecutive blocks (`Packed`) and `Agree` relates an array value to
+  a whole block rather than a value to a register.
+* **The addressing**, which is a dispatch chain: section 4 has the code and
+  the contrast with subleq's operand patching. One induction.
+* **Declarations, which is where it got interesting.** An array declaration
+  cannot desugar to an assignment, because no expression denotes an array.
+  It desugars to `skip` instead: the elements start at zero and so do the
+  registers. That is the one place `declPrelude` is no longer step for step
+  with `Turpentine.initEnv`, and it is why `layoutFrom` now insists on
+  distinct declaration names. With a name declared twice, one of them an
+  array, the slot for the name and the value for the name can disagree, and
+  the array's default has to survive the earlier assignments untouched.
+  Nothing is lost: `Turpentine.checkProgram` rejects redeclaration anyway.
 
 Every `-tc` example in `Langlib/Examples/Turpentine/` now compiles with
-`--tc`, except the three that use arrays. Recompiling them all gives:
+`--tc`, except `sort-tc.turp`, which indexes with `a[j - 1]`. Recompiling
+them all gives:
 
 | first blocker | examples |
 |---|---|
-| an array | maxelem, sieve, sort, and their `-tc` twins |
-| no variable named `answer` | the I/O originals: cat, collatz, fib, gcd, hello, isqrt, primes, sumdigits |
+| `-` | `sort-tc.turp`, which indexes with `a[j - 1]` |
+| no variable named `answer` | the I/O originals: cat, collatz, fib, gcd, hello, isqrt, maxelem, primes, sieve, sort, sumdigits |
 
-Subtraction never comes first. The nine that do compile were run end to end
-through whitespace (`turpentine exec --via whitespace --tc`) and checked
-against what the source computes:
+Arrays no longer appear in that table at all. The eleven `-tc` programs that
+compile were run end to end through whitespace
+(`turpentine exec --via whitespace --tc`) and checked against what the
+source computes; `cat-tc.turp` is the eleventh and is discussed below:
 
 | example | answer | needed |
 |---|---|---|
@@ -437,18 +527,77 @@ against what the source computes:
 | `collatz-tc.turp` | 111 | `/`, `%` |
 | `primes-tc.turp` | 10 | `%` |
 | `sumdigits-tc.turp` | 18 | `/`, `%` |
+| `maxelem-tc.turp` | 9 | arrays |
+| `sieve-tc.turp` | 15 | arrays |
 
 `cat-tc.turp` compiles and is deliberately trivial: it records that a
 streaming echo cannot be expressed at all in this model.
 
+```
+lake exe turpentine exec --via whitespace --tc Langlib/Examples/Turpentine/sieve-tc.turp
+```
+
+Output:
+
+```
+15
+```
+
+The one that still refuses, and the reason it gives:
+
+```
+lake exe turpentine compile --to subleq --tc -o sort.sq Langlib/Examples/Turpentine/sort-tc.turp
+```
+
+Output:
+
+```
+turpentine compile: '-' is outside the certified URM fragment: a register holds a natural and this operation can produce a negative value
+turpentine: the certified compiler accepts only the I/O-free fragment
+  (no input or output, no subtraction, no arrays,
+  and the result in a variable named 'answer').
+turpentine: retry with --bespoke to compile the whole language.
+turpentine: nothing written to sort.sq
+```
+
+The second line of that blurb is now out of date: arrays are in. It is a
+fixed string in `Langlib/Turpentine/Main.lean` and should lose its "no
+arrays" clause. The message on the first line, the one that names the actual
+construct, comes from the compiler and is right.
+
+**What an array access costs.** `4n + 2` instructions for an array of `n`
+elements, independent of the index, plus whatever the index expression
+itself compiles to; `len(a)` is `n + 1`, since it is a literal built by
+counting. At run time an access to element `j` executes `2j + 4` of those
+instructions. Measured, with the smallest fuel that halts:
+
+| program | URM instructions | steps |
+|---|---|---|
+| `var x : int; x := 3; answer := x;` | 12 | 12 |
+| `var a : int[8]; a[0] := 3; answer := a[0];` | 78 | 18 |
+| `var a : int[8]; a[3] := 3; answer := a[3];` | 84 | 36 |
+| `var a : int[8]; a[7] := 3; answer := a[7];` | 92 | 60 |
+| `var a : int[16]; a[3] := 3; answer := a[3];` | 148 | 36 |
+
+Each of those does two accesses, so the `4n + 2` shows up as the 64-instruction
+gap between the `int[8]` and `int[16]` rows, and the index has no effect on
+size at all. `sieve-tc.turp`, whose array is `bool[50]`, compiles to **890
+URM instructions**, which is 612972 bytes of whitespace and 45478 bytes of
+subleq:
+
+```
+lake exe turpentine compile --to whitespace --tc -o sieve.ws Langlib/Examples/Turpentine/sieve-tc.turp
+```
+
+Output:
+
+```
+turpentine: wrote 612972 bytes to sieve.ws [certified, derived from the Turing-completeness proof]
+```
+
 So what is left, in order:
 
-1. **Arrays.** Generalise the slot layout past one register per variable.
-   The addressing is easier here than in any esolang backend, because
-   register indices are compile-time constants, so a computed index needs
-   a dispatch chain rather than self-modifying code. This unblocks the only
-   three `-tc` examples that still fail.
-2. **Subtraction.** The genuinely hard one, and now the only arithmetic
+1. **Subtraction.** The genuinely hard one, and now the only arithmetic
    restriction left. The two candidates were a `Nat`-valued reference
    semantics plus a bridge to `Turpentine.exec`, and a sign
    representation. **The bridge does not work, and this is worth writing
@@ -491,15 +640,25 @@ So what is left, in order:
      machinery exactly as they are, at the price of a decode and an
      encode inside every macro.
 
-   The recommendation is the **pair**, done *after* arrays. Arrays force
-   the layout lemmas to be generalised past one register per variable
-   anyway, which is most of the pair representation's cost; doing them in
-   that order pays it once. Either way the work is the whole arithmetic
-   half of `Compile/URM.lean`: `addCode` needs a comparison and a
-   truncated subtraction inside it, `mulCode` needs a sign, and
-   `divModCode` has to match `Int.ediv` and `Int.emod` at mixed signs,
-   which is the part with no shortcut.
-3. **I/O, by convention rather than by changing the model.** A URM has no
+   The recommendation was the **pair**, done *after* arrays, on the
+   grounds that arrays force the layout lemmas past one register per
+   variable anyway. **Arrays have now landed, and that half of the bet
+   paid.** `Slot.size` is a real number, `layoutFrom` allocates blocks,
+   `GoodSlots` states disjointness rather than distinct bases, and `Agree`
+   relates a value to a block. A pos/neg pair is a slot of size 2 with a
+   fixed meaning for the two registers, which the layout now supports with
+   no further change: `layoutFrom` would give a scalar `int` a `tySize` of
+   2 and everything downstream would follow.
+
+   What that does *not* touch is the arithmetic, which is where the work
+   actually is and which arrays did nothing to reduce: `addCode` needs a
+   comparison and a truncated subtraction inside it, `mulCode` needs a
+   sign, `divModCode` has to match `Int.ediv` and `Int.emod` at mixed
+   signs, and every comparison operator has to order two pairs rather than
+   two registers. So the honest summary is that arrays made the *layout*
+   half of the pair cheap and left the *arithmetic* half exactly as
+   expensive as it was.
+2. **I/O, by convention rather than by changing the model.** A URM has no
    input or output, but it does not need any: it *starts* with registers
    set and *halts* with registers set, which is enough if Turpentine
    agrees to say so.
@@ -627,8 +786,9 @@ and copy, so multiplication is a doubly nested counting loop and every round
 of it is a whitespace label block. Nobody would ship that.
 
 **Coverage, in the other direction.** The effective backends accept the
-*entire* Turpentine language: I/O, arrays, negative integers. The derived
-pipeline accepts the I/O-free, non-negative fragment of section 4, because
+*entire* Turpentine language: I/O and negative integers included. The
+derived pipeline accepts the I/O-free, non-negative fragment of section 4,
+because
 that is what a URM is. So the verified compiler is not a superset of the
 practical one; each does something the other cannot.
 
@@ -642,7 +802,7 @@ So the library keeps two compilers per target and says which is which:
 |---|---|---|
 | written by | hand, per language | composition, once |
 | verified | not yet | by construction |
-| fragment | the whole language | I/O-free, non-negative, no `-` and no arrays |
+| fragment | the whole language | I/O-free, non-negative, no `-` |
 | output size | small | 13× to 16× larger, and much slower |
 | purpose | running programs | proving, and testing the other one |
 
@@ -912,7 +1072,7 @@ For Whitespace both hops are in place:
 `derivedWhitespace := derived whitespaceComplete` is a certified
 Turpentine-to-Whitespace compiler with no further work.
 [`Langlib/Tests/DerivedWhitespace.lean`](../Langlib/Tests/DerivedWhitespace.lean)
-runs it: 55 cases, including a suite that compares every answer against the
+runs it: 76 cases, including a suite that compares every answer against the
 Turpentine reference interpreter, a suite that pins every rejection, and a
 suite that repeats the exercise through `derivedSubleq`.
 
@@ -996,7 +1156,21 @@ Output:
 'Langlib.Computability.derivedWhitespace' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Langlib.Computability.derivedSubleq' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Langlib.Computability.agree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.URM.layoutFrom_spec' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.URM.goodSlots_of_layout' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.URM.reaches_dispatchT' depends on axioms: [propext, Quot.sound]
+'Langlib.Turpentine.Compile.URM.Agree.updateIndex' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.URM.agreeVal_write' depends on axioms: [propext, Quot.sound]
+'Langlib.Turpentine.Compile.URM.evalExpr_index_inv' depends on axioms: [propext, Quot.sound]
+'Langlib.Turpentine.Compile.URM.evalExpr_len_inv' depends on axioms: [propext, Quot.sound]
+'Langlib.Turpentine.Compile.URM.defEnv_get' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.URM.agreeVal_default' depends on axioms: [propext]
 ```
+
+The last nine are the array lines, appended when arrays landed: the slot
+layout, the dispatch chain, the element write, the inversions of the
+reference evaluator at `a[i]` and `len(a)`, and the defaults an array
+declaration rests on since it emits no code.
 
 The script covers every completeness result in the library; those are the
 lines for the certified pipeline. A shorter list than the three is fine and
