@@ -24,6 +24,12 @@ import Langlib.Computability.Whitespace
 open Langlib.Computability
 
 -- Whitespace: Turing complete, via cslib's unlimited register machine.
+-- The bridge to cslib's vocabulary: a Turing-complete language computes
+-- every URM-computable partial function, wherever it is defined.
+#print axioms computes_of_turingComplete
+#print axioms BoundedStorage.halts_iff_search
+#print axioms BoundedStorage.halting_decidable
+
 #print axioms whitespaceComplete
 #print axioms URMWhitespace.simulation
 #print axioms URMWhitespace.compile

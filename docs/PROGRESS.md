@@ -188,7 +188,7 @@ faithfully against `bef.c`. See `docs/befunge93/spec.md`.
     playfield 2000 unbounded registers and the language Turing complete.
     The deviation was documented; its consequence was not. Both claims are
     now stated, and Stage 8 plans to prove the pair.
-* Stage 8 gains a uniform interface: an `Esolang` class, a
+* Stage 8 gains a uniform interface: a `ProgLang` class (named `Esolang` until 2026-09-01), a
   `TuringComplete` structure bundling compiler and simulation, and a
   `BoundedStorage` structure with the decidability theorem proved once, so
   the negative results are short instances rather than separate

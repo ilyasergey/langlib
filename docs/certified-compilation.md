@@ -12,7 +12,8 @@ engineering.
 
 | Definition | File |
 |---|---|
-| `Esolang`, the class of runnable languages | [Class.lean:40](../Langlib/Computability/Class.lean#L40) |
+| `ProgLang`, the class of runnable languages | [Class.lean:40](../Langlib/Computability/Class.lean#L40) |
+| `computes_of_turingComplete`, the bridge to cslib | [Class.lean](../Langlib/Computability/Class.lean) |
 | **`TuringComplete`**, the completeness claim | [Class.lean:80](../Langlib/Computability/Class.lean#L80) |
 | `BoundedStorage`, the incompleteness claim | [Class.lean:134](../Langlib/Computability/Class.lean#L134) |
 | `halts_iff_search`, decidability from a bound | [Class.lean:162](../Langlib/Computability/Class.lean#L162) |
@@ -55,8 +56,8 @@ is the first arrow.
 fixes the shape:
 
 ```lean
-structure TuringComplete (L : Type) [Esolang L] where
-  compile      : URM.Program → List Nat → Esolang.Prog L
+structure TuringComplete (L : Type) [ProgLang L] where
+  compile      : URM.Program → List Nat → ProgLang.Prog L
   encodeInput  : List Nat → Input
   decodeOutput : ByteArray → Option Nat
   simulates    : ∀ P inputs result, HaltsWithResult P inputs result →
@@ -106,10 +107,10 @@ hand-written one are two inhabitants of one interface rather than two
 unrelated definitions:
 
 ```lean
-structure TurpentineCompiler (L : Type) [Esolang L] where
+structure TurpentineCompiler (L : Type) [ProgLang L] where
   /-- Total; `Except.error` names the constructs outside this compiler's
   fragment, so the fragment is part of the data rather than prose. -/
-  compile : Turpentine.Program → Except String (Esolang.Prog L)
+  compile : Turpentine.Program → Except String (ProgLang.Prog L)
   /-- Whenever Turpentine halts on `p` with some observable behaviour, and
   `compile p` succeeds, the compiled program halts with the same
   observable behaviour. -/
@@ -122,7 +123,7 @@ effective one for Whitespace, today), and instance resolution is built to
 pick exactly one. A `class` would either be ambiguous or silently choose
 for you, which is the opposite of what is wanted. So this is bundled data
 with named inhabitants, exactly like `TuringComplete`, and callers say
-which compiler they mean. `Esolang L` stays a real class, because there is
+which compiler they mean. `ProgLang L` stays a real class, because there is
 only ever one way to run a given language.
 
 What the interface buys:
@@ -130,7 +131,7 @@ What the interface buys:
 * **The derived construction becomes one function**, not one per language:
 
   ```lean
-  def derived [Esolang L] (tc : TuringComplete L) : TurpentineCompiler L
+  def derived [ProgLang L] (tc : TuringComplete L) : TurpentineCompiler L
   ```
 
   Every completeness proof yields a verified compiler by applying it.
@@ -139,7 +140,7 @@ What the interface buys:
   instances and all targets, rather than per pair:
 
   ```lean
-  theorem agree [Esolang L] (c₁ c₂ : TurpentineCompiler L) (p) (input) :
+  theorem agree [ProgLang L] (c₁ c₂ : TurpentineCompiler L) (p) (input) :
       -- both accept p ⇒ both produce the same observable behaviour
   ```
 
@@ -186,12 +187,12 @@ hypothesis of the second and the URM program disappears from the
 statement, leaving
 
 ```lean
-theorem derived_correct [Esolang L] (tc : TuringComplete L)
-    (p : Turpentine.Program) (prog : Esolang.Prog L)
+theorem derived_correct [ProgLang L] (tc : TuringComplete L)
+    (p : Turpentine.Program) (prog : ProgLang.Prog L)
     (result n : Nat)
     (hc : derivedCompile tc p = .ok prog)
     (hp : TurpentineHaltsWith p n result) :
-    ∃ m, (Esolang.run prog (tc.encodeInput …) m).exit = .halted ∧
+    ∃ m, (ProgLang.run prog (tc.encodeInput …) m).exit = .halted ∧
          tc.decodeOutput (…).output = some result
 ```
 

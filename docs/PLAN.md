@@ -252,7 +252,7 @@ the library already has this shape, so the class is a formality that makes
 it quantifiable:
 
 ```lean
-class Esolang (L : Type) where
+class ProgLang (L : Type) where
   Prog : Type
   parse : String → Except String Prog
   run : Prog → Input → Nat → RunResult
@@ -263,12 +263,12 @@ claim: the witness is the interesting part, and it is usually a compiler
 we want anyway.
 
 ```lean
-structure TuringComplete (L : Type) [Esolang L] where
-  compile : URM.Program → Esolang.Prog L
+structure TuringComplete (L : Type) [ProgLang L] where
+  compile : URM.Program → ProgLang.Prog L
   encodeInput : URM.Regs → Input
   decodeOutput : ByteArray → Option Nat
   simulates : ∀ P regs n, URM.Halts P regs n →
-    ∃ m, let r := Esolang.run (compile P) (encodeInput regs) m
+    ∃ m, let r := ProgLang.run (compile P) (encodeInput regs) m
          r.exit = .halted ∧ decodeOutput r.output = some (URM.result P regs n)
 ```
 
@@ -276,13 +276,13 @@ structure TuringComplete (L : Type) [Esolang L] where
 and each language supplies only its bound:
 
 ```lean
-structure BoundedStorage (L : Type) [Esolang L] where
+structure BoundedStorage (L : Type) [ProgLang L] where
   Config : Type
-  configOf : Esolang.Prog L → Input → Nat → Config
+  configOf : ProgLang.Prog L → Input → Nat → Config
   finite : ∀ p i, Set.Finite {c | ∃ n, configOf p i n = c}
 
-theorem halting_decidable_of_bounded [Esolang L] (b : BoundedStorage L) :
-    ∀ p i, Decidable (∃ n, (Esolang.run p i n).exit = .halted)
+theorem halting_decidable_of_bounded [ProgLang L] (b : BoundedStorage L) :
+    ∀ p i, Decidable (∃ n, (ProgLang.run p i n).exit = .halted)
 ```
 
 A language with `BoundedStorage` cannot be Turing complete, and that

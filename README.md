@@ -47,7 +47,7 @@ since a proof resting on `sorry` type-checks like a real one.
 The components:
 
 * [Langlib/Computability/Class.lean](Langlib/Computability/Class.lean) —
-  `Esolang`, `TuringComplete` and `BoundedStorage`: one interface every
+  `ProgLang`, `TuringComplete` and `BoundedStorage`: one interface every
   result is an instance of.
 * [Langlib/Computability/Whitespace.lean](Langlib/Computability/Whitespace.lean) —
   **Whitespace is proved Turing complete.** Axiom-clean.

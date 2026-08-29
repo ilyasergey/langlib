@@ -1096,10 +1096,10 @@ namespace Langlib.Computability
 
 open Langlib.Common
 
-/-- The tag type naming Whitespace for the `Esolang` class. -/
+/-- The tag type naming Whitespace for the `ProgLang` class. -/
 inductive WhitespaceLang : Type
 
-instance : Esolang WhitespaceLang where
+instance : ProgLang WhitespaceLang where
   Prog := Langlib.Whitespace.Prog
   parse := Langlib.Whitespace.parse
   run := Langlib.Whitespace.evalProg

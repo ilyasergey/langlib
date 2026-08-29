@@ -1,5 +1,6 @@
 import Langlib.Common.Io
 import Langlib.Computability.URM
+import Cslib.Computability.URM.Computable
 
 /-!
 # Computational class, stated once for every language
@@ -8,7 +9,7 @@ The claims in `docs/PLAN.md` Stage 8 are not meant to be eleven unrelated
 theorems. They are instances of two definitions, so that "langlib proves
 that `L` is Turing complete" means literally the same thing for every `L`.
 
-* `Esolang L` packages the shape every interpreter in the library already
+* `ProgLang L` packages the shape every interpreter in the library already
   has: a program type, a parser, and a fuel-based runner.
 * `TuringComplete L` is the positive claim, and it is a *witness*: a
   compiler from the unlimited register machine plus a proof that the
@@ -37,7 +38,7 @@ open Cslib.URM (Program HaltsWithResult)
 /-- A language, as langlib sees it: a program representation, a parser, and
 a pure fuel-based interpreter. `L` is a tag type naming the language; the
 program type is the class field `Prog`. -/
-class Esolang (L : Type) where
+class ProgLang (L : Type) where
   /-- The abstract syntax the interpreter runs. -/
   Prog : Type
   /-- Concrete syntax to abstract syntax. -/
@@ -77,10 +78,10 @@ rather than being baked into the statement. That is what makes the claim
 composable: a translation `L → L'` that preserves observable behaviour turns
 a `TuringComplete L` into a `TuringComplete L'` by composing `compile` with
 the translation and leaving the encode and decode functions alone. -/
-structure TuringComplete (L : Type) [Esolang L] where
+structure TuringComplete (L : Type) [ProgLang L] where
   /-- The compiler: a URM program and its input vector become an `L`
   program. This is a real, total, runnable function; `#eval` can apply it. -/
-  compile : Program → List Nat → Esolang.Prog L
+  compile : Program → List Nat → ProgLang.Prog L
   /-- The input stream the compiled program is run on. -/
   encodeInput : List Nat → Input
   /-- How to read the machine's answer out of the program's output bytes. -/
@@ -91,9 +92,58 @@ structure TuringComplete (L : Type) [Esolang L] where
   simulates : ∀ (P : Program) (inputs : List Nat) (result : Nat),
     HaltsWithResult P inputs result →
       ∃ m,
-        (Esolang.run (compile P inputs) (encodeInput inputs) m).exit = Exit.halted ∧
-        decodeOutput (Esolang.run (compile P inputs) (encodeInput inputs) m).output =
+        (ProgLang.run (compile P inputs) (encodeInput inputs) m).exit = Exit.halted ∧
+        decodeOutput (ProgLang.run (compile P inputs) (encodeInput inputs) m).output =
           some result
+
+/-! ## Consistency with cslib's vocabulary
+
+cslib defines no notion of Turing completeness: `TuringComplete` above is
+langlib's own. What cslib does define is `Cslib.URM.Computes` and
+`Cslib.URM.Computable`, which say that a URM program computes a partial
+function. The theorem below ties the two together, so that our claim is
+stated in cslib's terms rather than merely alongside them.
+
+Read it as: if `L` is Turing complete in our sense, then for every
+URM-computable partial function and every argument on which that function
+is defined, some `L` program halts and outputs the right answer.
+
+Two limits of this statement, both deliberate and both worth knowing:
+
+* It covers the **defined** direction only. cslib's `Computes` is an
+  equality of `Part ℕ`, which also constrains divergence: where `f` is
+  undefined, the program must not halt. Our `simulates` says nothing about
+  URM programs that diverge, so a compiler could in principle halt where
+  the source machine loops and still satisfy `TuringComplete`. Closing
+  that gap means strengthening `simulates` to an iff, which is the same
+  divergence-preservation obligation `docs/verification.md` defers.
+* The step from "simulates every URM program" to "computes every partial
+  computable function" is a **cited** classical result (Shepherdson and
+  Sturgis 1963), not a Lean proof: cslib proves no equivalence between
+  URM-computability and any other model. The theorem below is honest about
+  this, since it quantifies over `Cslib.URM.Computable` functions rather
+  than over `Nat.Partrec` ones.
+-/
+
+variable {L : Type} [ProgLang L]
+
+/-- A Turing-complete language computes every URM-computable partial
+function, wherever that function is defined. -/
+theorem computes_of_turingComplete (tc : TuringComplete L)
+    {n : Nat} {f : (Fin n → Nat) → Part Nat}
+    (hf : Cslib.URM.Computable n f)
+    (args : Fin n → Nat) (v : Nat) (hv : f args = Part.some v) :
+    ∃ (prog : ProgLang.Prog L) (m : Nat),
+      (ProgLang.run prog (tc.encodeInput (List.ofFn args)) m).exit = Exit.halted ∧
+      tc.decodeOutput
+          (ProgLang.run prog (tc.encodeInput (List.ofFn args)) m).output = some v := by
+  obtain ⟨P, hP⟩ := hf
+  have heval : Cslib.URM.eval P (List.ofFn args) = Part.some v := by
+    rw [hP args, hv]
+  have hhalts : HaltsWithResult P (List.ofFn args) v :=
+    (Cslib.URM.haltsWithResult_iff_eval P).mpr heval
+  obtain ⟨m, hexit, hout⟩ := tc.simulates P (List.ofFn args) v hhalts
+  exact ⟨tc.compile P (List.ofFn args), m, hexit, hout⟩
 
 /-! ## Bounded storage, and the decidability it forces -/
 
@@ -131,15 +181,15 @@ Finiteness is the pair `index_lt` and `index_inj`: an injection of the
 reachable configurations into `{0, …, bound - 1}`. Befunge-93 supplies "80
 by 25 playfield and a bounded stack", Malbolge "59049 words of 59049
 values", Deadfish "one accumulator and no input". -/
-structure BoundedStorage (L : Type) [Esolang L] where
+structure BoundedStorage (L : Type) [ProgLang L] where
   /-- The configuration space. -/
   Config : Type
   /-- The configuration reached after `n` steps. -/
-  configOf : Esolang.Prog L → Input → Nat → Config
+  configOf : ProgLang.Prog L → Input → Nat → Config
   /-- The size bound on the reachable configuration space. -/
-  bound : Esolang.Prog L → Input → Nat
+  bound : ProgLang.Prog L → Input → Nat
   /-- The injection into an initial segment of `Nat`. -/
-  index : Esolang.Prog L → Input → Config → Nat
+  index : ProgLang.Prog L → Input → Config → Nat
   index_lt : ∀ p i c, index p i c < bound p i
   index_inj : ∀ p i c c', index p i c = index p i c' → c = c'
   /-- The machine is deterministic: equal configurations have equal successors. -/
@@ -147,20 +197,20 @@ structure BoundedStorage (L : Type) [Esolang L] where
     configOf p i (n + 1) = configOf p i (m + 1)
   /-- Halting is a property of the configuration alone. -/
   halted_congr : ∀ p i n m, configOf p i n = configOf p i m →
-    ((Esolang.run p i n).isHalted = (Esolang.run p i m).isHalted)
+    ((ProgLang.run p i n).isHalted = (ProgLang.run p i m).isHalted)
 
 namespace BoundedStorage
 
-variable {L : Type} [Esolang L]
+variable {L : Type} [ProgLang L]
 
 /-- The bounded search that decides halting. -/
-def search (b : BoundedStorage L) (p : Esolang.Prog L) (i : Input) : Bool :=
-  (List.range (b.bound p i + 1)).any fun n => (Esolang.run p i n).isHalted
+def search (b : BoundedStorage L) (p : ProgLang.Prog L) (i : Input) : Bool :=
+  (List.range (b.bound p i + 1)).any fun n => (ProgLang.run p i n).isHalted
 
 /-- The heart of the argument: a run that has not halted within `bound`
 steps has entered a cycle and will never halt. -/
-theorem halts_iff_search (b : BoundedStorage L) (p : Esolang.Prog L) (i : Input) :
-    (∃ n, (Esolang.run p i n).isHalted = true) ↔ b.search p i = true := by
+theorem halts_iff_search (b : BoundedStorage L) (p : ProgLang.Prog L) (i : Input) :
+    (∃ n, (ProgLang.run p i n).isHalted = true) ↔ b.search p i = true := by
   constructor
   · intro h
     -- Find a repeated configuration in the first `bound + 1` steps.
@@ -181,8 +231,8 @@ theorem halts_iff_search (b : BoundedStorage L) (p : Esolang.Prog L) (i : Input)
             have := b.succ_congr p i (a + k) (c + k) ih
             simpa [Nat.add_assoc] using this
         -- Any halting step index can be pulled down below the bound.
-        have key : ∀ fuel n, n ≤ fuel → (Esolang.run p i n).isHalted = true →
-            ∃ n', n' ≤ b.bound p i ∧ (Esolang.run p i n').isHalted = true := by
+        have key : ∀ fuel n, n ≤ fuel → (ProgLang.run p i n).isHalted = true →
+            ∃ n', n' ≤ b.bound p i ∧ (ProgLang.run p i n').isHalted = true := by
           intro fuel
           induction fuel with
           | zero =>
@@ -198,7 +248,7 @@ theorem halts_iff_search (b : BoundedStorage L) (p : Esolang.Prog L) (i : Input)
               have hk : n = c + (n - c) := by omega
               have heq : b.configOf p i (a + (n - c)) = b.configOf p i n := by
                 rw [hshift (n - c), ← hk]
-              have hh' : (Esolang.run p i (a + (n - c))).isHalted = true := by
+              have hh' : (ProgLang.run p i (a + (n - c))).isHalted = true := by
                 rw [b.halted_congr p i _ _ heq]; exact hh
               exact ih (a + (n - c)) (by omega) hh'
         cases h with
@@ -215,8 +265,8 @@ theorem halts_iff_search (b : BoundedStorage L) (p : Esolang.Prog L) (i : Input)
 /-- Halting is decidable for a language with bounded storage. Since the
 halting problem for a Turing complete language is undecidable, no language
 with a `BoundedStorage` witness has a `TuringComplete` witness. -/
-def halting_decidable (b : BoundedStorage L) (p : Esolang.Prog L) (i : Input) :
-    Decidable (∃ n, (Esolang.run p i n).isHalted = true) :=
+def halting_decidable (b : BoundedStorage L) (p : ProgLang.Prog L) (i : Input) :
+    Decidable (∃ n, (ProgLang.run p i n).isHalted = true) :=
   decidable_of_iff _ (b.halts_iff_search p i).symm
 
 end BoundedStorage
