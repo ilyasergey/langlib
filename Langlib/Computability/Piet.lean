@@ -311,6 +311,15 @@ theorem runCode_copyAt_cons (regs : List Int) (r : Nat) (value : Int)
   have hcopy := runCode_copyAt_list (value :: regs) (r + 1) s hr' hstack
   simpa only [List.length_cons, List.getElem_cons_succ] using hcopy
 
+/-- Copying through two temporary values shifts a register index by two. -/
+theorem runCode_copyAt_cons_cons (regs : List Int) (r : Nat) (a b : Int)
+    (s : MState) (hr : r < regs.length) (hstack : s.stack = a :: b :: regs) :
+    runCode (copyAt (regs.length + 2) (r + 2)) s =
+      { s with stack := regs[r] :: a :: b :: regs } := by
+  have hr' : r + 2 < (a :: b :: regs).length := by simp; omega
+  have hcopy := runCode_copyAt_list (a :: b :: regs) (r + 2) s hr' hstack
+  simpa only [List.length_cons, List.getElem_cons_succ] using hcopy
+
 /-- Stack code for the three non-branching URM instructions. -/
 def instrCode (R : Nat) : Cslib.URM.Instr → Option (List BlockCmd)
   | .Z r => some (zeroAt r)
@@ -748,12 +757,54 @@ def dispatchFrom (N pc next flag : Nat) : Nat → Program → List BlockCmd
 def endDispatch (N pc next : Nat) : List BlockCmd :=
   copyAt N next ++ storeTop pc
 
+theorem runCode_endDispatch_list (regs : List Int) (pc next : Nat) (s : MState)
+    (hpc : pc < regs.length) (hnext : next < regs.length)
+    (hstack : s.stack = regs) :
+    runCode (endDispatch regs.length pc next) s =
+      { s with stack := regs.set pc regs[next] } := by
+  simp only [endDispatch, runCode_append]
+  rw [runCode_copyAt_list regs next s hnext hstack]
+  apply runCode_storeTop_list regs pc regs[next] _ hpc rfl
+
 /-- Copy the answer under a Boolean saying whether the committed program
 counter is still inside the source program.  The stack result is
 `running :: answer :: registers`. -/
 def prepareBranch (N pc programLength : Nat) : List BlockCmd :=
   copyAt N 0 ++ pushNat programLength ++ copyAt (N + 2) (pc + 2) ++
     [op .greater]
+
+theorem runCode_prepareBranch_list (regs : List Int) (pc programLength : Nat)
+    (s : MState) (hnonempty : 0 < regs.length) (hpc : pc < regs.length)
+    (hstack : s.stack = regs) :
+    runCode (prepareBranch regs.length pc programLength) s =
+      { s with stack := (if regs[pc] < (programLength : Int) then 1 else 0) ::
+          regs[0] :: regs } := by
+  simp only [prepareBranch, runCode_append]
+  rw [runCode_copyAt_list regs 0 s hnonempty hstack, runCode_pushNat]
+  rw [runCode_copyAt_cons_cons regs pc (programLength : Int) regs[0] _ hpc rfl]
+  simp [runCode, op, execOp]
+
+/-- Compensate the return corridor's chooser turns, then steer from a
+Boolean running flag. -/
+def steerBranch : List BlockCmd := pushNat 1 ++ [op .switch, op .pointer]
+
+theorem runCode_steerBranch_zero (answer : Int) (regs : List Int) (s : MState)
+    (hstack : s.stack = 0 :: answer :: regs) :
+    runCode steerBranch s =
+      { s with cc := s.cc.toggle, stack := answer :: regs } := by
+  rcases s with ⟨pos, dp, cc, stack, input, output⟩
+  cases dp <;> cases cc <;>
+    simp [steerBranch, runCode_append, runCode_pushNat, runCode, op, execOp,
+      hstack, Dir.rotate, Dir.ofNat, Dir.toNat, CC.toggle]
+
+theorem runCode_steerBranch_one (answer : Int) (regs : List Int) (s : MState)
+    (hstack : s.stack = 1 :: answer :: regs) :
+    runCode steerBranch s =
+      { s with dp := s.dp.clockwise, cc := s.cc.toggle, stack := answer :: regs } := by
+  rcases s with ⟨pos, dp, cc, stack, input, output⟩
+  cases dp <;> cases cc <;>
+    simp [steerBranch, runCode_append, runCode_pushNat, runCode, op, execOp,
+      hstack, Dir.clockwise, Dir.rotate, Dir.ofNat, Dir.toNat, CC.toggle]
 
 /-- One complete dispatcher iteration.  The final `switch` compensates for
 the three clockwise turns in the white return corridor.  `pointer` consumes
@@ -765,7 +816,7 @@ def dispatcherCode (P : Program) (base : Nat) : List BlockCmd :=
   let N := base + 3
   beginDispatch N pc next ++ dispatchFrom N pc next flag 0 P ++
     endDispatch N pc next ++ prepareBranch N pc P.length ++
-    pushNat 1 ++ [op .switch, op .pointer]
+    steerBranch
 
 /-- The colour after every command in a trace has executed. -/
 def endColor : Hue → Lightness → List BlockCmd → Hue × Lightness
@@ -803,9 +854,9 @@ def loopGrid (prologue body : List BlockCmd) : Grid :=
     [.black, terminal, terminal, terminal]
   { width := A + L + 6, height := 3, codels := (top ++ middle ++ bottom).toArray }
 
-/-- Full runnable compiler, including arbitrary `J` targets.  Its proof is
-developed below; this definition is kept separate from `compileStraight` so
-the already verified straight-line fragment remains available. -/
+/-- Full runnable compiler, including arbitrary `J` targets.  Its command
+trace proof is developed above; this definition is kept separate from
+`compileStraight` so the straight-line fragment remains available. -/
 def compileLoop (P : Program) (inputs : List Nat) : Grid :=
   let base := registerDepth P inputs
   let N := base + 3

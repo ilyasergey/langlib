@@ -750,7 +750,7 @@ read the answer out of the reference semantics for the two shapes.
 With a second inhabitant in hand, `agree` from `Derived.lean` instantiates:
 
 ```lean
-theorem bespoke_agrees_derived
+theorem bespokeSubleq_agrees_derived
     (p : Turpentine.Program) (prog₁ prog₂ : Subleq.Prog) (result n : Nat)
     (h₁ : bespokeSubleq.compile p = .ok prog₁)
     (h₂ : derivedSubleq.compile p = .ok prog₂)
@@ -766,7 +766,7 @@ reports.
 
 A hypothesis of the form "both compilers accept `p`" is easy to state and,
 for two compilers with disjoint fragments, impossible to satisfy, so
-`bespoke_agrees_derived_nonvacuous` discharges it once: `var answer : int;`
+`bespokeSubleq_agrees_derived_nonvacuous` discharges it once: `var answer : int;`
 with an empty body is in both fragments, both compilers accept it, both
 compiled programs halt, and both report `0`.
 

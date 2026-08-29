@@ -111,6 +111,25 @@ partial def inlineGo (rw : Rewrite) (acc : String) : List Char → String
           inlineGo rw (acc ++ "<em>" ++ inlineGo rw "" content ++ "</em>") after
         | none => inlineGo rw (acc ++ "*") rest
     | [] => acc ++ "*"
+  | '!' :: '[' :: rest =>
+    -- An image. A relative destination is left alone: it resolves against
+    -- the page's own URL, and the generator copies each document's assets
+    -- next to it.
+    match findSub [']'] rest with
+    | some (alt, after) =>
+      match after with
+      | '(' :: dest =>
+        match findSub [')'] dest with
+        | some (url, tail) =>
+          let raw := trim (String.ofList url)
+          let src := if raw.startsWith "http" || raw.startsWith "/" then rw raw else raw
+          inlineGo rw
+            (acc ++ "<img src=\"" ++ escape src ++ "\" alt=\"" ++
+              escape (String.ofList alt) ++ "\" loading=\"lazy\">")
+            tail
+        | none => inlineGo rw (acc ++ "![") rest
+      | _ => inlineGo rw (acc ++ "![") rest
+    | none => inlineGo rw (acc ++ "![") rest
   | '[' :: rest =>
     match findSub [']'] rest with
     | some (text, after) =>
@@ -154,6 +173,16 @@ partial def plainGo (acc : String) : List Char → String
   | '\\' :: c :: rest => plainGo (acc.push c) rest
   | '`' :: rest => plainGo acc rest
   | '*' :: rest => plainGo acc rest
+  | '!' :: '[' :: rest =>
+    match findSub [']'] rest with
+    | some (alt, after) =>
+      match after with
+      | '(' :: dest =>
+        match findSub [')'] dest with
+        | some (_, tail) => plainGo (acc ++ plainGo "" alt) tail
+        | none => plainGo (acc.push '!') rest
+      | _ => plainGo (acc.push '!') rest
+    | none => plainGo (acc.push '!') rest
   | '[' :: rest =>
     match findSub [']'] rest with
     | some (text, after) =>

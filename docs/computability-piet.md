@@ -62,7 +62,9 @@ the first two operations. Theorems `runCode_guardedZ_list`,
 `runCode_guardedS_list`, and `runCode_guardedT_list` prove the three guarded
 arithmetic updates. `runCode_guardedJ_list` proves equality conjunction and
 the selection between fall-through and the arbitrary jump target. The whole
-dispatcher induction is still open.
+dispatcher induction is still open. `runCode_endDispatch_list`,
+`runCode_prepareBranch_list`, and the two `runCode_steerBranch` theorems pin
+the commit, running test, chooser toggle, and direction-pointer rotation.
 
 ## Codel layout
 
@@ -144,9 +146,10 @@ The scratch runner executes the dedicated suites:
 lake env lean --run /private/tmp/run-urm-piet.lean
 ```
 
-It reports 14 passing tests across the proved straight corridor, the full
+It reports 15 passing tests across the proved straight corridor, the full
 dispatcher, and size checks. The full suite includes both outcomes of a
-forward `J` and a terminating backward loop.
+forward `J`, a transfer inside a backward copy loop, and a terminating
+addition loop.
 
 The standalone axiom audit for the Piet declarations is:
 

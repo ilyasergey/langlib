@@ -115,7 +115,7 @@ def suite : Suite where
         source := .inline "in 0 6\nT 1 0", expect := .outputs "ok 6", fuel := 1000000 }
     , { name := "successor at depth then transfer",
         source := .inline "in 0 6\nS 1\nT 1 0", expect := .outputs "ok 7", fuel := 1000000 }
-    , { name := "a backward J is rejected until routing is proved",
+    , { name := "the straight compiler rejects J explicitly",
         source := .inline "in 0 1\nJ 0 1 0", expect := .parseError "routing gadget" }
     ]
 
@@ -141,6 +141,9 @@ def fullSuite : Suite where
     , { name := "an untaken forward jump falls through",
         source := .inline "in 1 2\nJ 0 1 4\nS 0\nS 0\nS 0",
         expect := .outputs "ok 4", fuel := 20000 }
+    , { name := "transfer inside a backward copy loop",
+        source := .inline "in 0 3 0\nJ 2 1 4\nS 2\nT 2 0\nJ 0 0 0",
+        expect := .outputs "ok 3", fuel := 100000 }
     , { name := "backward jumps implement addition",
         source := .inline "in 3 4\nJ 2 1 5\nS 0\nS 2\nJ 0 0 0",
         expect := .outputs "ok 7", fuel := 100000 }

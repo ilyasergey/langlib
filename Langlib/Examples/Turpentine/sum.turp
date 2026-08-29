@@ -1,0 +1,6 @@
+var answer : int;
+var i : int;
+while i < 5 {
+  answer := answer + i;
+  i := i + 1;
+}

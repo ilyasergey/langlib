@@ -423,6 +423,15 @@ def main (args : List String) : IO UInt32 := do
   else
     IO.eprintln "site generator: static/ is missing; the pages will have no stylesheet"
 
+  -- Documents may carry their own images (the Piet spec shows its example
+  -- programs). Each `docs/<lang>/img/` lands next to that language's page,
+  -- so the relative `img/...` in the Markdown resolves on the site exactly
+  -- as it does on the repository page.
+  for lang in allLangs do
+    let imgDir := System.FilePath.mk root / "docs" / lang.slug / "img"
+    if (← imgDir.pathExists) then
+      copyTree imgDir (outDir / lang.slug / "img")
+
   IO.println s!"wrote {pages.length} pages to {outDir}"
   pure 0
 where

@@ -265,22 +265,39 @@ and once Turpentine compiles to a register machine, composition gives a
 verified Turpentine-to-Whitespace compiler without touching the effective
 backend.
 
-No effective compiler is verified yet. The table below is the scoreboard;
-update it in the same commit as the proof.
+Two effective compilers are now verified, each over a fragment stated as
+data rather than as prose: the compiler's own `Except.error` is the
+fragment. The table below is the scoreboard; update it in the same commit
+as the proof.
 
-| Backend | Effective compiler | Fuel monotonicity | Simulation | End-to-end theorem | Derived compiler |
-|---------|--------------------|-------------------|------------|--------------------|------------------|
-| whitespace | yes | - | - | - | - (needs Stage 8) |
-| subleq | yes | - | - | - | - (needs Stage 8) |
-| brainfuck | wip | - | - | - | - |
-| ook | - | - | - | - | - |
-| deadfish | - | - | - | - | n/a (not complete) |
-| thue, fractran, piet, malbolge | - | - | - | - | the point of Stage 9 |
+| Backend | Effective compiler | Simulation | End-to-end theorem | Derived compiler |
+|---------|--------------------|------------|--------------------|------------------|
+| whitespace | yes | [yes](../Langlib/Computability/BespokeWhitespace.lean#L3246) | [yes, scalar fragment](../Langlib/Computability/BespokeWhitespace.lean#L3246) | [yes](../Langlib/Computability/Derived.lean#L102) |
+| subleq | yes | [yes](../Langlib/Computability/BespokeSubleq.lean#L629) | [yes, two shapes](../Langlib/Computability/BespokeSubleq.lean#L629) | [yes](../Langlib/Computability/Derived.lean#L106) |
+| brainfuck | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L110) |
+| ook | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L118) |
+| brainloller | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L123) |
+| deadfish | - | - | - | n/a (not complete) |
+| thue, fractran, piet, malbolge | - | - | - | the point of Stage 9 |
 
-Until a proof exists, the differential tests in `Langlib/Tests/Compile*`
-are the evidence: every supported example is run through the Turpentine
-interpreter and through the compiled program, and the outputs must match.
-That is testing, not proof, and this page exists to close the gap.
+Fuel monotonicity dropped out of the scoreboard: both proofs use the
+exact-cost `Langlib.Common.Reaches` and never needed it.
+
+Whitespace's fragment is scalar `int`/`bool` with the full expression
+language including subtraction, unary minus and negative literals, plus
+`if`, `while` and `assert`; it leaves out `/`, `%`, arrays and all I/O.
+Subleq's is two program shapes. Note that whitespace's fragment is
+**incomparable** with the certified URM one: subtraction and negative
+integers are impossible on the register machine, while `/` and `%` are in
+the URM fragment and not in this one. `agree` applies on the intersection,
+which still contains arithmetic, comparisons, `&&`, `||`, `if`, `while`
+and `assert`.
+
+Everywhere a theorem is still missing, the differential tests in
+`Langlib/Tests/Compile*` are the evidence: every supported example is run
+through the Turpentine interpreter and through the compiled program, and
+the outputs must match. That is testing, not proof, and this page exists
+to close the gap.
 
 ## Later
 

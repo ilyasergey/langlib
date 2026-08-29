@@ -820,13 +820,14 @@ of compiler is explicit; passing both is an error, passing neither uses the
 bespoke one, and whichever runs is named in the message, so a build log
 records which compiler produced an artifact.
 
-Two source programs are used below. `sum.turp` is inside the certified
+Two source programs are used below. `Langlib/Examples/Turpentine/sum.turp`
+is inside the certified
 fragment: I/O-free, no subtraction or division, and its result is in a
 variable called `answer`, because a URM has no output and the theorem reads
 register 0.
 
 ```
-cat sum.turp
+cat Langlib/Examples/Turpentine/sum.turp
 ```
 
 Output:
@@ -858,7 +859,7 @@ Output:
 ### Type-check without running
 
 ```
-lake exe turpentine check sum.turp
+lake exe turpentine check Langlib/Examples/Turpentine/sum.turp
 ```
 
 Output:
@@ -882,7 +883,7 @@ Output:
 ### Compile and run in one step, certified
 
 ```
-lake exe turpentine exec --via whitespace --tc sum.turp
+lake exe turpentine exec --via whitespace --tc Langlib/Examples/Turpentine/sum.turp
 ```
 
 Output:
@@ -920,7 +921,7 @@ Subleq's only output primitive is a single byte, so its `decodeOutput`
 counts bytes: ten of them is the answer.
 
 ```
-lake exe turpentine compile --to subleq --tc -o sum.sq sum.turp
+lake exe turpentine compile --to subleq --tc -o /tmp/sum.sq Langlib/Examples/Turpentine/sum.turp
 ```
 
 Output:
@@ -930,7 +931,7 @@ turpentine: wrote 1390 bytes to sum.sq [certified, derived from the Turing-compl
 ```
 
 ```
-lake exe subleq sum.sq
+lake exe subleq /tmp/sum.sq
 ```
 
 Output:
@@ -945,7 +946,7 @@ With no `-o`, the program goes to stdout and the note to stderr, so
 redirecting captures only the program.
 
 ```
-lake exe turpentine compile --to whitespace --bespoke sum.turp > sum.ws
+lake exe turpentine compile --to whitespace --bespoke Langlib/Examples/Turpentine/sum.turp > /tmp/sum.ws
 ```
 
 Output:
@@ -1000,7 +1001,7 @@ knows now has a proof, so that path has no witness left to show; what is
 reachable is an unknown name:
 
 ```
-lake exe turpentine compile --to piet --tc sum.turp
+lake exe turpentine compile --to piet --tc Langlib/Examples/Turpentine/sum.turp
 ```
 
 Output:

@@ -4,6 +4,7 @@ import Langlib.Tests.Brainfuck
 import Langlib.Tests.BoundedMalbolge
 import Langlib.Tests.Brainloller
 import Langlib.Tests.BespokeSubleq
+import Langlib.Tests.BespokeWhitespace
 import Langlib.Tests.CompileBrainfuck
 import Langlib.Tests.CompileBrainloller
 import Langlib.Tests.CompileOok
@@ -37,6 +38,7 @@ def main : IO UInt32 :=
     , Langlib.Tests.BoundedMalbolge.suites
     , Langlib.Tests.Brainloller.suites
     , Langlib.Tests.BespokeSubleq.suites
+    , Langlib.Tests.BespokeWhitespace.suites
     , Langlib.Tests.CompileBrainfuck.suites
     , Langlib.Tests.CompileBrainloller.suites
     , Langlib.Tests.CompileOok.suites

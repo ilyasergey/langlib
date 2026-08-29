@@ -18,7 +18,7 @@ Four suites.
   same source with `print(answer);` appended and reports a runtime error unless
   the two agree. This is the same differential check the derived pipeline gets,
   now against a compiler that is proved rather than trusted.
-* **bespoke vs derived** is the runnable form of `bespoke_agrees_derived`: on a
+* **bespoke vs derived** is the runnable form of `bespokeWhitespace_agrees_derived`: on a
   program both compilers accept, both compiled programs are run and their
   decoded answers compared. The theorem says they cannot differ; the suite
   says so on concrete programs, and would catch a mismatch in the plumbing
@@ -63,7 +63,7 @@ def runBoth (src : String) (input : Input) (fuel : Nat) : Except String RunResul
   | e, _ => return { exit := .error s!"reference interpreter did not halt: {repr e}" }
 
 /-- Run one program through both verified compilers for Whitespace and
-compare the decoded answers: `bespoke_agrees_derived`, executed. -/
+compare the decoded answers: `bespokeWhitespace_agrees_derived`, executed. -/
 def runAgree (src : String) (_input : Input) (fuel : Nat) : Except String RunResult := do
   let p ← Langlib.Turpentine.parse src
   let _ ← (Langlib.Turpentine.checkProgram p).mapError ("type error: " ++ ·)

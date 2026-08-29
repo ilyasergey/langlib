@@ -80,10 +80,11 @@ have landed and one step remains.
 
 The last column names the Turpentine compilers a target has and links each
 to its source. A **bespoke** one is hand-written for that target: it emits
-compact, readable code and supports the whole language. Every one of them
-is marked *(trusted)*, meaning tested rather than proved; when a bespoke
-correctness theorem lands, that marker becomes *(certified)* and links the
-theorem. A **derived** one comes out of that language's completeness proof,
+compact, readable code and supports the whole language. *(trusted)* means
+tested rather than proved; *(certified on a fragment)* means a correctness
+theorem covers part of what the compiler accepts, and links it. Whitespace
+and subleq have one, over fragments the compiler states as data by
+refusing everything outside them. A **derived** one comes out of that language's completeness proof,
 so it is *(certified)* already, but it does not support I/O: it routes
 everything through a register machine, which has no way to read or write,
 so the program takes no input and leaves its result in `answer`. Its
@@ -94,7 +95,7 @@ keeps both kinds.
 | Language | Turing-complete (TC) | TC claim mechanised | Turpentine compiler |
 |----------|--------------------------|------------------------------|---------------------|
 | [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L2888)** | [bespoke](Langlib/Turpentine/Compile/Brainfuck.lean#L1317) (trusted), and [derived](Langlib/Computability/Derived.lean#L110) (certified) |
-| [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1117)** | [bespoke](Langlib/Turpentine/Compile/Whitespace.lean#L530) (trusted), and [derived](Langlib/Computability/Derived.lean#L102) (certified) |
+| [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1117)** | [bespoke](Langlib/Turpentine/Compile/Whitespace.lean#L530) ([certified on a fragment](Langlib/Computability/BespokeWhitespace.lean#L3246)), and [derived](Langlib/Computability/Derived.lean#L102) (certified) |
 | [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1201)** | [bespoke](Langlib/Turpentine/Compile/Subleq.lean#L1125) ([certified on a fragment](Langlib/Computability/BespokeSubleq.lean#L629)), and [derived](Langlib/Computability/Derived.lean#L106) (certified) |
 | [fractran](docs/fractran/spec.md) | yes | [in progress](docs/computability-fractran.md) | [planned](docs/fractran/compiler.md) |
 | [piet](docs/piet/spec.md) | yes | [in progress](docs/computability-piet.md) | [planned](docs/piet/compiler.md) |

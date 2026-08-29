@@ -340,7 +340,7 @@ fragment whose result is named by a variable called `answer`; see
 [certified-compilation.md](../certified-compilation.md). For example:
 
 ```
-echo | lake exe turpentine exec --via whitespace --tc sum.turp
+echo | lake exe turpentine exec --via whitespace --tc Langlib/Examples/Turpentine/sum.turp
 ```
  Each documents
 its layout and its semantic gaps in `docs/<langname>/compiler.md`, and

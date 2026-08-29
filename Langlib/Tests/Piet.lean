@@ -144,6 +144,8 @@ def suite : Suite where
   cases :=
     [ { name := "hi example", source := ex "hi.ppm",
         expect := .outputs "Hi" }
+    , { name := "hi-stacked example (2-D layout, arithmetic instead of big blocks)",
+        source := ex "hi-stacked.ppm", expect := .outputs "Hi" }
     , { name := "add example", source := ex "add.ppm", input := "3 4",
         expect := .outputs "7" }
     , { name := "add example, negative number", source := ex "add.ppm",

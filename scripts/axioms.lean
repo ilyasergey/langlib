@@ -178,7 +178,7 @@ open Langlib.Computability
 -- The hand-written Turpentine-to-subleq backend, verified on the fragment
 -- `var answer : int := k; printByte(answer);` (1 <= k <= 255) and
 -- `var answer : int;` with an empty body.  `bespokeSubleq` is the second
--- inhabitant of `TurpentineCompiler SubleqLang`; `bespoke_agrees_derived`
+-- inhabitant of `TurpentineCompiler SubleqLang`; `bespokeSubleq_agrees_derived`
 -- is `agree` instantiated at it and the derived compiler.
 #print axioms BespokeSubleq.stepSub
 #print axioms BespokeSubleq.stepOut
@@ -200,8 +200,8 @@ open Langlib.Computability
 #print axioms BespokeSubleq.compile_progSkip
 #print axioms BespokeSubleq.compile_progPrint
 #print axioms bespokeSubleq
-#print axioms bespoke_agrees_derived
-#print axioms bespoke_agrees_derived_nonvacuous
+#print axioms bespokeSubleq_agrees_derived
+#print axioms bespokeSubleq_agrees_derived_nonvacuous
 
 -- Ook!: Turing complete, by re-labelling the brainfuck witness (the program
 -- type and the evaluator are literally brainfuck's), plus the syntactic half
@@ -271,6 +271,10 @@ open Langlib.Computability
 #print axioms URMPiet.runCode_guardedEq_list
 #print axioms URMPiet.runCode_guardedNext_list
 #print axioms URMPiet.runCode_guardedJ_list
+#print axioms URMPiet.runCode_endDispatch_list
+#print axioms URMPiet.runCode_prepareBranch_list
+#print axioms URMPiet.runCode_steerBranch_zero
+#print axioms URMPiet.runCode_steerBranch_one
 #print axioms URMPiet.runCode_pushNatUnit
 #print axioms URMPiet.unitCode_unitize
 #print axioms URMPiet.coloredRuns_length_of_unit

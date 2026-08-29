@@ -37,13 +37,25 @@ is available to API users via `Langlib.Common.Image.parsePpm`.
 | `hi.ppm` | prints `Hi` (push 72, out(char), push 105, out(char)) | LangLib original |
 | `add.ppm` | reads two numbers, prints their sum | LangLib original |
 | `square.ppm` | reads a number, prints its square | LangLib original |
+| `hi-stacked.ppm` | prints `Hi`, computing 72 and 105 with `dup`/`mul`/`add` | LangLib original |
 
-All three are drawn in the same honest, unpainterly style: a corridor of
-colour blocks along the middle row between black walls, then a white
-codel sliding into a full-height bar that no (DP, CC) attempt can leave,
-which is how a Piet program halts. They are P3 text, so they diff like
-source code; the block shapes (a column plus a tail) are chosen so the
-first block's exit codel is unambiguous.
+The first three are drawn in the same honest, unpainterly style: a
+corridor of colour blocks along the middle row between black walls, then a
+white codel sliding into a full-height bar that no (DP, CC) attempt can
+leave, which is how a Piet program halts. They are P3 text, so they diff
+like source code; the block shapes (a column plus a tail) are chosen so
+the first block's exit codel is unambiguous.
+
+`hi-stacked.ppm` is the two-dimensional one. `hi.ppm` says `Hi` by pushing
+72 and 105 as *block sizes*, which is why it is 180 codels wide and one
+long red bar; `hi-stacked.ppm` computes the same two numbers
+(`8 dup * 8 +` and `10 dup * 5 +`) from small blocks, so it fits in 12 by
+13. The pointer starts on a white codel, slides right into the top bar,
+and then walks straight down the stack, one bar per command: a bar's value
+is its width, and the colour change into the bar below is the command.
+The three-codel bar at the bottom is the terminator, entered at its middle
+so that its left and right codels face black upwards and all eight exits
+fail.
 
 ## Tests
 

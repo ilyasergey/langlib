@@ -99,10 +99,10 @@ mentions the hash function. It runs in three stages per shape, because one
 
 ## Agreement with the derived compiler
 
-`bespoke_agrees_derived` is `Derived.lean`'s `agree` at this instance and
+`bespokeSubleq_agrees_derived` is `Derived.lean`'s `agree` at this instance and
 `derivedSubleq`. Its hypotheses say that both compilers accept the same
 program, and for two compilers with disjoint fragments that is impossible to
-satisfy, so `bespoke_agrees_derived_nonvacuous` exhibits a program in both:
+satisfy, so `bespokeSubleq_agrees_derived_nonvacuous` exhibits a program in both:
 `var answer: int;` with an empty body, on which both halt and both report
 `0`. The overlap is that narrow because the derived compiler refuses every
 I/O statement while this instance needs the answer printed.
@@ -668,7 +668,7 @@ oracle for the hand-written one" from a testing practice into a theorem.
 The two compiled programs are entirely different images and their decoders
 are different functions, and neither fact enters the statement: what agrees
 is the answer each run reports. -/
-theorem bespoke_agrees_derived
+theorem bespokeSubleq_agrees_derived
     (p : Turpentine.Program) (prog₁ prog₂ : Langlib.Subleq.Prog) (result n : Nat)
     (h₁ : bespokeSubleq.compile p = .ok prog₁)
     (h₂ : derivedSubleq.compile p = .ok prog₂)
@@ -692,7 +692,7 @@ refuses every I/O statement (a URM has no output, so its answer is register
 0 at halt) while this instance needs the answer printed. Widening it means
 either verifying `printint` here or teaching the URM pass to compile
 `printByte`. -/
-theorem bespoke_agrees_derived_nonvacuous :
+theorem bespokeSubleq_agrees_derived_nonvacuous :
     ∃ (prog₁ prog₂ : Langlib.Subleq.Prog) (m₁ m₂ : Nat),
       bespokeSubleq.compile (BespokeSubleq.progOf .skipZero) = .ok prog₁ ∧
       derivedSubleq.compile (BespokeSubleq.progOf .skipZero) = .ok prog₂ ∧
@@ -713,7 +713,7 @@ theorem bespoke_agrees_derived_nonvacuous :
     · simp [BespokeSubleq.progOf, Turpentine.exec]
     · simp [answerVar]
   obtain ⟨m₁, m₂, e₁, e₂, e₃⟩ :=
-    bespoke_agrees_derived _ _ prog₂ 0 1 h₁ h₂ hp
+    bespokeSubleq_agrees_derived _ _ prog₂ 0 1 h₁ h₂ hp
   exact ⟨_, prog₂, m₁, m₂, h₁, h₂, e₁, e₂, e₃⟩
 
 end Langlib.Computability

@@ -201,8 +201,70 @@ Output:
 144
 ```
 
-Our examples are LangLib originals, drawn in the least painterly Piet
-style there is: a straight corridor of blocks between black walls, ending
-in a white codel and a full-height bar that no (DP, CC) attempt can leave.
-Mondrian may keep his royalties.
+A two-dimensional one. Same greeting, laid out as a stack of bars rather
+than a single corridor.
+
+```
+lake exe piet Langlib/Examples/Piet/hi-stacked.ppm
+```
+
+Output:
+
+```
+Hi
+```
+
+Any program can be rendered instead of run, which is how the pictures
+below were made.
+
+```
+lake exe piet --svg /tmp/add.svg --grid --scale 16 Langlib/Examples/Piet/add.ppm
+```
+
+Output:
+
+```
+piet: wrote 8x3 codels to /tmp/add.svg
+```
+
+## The examples, in colour
+
+Our examples are LangLib originals. The first three are drawn in the least
+painterly Piet style there is: a straight corridor of blocks between black
+walls, ending in a white codel and a full-height bar that no (DP, CC)
+attempt can leave. Mondrian may keep his royalties.
+
+**`add.ppm`**, eight codels by three. Read left to right: the pointer
+starts in the red column, and each colour change along the middle row is
+one command, ending in the white codel and the red bar that halts it.
+
+![add.ppm, eight codels by three](img/add.svg)
+
+**`square.ppm`** is the same skeleton with two codels changed, which is
+the whole difference between `a + b` and `a * a`.
+
+![square.ppm, eight codels by three](img/square.svg)
+
+**`hi.ppm`** shows what pushing a literal costs when the literal *is* the
+block. `push` pushes the size of the block it leaves, so 72 and 105 are a
+72-codel bar and a 105-codel bar, and the program is 180 codels wide and
+one codel tall in the middle. This is the honest picture of a Piet
+constant.
+
+![hi.ppm, 180 codels by three](img/hi.svg)
+
+**`hi-stacked.ppm`** computes the same two numbers instead of pushing
+them: `8 dup * 8 +` is 72 and `10 dup * 5 +` is 105, so the widest block
+is ten codels and the program fits in twelve by thirteen. The pointer
+starts on the white codel at the top left, slides right into the first
+bar, and then walks straight down: each bar's width is its value, and each
+colour change into the bar below is one command. The three-codel bar at
+the bottom is the terminator, entered at its middle so that its outer
+codels face black upwards and all eight exits fail.
+
+![hi-stacked.ppm, twelve codels by thirteen](img/hi-stacked.svg)
+
+The pictures are SVG, regenerated from the programs themselves with
+`lake exe piet --svg`, so they cannot drift from what the interpreter
+reads.
 

@@ -567,6 +567,19 @@ theorem counterState_onlyControl {l : Layout} {base : Tokens} {r n c : Nat}
     have hir : i ≠ r := ne_of_gt (lt_of_lt_of_le hr (control_ge_bound hi))
     simp [counterState, hb i hi, Finsupp.single_apply, hic, hir]
 
+theorem pairedState_onlyControl {l : Layout} {base : Tokens} {m r n c : Nat}
+    (hb : NoControl l base) (hm : m < l.regBound) (hr : r < l.regBound)
+    (hc : IsControl l c) : OnlyControl l c (pairedState base m r n c) := by
+  classical
+  have hcm : c ≠ m := ne_of_gt (lt_of_lt_of_le hm (control_ge_bound hc))
+  have hcr : c ≠ r := ne_of_gt (lt_of_lt_of_le hr (control_ge_bound hc))
+  constructor
+  · simp [pairedState, hb c hc, hcm, hcr]
+  · intro i hi hic
+    have him : i ≠ m := ne_of_gt (lt_of_lt_of_le hm (control_ge_bound hi))
+    have hir : i ≠ r := ne_of_gt (lt_of_lt_of_le hr (control_ge_bound hi))
+    simp [pairedState, hb i hi, hic, him, hir]
+
 theorem counterState_onlyControl_of_not {l : Layout} {base : Tokens} {r n c : Nat}
     (hb : NoControl l base) (hr : ¬IsControl l r) (hc : IsControl l c) :
     OnlyControl l c (counterState base r n c) := by
@@ -615,10 +628,10 @@ theorem scratch1_not_control (l : Layout) : ¬IsControl l l.scratch1 := by
   · unfold Layout.cleanBase at h
     omega
 
-theorem paired_cons_enabled {l : Layout} {base : Tokens} {owner m r n : Nat}
+theorem paired_cons_enabled {l : Layout} {base : Tokens} {owner next m r n : Nat}
     (hbase : NoControl l base) (ho : IsControl l owner)
     (hm : m < l.regBound) (hr : r < l.regBound) (hmr : m ≠ r) :
-    (srule [owner, l.scratch0, l.scratch1] [owner, m, r]).Enabled
+    (srule [next, l.scratch0, l.scratch1] [owner, m, r]).Enabled
       (pairedState base m r (n + 1) owner) := by
   classical
   have hom : owner ≠ m := ne_of_gt (lt_of_lt_of_le hm (control_ge_bound ho))
@@ -648,12 +661,58 @@ theorem paired_apply_cons (l : Layout) {base : Tokens}
     ext i
     simp only [pairedState, tokensOfList, Finsupp.add_apply, Finsupp.single_apply]
     by_cases him : i = m <;> by_cases hir : i = r <;>
-      simp [him, hir, hmr, eq_comm] <;> omega
+      subst_vars <;> simp_all [eq_comm] <;> omega
   rw [SRule.apply]
   change pairedState base m r (n + 1) owner - tokensOfList [owner, m, r] +
       tokensOfList [next, l.scratch0, l.scratch1] = _
   rw [hsplit, add_tsub_cancel_left]
   simp only [pairedState, tokensOfList]
+  ac_rfl
+
+theorem single_data_enabled {base : Tokens} {owner source next add : Nat}
+    (hsource : 1 ≤ base source) (hos : owner ≠ source) :
+    (srule [next, add] [owner, source]).Enabled
+      (base + Finsupp.single owner 1) := by
+  classical
+  unfold SRule.Enabled
+  rw [Finsupp.le_def]
+  intro i
+  simp only [srule, tokensOfList, Finsupp.add_apply, Finsupp.single_apply]
+  by_cases hio : i = owner <;> by_cases his : i = source <;>
+    subst_vars <;> simp_all [eq_comm] <;> omega
+
+theorem single_data_apply {base : Tokens} {owner source next add : Nat}
+    (hsource : 1 ≤ base source) (hos : owner ≠ source) :
+    (srule [next, add] [owner, source]).apply
+        (base + Finsupp.single owner 1) =
+      base - Finsupp.single source 1 + Finsupp.single add 1 +
+        Finsupp.single next 1 := by
+  classical
+  have hle : Finsupp.single source 1 ≤ base := by
+    rw [Finsupp.le_def]
+    intro i
+    simp only [Finsupp.single_apply]
+    by_cases his : i = source
+    · subst i; simpa using hsource
+    · simp [his, Ne.symm his]
+  have hbaseSplit : base =
+      (base - Finsupp.single source 1) + Finsupp.single source 1 :=
+    (tsub_add_cancel_of_le hle).symm
+  have hsplit : base + Finsupp.single owner 1 =
+      tokensOfList [owner, source] + (base - Finsupp.single source 1) := by
+    calc
+      base + Finsupp.single owner 1 =
+          ((base - Finsupp.single source 1) + Finsupp.single source 1) +
+            Finsupp.single owner 1 := congrArg (fun s => s + Finsupp.single owner 1) hbaseSplit
+      _ = tokensOfList [owner, source] +
+          (base - Finsupp.single source 1) := by
+        simp only [tokensOfList]
+        ac_rfl
+  rw [SRule.apply]
+  change (base + Finsupp.single owner 1) - tokensOfList [owner, source] +
+      tokensOfList [next, add] = _
+  rw [hsplit, add_tsub_cancel_left]
+  simp only [tokensOfList]
   ac_rfl
 
 theorem marker_injective_of_phase {l : Layout} {pc pc' phase phase' : Nat}
@@ -841,6 +900,18 @@ def drainRules (a b source : Nat) (adds : List Nat) (next : Nat) : List SRule :=
   [srule (b :: adds) [a, source], srule [next] [a],
    srule (a :: adds) [b, source], srule [next] [b]]
 
+/-- The ordered comparison prefix used by a nontrivial jump.  Pair rules
+must precede the one-sided and empty cases. -/
+def compareRules (l : Layout) (a b m r equal unequal : Nat) : List SRule :=
+  [srule [b, l.scratch0, l.scratch1] [a, m, r],
+   srule [unequal, l.scratch0] [a, m],
+   srule [unequal, l.scratch1] [a, r],
+   srule [equal] [a],
+   srule [a, l.scratch0, l.scratch1] [b, m, r],
+   srule [unequal, l.scratch0] [b, m],
+   srule [unequal, l.scratch1] [b, r],
+   srule [equal] [b]]
+
 theorem zeroRules_ownedIn (l : Layout) {a b r next : Nat}
     (ha : IsControl l a) (hb : IsControl l b) {q : SRule}
     (hq : q ∈ zeroRules a b r next) : q.OwnedIn l [a, b] := by
@@ -895,6 +966,295 @@ theorem addMany_noControl {l : Layout} {base : Tokens} {adds : List Nat} (n : Na
   | succ n ih =>
     rw [addMany]
     exact ih (noControl_add_tokensOfList hb ha)
+
+/-- When the two compared registers contain the same count, the ordered
+comparison prefix removes all pairs into scratch and selects `equal`. -/
+theorem compareRules_equal_steps (l : Layout) (base : Tokens)
+    (a b m r equal unequal n : Nat)
+    (hbase : NoControl l base) (hbm : base m = 0) (hbr : base r = 0)
+    (hm : m < l.regBound) (hr : r < l.regBound) (hmr : m ≠ r)
+    (ha : IsControl l a) (hb : IsControl l b)
+    (he : IsControl l equal) (hu : IsControl l unequal)
+    (hab : a ≠ b) (hae : a ≠ equal) (hbe : b ≠ equal) :
+    RulesSteps (compareRules l a b m r equal unequal)
+      (pairedState base m r n a)
+      (addMany base [l.scratch0, l.scratch1] n + Finsupp.single equal 1) := by
+  classical
+  have loop : ∀ k (base : Tokens),
+      NoControl l base → base m = 0 → base r = 0 →
+      RulesSteps (compareRules l a b m r equal unequal)
+          (pairedState base m r k a)
+          (addMany base [l.scratch0, l.scratch1] k + Finsupp.single equal 1) ∧
+      RulesSteps (compareRules l a b m r equal unequal)
+          (pairedState base m r k b)
+          (addMany base [l.scratch0, l.scratch1] k + Finsupp.single equal 1) := by
+    intro k
+    induction k with
+    | zero =>
+      intro current hcurrent hcm hcr
+      have hca : OnlyControl l a (pairedState current m r 0 a) := by
+        simpa [pairedState, counterState] using
+          counterState_onlyControl (base := current) (r := m) (n := 0)
+            (c := a) hcurrent hm ha
+      have hcb : OnlyControl l b (pairedState current m r 0 b) := by
+        simpa [pairedState, counterState] using
+          counterState_onlyControl (base := current) (r := m) (n := 0)
+            (c := b) hcurrent hm hb
+      have disabledM (c : Nat) (hc : IsControl l c) (produce rest : List Nat) :
+          ¬(srule produce (c :: m :: rest)).Enabled
+            (pairedState current m r 0 c) := by
+        intro h
+        have hv := Finsupp.le_def.mp h m
+        have hcm' : c ≠ m := ne_of_gt (lt_of_lt_of_le hm (control_ge_bound hc))
+        simp [SRule.Enabled, srule, pairedState, tokensOfList, hcm, hcr,
+          hcm', hmr] at hv
+      have disabledR (c : Nat) (hc : IsControl l c) (produce : List Nat) :
+          ¬(srule produce [c, r]).Enabled (pairedState current m r 0 c) := by
+        intro h
+        have hv := Finsupp.le_def.mp h r
+        have hcr' : c ≠ r := ne_of_gt (lt_of_lt_of_le hr (control_ge_bound hc))
+        simp [SRule.Enabled, srule, pairedState, tokensOfList, hcm, hcr,
+          hcr', hmr] at hv
+      have haFinish : (srule [equal] [a]).Enabled
+          (pairedState current m r 0 a) := by
+        simpa [pairedState, counterState] using
+          counter_finish_enabled (base := current) (r := m) (next := equal)
+            (hcurrent a ha)
+      have hbFinish : (srule [equal] [b]).Enabled
+          (pairedState current m r 0 b) := by
+        simpa [pairedState, counterState] using
+          counter_finish_enabled (base := current) (r := m) (next := equal)
+            (hcurrent b hb)
+      have haApply : (srule [equal] [a]).apply (pairedState current m r 0 a) =
+          current + Finsupp.single equal 1 := by
+        simpa [pairedState, counterState] using
+          counter_apply_finish (base := current) (r := m) (owner := a)
+            (next := equal) (hcurrent a ha) (hcurrent equal he) hae
+      have hbApply : (srule [equal] [b]).apply (pairedState current m r 0 b) =
+          current + Finsupp.single equal 1 := by
+        simpa [pairedState, counterState] using
+          counter_apply_finish (base := current) (r := m) (owner := b)
+            (next := equal) (hcurrent b hb) (hcurrent equal he) hbe
+      have stepA : RulesStep (compareRules l a b m r equal unequal)
+          (pairedState current m r 0 a) (current + Finsupp.single equal 1) := by
+        rw [compareRules]
+        simpa [haApply] using RulesStep.tail
+          (disabledM a ha [b, l.scratch0, l.scratch1] [r])
+          (RulesStep.tail (disabledM a ha [unequal, l.scratch0] [])
+            (RulesStep.tail (disabledR a ha [unequal, l.scratch1])
+              (RulesStep.head haFinish)))
+      have stepB : RulesStep (compareRules l a b m r equal unequal)
+          (pairedState current m r 0 b) (current + Finsupp.single equal 1) := by
+        have skipA (produce consumeData : List Nat) :
+            ¬(srule produce (a :: consumeData)).Enabled
+              (pairedState current m r 0 b) :=
+          enabled_false_of_other_control hcb ha hab
+        rw [compareRules]
+        simpa [hbApply] using RulesStep.tail (skipA _ [m, r])
+          (RulesStep.tail (skipA _ [m])
+            (RulesStep.tail (skipA _ [r])
+              (RulesStep.tail (skipA _ [])
+                (RulesStep.tail
+                  (disabledM b hb [a, l.scratch0, l.scratch1] [r])
+                  (RulesStep.tail (disabledM b hb [unequal, l.scratch0] [])
+                    (RulesStep.tail (disabledR b hb [unequal, l.scratch1])
+                      (RulesStep.head hbFinish)))))))
+      simpa [addMany] using And.intro
+        (Relation.ReflTransGen.single stepA)
+        (Relation.ReflTransGen.single stepB)
+    | succ k ih =>
+      intro current hcurrent hcm hcr
+      let nextBase := current + Finsupp.single l.scratch0 1 +
+        Finsupp.single l.scratch1 1
+      have hnextControl : NoControl l nextBase := by
+        have hnc := noControl_add_tokensOfList
+          (adds := [l.scratch0, l.scratch1]) hcurrent
+          (by intro i hi
+              simp only [List.mem_cons, List.not_mem_nil, or_false] at hi
+              rcases hi with rfl | rfl
+              · exact scratch0_not_control l
+              · exact scratch1_not_control l)
+        simpa [nextBase, tokensOfList, add_assoc] using hnc
+      have hnextM : nextBase m = 0 := by
+        simp [nextBase, hcm, show m ≠ l.scratch0 from by unfold Layout.scratch0; omega,
+          show m ≠ l.scratch1 from by
+            unfold Layout.scratch1 Layout.scratch0; omega]
+      have hnextR : nextBase r = 0 := by
+        simp [nextBase, hcr, show r ≠ l.scratch0 from by unfold Layout.scratch0; omega,
+          show r ≠ l.scratch1 from by
+            unfold Layout.scratch1 Layout.scratch0; omega]
+      have hih := ih nextBase hnextControl hnextM hnextR
+      have haPair := paired_cons_enabled (base := current) (owner := a) (next := b)
+        (m := m) (r := r) (n := k) hcurrent ha hm hr hmr
+      have hbPair := paired_cons_enabled (base := current) (owner := b) (next := a)
+        (m := m) (r := r) (n := k) hcurrent hb hm hr hmr
+      have haApply := paired_apply_cons l (base := current) (owner := a) (next := b)
+        (m := m) (r := r) (n := k) hcurrent ha hb hm hr hmr hab
+      have hbApply := paired_apply_cons l (base := current) (owner := b) (next := a)
+        (m := m) (r := r) (n := k) hcurrent hb ha hm hr hmr hab.symm
+      have stepA : RulesStep (compareRules l a b m r equal unequal)
+          (pairedState current m r (k + 1) a)
+          (pairedState nextBase m r k b) := by
+        rw [compareRules]
+        simpa [haApply, nextBase] using RulesStep.head haPair
+      have hcb := pairedState_onlyControl (base := current) (m := m) (r := r)
+        (n := k + 1) (c := b) hcurrent hm hr hb
+      have skipA : ¬(srule [b, l.scratch0, l.scratch1] [a, m, r]).Enabled
+          (pairedState current m r (k + 1) b) := by
+        apply enabled_false_of_other_control
+          (s := pairedState current m r (k + 1) b) hcb ha hab
+      have stepB : RulesStep (compareRules l a b m r equal unequal)
+          (pairedState current m r (k + 1) b)
+          (pairedState nextBase m r k a) := by
+        rw [compareRules]
+        simpa [hbApply] using RulesStep.tail skipA
+          (RulesStep.tail
+            (enabled_false_of_other_control hcb ha hab)
+            (RulesStep.tail
+              (enabled_false_of_other_control hcb ha hab)
+              (RulesStep.tail
+                (enabled_false_of_other_control hcb ha hab)
+                (RulesStep.head hbPair))))
+      simpa [addMany, nextBase, tokensOfList, add_assoc] using And.intro
+        (Relation.ReflTransGen.head stepA hih.2)
+        (Relation.ReflTransGen.head stepB hih.1)
+  exact (loop n base hbase hbm hbr).1
+
+/-- If the left register has a positive unmatched excess, comparison removes
+all common pairs and selects `unequal`, moving the tested excess token into
+`scratch0` so restoration remains lossless. -/
+theorem compareRules_left_steps (l : Layout) (base : Tokens)
+    (a b m r equal unequal n : Nat)
+    (hbase : NoControl l base) (hbm : 1 ≤ base m) (hbr : base r = 0)
+    (hm : m < l.regBound) (hr : r < l.regBound) (hmr : m ≠ r)
+    (ha : IsControl l a) (hb : IsControl l b) (hu : IsControl l unequal)
+    (hab : a ≠ b) :
+    RulesSteps (compareRules l a b m r equal unequal)
+      (pairedState base m r n a)
+      (addMany base [l.scratch0, l.scratch1] n - Finsupp.single m 1 +
+        Finsupp.single l.scratch0 1 + Finsupp.single unequal 1) := by
+  classical
+  have loop : ∀ k (current : Tokens),
+      NoControl l current → 1 ≤ current m → current r = 0 →
+      RulesSteps (compareRules l a b m r equal unequal)
+          (pairedState current m r k a)
+          (addMany current [l.scratch0, l.scratch1] k - Finsupp.single m 1 +
+            Finsupp.single l.scratch0 1 + Finsupp.single unequal 1) ∧
+      RulesSteps (compareRules l a b m r equal unequal)
+          (pairedState current m r k b)
+          (addMany current [l.scratch0, l.scratch1] k - Finsupp.single m 1 +
+            Finsupp.single l.scratch0 1 + Finsupp.single unequal 1) := by
+    intro k
+    induction k with
+    | zero =>
+      intro current hcurrent hcm hcr
+      have pairDisabled (c : Nat) (hc : IsControl l c) (next : Nat) :
+          ¬(srule [next, l.scratch0, l.scratch1] [c, m, r]).Enabled
+            (pairedState current m r 0 c) := by
+        intro h
+        have hv := Finsupp.le_def.mp h r
+        have hcr' : c ≠ r := ne_of_gt (lt_of_lt_of_le hr (control_ge_bound hc))
+        simp [SRule.Enabled, srule, pairedState, tokensOfList, hcr, hcr', hmr] at hv
+      have leftEnabled (c : Nat) (hc : IsControl l c) :
+          (srule [unequal, l.scratch0] [c, m]).Enabled
+            (pairedState current m r 0 c) := by
+        simpa [pairedState] using
+          single_data_enabled (base := current) (owner := c) (source := m)
+            (next := unequal) (add := l.scratch0) hcm
+            (ne_of_gt (lt_of_lt_of_le hm
+              (control_ge_bound hc)))
+      have leftApply (c : Nat) (hc : IsControl l c) :
+          (srule [unequal, l.scratch0] [c, m]).apply
+              (pairedState current m r 0 c) =
+            current - Finsupp.single m 1 + Finsupp.single l.scratch0 1 +
+              Finsupp.single unequal 1 := by
+        simpa [pairedState] using
+          single_data_apply (base := current) (owner := c) (source := m)
+            (next := unequal) (add := l.scratch0) hcm
+            (ne_of_gt (lt_of_lt_of_le hm (control_ge_bound hc)))
+      have haLeft := leftEnabled a ha
+      have hbLeft := leftEnabled b hb
+      have haApply := leftApply a ha
+      have hbApply := leftApply b hb
+      have stepA : RulesStep (compareRules l a b m r equal unequal)
+          (pairedState current m r 0 a)
+          (current - Finsupp.single m 1 + Finsupp.single l.scratch0 1 +
+            Finsupp.single unequal 1) := by
+        rw [compareRules]
+        simpa [haApply] using RulesStep.tail (pairDisabled a ha b)
+          (RulesStep.head haLeft)
+      have hcb := pairedState_onlyControl (base := current) (m := m) (r := r)
+        (n := 0) (c := b) hcurrent hm hr hb
+      have skipA (produce consumeData : List Nat) :
+          ¬(srule produce (a :: consumeData)).Enabled
+            (pairedState current m r 0 b) :=
+        enabled_false_of_other_control hcb ha hab
+      have stepB : RulesStep (compareRules l a b m r equal unequal)
+          (pairedState current m r 0 b)
+          (current - Finsupp.single m 1 + Finsupp.single l.scratch0 1 +
+            Finsupp.single unequal 1) := by
+        rw [compareRules]
+        simpa [hbApply] using RulesStep.tail (skipA _ [m, r])
+          (RulesStep.tail (skipA _ [m])
+            (RulesStep.tail (skipA _ [r])
+              (RulesStep.tail (skipA _ [])
+                (RulesStep.tail (pairDisabled b hb a) (RulesStep.head hbLeft)))))
+      simpa [addMany] using And.intro
+        (Relation.ReflTransGen.single stepA)
+        (Relation.ReflTransGen.single stepB)
+    | succ k ih =>
+      intro current hcurrent hcm hcr
+      let nextBase := current + Finsupp.single l.scratch0 1 +
+        Finsupp.single l.scratch1 1
+      have hnextControl : NoControl l nextBase := by
+        have hnc := noControl_add_tokensOfList
+          (adds := [l.scratch0, l.scratch1]) hcurrent
+          (by intro i hi
+              simp only [List.mem_cons, List.not_mem_nil, or_false] at hi
+              rcases hi with rfl | rfl
+              · exact scratch0_not_control l
+              · exact scratch1_not_control l)
+        simpa [nextBase, tokensOfList, add_assoc] using hnc
+      have hnextM : 1 ≤ nextBase m := by
+        simp [nextBase, show m ≠ l.scratch0 from by unfold Layout.scratch0; omega,
+          show m ≠ l.scratch1 from by
+            unfold Layout.scratch1 Layout.scratch0; omega, hcm]
+      have hnextR : nextBase r = 0 := by
+        simp [nextBase, hcr, show r ≠ l.scratch0 from by unfold Layout.scratch0; omega,
+          show r ≠ l.scratch1 from by
+            unfold Layout.scratch1 Layout.scratch0; omega]
+      have hih := ih nextBase hnextControl hnextM hnextR
+      have haPair := paired_cons_enabled (base := current) (owner := a) (next := b)
+        (m := m) (r := r) (n := k) hcurrent ha hm hr hmr
+      have hbPair := paired_cons_enabled (base := current) (owner := b) (next := a)
+        (m := m) (r := r) (n := k) hcurrent hb hm hr hmr
+      have haApply := paired_apply_cons l (base := current) (owner := a) (next := b)
+        (m := m) (r := r) (n := k) hcurrent ha hb hm hr hmr hab
+      have hbApply := paired_apply_cons l (base := current) (owner := b) (next := a)
+        (m := m) (r := r) (n := k) hcurrent hb ha hm hr hmr hab.symm
+      have stepA : RulesStep (compareRules l a b m r equal unequal)
+          (pairedState current m r (k + 1) a)
+          (pairedState nextBase m r k b) := by
+        rw [compareRules]
+        simpa [haApply, nextBase] using RulesStep.head haPair
+      have hcb := pairedState_onlyControl (base := current) (m := m) (r := r)
+        (n := k + 1) (c := b) hcurrent hm hr hb
+      have skipA (produce consumeData : List Nat) :
+          ¬(srule produce (a :: consumeData)).Enabled
+            (pairedState current m r (k + 1) b) :=
+        enabled_false_of_other_control hcb ha hab
+      have stepB : RulesStep (compareRules l a b m r equal unequal)
+          (pairedState current m r (k + 1) b)
+          (pairedState nextBase m r k a) := by
+        rw [compareRules]
+        simpa [hbApply] using RulesStep.tail (skipA _ [m, r])
+          (RulesStep.tail (skipA _ [m])
+            (RulesStep.tail (skipA _ [r])
+              (RulesStep.tail (skipA _ []) (RulesStep.head hbPair))))
+      simpa [addMany, nextBase, tokensOfList, add_assoc] using And.intro
+        (Relation.ReflTransGen.head stepA hih.2)
+        (Relation.ReflTransGen.head stepB hih.1)
+  exact (loop n base hbase hbm hbr).1
 
 theorem apply_cons_many {base : Tokens} {owner source next : Nat} {adds : List Nat}
     {n : Nat} (howner : base owner = 0) (hsource : base source = 0)
