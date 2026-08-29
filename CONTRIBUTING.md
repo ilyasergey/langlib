@@ -50,8 +50,11 @@ A complete language contribution consists of:
      prove that it simulates: whenever the source machine halts, the
      translated program halts with output encoding the same result. A
      translation sketch in prose is enough for the spec page; the proof
-     belongs in the `proofs/` package and is tracked in `docs/PLAN.md`,
-     Stage 8.
+     belongs in `Langlib/Computability/` and is tracked in `docs/PLAN.md`,
+     Stage 8. `docs/agent-brief-completeness.md` is a ready-made brief for
+     that work, including the two mistakes people make: overclaiming what
+     the theorem says, and choosing a representation that caps the
+     representable range.
    * **Not Turing complete** means you can exhibit a bound: a finite state
      space, an absent construct (no loops, no unbounded storage), or a
      decidable halting argument. Say which, and prove it if you can. These

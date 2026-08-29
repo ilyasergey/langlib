@@ -139,6 +139,10 @@ exist it describes what was built, and for the rest it is a concrete plan
 * [ROADMAP.md](ROADMAP.md): candidate languages and instructions for adding
   one.
 * [RELATED.md](RELATED.md): related efforts elsewhere.
+* [agent-brief-completeness.md](agent-brief-completeness.md): a reusable
+  prompt for proving a language Turing complete and thereby obtaining its
+  verified compiler. Copy the block, replace the language name, hand it to
+  an agent.
 * [certified-compilation.md](certified-compilation.md): the plan for
   verified compilers via the URM, with the dependency graph and the
   argument for keeping the hand-written backends alongside them.
