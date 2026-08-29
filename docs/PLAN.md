@@ -6,13 +6,13 @@ add a dated entry to `docs/PROGRESS.md`.
 
 Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 
-## Stage 0: repository scaffolding `[~]`
+## Stage 0: repository scaffolding `[x]`
 
 Lake project on Lean 4.33, git repo, README, CLAUDE.md, LICENSE (Apache 2.0),
 CONTRIBUTING, .gitignore, docs skeleton (this plan, PROGRESS, ROADMAP,
 RELATED).
 
-## Stage 1: language documentation `[ ]`
+## Stage 1: language documentation `[~]`
 
 Write `docs/<langname>/spec.md` for the initial nine languages:
 
@@ -34,7 +34,7 @@ Each spec must pin down the exact semantics our interpreter implements
 (cell width, EOF, bounds, errors), with sources. Also: `docs/ROADMAP.md`
 (candidate languages + instructions), `docs/RELATED.md` (related work).
 
-## Stage 2: interpreters `[ ]`
+## Stage 2: interpreters `[~]`
 
 Shared infrastructure in `Langlib/Common/`: pure fuel-based execution model
 (`Outcome`), byte I/O, parser helpers, golden-test harness. Then, per
@@ -54,7 +54,7 @@ git diffs and tests. Piet semantics per Morgan-Mar's spec (colour blocks,
 DP/CC, the 17-operation colour wheel, codel size flag); brainloller is a
 pixel-decoder front end onto the brainfuck core.
 
-## Stage 3: WTF front end `[ ]`
+## Stage 3: WTF front end `[x]`
 
 WTF (Well-Typed Formalism, `.wtf`), a small imperative language inspired by
 Velvet (https://github.com/verse-lab/velvet), as a deep embedding:
@@ -72,7 +72,7 @@ programs can later be compiled to it (restricted fragment, relational
 compilation). Avoid features that would block that: keep expressions total,
 state first-order, I/O explicit.
 
-## Stage 4: compilers from WTF `[ ]`
+## Stage 4: compilers from WTF `[~]`
 
 * WTF -> brainfuck (cell-mapped variables, while via `[ ]`).
 * WTF -> ook (via the BF isomorphism).
@@ -95,13 +95,16 @@ etc.) to `.wtf`, run them through every compiler, and extend `lake test` to
 cover the full matrix. Differential-test the esolang interpreters against
 non-Lean references where installable.
 
-## Stage 6: verification pipeline `[ ]`
+## Stage 6: verification pipeline `[~]`
 
-Design in `docs/verification.md`: a common simulation-style correctness
-statement relating the WTF small-step/fuel semantics to each target's
-semantics through a compiler-specific refinement relation; factor the shared
-parts (I/O event traces, fuel monotonicity) into `Langlib/Common/`. Start
-with WTF -> subleq or WTF -> whitespace (simplest relations), then BF.
+Design written: see [verification.md](verification.md). It fixes the
+shared correctness statement (forward simulation on halting runs, with
+observable behaviour a byte stream), the per-backend proof structure (a
+state relation plus per-construct simulation lemmas over shared fuel
+machinery in `Langlib/Common/`), and the order: whitespace, then subleq,
+then brainfuck, with ook free from brainfuck. No proofs yet; the
+differential compiler tests are the current evidence, and
+`verification.md` carries the scoreboard.
 
 ## Stage 7: website `[ ]`
 
