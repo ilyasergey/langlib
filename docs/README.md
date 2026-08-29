@@ -86,6 +86,9 @@ exist it describes what was built, and for the rest it is a concrete plan
 * [ROADMAP.md](ROADMAP.md): candidate languages and instructions for adding
   one.
 * [RELATED.md](RELATED.md): related efforts elsewhere.
+* [certified-compilation.md](certified-compilation.md): the plan for
+  verified compilers via the URM, with the dependency graph and the
+  argument for keeping the hand-written backends alongside them.
 * [verification.md](verification.md): the compiler verification pipeline,
   including the split between derived compilers (correct by construction,
   obtained from a completeness proof) and effective ones (hand-written,

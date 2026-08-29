@@ -2,6 +2,30 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-09-01 (later): the certified compilation plan
+
+* `docs/certified-compilation.md` written: the pipeline
+  (Turpentine -> URM -> target), the fragment it can accept, a dependency
+  graph with dashed arrows for planned work, and the order of construction.
+  Everything hangs off one missing piece, `compileToURM`, because the
+  second arrow is free: it is the `compile` field of a language's
+  `TuringComplete` instance, which exists as soon as somebody proves that
+  language complete.
+* Verified compilation is being modelled as a bundled
+  `TurpentineCompiler L` **structure, not a class**, precisely because we
+  want several compilers per target coexisting (a derived one and an
+  effective one) and instance resolution is built to pick exactly one.
+  Agreement between any two instances is then a theorem about the
+  interface rather than a testing practice.
+* Recommendation recorded: **keep both kinds of compiler**. The effective
+  whitespace backend compiles `gcd.turp` to 532 bytes and accepts the
+  whole language including I/O and negative integers; the derived one will
+  be orders of magnitude larger and accepts only the I/O-free non-negative
+  fragment. Neither subsumes the other.
+* `scripts/axioms.lean` added, closing a gap from the previous report: it
+  prints the axiom dependencies of every completeness result, since a
+  theorem resting on `sorryAx` type-checks perfectly well.
+
 ## 2026-09-01: Whitespace proved Turing complete
 
 The first entry in the `TC proved` column.

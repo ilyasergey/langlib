@@ -384,7 +384,11 @@ fragment for deadfish, for instance).
 The relationship is stronger than "both are worth doing", though, and
 Stage 9 is about exploiting it.
 
-## Stage 9: derived compilers, and effective ones `[ ]`
+## Stage 9: derived compilers, and effective ones `[~]`
+
+The engineering plan, the dependency graph, and the `TurpentineCompiler`
+interface are in [certified-compilation.md](certified-compilation.md).
+
 
 ### The observation
 
