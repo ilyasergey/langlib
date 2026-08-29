@@ -955,6 +955,394 @@ theorem runCode_dispatchFrom_list (P : Program) (regs : List Int)
           dispatchFrom updated.length pc next flag (i + 1) rest by rw [hulen]]
       simpa [selected, updated] using htail
 
+/-! ## The dispatcher computes one URM step
+
+`runCode_dispatchFrom_list` says what a dispatcher pass does to the stack.
+This section says what that means: with the register prefix holding a URM
+register file and the three control slots holding the program counter, the
+fall-through counter and the guard, one pass performs exactly one
+`Cslib.URM.Step`. -/
+
+/-- The dispatcher's stack for a URM register file: one slot per register,
+then the program counter, the fall-through counter and the guard. -/
+def stackOf (base : Nat) (regs : Nat → Nat) (pc next flag : Int) : List Int :=
+  (List.range base).map (fun r => (regs r : Int)) ++ [pc, next, flag]
+
+@[simp] theorem stackOf_length (base : Nat) (regs : Nat → Nat)
+    (pc next flag : Int) : (stackOf base regs pc next flag).length = base + 3 := by
+  simp [stackOf]
+
+@[simp] theorem stackOf_getElem_reg (base : Nat) (regs : Nat → Nat)
+    (pc next flag : Int) (r : Nat) (hr : r < base) :
+    (stackOf base regs pc next flag)[r]'(by simp only [stackOf_length]; omega) = (regs r : Int) := by
+  simp only [stackOf]
+  rw [List.getElem_append_left (by simpa using hr)]
+  simp
+
+@[simp] theorem stackOf_getElem_pc (base : Nat) (regs : Nat → Nat)
+    (pc next flag : Int) :
+    (stackOf base regs pc next flag)[base]'(by simp only [stackOf_length]; omega) = pc := by
+  simp only [stackOf]
+  rw [List.getElem_append_right (by simp)]
+  simp
+
+@[simp] theorem stackOf_getElem_next (base : Nat) (regs : Nat → Nat)
+    (pc next flag : Int) :
+    (stackOf base regs pc next flag)[base + 1]'(by simp only [stackOf_length]; omega) = next := by
+  simp only [stackOf]
+  rw [List.getElem_append_right (by simp)]
+  simp
+
+@[simp] theorem stackOf_getElem_flag (base : Nat) (regs : Nat → Nat)
+    (pc next flag : Int) :
+    (stackOf base regs pc next flag)[base + 2]'(by simp only [stackOf_length]; omega) = flag := by
+  simp only [stackOf]
+  rw [List.getElem_append_right (by simp)]
+  simp
+
+theorem stackOf_getD_reg (base : Nat) (regs : Nat → Nat)
+    (pc next flag : Int) (r : Nat) (hr : r < base) :
+    (stackOf base regs pc next flag).getD r 0 = (regs r : Int) := by
+  rw [List.getD_eq_getElem?_getD,
+    List.getElem?_eq_getElem (i := r) (by simp only [stackOf_length]; omega)]
+  simpa using stackOf_getElem_reg base regs pc next flag r hr
+
+theorem stackOf_getD_pc (base : Nat) (regs : Nat → Nat)
+    (pc next flag : Int) : (stackOf base regs pc next flag).getD base 0 = pc := by
+  rw [List.getD_eq_getElem?_getD,
+    List.getElem?_eq_getElem (i := base) (by simp only [stackOf_length]; omega)]
+  simpa using stackOf_getElem_pc base regs pc next flag
+
+theorem stackOf_getD_next (base : Nat) (regs : Nat → Nat)
+    (pc next flag : Int) :
+    (stackOf base regs pc next flag).getD (base + 1) 0 = next := by
+  rw [List.getD_eq_getElem?_getD,
+    List.getElem?_eq_getElem (i := base + 1) (by simp only [stackOf_length]; omega)]
+  simpa using stackOf_getElem_next base regs pc next flag
+
+theorem stackOf_getD_flag (base : Nat) (regs : Nat → Nat)
+    (pc next flag : Int) :
+    (stackOf base regs pc next flag).getD (base + 2) 0 = flag := by
+  rw [List.getD_eq_getElem?_getD,
+    List.getElem?_eq_getElem (i := base + 2) (by simp only [stackOf_length]; omega)]
+  simpa using stackOf_getElem_flag base regs pc next flag
+
+theorem stackOf_set_reg (base : Nat) (regs : Nat → Nat) (pc next flag : Int)
+    (r v : Nat) (hr : r < base) :
+    (stackOf base regs pc next flag).set r (v : Int) =
+      stackOf base (Function.update regs r v) pc next flag := by
+  apply List.ext_getElem
+  · simp
+  · intro i h1 h2
+    simp only [stackOf, List.getElem_set]
+    by_cases hi : i < base
+    · rw [List.getElem_append_left (by simpa using hi),
+        List.getElem_append_left (by simpa using hi)]
+      simp only [List.getElem_map, List.getElem_range]
+      by_cases hir : r = i
+      · subst hir
+        simp
+      · rw [if_neg (by omega)]
+        rw [Function.update_of_ne (by omega)]
+    · rw [List.getElem_append_right (by simpa using Nat.le_of_not_lt hi),
+        List.getElem_append_right (by simpa using Nat.le_of_not_lt hi)]
+      rw [if_neg (by omega)]
+      simp
+
+theorem stackOf_set_pc (base : Nat) (regs : Nat → Nat) (pc next flag v : Int) :
+    (stackOf base regs pc next flag).set base v =
+      stackOf base regs v next flag := by
+  simp only [stackOf, List.set_append, List.length_map, List.length_range]
+  rw [if_neg (by omega)]
+  simp
+
+theorem stackOf_set_next (base : Nat) (regs : Nat → Nat) (pc next flag v : Int) :
+    (stackOf base regs pc next flag).set (base + 1) v =
+      stackOf base regs pc v flag := by
+  simp only [stackOf, List.set_append, List.length_map, List.length_range]
+  rw [if_neg (by omega)]
+  have h : base + 1 - base = 1 := by omega
+  rw [h]
+  simp
+
+theorem stackOf_set_flag (base : Nat) (regs : Nat → Nat) (pc next flag v : Int) :
+    (stackOf base regs pc next flag).set (base + 2) v =
+      stackOf base regs pc next v := by
+  simp only [stackOf, List.set_append, List.length_map, List.length_range]
+  rw [if_neg (by omega)]
+  have h : base + 2 - base = 2 := by omega
+  rw [h]
+  simp
+
+/-- Overwriting a register with what it already holds changes nothing. -/
+private theorem update_self_eq (regs : Nat → Nat) (r : Nat) :
+    Function.update regs r (regs r) = regs := by
+  funext x
+  by_cases h : x = r
+  · subst h; simp
+  · simp [Function.update_of_ne h]
+
+/-- A guarded instruction whose guard is zero changes nothing. -/
+theorem guardedUpdate_of_flag_zero (base : Nat) (instr : Cslib.URM.Instr)
+    (hb : InstrBelow base instr) (regs : Nat → Nat) (pc next : Int) :
+    guardedUpdate (base + 1) (base + 2) instr (stackOf base regs pc next 0) =
+      stackOf base regs pc next 0 := by
+  cases instr with
+  | Z r =>
+      simp only [InstrBelow] at hb
+      have hval : boolNotInt ((stackOf base regs pc next 0).getD (base + 2) 0) *
+          (stackOf base regs pc next 0).getD r 0 = ((regs r : Nat) : Int) := by
+        rw [stackOf_getD_flag, stackOf_getD_reg base regs pc next 0 r hb]
+        simp [boolNotInt]
+      simp only [guardedUpdate, hval]
+      rw [stackOf_set_reg base regs pc next 0 r (regs r) hb, update_self_eq]
+  | S r =>
+      simp only [InstrBelow] at hb
+      have hval : (stackOf base regs pc next 0).getD r 0 +
+          (stackOf base regs pc next 0).getD (base + 2) 0 = ((regs r : Nat) : Int) := by
+        rw [stackOf_getD_flag, stackOf_getD_reg base regs pc next 0 r hb]
+        simp
+      simp only [guardedUpdate, hval]
+      rw [stackOf_set_reg base regs pc next 0 r (regs r) hb, update_self_eq]
+  | T m r =>
+      obtain ⟨hm, hr⟩ := hb
+      have hval : (stackOf base regs pc next 0).getD r 0 +
+          (stackOf base regs pc next 0).getD (base + 2) 0 *
+            ((stackOf base regs pc next 0).getD m 0 -
+              (stackOf base regs pc next 0).getD r 0) = ((regs r : Nat) : Int) := by
+        rw [stackOf_getD_flag, stackOf_getD_reg base regs pc next 0 r hr,
+          stackOf_getD_reg base regs pc next 0 m hm]
+        simp
+      simp only [guardedUpdate, hval]
+      rw [stackOf_set_reg base regs pc next 0 r (regs r) hr, update_self_eq]
+  | J m r q =>
+      obtain ⟨hm, hr⟩ := hb
+      have h1 : boolNotInt ((stackOf base regs pc next 0).getD m 0 -
+          (stackOf base regs pc next 0).getD r 0) *
+          (stackOf base regs pc next 0).getD (base + 2) 0 = 0 := by
+        rw [stackOf_getD_flag]
+        simp
+      simp only [guardedUpdate, h1]
+      rw [stackOf_set_flag]
+      have h2 : boolNotInt ((stackOf base regs pc next 0).getD (base + 2) 0) *
+          (stackOf base regs pc next 0).getD (base + 1) 0 +
+          (q : Int) * (stackOf base regs pc next 0).getD (base + 2) 0 = next := by
+        rw [stackOf_getD_flag, stackOf_getD_next]
+        simp [boolNotInt]
+      rw [h2, stackOf_set_next]
+
+/-- Dispatcher passes compose along the program list. -/
+theorem dispatchUpdate_append (pc next flag : Nat) :
+    ∀ (a b : Program) (i : Nat) (regs : List Int),
+      dispatchUpdate pc next flag i (a ++ b) regs =
+        dispatchUpdate pc next flag (i + a.length) b
+          (dispatchUpdate pc next flag i a regs)
+  | [], b, i, regs => by simp [dispatchUpdate]
+  | x :: a, b, i, regs => by
+      simp only [List.cons_append, dispatchUpdate]
+      rw [dispatchUpdate_append pc next flag a b (i + 1) _]
+      simp [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+
+/-- A run of instructions none of which the program counter selects leaves
+the register file, the program counter and the fall-through counter alone. -/
+theorem dispatchUpdate_miss (base : Nat) :
+    ∀ (rest : Program) (i : Nat) (regs : Nat → Nat) (pc next flag : Int),
+      (∀ x ∈ rest, InstrBelow base x) →
+      (∀ j, j < rest.length → pc ≠ ((i + j : Nat) : Int)) →
+      ∃ f, dispatchUpdate base (base + 1) (base + 2) i rest
+          (stackOf base regs pc next flag) = stackOf base regs pc next f
+  | [], i, regs, pc, next, flag, _, _ => ⟨flag, by simp [dispatchUpdate]⟩
+  | instr :: rest, i, regs, pc, next, flag, hbelow, hmiss => by
+      have hne : pc ≠ (i : Int) := by simpa using hmiss 0 (by simp)
+      simp only [dispatchUpdate, stackOf_getD_pc]
+      rw [if_neg hne, stackOf_set_flag]
+      rw [guardedUpdate_of_flag_zero base instr (hbelow instr (by simp)) regs pc next]
+      exact dispatchUpdate_miss base rest (i + 1) regs pc next 0
+        (fun x hx => hbelow x (by simp [hx]))
+        (fun j hj => by
+          have := hmiss (j + 1) (by simpa using hj)
+          simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using this)
+
+/-! ### The selected instruction -/
+
+theorem guardedUpdate_Z (base r : Nat) (hr : r < base) (regs : Nat → Nat)
+    (pc next : Int) :
+    guardedUpdate (base + 1) (base + 2) (.Z r) (stackOf base regs pc next 1) =
+      stackOf base (Function.update regs r 0) pc next 1 := by
+  have hval : boolNotInt ((stackOf base regs pc next 1).getD (base + 2) 0) *
+      (stackOf base regs pc next 1).getD r 0 = ((0 : Nat) : Int) := by
+    rw [stackOf_getD_flag, stackOf_getD_reg base regs pc next 1 r hr]
+    simp [boolNotInt]
+  simp only [guardedUpdate, hval]
+  rw [stackOf_set_reg base regs pc next 1 r 0 hr]
+
+theorem guardedUpdate_S (base r : Nat) (hr : r < base) (regs : Nat → Nat)
+    (pc next : Int) :
+    guardedUpdate (base + 1) (base + 2) (.S r) (stackOf base regs pc next 1) =
+      stackOf base (Function.update regs r (regs r + 1)) pc next 1 := by
+  have hval : (stackOf base regs pc next 1).getD r 0 +
+      (stackOf base regs pc next 1).getD (base + 2) 0 =
+        ((regs r + 1 : Nat) : Int) := by
+    rw [stackOf_getD_flag, stackOf_getD_reg base regs pc next 1 r hr]
+    omega
+  simp only [guardedUpdate, hval]
+  rw [stackOf_set_reg base regs pc next 1 r (regs r + 1) hr]
+
+theorem guardedUpdate_T (base m r : Nat) (hm : m < base) (hr : r < base)
+    (regs : Nat → Nat) (pc next : Int) :
+    guardedUpdate (base + 1) (base + 2) (.T m r) (stackOf base regs pc next 1) =
+      stackOf base (Function.update regs r (regs m)) pc next 1 := by
+  have hval : (stackOf base regs pc next 1).getD r 0 +
+      (stackOf base regs pc next 1).getD (base + 2) 0 *
+        ((stackOf base regs pc next 1).getD m 0 -
+          (stackOf base regs pc next 1).getD r 0) = ((regs m : Nat) : Int) := by
+    rw [stackOf_getD_flag, stackOf_getD_reg base regs pc next 1 r hr,
+      stackOf_getD_reg base regs pc next 1 m hm]
+    omega
+  simp only [guardedUpdate, hval]
+  rw [stackOf_set_reg base regs pc next 1 r (regs m) hr]
+
+theorem guardedUpdate_J_eq (base m r q : Nat) (hm : m < base) (hr : r < base)
+    (regs : Nat → Nat) (heq : regs m = regs r) (pc next : Int) :
+    guardedUpdate (base + 1) (base + 2) (.J m r q) (stackOf base regs pc next 1) =
+      stackOf base regs pc (q : Int) 1 := by
+  have h1 : boolNotInt ((stackOf base regs pc next 1).getD m 0 -
+      (stackOf base regs pc next 1).getD r 0) *
+      (stackOf base regs pc next 1).getD (base + 2) 0 = 1 := by
+    rw [stackOf_getD_flag, stackOf_getD_reg base regs pc next 1 r hr,
+      stackOf_getD_reg base regs pc next 1 m hm]
+    rw [show ((regs m : Nat) : Int) - ((regs r : Nat) : Int) = 0 by omega]
+    simp [boolNotInt]
+  simp only [guardedUpdate, h1]
+  rw [stackOf_set_flag]
+  have h2 : boolNotInt ((stackOf base regs pc next 1).getD (base + 2) 0) *
+      (stackOf base regs pc next 1).getD (base + 1) 0 +
+      (q : Int) * (stackOf base regs pc next 1).getD (base + 2) 0 = (q : Int) := by
+    rw [stackOf_getD_flag, stackOf_getD_next]
+    simp [boolNotInt]
+  rw [h2, stackOf_set_next]
+
+theorem guardedUpdate_J_ne (base m r q : Nat) (hm : m < base) (hr : r < base)
+    (regs : Nat → Nat) (hne : regs m ≠ regs r) (pc next : Int) :
+    guardedUpdate (base + 1) (base + 2) (.J m r q) (stackOf base regs pc next 1) =
+      stackOf base regs pc next 0 := by
+  have h1 : boolNotInt ((stackOf base regs pc next 1).getD m 0 -
+      (stackOf base regs pc next 1).getD r 0) *
+      (stackOf base regs pc next 1).getD (base + 2) 0 = 0 := by
+    rw [stackOf_getD_flag, stackOf_getD_reg base regs pc next 1 r hr,
+      stackOf_getD_reg base regs pc next 1 m hm]
+    rw [show boolNotInt (((regs m : Nat) : Int) - ((regs r : Nat) : Int)) = 0 by
+      simp only [boolNotInt]
+      rw [if_neg (by omega)]]
+    simp
+  simp only [guardedUpdate, h1]
+  rw [stackOf_set_flag]
+  have h2 : boolNotInt ((stackOf base regs pc next 0).getD (base + 2) 0) *
+      (stackOf base regs pc next 0).getD (base + 1) 0 +
+      (q : Int) * (stackOf base regs pc next 0).getD (base + 2) 0 = next := by
+    rw [stackOf_getD_flag, stackOf_getD_next]
+    simp [boolNotInt]
+  rw [h2, stackOf_set_next]
+
+/-- Split a program at the instruction its program counter selects. -/
+private theorem split_at_getElem : ∀ (l : Program) (i : Nat) (x : Cslib.URM.Instr),
+    l[i]? = some x → l = l.take i ++ x :: l.drop (i + 1)
+  | [], i, x, h => by simp at h
+  | y :: l, 0, x, h => by
+      simp only [List.getElem?_cons_zero, Option.some.injEq] at h
+      subst h
+      simp
+  | y :: l, i + 1, x, h => by
+      simp only [List.getElem?_cons_succ] at h
+      have ih := split_at_getElem l i x h
+      simp only [List.take_succ_cons, List.drop_succ_cons, List.cons_append]
+      exact congrArg (y :: ·) ih
+
+/-- The dispatcher step at the index the program counter selects. -/
+theorem dispatchUpdate_cons_hit (base i : Nat) (instr : Cslib.URM.Instr)
+    (rest : Program) (regs : Nat → Nat) (next flag : Int) :
+    dispatchUpdate base (base + 1) (base + 2) i (instr :: rest)
+        (stackOf base regs (i : Int) next flag) =
+      dispatchUpdate base (base + 1) (base + 2) (i + 1) rest
+        (guardedUpdate (base + 1) (base + 2) instr
+          (stackOf base regs (i : Int) next 1)) := by
+  simp [dispatchUpdate, stackOf_set_flag]
+
+/-- One dispatcher pass performs exactly one URM step on the stack model. -/
+theorem dispatchUpdate_step (base : Nat) (P : Program) {u u' : Cslib.URM.State}
+    (hstep : Cslib.URM.Step P u u') (hbelow : ∀ x ∈ P, InstrBelow base x)
+    (flag : Int) :
+    ∃ f, dispatchUpdate base (base + 1) (base + 2) 0 P
+        (stackOf base u.regs (u.pc : Int) ((u.pc : Int) + 1) flag) =
+      stackOf base u'.regs (u.pc : Int) (u'.pc : Int) f := by
+  have hsplit : ∀ (instr : Cslib.URM.Instr), P[u.pc]? = some instr →
+      ∀ (regs : Nat → Nat) (pcOut : Int) (f : Int),
+      guardedUpdate (base + 1) (base + 2) instr
+          (stackOf base u.regs (u.pc : Int) ((u.pc : Int) + 1) 1) =
+        stackOf base regs (u.pc : Int) pcOut f →
+      ∃ f', dispatchUpdate base (base + 1) (base + 2) 0 P
+          (stackOf base u.regs (u.pc : Int) ((u.pc : Int) + 1) flag) =
+        stackOf base regs (u.pc : Int) pcOut f' := by
+    intro instr hget regs pcOut f hupd
+    have hlen : u.pc < P.length := by
+      by_contra hcon
+      rw [List.getElem?_eq_none (by omega)] at hget
+      simp at hget
+    have hP := split_at_getElem P u.pc instr hget
+    have htake : (P.take u.pc).length = u.pc := by
+      simp only [List.length_take]
+      omega
+    rw [show dispatchUpdate base (base + 1) (base + 2) 0 P =
+        dispatchUpdate base (base + 1) (base + 2) 0
+          (P.take u.pc ++ instr :: P.drop (u.pc + 1)) from by rw [← hP]]
+    rw [dispatchUpdate_append, htake, Nat.zero_add]
+    obtain ⟨f₀, hpre⟩ := dispatchUpdate_miss base (P.take u.pc) 0 u.regs
+      ((u.pc : Int)) ((u.pc : Int) + 1) flag
+      (fun x hx => hbelow x (by rw [hP]; exact List.mem_append_left _ hx))
+      (by
+        intro j hj
+        rw [htake] at hj
+        omega)
+    rw [hpre]
+    rw [dispatchUpdate_cons_hit, hupd]
+    obtain ⟨f₁, hpost⟩ := dispatchUpdate_miss base (P.drop (u.pc + 1)) (u.pc + 1)
+      regs ((u.pc : Int)) pcOut f
+      (fun x hx => hbelow x (by
+        rw [hP]
+        exact List.mem_append_right _ (List.mem_cons_of_mem _ hx)))
+      (by
+        intro j hj
+        omega)
+    exact ⟨f₁, hpost⟩
+  cases hstep with
+  | @zero n hget =>
+      have h := hsplit (.Z n) hget (Function.update u.regs n 0) ((u.pc : Int) + 1) 1
+        (guardedUpdate_Z base n (hbelow _ (List.mem_of_getElem? hget)) u.regs _ _)
+      rw [show ((u.pc : Int) + 1) = (((u.pc + 1 : Nat)) : Int) by omega] at h
+      exact h
+  | @succ n hget =>
+      have h := hsplit (.S n) hget (Function.update u.regs n (u.regs n + 1))
+        ((u.pc : Int) + 1) 1
+        (guardedUpdate_S base n (hbelow _ (List.mem_of_getElem? hget)) u.regs _ _)
+      rw [show ((u.pc : Int) + 1) = (((u.pc + 1 : Nat)) : Int) by omega] at h
+      exact h
+  | @transfer m n hget =>
+      obtain ⟨hm, hn⟩ := hbelow _ (List.mem_of_getElem? hget)
+      have h := hsplit (.T m n) hget (Function.update u.regs n (u.regs m))
+        ((u.pc : Int) + 1) 1 (guardedUpdate_T base m n hm hn u.regs _ _)
+      rw [show ((u.pc : Int) + 1) = (((u.pc + 1 : Nat)) : Int) by omega] at h
+      exact h
+  | @jump_eq m n q hget heq =>
+      obtain ⟨hm, hn⟩ := hbelow _ (List.mem_of_getElem? hget)
+      exact hsplit (.J m n q) hget u.regs (q : Int) 1
+        (guardedUpdate_J_eq base m n q hm hn u.regs heq _ _)
+  | @jump_ne m n q hget hne =>
+      obtain ⟨hm, hn⟩ := hbelow _ (List.mem_of_getElem? hget)
+      have h := hsplit (.J m n q) hget u.regs ((u.pc : Int) + 1) 0
+        (guardedUpdate_J_ne base m n q hm hn u.regs hne _ _)
+      rw [show ((u.pc : Int) + 1) = (((u.pc + 1 : Nat)) : Int) by omega] at h
+      exact h
+
 /-- Commit `next` to `pc`. -/
 def endDispatch (N pc next : Nat) : List BlockCmd :=
   copyAt N next ++ storeTop pc
@@ -1019,6 +1407,107 @@ def dispatcherCode (P : Program) (base : Nat) : List BlockCmd :=
   beginDispatch N pc next ++ dispatchFrom N pc next flag 0 P ++
     endDispatch N pc next ++ prepareBranch N pc P.length ++
     steerBranch
+
+/-! ### One whole dispatcher iteration -/
+
+theorem instrBelow_mono {N M : Nat} (h : N ≤ M) :
+    ∀ instr : Cslib.URM.Instr, InstrBelow N instr → InstrBelow M instr := by
+  intro instr hb
+  cases instr with
+  | Z r | S r => exact lt_of_lt_of_le hb h
+  | T m r | J m r q => exact ⟨lt_of_lt_of_le hb.1 h, lt_of_lt_of_le hb.2 h⟩
+
+theorem runCode_beginDispatch_stackOf (base : Nat) (regs : Nat → Nat)
+    (pc next flag : Int) (s : MState)
+    (hstack : s.stack = stackOf base regs pc next flag) :
+    runCode (beginDispatch (base + 3) base (base + 1)) s =
+      { s with stack := stackOf base regs pc (pc + 1) flag } := by
+  rw [show base + 3 = (stackOf base regs pc next flag).length from
+    (stackOf_length base regs pc next flag).symm]
+  rw [runCode_beginDispatch_list (stackOf base regs pc next flag) base (base + 1)
+    s (by simp only [stackOf_length]; omega) (by simp only [stackOf_length]; omega)
+    hstack]
+  congr 1
+  rw [stackOf_getElem_pc, stackOf_set_next]
+
+theorem runCode_dispatchFrom_stackOf (base : Nat) (P : Program)
+    (regs : Nat → Nat) (pc next flag : Int) (s : MState)
+    (hbelow : ∀ x ∈ P, InstrBelow base x)
+    (hstack : s.stack = stackOf base regs pc next flag) :
+    runCode (dispatchFrom (base + 3) base (base + 1) (base + 2) 0 P) s =
+      { s with
+        stack := dispatchUpdate base (base + 1) (base + 2) 0 P
+          (stackOf base regs pc next flag) } := by
+  rw [show base + 3 = (stackOf base regs pc next flag).length from
+    (stackOf_length base regs pc next flag).symm]
+  exact runCode_dispatchFrom_list P (stackOf base regs pc next flag)
+    base (base + 1) (base + 2) 0 s
+    (by simp only [stackOf_length]; omega) (by simp only [stackOf_length]; omega)
+    (by simp only [stackOf_length]; omega)
+    (fun x hx => instrBelow_mono (by simp only [stackOf_length]; omega) x (hbelow x hx))
+    hstack
+
+theorem runCode_endDispatch_stackOf (base : Nat) (regs : Nat → Nat)
+    (pc next flag : Int) (s : MState)
+    (hstack : s.stack = stackOf base regs pc next flag) :
+    runCode (endDispatch (base + 3) base (base + 1)) s =
+      { s with stack := stackOf base regs next next flag } := by
+  rw [show base + 3 = (stackOf base regs pc next flag).length from
+    (stackOf_length base regs pc next flag).symm]
+  rw [runCode_endDispatch_list (stackOf base regs pc next flag) base (base + 1)
+    s (by simp only [stackOf_length]; omega) (by simp only [stackOf_length]; omega)
+    hstack]
+  congr 1
+  rw [stackOf_getElem_next, stackOf_set_pc]
+
+theorem runCode_prepareBranch_stackOf (base : Nat) (regs : Nat → Nat)
+    (pc next flag : Int) (programLength : Nat) (hbase : 0 < base) (s : MState)
+    (hstack : s.stack = stackOf base regs pc next flag) :
+    runCode (prepareBranch (base + 3) base programLength) s =
+      { s with
+        stack := (if pc < (programLength : Int) then 1 else 0) ::
+          ((regs 0 : Nat) : Int) :: stackOf base regs pc next flag } := by
+  rw [show base + 3 = (stackOf base regs pc next flag).length from
+    (stackOf_length base regs pc next flag).symm]
+  rw [runCode_prepareBranch_list (stackOf base regs pc next flag) base
+    programLength s (by simp only [stackOf_length]; omega)
+    (by simp only [stackOf_length]; omega) hstack]
+  congr 2
+  · rw [stackOf_getElem_pc]
+  · rw [stackOf_getElem_reg base regs pc next flag 0 hbase]
+
+/-- One complete dispatcher iteration: the stack model advances by one URM
+step, the answer is left on top for the pivot, and the direction pointer is
+turned iff the run continues. -/
+theorem runCode_dispatcherCode (base : Nat) (P : Program) {u u' : Cslib.URM.State}
+    (hstep : Cslib.URM.Step P u u') (hbelow : ∀ x ∈ P, InstrBelow base x)
+    (hbase : 0 < base) (s : MState) (next flag : Int)
+    (hstack : s.stack = stackOf base u.regs (u.pc : Int) next flag) :
+    ∃ f, runCode (dispatcherCode P base) s =
+      { s with
+        dp := if (u'.pc : Int) < (P.length : Int) then s.dp.clockwise else s.dp,
+        cc := s.cc.toggle,
+        stack := ((u'.regs 0 : Nat) : Int) ::
+          stackOf base u'.regs (u'.pc : Int) (u'.pc : Int) f } := by
+  obtain ⟨f, hdispatch⟩ := dispatchUpdate_step base P hstep hbelow flag
+  refine ⟨f, ?_⟩
+  simp only [dispatcherCode, runCode_append]
+  rw [runCode_beginDispatch_stackOf base u.regs (u.pc : Int) next flag s hstack]
+  rw [runCode_dispatchFrom_stackOf base P u.regs (u.pc : Int) ((u.pc : Int) + 1)
+    flag _ hbelow rfl]
+  rw [hdispatch]
+  rw [runCode_endDispatch_stackOf base u'.regs (u.pc : Int) (u'.pc : Int) f _ rfl]
+  rw [runCode_prepareBranch_stackOf base u'.regs (u'.pc : Int) (u'.pc : Int) f
+    P.length hbase _ rfl]
+  by_cases hrun : (u'.pc : Int) < (P.length : Int)
+  · rw [if_pos hrun]
+    rw [runCode_steerBranch_one ((u'.regs 0 : Nat) : Int)
+      (stackOf base u'.regs (u'.pc : Int) (u'.pc : Int) f) _ rfl]
+    rw [if_pos hrun]
+  · rw [if_neg hrun]
+    rw [runCode_steerBranch_zero ((u'.regs 0 : Nat) : Int)
+      (stackOf base u'.regs (u'.pc : Int) (u'.pc : Int) f) _ rfl]
+    rw [if_neg hrun]
 
 /-- The colour after every command in a trace has executed. -/
 def endColor : Hue → Lightness → List BlockCmd → Hue × Lightness

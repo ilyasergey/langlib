@@ -304,6 +304,8 @@ open Langlib.Computability
 #print axioms URMPiet.coloredRuns_length_of_unit
 #print axioms URMPiet.runCode_unitize
 #print axioms URMPiet.compile
+#print axioms URMPiet.dispatchUpdate_step
+#print axioms URMPiet.runCode_dispatcherCode
 
 -- The first hand-written backend proved correct: Turpentine to Whitespace,
 -- over the fragment `BespokeWhitespace.checkFragment` accepts (scalar
