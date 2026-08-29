@@ -445,7 +445,7 @@ actual fuel evaluator. -/
 theorem exec_unitCorridor (g : Grid) (bl : Blocks) (code : List BlockCmd)
     (x : Nat) (h : Hue) (l : Lightness) (trace : UnitCorridor g x h l code)
     (stable : StableCode code) (fuel : Nat) (s : MState)
-    (hpos : s.pos = (x, 0)) (hdp : s.dp = .right) (hcc : s.cc = .left) :
+    (hpos : s.pos = (x, 0)) (hdp : s.dp = .right) :
     exec g bl (fuel + code.length) s =
       exec g bl fuel { runCode code s with pos := (x + code.length, 0) } := by
   induction trace generalizing fuel s with
@@ -477,12 +477,8 @@ theorem exec_unitCorridor (g : Grid) (bl : Blocks) (code : List BlockCmd)
         simp only [s₁]
         rw [execOp_dp_of_ne_pointer c.op 1 moved hcstable.1]
         simpa [moved] using hdp
-      have hcc₁ : s₁.cc = .left := by
-        simp only [s₁]
-        rw [execOp_cc_of_ne_switch c.op 1 moved hcstable.2]
-        simpa [moved] using hcc
       rw [show execOp c.op 1 { s with pos := (x' + 1, 0) } = s₁ from rfl]
-      rw [ih htailstable fuel s₁ hpos₁ hdp₁ hcc₁]
+      rw [ih htailstable fuel s₁ hpos₁ hdp₁]
       rw [runCode, ← hunit, show s₁ = execOp c.op c.blockSize moved by
         simp [s₁, hunit]]
       rw [show execOp c.op c.blockSize moved
@@ -2674,6 +2670,313 @@ theorem loopGrid_exec_halt (prologue body : List BlockCmd) (bl : Blocks)
     exec (loopGrid prologue body) bl (fuel + 1) s = (s, Exit.halted) := by
   rw [show fuel + 1 = Nat.succ fuel from rfl, exec,
     loopGrid_halt prologue body bl s hpos]
+
+/-! ## Corridors on the generated grid
+
+The prologue and the dispatcher body are both runs of singleton colour
+blocks along the top row, so both are `UnitCorridor`s.  The body's last two
+commands are the `switch` and the `pointer`, which move the chooser and the
+direction and so cannot be part of a corridor; they are taken one at a
+time below. -/
+
+theorem unitize_append (a b : List BlockCmd) :
+    unitize (a ++ b) = unitize a ++ unitize b := by
+  simp [unitize, List.flatMap_append]
+
+theorem colourAt_append_left (h : Hue) (l : Lightness) (a b : List BlockCmd)
+    (j : Nat) (hj : j ≤ a.length) :
+    colourAt h l (a ++ b) j = colourAt h l a j := by
+  simp only [colourAt]
+  rw [List.take_append_of_le_length hj]
+
+theorem unitCode_append {a b : List BlockCmd} (ha : UnitCode a) (hb : UnitCode b) :
+    UnitCode (a ++ b) := by
+  intro c hc
+  rcases List.mem_append.mp hc with h | h
+  · exact ha c h
+  · exact hb c h
+
+/-- The prologue corridor: the run of singleton blocks that loads the
+initial register file. -/
+theorem loopGrid_prologue_corridor (prologue body : List BlockCmd)
+    (hu : UnitCode prologue) :
+    UnitCorridor (loopGrid prologue body) 1 Hue.red Lightness.normal prologue := by
+  have hpw : pw prologue = prologue.length + 1 :=
+    coloredRuns_length_of_unit _ _ _ hu
+  apply unitCorridor_of_row _ _ hu
+  · rw [loopGrid_height]; omega
+  · rw [loopGrid_width]
+    have := bw_pos body
+    omega
+  · intro j hj
+    rw [show (1 : Nat) + j = j + 1 from by omega]
+    have hj' : j < (coloredRuns Hue.red Lightness.normal prologue).length := by
+      rw [coloredRuns_length_of_unit _ _ _ hu]; omega
+    rw [loopGrid_get_prologue prologue body j hj']
+    have hg := coloredRuns_getElem?_unit Hue.red Lightness.normal prologue hu j hj
+    rw [List.getElem?_eq_getElem hj'] at hg
+    exact Option.some.inj hg
+  · intro j hj
+    rw [show (1 : Nat) + j = j + 1 from by omega]
+    exact loopGrid_get_prologue_down prologue body j
+      (by rw [coloredRuns_length_of_unit _ _ _ hu]; omega)
+  · intro _
+    rw [show (1 : Nat) - 1 = 0 from rfl, loopGrid_get_start]
+    rfl
+
+/-- The body corridor: every command of the dispatcher up to, but not
+including, the two that move the pointer and the chooser. -/
+theorem loopGrid_body_corridor (prologue body : List BlockCmd)
+    (hu : UnitCode (loopCode body)) (stable rest : List BlockCmd)
+    (hsplit : loopCode body = stable ++ rest) (hne : rest ≠ []) :
+    UnitCorridor (loopGrid prologue body) (pw prologue + 2) Hue.red
+      Lightness.normal stable := by
+  have hbw : bw body = (loopCode body).length + 1 :=
+    coloredRuns_length_of_unit _ _ _ hu
+  have hlen : stable.length + rest.length = (loopCode body).length := by
+    rw [hsplit]; simp
+  have hrest : 0 < rest.length := List.length_pos_of_ne_nil hne
+  have hus : UnitCode stable := fun c hc =>
+    hu c (by rw [hsplit]; exact List.mem_append_left _ hc)
+  apply unitCorridor_of_row _ _ hus
+  · rw [loopGrid_height]; omega
+  · rw [loopGrid_width]; omega
+  · intro j hj
+    have hjb : j < (coloredRuns Hue.red Lightness.normal (loopCode body)).length := by
+      show j < bw body
+      omega
+    have h := loopGrid_get_body prologue body j hjb
+    simp only at h
+    rw [show pw prologue + 2 + j =
+      (coloredRuns Hue.red Lightness.normal prologue).length + 2 + j from rfl, h]
+    have hg := coloredRuns_getElem?_unit Hue.red Lightness.normal (loopCode body) hu j
+      (by omega)
+    rw [List.getElem?_eq_getElem hjb] at hg
+    rw [Option.some.inj hg, hsplit, colourAt_append_left _ _ _ _ _ hj]
+  · intro j hj
+    have h := loopGrid_get_body_down prologue body j
+      (by show j + 1 < bw body; omega)
+    simp only at h
+    exact h
+  · intro _
+    rw [show pw prologue + 2 - 1 = pw prologue + 1 from by omega, loopGrid_get_sep]
+    rfl
+
+/-- Consecutive corridor colours differ: every Piet command changes the
+colour, which is what makes each singleton codel its own block. -/
+theorem colourAt_succ_ne (h : Hue) (l : Lightness) (code : List BlockCmd)
+    (j : Nat) (hj : j < code.length) :
+    colourAt h l code (j + 1) ≠ colourAt h l code j := by
+  induction code generalizing h l j with
+  | nil => simp at hj
+  | cons c cs ih =>
+      cases j with
+      | zero =>
+          simp only [colourAt_cons_succ, colourAt_zero]
+          exact advance_ne h l c.op
+      | succ j =>
+          simp only [colourAt_cons_succ]
+          exact ih _ _ j (by simpa using hj)
+
+/-- Isolation of a top-row codel, from its three neighbours. -/
+theorem localInfoAt?_top (g : Grid) (h : Hue) (l : Lightness) (x : Nat)
+    (hx : x < g.width) (hh : 1 < g.height)
+    (hcur : g.get x 0 = .chromatic h l)
+    (hleft : 0 < x → (g.get (x - 1) 0 != Codel.chromatic h l) = true)
+    (hright : (g.get (x + 1) 0 != Codel.chromatic h l) = true)
+    (hdown : (g.get x 1 != Codel.chromatic h l) = true) :
+    localInfoAt? g (x, 0) = some (singletonInfo (x, 0)) := by
+  apply localInfoAt?_isolated g h l (x, 0) (by omega) (by omega) hcur
+  intro q hq
+  rcases mem_neighbours_row0 g x q hq with rfl | rfl | ⟨hx0, rfl⟩
+  · exact hright
+  · exact hdown
+  · exact hleft hx0
+
+theorem colourAt_full (h : Hue) (l : Lightness) (code : List BlockCmd) :
+    colourAt h l code code.length = endColor h l code := by
+  simp [colourAt]
+
+/-- The colour of the body corridor at each offset, including the pivot. -/
+theorem loopGrid_body_colour (prologue body : List BlockCmd)
+    (hu : UnitCode (loopCode body)) (j : Nat) (hj : j ≤ (loopCode body).length) :
+    (loopGrid prologue body).get (pw prologue + 2 + j) 0 =
+      .chromatic (colourAt Hue.red Lightness.normal (loopCode body) j).1
+        (colourAt Hue.red Lightness.normal (loopCode body) j).2 := by
+  have hbw : bw body = (loopCode body).length + 1 :=
+    coloredRuns_length_of_unit _ _ _ hu
+  have hjb : j < (coloredRuns Hue.red Lightness.normal (loopCode body)).length := by
+    show j < bw body
+    omega
+  have h := loopGrid_get_body prologue body j hjb
+  simp only at h
+  rw [show pw prologue + 2 + j =
+    (coloredRuns Hue.red Lightness.normal prologue).length + 2 + j from rfl, h]
+  have hg := coloredRuns_getElem?_unit Hue.red Lightness.normal (loopCode body) hu j hj
+  rw [List.getElem?_eq_getElem hjb] at hg
+  exact Option.some.inj hg
+
+/-- Every codel of the body corridor is its own colour block, the pivot
+included: below it is either black or the `pop` block, and both differ from
+it in colour. -/
+theorem loopGrid_body_isolated (prologue body : List BlockCmd)
+    (hu : UnitCode (loopCode body)) (j : Nat) (hj : j ≤ (loopCode body).length) :
+    localInfoAt? (loopGrid prologue body) (pw prologue + 2 + j, 0) =
+      some (singletonInfo (pw prologue + 2 + j, 0)) := by
+  have hbw : bw body = (loopCode body).length + 1 :=
+    coloredRuns_length_of_unit _ _ _ hu
+  have hcur := loopGrid_body_colour prologue body hu j hj
+  apply localInfoAt?_top _ _ _ _ (by rw [loopGrid_width]; omega)
+    (by rw [loopGrid_height]; omega) hcur
+  · -- the codel to the left
+    intro _
+    rcases Nat.eq_zero_or_pos j with rfl | hj0
+    · rw [show pw prologue + 2 + 0 - 1 = pw prologue + 1 from by omega,
+        loopGrid_get_sep]
+      rfl
+    · obtain ⟨i, rfl⟩ : ∃ i, j = i + 1 := ⟨j - 1, by omega⟩
+      rw [show pw prologue + 2 + (i + 1) - 1 = pw prologue + 2 + i from by omega,
+        loopGrid_body_colour prologue body hu i (by omega)]
+      apply chromatic_bne
+      exact fun he => colourAt_succ_ne Hue.red Lightness.normal (loopCode body) i
+        (by omega) he.symm
+  · -- the codel to the right
+    rcases Nat.lt_or_ge j (loopCode body).length with hlt | hge
+    · rw [show pw prologue + 2 + j + 1 = pw prologue + 2 + (j + 1) from by omega,
+        loopGrid_body_colour prologue body hu (j + 1) (by omega)]
+      apply chromatic_bne
+      exact colourAt_succ_ne Hue.red Lightness.normal (loopCode body) j (by omega)
+    · have hjeq : j = (loopCode body).length := by omega
+      subst hjeq
+      rw [show pw prologue + 2 + (loopCode body).length =
+        pw prologue + bw body + 1 from by omega]
+      rw [show pw prologue + bw body + 1 + 1 = pw prologue + bw body + 2 from rfl,
+        loopGrid_get_out]
+      rw [colourAt_full] at hcur ⊢
+      apply chromatic_bne
+      exact advance_ne _ _ _
+  · -- the codel below
+    rcases Nat.lt_or_ge j (loopCode body).length with hlt | hge
+    · have hd := loopGrid_get_body_down prologue body j
+        (by show j + 1 < bw body; omega)
+      simp only at hd
+      rw [show pw prologue + 2 + j =
+        (coloredRuns Hue.red Lightness.normal prologue).length + 2 + j from rfl, hd]
+      rfl
+    · have hjeq : j = (loopCode body).length := by omega
+      subst hjeq
+      rw [show pw prologue + 2 + (loopCode body).length =
+        pw prologue + bw body + 1 from by omega, loopGrid_get_loopBlock]
+      rw [colourAt_full] at hcur ⊢
+      apply chromatic_bne
+      exact advance_ne _ _ _
+
+/-! ## One pass of the dispatcher body
+
+The corridor, then the two commands a corridor may not contain. -/
+
+/-- The colour after the command at offset `j`. -/
+theorem colourAt_step (h : Hue) (l : Lightness) (code : List BlockCmd) (j : Nat)
+    (hj : j < code.length) :
+    colourAt h l code (j + 1) =
+      advance (colourAt h l code j).1 (colourAt h l code j).2 (code[j]).op := by
+  induction code generalizing h l j with
+  | nil => simp at hj
+  | cons c cs ih =>
+      cases j with
+      | zero => simp [colourAt_cons_succ, colourAt_zero]
+      | succ j =>
+          simp only [colourAt_cons_succ, List.getElem_cons_succ]
+          exact ih _ _ j (by simpa using hj)
+
+/-- One command transition along the body corridor, in any direction. -/
+theorem loopGrid_body_exec (prologue body : List BlockCmd)
+    (hu : UnitCode (loopCode body)) (bl : Blocks) (j : Nat)
+    (hj : j < (loopCode body).length) (fuel : Nat) (s : MState)
+    (hpos : s.pos = (pw prologue + 2 + j, 0)) (hdp : s.dp = .right) :
+    exec (loopGrid prologue body) bl (fuel + 1) s =
+      exec (loopGrid prologue body) bl fuel
+        (execOp ((loopCode body)[j]).op 1
+          { s with pos := (pw prologue + 2 + j + 1, 0) }) := by
+  obtain ⟨pos, dp, cc, stack, input, output⟩ := s
+  simp only at hpos hdp
+  subst hpos
+  subst hdp
+  have hbw : bw body = (loopCode body).length + 1 :=
+    coloredRuns_length_of_unit _ _ _ hu
+  have hcur := loopGrid_body_colour prologue body hu j (by omega)
+  have hnext := loopGrid_body_colour prologue body hu (j + 1) (by omega)
+  rw [colourAt_step Hue.red Lightness.normal (loopCode body) j hj] at hnext
+  apply exec_singleton _ _ _ _ _ _ _ _ _ _
+    (loopGrid_body_isolated prologue body hu j (by omega))
+  · exact hcur
+  · simp only [step?]
+    rw [if_pos (by rw [loopGrid_width]; omega)]
+  · rw [show pw prologue + 2 + j + 1 = pw prologue + 2 + (j + 1) from by omega]
+    exact hnext
+  · exact opFor_advance _ _ _
+
+theorem runCode_dp_of_stable (code : List BlockCmd) (hst : StableCode code) :
+    ∀ s : MState, (runCode code s).dp = s.dp := by
+  induction code with
+  | nil => intro s; rfl
+  | cons c cs ih =>
+      intro s
+      have hc := hst c (by simp)
+      have hcs : StableCode cs := fun c' hc' => hst c' (by simp [hc'])
+      rw [runCode, ih hcs]
+      exact execOp_dp_of_ne_pointer c.op c.blockSize s hc.1
+
+/-- The whole dispatcher body, run from the first codel of the loop to the
+pivot: the corridor, then the `switch` and the `pointer`. -/
+theorem exec_toPivot (prologue body : List BlockCmd) (hu : UnitCode (loopCode body))
+    (stable : List BlockCmd)
+    (hsplit : loopCode body = stable ++ [op .switch, op .pointer])
+    (hstable : StableCode stable)
+    (bl : Blocks) (fuel : Nat) (s : MState)
+    (hpos : s.pos = (pw prologue + 2, 0)) (hdp : s.dp = .right) :
+    exec (loopGrid prologue body) bl (fuel + (loopCode body).length) s =
+      exec (loopGrid prologue body) bl fuel
+        { runCode (loopCode body) s with
+          pos := (pw prologue + bw body + 1, 0) } := by
+  have hbw : bw body = (loopCode body).length + 1 :=
+    coloredRuns_length_of_unit _ _ _ hu
+  have hlen : (loopCode body).length = stable.length + 2 := by
+    rw [hsplit]; simp
+  have hcorr := loopGrid_body_corridor prologue body hu stable
+    [op .switch, op .pointer] hsplit (by simp)
+  -- the corridor
+  rw [show fuel + (loopCode body).length = (fuel + 2) + stable.length from by omega]
+  rw [exec_unitCorridor _ bl _ _ _ _ hcorr hstable (fuel + 2) s hpos hdp]
+  -- the switch
+  have hsw : (loopCode body)[stable.length]'(by omega) = op .switch := by
+    have h : (loopCode body)[stable.length]? = some (op .switch) := by
+      rw [hsplit, List.getElem?_append_right (by simp)]
+      simp
+    rw [List.getElem?_eq_getElem (by omega)] at h
+    exact Option.some.inj h
+  have hpt : (loopCode body)[stable.length + 1]'(by omega) = op .pointer := by
+    have h : (loopCode body)[stable.length + 1]? = some (op .pointer) := by
+      rw [hsplit, List.getElem?_append_right (by simp)]
+      simp
+    rw [List.getElem?_eq_getElem (by omega)] at h
+    exact Option.some.inj h
+  rw [show fuel + 2 = (fuel + 1) + 1 from rfl]
+  rw [loopGrid_body_exec prologue body hu bl stable.length (by omega) (fuel + 1) _
+    (by simp) (by simp [runCode_dp_of_stable stable hstable, hdp])]
+  rw [hsw]
+  -- the pointer
+  rw [loopGrid_body_exec prologue body hu bl (stable.length + 1) (by omega) fuel _
+    (by simp [op, execOp_set_pos]; try omega)
+    (by
+      simp only [op]
+      rw [execOp_dp_of_ne_pointer _ _ _ (by simp)]
+      simp [runCode_dp_of_stable stable hstable, hdp])]
+  rw [hpt, hsplit, runCode_append]
+  simp only [runCode, op, BlockCmd.blockSize, execOp_set_pos]
+  congr 2
+  rw [show pw prologue + 2 + (stable.length + 1) + 1 =
+    pw prologue + bw body + 1 from by omega]
 
 /-- Full compiler with singleton command blocks. -/
 def compile (P : Program) (inputs : List Nat) : Grid :=
