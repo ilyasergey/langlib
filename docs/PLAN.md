@@ -74,7 +74,9 @@ state first-order, I/O explicit.
 
 ## Stage 4: compilers from Turpentine `[~]`
 
-* Turpentine -> brainfuck (cell-mapped variables, while via `[ ]`).
+* Turpentine -> brainfuck `[~]`: the scalar language, with 16-bit
+  two's-complement integers in two cells each. Arrays are not supported
+  yet. See `docs/brainfuck/compiler.md`.
 * Turpentine -> ook (via the BF isomorphism).
 * Turpentine -> whitespace `[x]`: the whole language, arrays included.
   See `docs/whitespace/compiler.md`.

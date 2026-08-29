@@ -2,6 +2,7 @@ import Langlib.Common.TestHarness
 import Langlib.Tests.Befunge93
 import Langlib.Tests.Brainfuck
 import Langlib.Tests.Brainloller
+import Langlib.Tests.CompileBrainfuck
 import Langlib.Tests.CompileSubleq
 import Langlib.Tests.CompileWhitespace
 import Langlib.Tests.Deadfish
@@ -27,6 +28,7 @@ def main : IO UInt32 :=
     [ Langlib.Tests.Befunge93.suites
     , Langlib.Tests.Brainfuck.suites
     , Langlib.Tests.Brainloller.suites
+    , Langlib.Tests.CompileBrainfuck.suites
     , Langlib.Tests.CompileSubleq.suites
     , Langlib.Tests.CompileWhitespace.suites
     , Langlib.Tests.Deadfish.suites

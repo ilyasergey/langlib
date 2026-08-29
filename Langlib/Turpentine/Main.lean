@@ -1,7 +1,9 @@
 import Langlib.Common.Runner
 import Langlib.Turpentine.Semantics
+import Langlib.Turpentine.Compile.Brainfuck
 import Langlib.Turpentine.Compile.Subleq
 import Langlib.Turpentine.Compile.Whitespace
+import Langlib.Languages.Brainfuck.Semantics
 import Langlib.Languages.Subleq.Semantics
 import Langlib.Languages.Whitespace.Semantics
 
@@ -52,7 +54,12 @@ structure Backend where
   runTarget : String → Input → Nat → Except String RunResult
 
 def backends : List Backend :=
-  [ { name := "whitespace"
+  [ { name := "brainfuck"
+    , compileSource := Compile.Brainfuck.compileSource
+      -- The backend emits programs that expect `--eof zero`: its
+      -- `readByte` reports -1 for a zero byte or end of input alike.
+    , runTarget := Langlib.Brainfuck.run { eof := .zero } }
+  , { name := "whitespace"
     , compileSource := Compile.Whitespace.compileSource
     , runTarget := Langlib.Whitespace.run }
   , { name := "subleq"

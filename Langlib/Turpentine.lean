@@ -2,6 +2,7 @@ import Langlib.Turpentine.Syntax
 import Langlib.Turpentine.Parser
 import Langlib.Turpentine.Typecheck
 import Langlib.Turpentine.Semantics
+import Langlib.Turpentine.Compile.Brainfuck
 import Langlib.Turpentine.Compile.Subleq
 import Langlib.Turpentine.Compile.Whitespace
 

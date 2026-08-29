@@ -54,7 +54,7 @@ namespace Langlib.Computability.URMWhitespace
 
 open Langlib.Common
 open Langlib.Whitespace
-open Cslib.URM (Program Regs State Step Steps HaltsWithResult)
+open Cslib.URM (Program Regs Step Steps HaltsWithResult)
 
 /-! ## Labels -/
 
@@ -411,3 +411,100 @@ theorem codeAt_of_split {prog : Prog} {pre : List Instr} {a : Instr} {code rest 
 theorem CodeAt.get {prog : Prog} {p : Nat} {code : List Instr} (h : CodeAt prog p code)
     (j : Nat) (hj : j < code.length) : prog[p + j]? = some code[j] := by
   rw [h j hj, List.getElem?_eq_getElem hj]
+
+/-! ## The label table of the compiled program -/
+
+theorem labels_lbl (P : Program) (inputs : List Nat) (k : Nat) (hk : k < P.length) :
+    (labelMap (compile P inputs))[lbl k]? = some (entry P inputs k) := by
+  rw [labelMap_eq, compile, List.toList_toArray, compileList_split P inputs k hk,
+    labelGo_first _ _ _ 0 ∅ (by simp) ?nolab, prefix_length]
+  case nolab =>
+    refine NoLabel.append (noLabel_prologue _ _ 0) (noLabel_blocks _ _ _ 0 ?_)
+    intro t ht hc
+    have hle : (P.take k).length ≤ k := by rw [List.length_take]; omega
+    have : t < k := by omega
+    have := lbl_inj hc
+    omega
+  simp [entry]
+
+theorem labels_lend (P : Program) (inputs : List Nat) :
+    (labelMap (compile P inputs))[lend]? = some (entry P inputs P.length) := by
+  rw [labelMap_eq, compile, List.toList_toArray, compileList_split_end P inputs,
+    labelGo_first _ _ _ 0 ∅ (by simp) ?nolab, prefix_length_end]
+  case nolab =>
+    refine NoLabel.append (noLabel_prologue _ _ 0) (noLabel_blocks _ _ _ 0 ?_)
+    intro t _ hc
+    exact lbl_ne_lend (0 + t) hc.symm
+  simp [entry]
+
+theorem labels_target (P : Program) (inputs : List Nat) (q : Nat) :
+    (labelMap (compile P inputs))[labelAt P.length q]? =
+      some (entry P inputs (min q P.length)) := by
+  unfold labelAt
+  split
+  · rename_i h
+    rw [labels_lbl P inputs q h, Nat.min_eq_left (Nat.le_of_lt h)]
+  · rename_i h
+    rw [labels_lend, Nat.min_eq_right (Nat.le_of_not_lt h)]
+
+/-! ## Single-instruction execution lemmas
+
+Each of these says: the interpreter spends one unit of fuel and moves to a
+specific state. They are the atoms the block lemmas are built from. -/
+
+variable {prog : Prog} {labels : Std.HashMap Label Nat}
+
+theorem reaches_push (s : Whitespace.State) (v : Int)
+    (h : prog[s.pc]? = some (Instr.push v)) :
+    Reaches (exec prog labels) s { s with pc := s.pc + 1, stack := v :: s.stack } :=
+  Reaches.one fun f => by simp only [exec, h]
+
+theorem reaches_label (s : Whitespace.State) (l : Label)
+    (h : prog[s.pc]? = some (Instr.label l)) :
+    Reaches (exec prog labels) s { s with pc := s.pc + 1 } :=
+  Reaches.one fun f => by simp only [exec, h]
+
+theorem reaches_store (s : Whitespace.State) (a v : Int) (st : List Int)
+    (hst : s.stack = v :: a :: st) (ha : 0 ≤ a) (h : prog[s.pc]? = some Instr.store) :
+    Reaches (exec prog labels) s
+      { s with pc := s.pc + 1, stack := st, heap := s.heap.insert a v } :=
+  Reaches.one fun f => by simp only [exec, h, hst]; rw [if_neg (by omega)]
+
+theorem reaches_retrieve (s : Whitespace.State) (a : Int) (st : List Int)
+    (hst : s.stack = a :: st) (ha : 0 ≤ a) (h : prog[s.pc]? = some Instr.retrieve) :
+    Reaches (exec prog labels) s
+      { s with pc := s.pc + 1, stack := s.heap.getD a 0 :: st } :=
+  Reaches.one fun f => by simp only [exec, h, hst]; rw [if_neg (by omega)]
+
+theorem reaches_add (s : Whitespace.State) (a b : Int) (st : List Int)
+    (hst : s.stack = b :: a :: st) (h : prog[s.pc]? = some Instr.add) :
+    Reaches (exec prog labels) s { s with pc := s.pc + 1, stack := (a + b) :: st } :=
+  Reaches.one fun f => by simp only [exec, h, hst]
+
+theorem reaches_sub (s : Whitespace.State) (a b : Int) (st : List Int)
+    (hst : s.stack = b :: a :: st) (h : prog[s.pc]? = some Instr.sub) :
+    Reaches (exec prog labels) s { s with pc := s.pc + 1, stack := (a - b) :: st } :=
+  Reaches.one fun f => by simp only [exec, h, hst]
+
+theorem reaches_jz_taken (s : Whitespace.State) (st : List Int) (l : Label) (p' : Nat)
+    (hst : s.stack = 0 :: st) (hl : labels[l]? = some p')
+    (h : prog[s.pc]? = some (Instr.jz l)) :
+    Reaches (exec prog labels) s { s with pc := p', stack := st } :=
+  Reaches.one fun f => by simp only [exec, h, hst]; simp only [hl]; simp
+
+theorem reaches_jz_untaken (s : Whitespace.State) (st : List Int) (l : Label) (v : Int)
+    (hv : v ≠ 0) (hst : s.stack = v :: st) (h : prog[s.pc]? = some (Instr.jz l)) :
+    Reaches (exec prog labels) s { s with pc := s.pc + 1, stack := st } :=
+  Reaches.one fun f => by
+    simp only [exec, h, hst]
+    rw [if_neg (by simpa using hv)]
+
+theorem reaches_outNum (s : Whitespace.State) (n : Int) (st : List Int)
+    (hst : s.stack = n :: st) (h : prog[s.pc]? = some Instr.outNum) :
+    Reaches (exec prog labels) s
+      { s with pc := s.pc + 1, stack := st, output := s.output ++ (toString n).toUTF8 } :=
+  Reaches.one fun f => by simp only [exec, h, hst]
+
+theorem exec_halt (s : Whitespace.State) (h : prog[s.pc]? = some Instr.halt) (f : Nat) :
+    exec prog labels (f + 1) s = ({ s with pc := s.pc + 1 }, Exit.halted) := by
+  simp only [exec, h]

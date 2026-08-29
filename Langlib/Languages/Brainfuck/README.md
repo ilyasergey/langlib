@@ -41,6 +41,19 @@ Input is read from stdin, output written to stdout. Exit codes: 0 halt,
 attribution; the file is kept byte-exact (no comments, no trailing newline)
 so that `lake exe brainfuck quine.b | diff - quine.b` is empty.
 
+## Compiled from Turpentine
+
+The [Turpentine](../../Turpentine/README.md) backend emits programs that
+expect `--eof zero`, because its `readByte` reports -1 for a zero byte and
+for end of input alike. See
+[docs/brainfuck/compiler.md](../../../docs/brainfuck/compiler.md).
+
+| File | Source | What it does | Run it |
+|------|--------|--------------|--------|
+| `compiled/hello.b` | `Examples/Turpentine/hello.turp` | prints a greeting | `lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/compiled/hello.b` |
+| `compiled/cat.b` | `Examples/Turpentine/cat.turp` | copies input to output | `echo -n meow \| lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/compiled/cat.b` |
+| `compiled/isqrt.b` | `Examples/Turpentine/isqrt.turp` | integer square root of a line of input | `echo 17 \| lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/compiled/isqrt.b` |
+
 ## Tests
 
 Golden tests live in [Langlib/Tests/Brainfuck.lean](../../Tests/Brainfuck.lean) (run with `lake test`

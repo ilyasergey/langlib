@@ -2,6 +2,22 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-09-01
+
+* **The brainfuck backend lands**, the hard one, covering the scalar
+  language. Integers are 16-bit two's complement in two cells each, chosen
+  by measurement rather than taste: 8 bits cannot run collatz on 27 (peak
+  9232) or sumdigits on 9045, and 32 would double every cost for range
+  nothing uses. The load-bearing trick is a division-by-two that computes
+  quotient and remainder in one linear pass with a constant-size body, so
+  byte comparisons are linear instead of quadratic; without it nothing
+  runs. All eight scalar examples compile and match the interpreter, and
+  collatz(27) prints 111 through 367 kilobytes of generated brainfuck.
+  Arrays are not supported yet, and each of the six array constructs
+  reports its own name when refused.
+* `turpentine exec --via brainfuck` works, with the `--eof zero`
+  convention the backend requires wired in. 582 tests.
+
 ## 2026-08-31 (evening)
 
 * The status matrix now separates **TC known** from **TC proved**. The

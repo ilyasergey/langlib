@@ -28,7 +28,7 @@ claimed Turing complete is also a language Turpentine should compile to.
 
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | TC known | TC proved | Turpentine compiler | Verified compiler |
 |----------|------|--------|-------------|------------------|--------|----------|-----------|---------------------|-------------------|
-| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `lake exe brainfuck` | yes | no | [wip](brainfuck/compiler.md) | - |
+| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `lake exe brainfuck` | yes | no | [yes, scalars](brainfuck/compiler.md) | - |
 | [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `lake exe whitespace` | yes | no | [yes](whitespace/compiler.md) | - |
 | [subleq](subleq/spec.md) | yes | yes | yes | yes | `lake exe subleq` | yes | no | [yes](subleq/compiler.md) | - |
 | [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `lake exe befunge93` | [depends on cell width](befunge93/spec.md) | no | [not planned](befunge93/compiler.md) | n/a |
