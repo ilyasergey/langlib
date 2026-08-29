@@ -71,7 +71,7 @@ also confirmed wanted: **Piet** and **Brainloller** form the second wave
 1. Read `CONTRIBUTING.md` (checklist) and `CLAUDE.md` (conventions).
 2. Write `docs/<langname>/spec.md` first, pinning down the exact semantics
    (with sources) before writing Lean code.
-3. Copy the structure of `Langlib/Brainfuck/` (the exemplar): Syntax,
+3. Copy the structure of `Langlib/Languages/Brainfuck/` (the exemplar): Syntax,
    Parser, Semantics (pure, fuel-based, shared I/O model), Main, README.
 4. Add examples, golden tests, a difftest entry if a reference
    implementation is installable, and register the runner in

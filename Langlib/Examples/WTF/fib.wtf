@@ -1,0 +1,17 @@
+// Fibonacci: reads n, prints F(0), F(1), ..., F(n-1), one per line.
+// Usage: echo 10 | lake exe wtf run Langlib/Examples/WTF/fib.wtf
+var n : int;
+var a : int := 0;
+var b : int := 1;
+var t : int;
+var i : int := 0;
+n := readInt();
+while i < n
+  decreases n - i
+{
+  println(a);
+  t := a + b;
+  a := b;
+  b := t;
+  i := i + 1;
+}

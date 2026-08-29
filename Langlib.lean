@@ -1,5 +1,8 @@
 import Langlib.Common
-import Langlib.Brainfuck
+import Langlib.Languages.Brainfuck
+import Langlib.Languages.Fractran
+import Langlib.Languages.Subleq
+import Langlib.WTF
 
 /-!
 # Langlib

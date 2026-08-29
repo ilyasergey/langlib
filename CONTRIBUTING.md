@@ -20,7 +20,7 @@ A complete language contribution consists of:
    reference implementation, and pin down every semantic decision our
    interpreter makes (cell width, EOF behaviour, error cases), each with a
    source. History and jokes are encouraged; imprecision is not.
-2. **Lean implementation** under `Langlib/<Langname>/`:
+2. **Lean implementation** under `Langlib/Languages/<Langname>/`:
    * `Syntax.lean`: the AST;
    * `Parser.lean`: concrete syntax to AST, with useful error messages;
    * `Semantics.lean`: a pure, fuel-based reference evaluator over the

@@ -1,0 +1,53 @@
+# Subleq in langlib
+
+The classic one-instruction set computer: subtract and branch if less than
+or equal to zero. The full specification, the history, and every semantic
+choice (word size, I/O convention, EOF, halting, errors) are in
+[docs/subleq/spec.md](../../../docs/subleq/spec.md).
+
+## Modules
+
+* `Syntax.lean`: a program is its initial memory image (`Prog := Array
+  Int`); there is no instruction AST because there is only one
+  instruction.
+* `Parser.lean`: the assembler. Source is a flat, whitespace-separated
+  list of words: integer literals, `label:` definitions, label
+  references, and `?` (the address of its own cell), each reference
+  optionally with `+N`/`-N`; comments run from `#` or `;` to end of
+  line. Errors carry line and column.
+* `Semantics.lean`: the pure, fuel-based reference evaluator. Memory is a
+  hash map of nonzero words plus an extent counter (amortised O(1) reads
+  and writes, unbounded, zero-initialised).
+* `Main.lean`: the standalone runner.
+
+## Running
+
+```
+lake exe subleq [--fuel N] file.sq
+```
+
+Input is read from stdin, output written to stdout. Exit codes: 0 halt,
+1 runtime error, 2 out of fuel, 3 parse or usage error.
+
+## Examples ([Langlib/Examples/Subleq/](../../Examples/Subleq/))
+
+| File | What it does | Origin |
+|------|--------------|--------|
+| `hello.sq` | prints `Hello, World!` via self-modifying code | langlib original |
+| `cat.sq` | copies input to output until end of input | langlib original |
+| `add.sq` | adds 72 and 33 by double subtraction, prints `i` | langlib original |
+| `countdown.sq` | prints 9876543210 | langlib original |
+
+All four are langlib originals, written in our assembler format and in the
+public domain. `hello.sq` shows the fundamental subleq idiom: to walk a
+string, the program increments the `A` operand of its own output
+instruction.
+
+## Tests
+
+Golden tests live in [Langlib/Tests/Subleq.lean](../../Tests/Subleq.lean)
+(run with `lake test` from the repository root): all examples, the three
+branch outcomes (negative, exactly zero, positive), both I/O conventions
+including EOF and mod-256 output, `?` resolution, clean halts via negative
+`C` and via running off the end of memory, divergence, runtime errors, and
+parse errors.

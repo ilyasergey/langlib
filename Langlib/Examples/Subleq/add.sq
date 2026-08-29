@@ -1,0 +1,18 @@
+# add.sq -- adds the cells x and y and prints the sum as one byte.
+# langlib original; public domain.
+#
+# The machine only subtracts, so addition is two subtractions through an
+# accumulator: t := 0 - x - y = -(x + y), then z := 0 - t = x + y.
+# Here x + y = 72 + 33 = 105, ASCII 'i'.
+
+x     t       ?+1     # t := t - x   (t starts at 0, becomes negative)
+y     t       ?+1     # t := t - y   (t = -(x + y))
+t     z       ?+1     # z := z - t = x + y
+z     -1      ?+1     # output z
+Z     Z       -1      # halt
+
+x: 72
+y: 33
+t: 0
+z: 0
+Z: 0

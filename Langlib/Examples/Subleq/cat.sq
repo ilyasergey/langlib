@@ -1,0 +1,20 @@
+# cat.sq -- copies input to output until end of input.
+# langlib original; public domain.
+#
+# Reading at end of input stores -1 (see docs/subleq/spec.md), so the EOF
+# test is: add 1 and branch if the result is <= 0. A byte 0..255 becomes
+# 1..256 (no branch); EOF's -1 becomes 0 (branch). Subtracting 1 restores
+# the byte before printing it.
+
+loop: -1      c       ?+1     # c := next input byte, or -1 at end of input
+      minus1  c       done    # c := c + 1; zero here means EOF: jump out
+      one     c       ?+1     # c := c - 1, restoring the byte
+      c       -1      ?+1     # output the byte in cell c
+      Z       Z       loop    # unconditional jump back
+
+done: Z       Z       -1      # halt
+
+minus1: -1
+one:    1
+Z:      0
+c:      0

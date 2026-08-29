@@ -1,0 +1,11 @@
+# Multiplier in Conway's register style: 2^a * 3^b -> 5^(a*b).
+# Registers: 2 holds a (decremented once per outer pass), 3 holds b
+# (moved back and forth), 5 accumulates the product. Primes 7, 11, 13 are
+# state markers: 11 marks "copying b into 5 and 7", 13 relays 7 back into 3
+# via 11, 7 holds the saved copy of b between passes.
+# A standard register-machine construction in the style of Conway's paper
+# (circulating widely, e.g. on the esolangs wiki); verified against this
+# interpreter for a range of inputs.
+# Run: lake exe fractran --n 108 --out final multiply.ft   (2^2 * 3^3 -> 5^6 = 15625)
+
+455/33 11/13 1/11 3/7 11/2 1/3

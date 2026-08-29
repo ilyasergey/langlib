@@ -2,6 +2,29 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-29 (evening)
+
+* Layout: language implementations moved under `Langlib/Languages/`
+  (module names gain the `Languages` segment; Lean namespaces stay
+  `Langlib.<Langname>`). WTF stays at `Langlib/WTF/` as the front end.
+* Runners: no longer block reading a terminal stdin (empty input instead);
+  new `--verbose` flag reports how a run ended.
+* Stage 3 (WTF) core implemented: deep-embedded AST with loop annotations,
+  lexer + recursive-descent parser, type checker, pure fuel-based
+  interpreter (unbounded ints, Euclidean `/` `%`, short-circuit booleans,
+  line/byte I/O), runner with `run`/`check` subcommands, 8 examples (isqrt
+  and sumdigits ported from Velvet), 32 golden tests, `docs/wtf/spec.md`.
+* Stage 2 fan-out: parallel agents implementing the remaining languages.
+  Landed so far: fractran (24 tests; PRIMEGAME prints primes via
+  `--out pow2`) and subleq (27 tests; Mazonka's `-1` I/O convention, label
+  assembler). Total test count: 104, all passing. Still in flight:
+  whitespace, malbolge, ook+deadfish, thue, befunge93, piet+brainloller.
+* Docs: README lists implemented languages and shows how to run programs;
+  `docs/README.md` is now a status matrix (parser / interpreter / WTF
+  compiler / verified compiler per language); `docs/TESTING.md` documents
+  the golden-vs-differential policy per language; examples that read input
+  carry usage lines in comments.
+
 ## 2026-08-29 (later)
 
 * Layout revision per project owner: everything lives under `Langlib/`

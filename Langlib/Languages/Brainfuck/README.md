@@ -2,7 +2,7 @@
 
 Urban Müller's 1993 tape machine, the library's exemplar language and
 primary compilation target. The full specification, history, and the exact
-semantic choices are in [docs/brainfuck/spec.md](../../docs/brainfuck/spec.md).
+semantic choices are in [docs/brainfuck/spec.md](../../../docs/brainfuck/spec.md).
 
 ## Modules
 
@@ -23,7 +23,7 @@ lake exe brainfuck [--fuel N] [--eof unchanged|zero|minus1] file.b
 Input is read from stdin, output written to stdout. Exit codes: 0 halt,
 1 runtime error, 2 out of fuel, 3 parse or usage error.
 
-## Examples (`Langlib/Examples/Brainfuck/`)
+## Examples ([Langlib/Examples/Brainfuck/](../../Examples/Brainfuck/))
 
 | File | What it does | Origin |
 |------|--------------|--------|
@@ -43,6 +43,6 @@ so that `lake exe brainfuck quine.b | diff - quine.b` is empty.
 
 ## Tests
 
-Golden tests live in `Langlib/Tests/Brainfuck.lean` (run with `lake test`
+Golden tests live in [Langlib/Tests/Brainfuck.lean](../../Tests/Brainfuck.lean) (run with `lake test`
 from the repository root): all examples, the three EOF conventions, cell
 wraparound, divergence, both runtime errors, and both parse errors.

@@ -5,6 +5,7 @@ testDriver = "tests"
 
 [[lean_lib]]
 name = "Langlib"
+globs = ["Langlib.**"]
 
 [[lean_exe]]
 name = "tests"
@@ -12,4 +13,16 @@ root = "Langlib.Tests.Main"
 
 [[lean_exe]]
 name = "brainfuck"
-root = "Langlib.Brainfuck.Main"
+root = "Langlib.Languages.Brainfuck.Main"
+
+[[lean_exe]]
+name = "wtf"
+root = "Langlib.WTF.Main"
+
+[[lean_exe]]
+name = "fractran"
+root = "Langlib.Languages.Fractran.Main"
+
+[[lean_exe]]
+name = "subleq"
+root = "Langlib.Languages.Subleq.Main"

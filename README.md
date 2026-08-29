@@ -16,7 +16,7 @@ For each language, langlib provides:
 * a **specification** in `docs/<langname>/`, summarising the language's
   history, semantics, and quirks, with credits to its authors;
 * a **parser**, a **reference interpreter**, and a **standalone runner**
-  written in Lean, under `Langlib/<Langname>/`;
+  written in Lean, under `Langlib/Languages/<Langname>/`;
 * **examples** you can run for fun, and a **test suite**, including
   differential tests against non-Lean reference implementations where
   available.
@@ -40,20 +40,53 @@ lake build          # build the libraries and runners
 lake test           # run the test suite
 ```
 
-Each language ships a runner, for example:
-
-```
-lake exe brainfuck Langlib/Examples/Brainfuck/hello.b
-```
-
-See the per-language READMEs under `Langlib/` for details.
-
 ## Languages
 
-The current inhabitants of the library are documented in
-[docs/README.md](docs/README.md). The roadmap of languages still to be
-implemented lives in [docs/ROADMAP.md](docs/ROADMAP.md), and a survey of
-related efforts in [docs/RELATED.md](docs/RELATED.md).
+Currently implemented (see [docs/README.md](docs/README.md) for the full
+status matrix, including compilers):
+
+* [brainfuck](docs/brainfuck/spec.md) (Urban Müller, 1993)
+* [fractran](docs/fractran/spec.md) (John Conway, 1987)
+* [subleq](docs/subleq/spec.md) (folklore OISC, de-facto conventions by
+  Oleg Mazonka)
+* [WTF](docs/wtf/spec.md), the Well-Typed Formalism: the library's own
+  human-readable front end
+
+In progress: whitespace, malbolge, ook, deadfish, thue, befunge93, piet,
+brainloller. The roadmap of languages still to be implemented lives in
+[docs/ROADMAP.md](docs/ROADMAP.md), and a survey of related efforts in
+[docs/RELATED.md](docs/RELATED.md).
+
+## Running programs
+
+Each language ships a runner named after it. Programs read from stdin and
+write to stdout, so pipe or redirect input, and the result is printed to
+your terminal:
+
+```
+# brainfuck: hello world, then a quine checked against itself
+lake exe brainfuck Langlib/Examples/Brainfuck/hello.b
+lake exe brainfuck Langlib/Examples/Brainfuck/quine.b | diff - Langlib/Examples/Brainfuck/quine.b
+
+# brainfuck with input and a flag: reverse a word
+echo -n stressed | lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/rev.b
+
+# WTF: integer square root of 17, ported from Velvet
+echo 17 | lake exe wtf run Langlib/Examples/WTF/isqrt.wtf
+
+# fractran: Conway's PRIMEGAME, printing primes as exponents of 2
+lake exe fractran --n 2 --out pow2 --fuel 2000000 Langlib/Examples/Fractran/primegame.ft
+
+# subleq: hello world on a one-instruction machine
+lake exe subleq Langlib/Examples/Subleq/hello.sq
+```
+
+Every runner accepts `--fuel N` (step budget), `--verbose` (report how the
+run ended: halted, runtime error, or out of fuel), and `--help`. Exit codes:
+0 halted, 1 runtime error, 2 out of fuel, 3 parse or usage error. Example
+programs state their own usage in a comment where the language permits one;
+each language's README under `Langlib/Languages/` has the full example
+inventory.
 
 ## Contributing
 

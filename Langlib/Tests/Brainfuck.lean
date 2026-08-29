@@ -1,5 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Brainfuck.Semantics
+import Langlib.Languages.Brainfuck.Semantics
 
 /-!
 Golden tests for the brainfuck interpreter, covering the examples, the three

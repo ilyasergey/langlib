@@ -5,7 +5,7 @@
 * **Canonical sources**: Müller's original distribution (`bf.tar.gz`, Aminet,
   1993, including a 240-byte Amiga compiler); the community reference point
   today is https://esolangs.org/wiki/Brainfuck
-* **In langlib**: `Langlib/Brainfuck/`, runner `lake exe brainfuck`,
+* **In langlib**: `Langlib/Languages/Brainfuck/`, runner `lake exe brainfuck`,
   examples in `Langlib/Examples/Brainfuck/`
 
 ## History
@@ -49,7 +49,7 @@ the loop body never runs; our example files do this.
 
 The original distribution left corners underspecified, and implementations
 have disagreed ever since (see the "Implementation issues" section of the
-esolangs wiki page). Our interpreter (`Langlib/Brainfuck/Semantics.lean`)
+esolangs wiki page). Our interpreter (`Langlib/Languages/Brainfuck/Semantics.lean`)
 makes the following choices:
 
 1. **Cells are 8 bits and wrap** on increment past 255 and decrement past 0.

@@ -1,4 +1,4 @@
-import Langlib.Brainfuck.Syntax
+import Langlib.Languages.Brainfuck.Syntax
 
 /-!
 # Brainfuck: parser

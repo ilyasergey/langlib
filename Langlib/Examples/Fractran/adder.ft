@@ -1,0 +1,7 @@
+# The one-fraction adder (folklore; the standard first FRACTRAN example).
+# Registers are prime exponents: n = 2^a * 3^b holds a in register 2 and
+# b in register 3. Each step moves one unit from register 2 to register 3,
+# so the program halts at 3^(a+b).
+# Run: lake exe fractran --n 1944 --out final adder.ft   (2^3 * 3^5 -> 3^8 = 6561)
+
+3/2

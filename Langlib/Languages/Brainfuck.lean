@@ -1,6 +1,6 @@
-import Langlib.Brainfuck.Syntax
-import Langlib.Brainfuck.Parser
-import Langlib.Brainfuck.Semantics
+import Langlib.Languages.Brainfuck.Syntax
+import Langlib.Languages.Brainfuck.Parser
+import Langlib.Languages.Brainfuck.Semantics
 
 /-!
 # Brainfuck

@@ -1,0 +1,9 @@
+// cat: copies input bytes to output until end of input.
+// readByte() yields -1 at EOF, so no EOF-convention drama here.
+// Usage: echo meow | lake exe wtf run Langlib/Examples/WTF/cat.wtf
+var c : int;
+c := readByte();
+while c >= 0 {
+  printByte(c);
+  c := readByte();
+}

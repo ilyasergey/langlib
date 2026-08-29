@@ -1,5 +1,5 @@
 import Langlib.Common.Runner
-import Langlib.Brainfuck.Semantics
+import Langlib.Languages.Brainfuck.Semantics
 
 /-!
 # Brainfuck: standalone runner

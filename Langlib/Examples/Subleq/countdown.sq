@@ -1,0 +1,20 @@
+# countdown.sq -- prints the digits 9 down to 0, then a newline.
+# langlib original; public domain.
+#
+# Cell d holds the ASCII code of the digit to print, starting at '9' (57);
+# n counts ten iterations. A loop in subleq is exactly one subtract-and-
+# branch plus one unconditional jump (Z Z loop).
+
+loop: d       -1      ?+1     # output the current digit
+      one     d       ?+1     # d := d - 1 (next digit down)
+      one     n       done    # n := n - 1; after the tenth digit, exit
+      Z       Z       loop    # unconditional jump back
+
+done: nl      -1      ?+1     # output the newline
+      Z       Z       -1      # halt
+
+one: 1
+Z:   0
+nl:  10
+d:   57                       # ASCII '9'
+n:   10

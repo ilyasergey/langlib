@@ -1,6 +1,6 @@
 import Langlib.Common.Io
-import Langlib.Brainfuck.Syntax
-import Langlib.Brainfuck.Parser
+import Langlib.Languages.Brainfuck.Syntax
+import Langlib.Languages.Brainfuck.Parser
 
 /-!
 # Brainfuck: reference semantics

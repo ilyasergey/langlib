@@ -1,0 +1,21 @@
+# hello.sq -- prints "Hello, World!" and a newline.
+# langlib original; public domain.
+#
+# Subleq has no addressing modes, so walking a string means rewriting the
+# output instruction's own A operand: cell p IS that operand. Each pass
+# outputs mem[p], then subtracts -1 from p (i.e. p := p + 1), then counts
+# down n and loops until it hits zero.
+
+loop:
+p:    msg     -1      ?+1     # output the byte at the address held in p
+      minus1  p       ?+1     # p := p + 1 (result is positive: no branch)
+      one     n       done    # n := n - 1; when n reaches 0, jump to done
+      Z       Z       loop    # 0 - 0 <= 0: unconditional jump back
+
+done: Z       Z       -1      # jump to a negative address: halt
+
+minus1: -1
+one:    1
+Z:      0
+n:      14                    # length of the message
+msg:    72 101 108 108 111 44 32 87 111 114 108 100 33 10

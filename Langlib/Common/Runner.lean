@@ -34,10 +34,13 @@ namespace Runner
 
 def usage (r : Runner) : String :=
   String.intercalate "\n" <|
-    [ s!"usage: lake exe {r.name} [--fuel N] <file.{r.ext}>"
+    [ s!"usage: lake exe {r.name} [--fuel N] [--verbose] <file.{r.ext}>"
     , "  --fuel N   maximum number of execution steps (default: " ++
         toString r.defaultFuel ++ ")"
-    , "  input is read from stdin; output is written to stdout" ]
+    , "  --verbose  report how the run ended on stderr"
+    , "  input is read from stdin (piped or redirected; when stdin is an"
+    , "  interactive terminal the program sees empty input); output goes"
+    , "  to stdout" ]
     ++ r.usageExtra
 
 /-- The shared `main`. Languages define
@@ -45,6 +48,7 @@ def usage (r : Runner) : String :=
 def main (r : Runner) (args : List String) : IO UInt32 := do
   let mut fuel := r.defaultFuel
   let mut file? : Option String := none
+  let mut verbose := false
   let mut rest := args
   repeat
     match rest with
@@ -52,6 +56,8 @@ def main (r : Runner) (args : List String) : IO UInt32 := do
     | "--help" :: _ =>
       IO.println r.usage
       return 0
+    | "--verbose" :: rs =>
+      verbose := true; rest := rs
     | "--fuel" :: n :: rs =>
       match n.toNat? with
       | some k => fuel := k; rest := rs
@@ -76,7 +82,11 @@ def main (r : Runner) (args : List String) : IO UInt32 := do
     catch e =>
       IO.eprintln s!"{r.name}: cannot read '{file}': {e}"
       return 3
-  let stdin ← (← IO.getStdin).readBinToEnd
+  -- Reading an interactive terminal to EOF would block before the program
+  -- even runs, so a TTY stdin means empty input (pipe or redirect instead).
+  let stdinStream ← IO.getStdin
+  let stdin ← if ← stdinStream.isTty then pure ByteArray.empty
+              else stdinStream.readBinToEnd
   match r.run src (Input.ofByteArray stdin) fuel with
   | .error parseErr =>
     IO.eprintln s!"{r.name}: {parseErr}"
@@ -85,6 +95,12 @@ def main (r : Runner) (args : List String) : IO UInt32 := do
     let out ← IO.getStdout
     out.write res.output
     out.flush
+    if verbose then
+      let exitDesc := match res.exit with
+        | .halted => "halted normally"
+        | .error msg => s!"runtime error: {msg}"
+        | .outOfFuel => s!"ran out of fuel ({fuel} steps)"
+      IO.eprintln s!"{r.name}: {exitDesc}; read {stdin.size} input byte(s), wrote {res.output.size} output byte(s)"
     match res.exit with
     | .halted => return 0
     | .error msg =>

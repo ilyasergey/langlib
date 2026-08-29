@@ -1,0 +1,9 @@
+# PRIMEGAME (John H. Conway, 1987, "FRACTRAN: A simple universal
+# programming language for arithmetic").
+# Started from n = 2, the powers of 2 that appear in the trajectory are
+# exactly 2^2, 2^3, 2^5, 2^7, 2^11, ...: the primes, in order, as exponents.
+# It never halts; bound the run with --fuel.
+# Run: lake exe fractran --n 2 --out pow2 --fuel 100000 primegame.ft
+
+17/91 78/85 19/51 23/38 29/33 77/29 95/23
+77/19 1/17 11/13 13/11 15/2 1/7 55/1

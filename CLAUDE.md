@@ -10,15 +10,22 @@ human-readable front-end language (WTF) and verified compilers from it.
 * Standard Lake layout with a single library, `Langlib`. Everything lives
   under the `Langlib/` folder. Test driver: `Langlib/Tests/Main.lean`, run
   with `lake test`.
-* Each language lives in `Langlib/<Langname>/` with, at minimum:
+* Each language lives in `Langlib/Languages/<Langname>/` with, at minimum:
   `Syntax.lean` (AST), `Parser.lean`, `Semantics.lean` (pure, fuel-based
   evaluator), `Main.lean` (runner executable), and a `README.md`.
 * Shared infrastructure (byte I/O model, machine execution results, parser
   helpers, test harness) lives in `Langlib/Common/`.
 * Documentation for each language goes to `docs/<langname>/` (lowercase),
-  Lean code to `Langlib/<Langname>/` (capitalised Lean module name).
+  Lean code to `Langlib/Languages/<Langname>/` (capitalised Lean module name).
 * Example programs go to `Langlib/Examples/<Langname>/`, using the
-  language's customary file extension.
+  language's customary file extension. Language READMEs link their example
+  folder and test module with relative markdown links (e.g.
+  `[examples](../../Examples/Brainfuck/)` from
+  `Langlib/Languages/Brainfuck/README.md`).
+* An example that reads input or needs flags explains its own usage in a
+  comment (e.g. `Usage: echo -n 34 | lake exe brainfuck ...`), where the
+  language has any comment syntax at all; otherwise the usage goes in the
+  language README's examples table.
 * The front-end language is spelled WTF (all capitals); its sources use the
   `.wtf` extension and its Lean code lives under `Langlib/WTF/`.
 
