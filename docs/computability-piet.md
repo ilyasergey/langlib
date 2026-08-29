@@ -159,8 +159,8 @@ formalize that equivalence.
 
 Singleton normalization makes the images deliberately large:
 
-* three increments compile to `916 x 3`, or 2,748 codels;
-* the backward-loop addition example compiles to `2417 x 3`, or 7,251
+* three increments compile to `915 x 3`, or 2,745 codels;
+* the backward-loop addition example compiles to `2416 x 3`, or 7,248
   codels, and halts with output `7` within the test budget of 100,000 block
   transitions.
 

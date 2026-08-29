@@ -1572,12 +1572,12 @@ def loopRows (prologue body : List BlockCmd) : LoopRows :=
   let A := prologuePath.length
   let L := path.length
   { top := [.white] ++ prologuePath ++ [.white] ++ path ++
-      [.chromatic outBlock.1 outBlock.2, .white, .white, terminal]
+      [.chromatic outBlock.1 outBlock.2, .white, terminal]
     middle := List.replicate (A + 1) .black ++ [.white] ++
       List.replicate (L - 1) .black ++
-      [.chromatic loopBlock.1 loopBlock.2, .black, terminal, terminal, terminal]
+      [.chromatic loopBlock.1 loopBlock.2, .black, terminal, terminal]
     bottom := List.replicate (A + 1) .black ++ List.replicate (L + 1) .white ++
-      [.black, terminal, terminal, terminal] }
+      [.black, .black, .black] }
 
 theorem loopRows_middle_length (prologue body : List BlockCmd) :
     (loopRows prologue body).middle.length = (loopRows prologue body).top.length := by
@@ -1599,9 +1599,17 @@ theorem loopRows_bottom_length (prologue body : List BlockCmd) :
 Execution starts on white at `(0,0)` and slides right into the first source
 block.  A running iteration turns down at the final pivot, executes `pop` on
 the saved answer, and follows the white bottom/left return corridor.  A
-halting iteration continues right, executes `outNum`, then enters the interior
-of the terminal colour block.  None of that block's eight selected exits is
-the entry codel, and every selected exit is blocked. -/
+halting iteration continues right, executes `outNum`, steps onto a white
+codel and slides into the terminal colour block.
+
+That block is the one place in a generated image where a single codel would
+not do.  A singleton block can never halt: the program arrived from
+somewhere, that somewhere is an unblocked neighbour, and one of the eight
+exits steps back into it.  So the terminal is an L of three codels — the
+top-right corner, the codel below it, and the codel to the left of that —
+whose leftmost, bottommost and topmost extremes are all blocked by black or
+by the edge, while the white codel the program entered through is adjacent
+only to a member that is never selected as an exit. -/
 def loopGrid (prologue body : List BlockCmd) : Grid :=
   let rows := loopRows prologue body
   threeRowGrid rows.top rows.middle rows.bottom
@@ -1641,7 +1649,7 @@ theorem loopGrid_get_body (prologue body : List BlockCmd) (j : Nat)
           (endColor Hue.red Lightness.normal (loopCode body)).2 .outNum).1
         (advance (endColor Hue.red Lightness.normal (loopCode body)).1
           (endColor Hue.red Lightness.normal (loopCode body)).2 .outNum).2,
-      .white, .white, Codel.chromatic Hue.yellow Lightness.dark]
+      .white, Codel.chromatic Hue.yellow Lightness.dark]
   let whole : List Codel :=
     (([Codel.white] ++ prologuePath ++ [Codel.white]) ++ path) ++ tail
   have hwhole : (coloredRuns Hue.red Lightness.normal prologue).length + 2 + j <
@@ -1691,7 +1699,6 @@ theorem loopGrid_get_body_down (prologue body : List BlockCmd) (j : Nat)
         (advance (endColor Hue.red Lightness.normal (loopCode body)).1
           (endColor Hue.red Lightness.normal (loopCode body)).2 .pop).2,
       .black, Codel.chromatic Hue.yellow Lightness.dark,
-      Codel.chromatic Hue.yellow Lightness.dark,
       Codel.chromatic Hue.yellow Lightness.dark]
   let whole : List Codel :=
     ((List.replicate (A + 1) Codel.black ++ [Codel.white]) ++
@@ -1960,6 +1967,162 @@ theorem unitCorridor_of_row (g : Grid) (code : List BlockCmd) (hu : UnitCode cod
         simp only [Nat.add_sub_cancel]
         rw [hcur]
         exact chromatic_bne (Ne.symm (advance_ne h l c.op))
+
+/-! ## The terminal block
+
+Every command codel in a generated image is an isolated singleton, which
+`flood_singleton` already covers.  The one exception is the block the
+program halts in, and it has to be an exception: a singleton block can
+never halt, because the program arrived from somewhere, that somewhere is
+an unblocked neighbour, and one of the eight exits steps back into it.
+
+So the terminal is an L of three codels — the top-right corner, the codel
+below it, and the codel to the left of that.  This section computes its
+flood fill, its eight exits, and the halt. -/
+
+theorem flood_nil (g : Grid) (color : Codel) (k : Nat) (v : Array Bool)
+    (acc : List (Nat × Nat)) : flood g color k [] v acc = (v, acc) := by
+  cases k <;> rfl
+
+theorem codel_bne_self (c : Codel) : (c != c) = false := by
+  cases c with
+  | chromatic h l => cases h <;> cases l <;> rfl
+  | white => rfl
+  | black => rfl
+
+theorem getElem!_replicate_false (n i : Nat) :
+    (Array.replicate n false)[i]! = false := by
+  rw [Array.getElem!_eq_getD, Array.getD]
+  split
+  · simp
+  · rfl
+
+theorem getElem!_set!_ne (a : Array Bool) (i j : Nat) (v : Bool) (h : i ≠ j) :
+    (a.set! i v)[j]! = a[j]! := by
+  simp only [Array.set!, Array.setIfInBounds]
+  split
+  · next hi =>
+    rw [Array.getElem!_eq_getD, Array.getD, Array.getElem!_eq_getD, Array.getD]
+    simp only [Array.size_set]
+    split
+    · next hj =>
+      show (a.set i v hi)[j]'(by simpa using hj) = a[j]'hj
+      rw [Array.getElem_set hi]
+      simp [h]
+    · rfl
+  · rfl
+
+theorem getElem!_set!_self (a : Array Bool) (i : Nat) (v : Bool) (h : i < a.size) :
+    (a.set! i v)[i]! = v := by
+  simp [Array.set!, Array.setIfInBounds, h]
+
+/-- The flood fill on the L-shaped terminal block. -/
+theorem flood_lblock (g : Grid) (color : Codel) (y k : Nat)
+    (hw : g.width = y + 3) (hh : g.height = 3)
+    (h00 : g.get (y + 2) 0 = color) (h01 : g.get (y + 2) 1 = color)
+    (h11 : g.get (y + 1) 1 = color)
+    (n0 : (g.get (y + 1) 0 != color) = true)
+    (n1 : (g.get (y + 2) 2 != color) = true)
+    (n2 : (g.get (y + 1) 2 != color) = true)
+    (n3 : (g.get y 1 != color) = true) :
+    (flood g color (k + 11) [(y + 2, 0)]
+      (Array.replicate (g.width * g.height) false) []).2 =
+      [(y + 1, 1), (y + 2, 1), (y + 2, 0)] := by
+  have hsize : (Array.replicate (g.width * g.height) false).size = (y + 3) * 3 := by
+    simp [hw, hh]
+  -- neighbour lists
+  have nb00 : neighbours g (y + 2, 0) = [(y + 1, 0), (y + 2, 1)] := by
+    simp [neighbours, pushStep, step?, hw, hh]
+  have nb01 : neighbours g (y + 2, 1) = [(y + 2, 0), (y + 1, 1), (y + 2, 2)] := by
+    simp [neighbours, pushStep, step?, hw, hh]
+  have nb11 : neighbours g (y + 1, 1) =
+      [(y + 1, 0), (y, 1), (y + 1, 2), (y + 2, 1)] := by
+    simp [neighbours, pushStep, step?, hw, hh]
+  -- the visited-array bookkeeping: three distinct indices, all in range
+  have hbound0 : 0 * g.width + (y + 2) <
+      (Array.replicate (g.width * g.height) false).size := by
+    rw [hsize]; omega
+  have hne10 : 0 * g.width + (y + 2) ≠ 1 * g.width + (y + 2) := by rw [hw]; omega
+  have hne01 : 1 * g.width + (y + 2) ≠ 0 * g.width + (y + 2) := by rw [hw]; omega
+  have hne11 : 0 * g.width + (y + 2) ≠ 1 * g.width + (y + 1) := by rw [hw]; omega
+  have hne21 : 1 * g.width + (y + 2) ≠ 1 * g.width + (y + 1) := by rw [hw]; omega
+  have hne12 : 1 * g.width + (y + 1) ≠ 1 * g.width + (y + 2) := by rw [hw]; omega
+  have hbound1 : 1 * g.width + (y + 2) <
+      ((Array.replicate (g.width * g.height) false).set!
+        (0 * g.width + (y + 2)) true).size := by
+    rw [Array.set!, Array.size_setIfInBounds, hsize, hw]
+    omega
+  have a1 : ((Array.replicate (g.width * g.height) false).set!
+      (0 * g.width + (y + 2)) true)[1 * g.width + (y + 2)]! = false := by
+    rw [getElem!_set!_ne _ _ _ _ hne10, getElem!_replicate_false]
+  have a2 : (((Array.replicate (g.width * g.height) false).set!
+      (0 * g.width + (y + 2)) true).set!
+      (1 * g.width + (y + 2)) true)[0 * g.width + (y + 2)]! = true := by
+    rw [getElem!_set!_ne _ _ _ _ hne01, getElem!_set!_self _ _ _ hbound0]
+  have a3 : (((Array.replicate (g.width * g.height) false).set!
+      (0 * g.width + (y + 2)) true).set!
+      (1 * g.width + (y + 2)) true)[1 * g.width + (y + 1)]! = false := by
+    rw [getElem!_set!_ne _ _ _ _ hne21, getElem!_set!_ne _ _ _ _ hne11,
+      getElem!_replicate_false]
+  have a4 : ((((Array.replicate (g.width * g.height) false).set!
+      (0 * g.width + (y + 2)) true).set!
+      (1 * g.width + (y + 2)) true).set!
+      (1 * g.width + (y + 1)) true)[1 * g.width + (y + 2)]! = true := by
+    rw [getElem!_set!_ne _ _ _ _ hne12, getElem!_set!_self _ _ _ hbound1]
+  -- ten flood steps, then an empty worklist
+  rw [show k + 11 = k + 10 + 1 from rfl]
+  simp only [flood, getElem!_replicate_false, h00, h01, h11, n0, n1, n2, n3,
+    codel_bne_self, a1, a2, a3, a4, nb00, nb01, nb11,
+    Bool.or_self, Bool.or_true, Bool.true_or, Bool.false_eq_true,
+    if_false, if_true, List.append_nil, List.cons_append, List.nil_append]
+
+/-- Block information for the L-shaped terminal block. -/
+theorem localInfoAt?_lblock (g : Grid) (h : Hue) (l : Lightness) (y : Nat)
+    (hw : g.width = y + 3) (hh : g.height = 3)
+    (h00 : g.get (y + 2) 0 = .chromatic h l)
+    (h01 : g.get (y + 2) 1 = .chromatic h l)
+    (h11 : g.get (y + 1) 1 = .chromatic h l)
+    (n0 : (g.get (y + 1) 0 != Codel.chromatic h l) = true)
+    (n1 : (g.get (y + 2) 2 != Codel.chromatic h l) = true)
+    (n2 : (g.get (y + 1) 2 != Codel.chromatic h l) = true)
+    (n3 : (g.get y 1 != Codel.chromatic h l) = true) :
+    localInfoAt? g (y + 2, 0) =
+      some ⟨3, #[(y + 2, 0), (y + 2, 1), (y + 2, 1), (y + 1, 1),
+        (y + 1, 1), (y + 1, 1), (y + 2, 0), (y + 2, 0)]⟩ := by
+  have hfuel : 5 * (g.width * g.height) + 5 = (15 * y + 39) + 11 := by
+    rw [hw, hh]; omega
+  simp only [localInfoAt?, h00, hfuel]
+  rw [show (flood g (Codel.chromatic h l) ((15 * y + 39) + 11) [(y + 2, 0)]
+      (Array.replicate (g.width * g.height) false) []) =
+    ((flood g (Codel.chromatic h l) ((15 * y + 39) + 11) [(y + 2, 0)]
+      (Array.replicate (g.width * g.height) false) []).1,
+     (flood g (Codel.chromatic h l) ((15 * y + 39) + 11) [(y + 2, 0)]
+      (Array.replicate (g.width * g.height) false) []).2) from rfl]
+  rw [flood_lblock g (.chromatic h l) y (15 * y + 39) hw hh h00 h01 h11 n0 n1 n2 n3]
+  simp [mkInfo, betterFor]
+
+/-- Every one of the terminal block's eight exits is blocked, so the
+interpreter runs out of attempts and halts. -/
+theorem tryFrom_lblock (g : Grid) (bl : Blocks) (h : Hue) (l : Lightness) (y : Nat)
+    (hw : g.width = y + 3) (hh : g.height = 3)
+    (h00 : g.get (y + 2) 0 = .chromatic h l)
+    (h01 : g.get (y + 2) 1 = .chromatic h l)
+    (h11 : g.get (y + 1) 1 = .chromatic h l)
+    (n0 : (g.get (y + 1) 0 != Codel.chromatic h l) = true)
+    (n1 : (g.get (y + 2) 2 != Codel.chromatic h l) = true)
+    (n2 : (g.get (y + 1) 2 != Codel.chromatic h l) = true)
+    (n3 : (g.get y 1 != Codel.chromatic h l) = true)
+    (b1 : g.get (y + 2) 2 = .black) (b2 : g.get (y + 1) 2 = .black)
+    (b3 : g.get y 1 = .black)
+    (s : MState) (hpos : s.pos = (y + 2, 0)) :
+    tryFrom g bl 8 s = .halt s := by
+  have hinfo := localInfoAt?_lblock g h l y hw hh h00 h01 h11 n0 n1 n2 n3
+  obtain ⟨pos, dp, cc, stack, input, output⟩ := s
+  simp only at hpos
+  subst hpos
+  cases dp <;> cases cc <;>
+    simp [tryFrom, hinfo, h00, b1, b2, b3, step?, hw, hh,
+      Dir.clockwise, Dir.rotate, Dir.ofNat, Dir.toNat, CC.toggle, CC.toNat]
 
 /-- Full compiler with singleton command blocks. -/
 def compile (P : Program) (inputs : List Nat) : Grid :=

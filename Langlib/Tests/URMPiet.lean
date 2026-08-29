@@ -154,10 +154,10 @@ def fullSizeSuite : Suite where
   run := sizeOfFull
   cases :=
     [ { name := "three increments",
-        source := .inline "S 0\nS 0\nS 0", expect := .outputs "916x3=2748" }
+        source := .inline "S 0\nS 0\nS 0", expect := .outputs "915x3=2745" }
     , { name := "backward-loop addition",
         source := .inline "in 3 4\nJ 2 1 5\nS 0\nS 2\nJ 0 0 0",
-        expect := .outputs "2417x3=7251" }
+        expect := .outputs "2416x3=7248" }
     ]
 
 def suites : List Suite := [suite, sizeSuite, fullSuite, fullSizeSuite]
