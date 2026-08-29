@@ -21,6 +21,7 @@ import Langlib.Tests.Piet
 import Langlib.Tests.Subleq
 import Langlib.Tests.URMFractran
 import Langlib.Tests.URMSubleq
+import Langlib.Tests.DerivedThue
 import Langlib.Tests.Thue
 import Langlib.Tests.Whitespace
 import Langlib.Tests.Turpentine
@@ -48,6 +49,7 @@ def main : IO UInt32 :=
     , Langlib.Tests.CompileWhitespace.suites
     , Langlib.Tests.DerivedFractran.suites
     , Langlib.Tests.DerivedSubleq.suites
+    , Langlib.Tests.DerivedThue.suites
     , Langlib.Tests.DerivedWhitespace.suites
     , Langlib.Tests.Deadfish.suites
     , Langlib.Tests.Fractran.suites

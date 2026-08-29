@@ -94,8 +94,11 @@ state first-order, I/O explicit.
   Unbounded values and addresses mean a full compiler is possible. The
   route is a VM whose bytecode lives in data cells, which are never
   executed and so never self-encrypt.
-* Turpentine -> thue and -> fractran `[ ]`: planned via a shared register
-  machine (RegIR); see their compiler pages.
+* Turpentine -> thue and -> fractran `[ ]` (bespoke): planned via a shared
+  register machine (RegIR); see their compiler pages. Both already have a
+  *derived*, certified compiler out of their completeness proofs
+  (`derivedThue`, `derivedFractran`), so what a bespoke backend would add is
+  readable output and I/O, not correctness.
 
 ### Intermediate representations, and why
 
@@ -342,7 +345,7 @@ contorting the statements to fit theorems we have not needed yet.
 | brainfuck | complete | the textbook proof, but the honest one is fiddly: byte cells mean a URM register needs a multi-cell bignum representation, or a two-counter (Minsky) machine argument with unary counters on the tape. Prefer Minsky: two counters, each a tape region, and `>` `<` for selection. |
 | befunge93 | **it depends, and that is the finding** | The classical claim is that Befunge-93 is not Turing complete. Checking it against `bef.c` sharpens it: the playfield is `char pg[80*25]`, so the control state is finite, and the stack is a malloc'd list of `signed long`, so it has unbounded *depth* but a finite *alphabet*. Finite control plus one finite-alphabet stack is a pushdown automaton, which is not Turing complete. **Our implementation is a different language on this point**: we store unbounded `Int` in both stack and playfield cells (deviations 1 and 2 in the spec), which turns the 2000 cells into 2000 unbounded registers, and a register machine with two unbounded registers is already universal. So prove *both*: `BoundedStorage` for a faithful char-cell variant, and `TuringComplete` for the semantics we actually implement. The pair is the most instructive entry in this table. |
 | fractran | complete | Conway's own result: a register machine's registers are prime exponents. The simulation is arithmetic rather than operational, so this proof looks different from the others and is worth doing for that reason. |
-| thue | complete | semi-Thue systems are universal (Post). Our deterministic strategy needs care: prove it for the rule set produced by the compiler, where confluence makes the strategy irrelevant. |
+| thue | **complete, PROVED** (`Langlib/Computability/Thue.lean`, axiom-clean) | semi-Thue systems are universal (Post), but the interesting part here was the deterministic strategy. A configuration is a unique `@` marker carrying the phase, plus one unary run per counter; every generated rule reads that marker and exactly one adjacent cell, so `firstMatch` is a function on represented states and the intended derivation is the only one the interpreter can follow. Strategy *independence* (the same answer under `Strategy.random`) is one step further and not claimed; see `docs/computability-thue.md`. |
 | malbolge-unshackled | complete | interpreter partially written, unwired. Unbounded values and addresses; settled in 2020 by MalbolgeLisp. |
 | malbolge | **incomplete, PROVED** (`Langlib/Computability/Malbolge.lean`, axiom-clean) | a bounded-storage machine: 59049 words of 59049 values is a large finite state space, so its halting problem is decidable and it cannot be Turing complete. The proof turned out *not* to be the same shape as Befunge-93's: that language's restricted core is finite by construction, while Malbolge's state type is wide (an unbounded array, a growing output, a cursor whose range depends on the input), so the reachable states had to be cut out with an invariant carried through every instruction. That is also why the witness is a `BoundedRun` (the reachable-only form of `BoundedStorage`, added for this) rather than a `BoundedStorage`; see `docs/computability-malbolge.md`. The interesting sequel is Scheffer's Malbolge-T (the program reads its own output, lifting the bound) and Ørjan Johansen's Malbolge Unshackled (2007), which is complete, settled in 2020 by MalbolgeLisp, and which we are implementing. |
 | piet | complete | unbounded stack of unbounded integers plus conditional branching. Codel-level codegen is laborious; a paper-level argument via a stack machine is the realistic first step. |

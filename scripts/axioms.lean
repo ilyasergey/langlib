@@ -78,6 +78,7 @@ open Langlib.Computability
 #print axioms derivedSubleq
 #print axioms derivedBrainfuck
 #print axioms derivedFractran
+#print axioms derivedThue
 #print axioms agree
 
 -- Brainfuck: Turing complete via paired unary tape columns. The compiler
@@ -243,7 +244,8 @@ open Langlib.Computability
 #print axioms Langlib.Turpentine.Compile.URM.defEnv_get
 #print axioms Langlib.Turpentine.Compile.URM.agreeVal_default
 
--- Thue rule-family separation under the concrete substring selector.
+-- Thue: rule-family separation under the concrete substring selector, the
+-- macro and dispatch simulations built on it, and the completeness witness.
 #print axioms URMThue.encCode_injective
 #print axioms URMThue.encPhase_injective
 #print axioms URMThue.token_injective
@@ -264,6 +266,21 @@ open Langlib.Computability
 #print axioms URMThue.compileAt_origin
 #print axioms URMThue.compileRules_firstMatch_origin
 #print axioms URMThue.outcomes_functional
+#print axioms URMThue.reaches_inc
+#print axioms URMThue.reaches_dec
+#print axioms URMThue.reaches_zeroTest_zero
+#print axioms URMThue.reaches_zeroTest_nonzero
+#print axioms URMThue.reaches_emit
+#print axioms URMThue.generate_append
+#print axioms URMThue.reaches_exec
+#print axioms URMThue.reaches_count
+#print axioms URMThue.reaches_finish
+#print axioms URMThue.firstMatch_eq_control
+#print axioms URMThue.reaches_step
+#print axioms URMThue.reaches_steps
+#print axioms URMThue.firstMatch_control_none
+#print axioms URMThue.simulation
+#print axioms thueComplete
 
 -- Piet dispatcher and singleton-block normalization. The runnable compiler
 -- supports arbitrary J, while the image-level evalGrid simulation remains open.

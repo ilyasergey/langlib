@@ -2,6 +2,60 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-30: Thue proved Turing complete
+
+`thueComplete : TuringComplete ThueLang` landed, and with it
+`derivedThue`, so the string-rewriting language now has a certified
+Turpentine compiler like the machine-shaped ones. Post settled the
+mathematics in 1947; what was missing was a check that a *deterministic
+interpreter* following a *particular* strategy cannot wander off the
+intended derivation, and that is where the work went.
+
+The generator, the encodings and the rule-family separation lemmas were
+already in place. Three things closed the gap.
+
+The first is small and does all the load-bearing: a phase token plus the
+one character next to it determines which rule applies, because every
+canonical family reads exactly one adjacent cell (`reaches_phase_right_cell`,
+`reaches_phase_left_cell`). Combined with the unique `@` marker, that turns
+`Thue.firstMatch` — a search over a thousand rules and every position in the
+string — into a function on represented states.
+
+The second is `reaches_exec`, which lifts a whole big-step counter-machine
+derivation to a run of the generated rules. Rule availability travels as a
+subset of `generate done code suffix`, which shrinks on every step except
+`Ev.loopS`, where the continuation becomes `body ++ loop :: rest`. That case
+needed `generate_append`: generation is compositional in the code it
+traverses, so unrolling a loop asks for no rule the loop did not already
+generate. The macros it consumes are `reaches_inc` (which was already there),
+`reaches_dec`, both sides of `reaches_zeroTest`, and `reaches_emit`.
+
+The third is dispatch. `reaches_finish` seeks the counter holding
+`nextProgramCounter + 1`, counts it down to nothing (which also clears it,
+restoring the invariant the next macro needs), picks the destination, and
+walks the token home. `outcomes_functional`, proved earlier, is what makes
+the pick deterministic: several outcomes can share a unary count, but then
+they name the same program counter, so they are the same rule.
+
+Halting came out as the mirror of the control step. `firstMatch_eq_control`
+says a source control marker selects that instruction's entry rule;
+`firstMatch_control_none` says that once the program counter has run off the
+end, *no* generated rule matches anywhere in the string, which is exactly
+Thue's halting condition. The final state is then printed by
+`Config.finalState` and read by `decodeOutput_encodeState`.
+
+Two smaller things fell out. The left-moving return scan is now stated for an
+arbitrary phase, so `backPC` reuses it and `reaches_back_across` and
+`reaches_back_home` became corollaries. And the three counter scans share one
+`reaches_scan_prefix`.
+
+`scripts/thue-cost.lean` replaces the scratch runner the notes referred to,
+so the sizes in `docs/computability-thue.md` are reproducible: the
+one-iteration addition program is 1,211 rules, a 17-character initial state
+and exactly 1,665 rewrites.
+
+885 tests.
+
 ## 2026-08-29: Malbolge's halting problem, decided
 
 The finite-control count from earlier this week said nothing about a

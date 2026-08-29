@@ -1,10 +1,24 @@
 # Compiling Turpentine to Thue
 
-* **Status**: planned, and the least like the others.
+* **Status**: a *derived*, certified compiler exists
+  ([`derivedThue`](../../Langlib/Computability/Derived.lean#L125)); the
+  bespoke one is still planned, and is the least like the others.
 * **Family**: would need its own IR (a "rewriting" IR; see
   `docs/PLAN.md`, Stage 4).
+* **Implementation**: the bespoke backend would go in
+  `Langlib/Turpentine/Compile/Thue.lean`, beside the
+  [whitespace backend](../../Langlib/Turpentine/Compile/Whitespace.lean).
 
-* **Implementation**: none yet; it would go in `Langlib/Turpentine/Compile/Thue.lean`, beside the [whitespace backend](../../Langlib/Turpentine/Compile/Whitespace.lean).
+## What already exists
+
+[`thueComplete`](../../Langlib/Computability/Thue.lean#L4024) compiles an
+arbitrary register machine into Thue and proves the simulation, so composing
+it with the shared Turpentine-to-URM pass gives a verified Turpentine-to-Thue
+compiler today. It has the limits every derived compiler has: no I/O, because
+everything routes through a register machine, and an enormous output, because
+every register is a unary run. `docs/computability-thue.md` has the measured
+sizes. What it does *not* have is a readable program, which is what a bespoke
+backend would be for.
 
 ## Compile and run one, once this exists
 
@@ -70,14 +84,24 @@ defaults to a deterministic strategy (first rule in program order,
 leftmost occurrence; see `docs/thue/spec.md`), which is what makes our
 tests reproducible.
 
-A compiler must not rely on that. The construction above should produce a
-rule set that is **confluent for the strings it generates**: at most one
-rule matches any reachable configuration, because the program counter
-marker is unique and each rule matches a distinct marker. Then the
-strategy is irrelevant and the compiled program computes the same thing
-under the deterministic strategy, under the random strategy, and under any
-other. That property is the main proof obligation for this backend, and it
-is more interesting than the codegen.
+A compiler must not rely on that. The construction should produce a rule set
+that is **confluent for the strings it generates**: at most one rule matches
+any reachable configuration, because the program counter marker is unique and
+each rule matches a distinct marker. Then the strategy is irrelevant and the
+compiled program computes the same thing under the deterministic strategy,
+under the random strategy, and under any other. That property is the main
+proof obligation for this backend, and it is more interesting than the
+codegen.
+
+The derived compiler already carries most of it. Every generated left-hand
+side contains the marker `@`, every represented state contains exactly one
+(`encodeState_marker_count`), and the phase plus the single adjacent cell
+determines the rule that applies there. What is proved is that the
+deterministic `.first` strategy therefore follows the intended derivation.
+Full strategy independence is one step further: under `Strategy.random`,
+`Thue.step` also advances the generator state, so the statement has to
+compare the observable `str`, `input` and `output` fields rather than whole
+machine states. That step is not taken yet.
 
 ## I/O
 

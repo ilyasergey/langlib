@@ -7,7 +7,7 @@ explains why the task is shaped the way it is; read it before adapting.
 ## Why these two jobs are one job
 
 A Turing-completeness proof in LangLib is not a certificate filed away.
-`TuringComplete L` ([Class.lean:80](../Langlib/Computability/Class.lean#L80))
+`TuringComplete L` ([Class.lean:81](../Langlib/Computability/Class.lean#L81))
 is a *witness*: it carries a real compiler from the unlimited register
 machine into `L`, plus a proof that the compiled program simulates. So the
 moment somebody proves `<LANG>` complete, `<LANG>` also acquires a verified

@@ -2,7 +2,7 @@ import Langlib.Computability.Brainfuck
 import Langlib.Languages.Thue.Semantics
 
 /-!
-# A URM-to-Thue generator and its proved local obligations
+# Thue is Turing complete: a verified URM-to-Thue generator
 
 The compiler reuses the structured counter machine proved correct in
 `Langlib.Computability.Brainfuck`.  Its counters are rendered as finite unary
@@ -10,16 +10,24 @@ runs separated by `d`.  A self-delimiting control token contains the current
 counter-code continuation.  Rewrite phases move that token to the selected
 counter, perform one local operation, and move it back to the left boundary.
 
-Every generated left-hand side contains the unique character `@`. The file
-proves prefix-free phase encoding, calculates token occurrences and
-`Thue.applyAt`, and shows that any rule selected by `Thue.firstMatch` on a
-represented state belongs to that state's active phase. It also proves that
-the counter macro for each source instruction has the right arithmetic effect.
+Every generated left-hand side contains the unique character `@`, and that is
+what makes a nondeterministic rewriting system behave like a machine: the
+marker is the program counter.  The file proves prefix-free phase encoding,
+calculates token occurrences and `Thue.applyAt`, and shows that any rule
+selected by `Thue.firstMatch` on a represented state belongs to that state's
+active phase.  Because a phase and the one adjacent cell determine the rule,
+`Thue.step` is a function on represented states even though `Thue` itself is
+not deterministic.
 
-The remaining theorem must prove that a generator-family member fixes the
-rewrite result for its active phase and adjacent cell, then compose those
-micro-steps over a halting URM run. Until that theorem is present this module
-deliberately does not define `thueComplete`.
+On top of that, `reaches_exec` lifts a whole big-step counter-machine
+derivation (`URMBrainfuck.Ev`) to a run of the generated rules, `reaches_finish`
+dispatches the counter the macro leaves behind back to a source control
+marker, and `reaches_steps` composes those over a halting URM run.
+`simulation` then reads register zero out of the halted final state, and
+`thueComplete : TuringComplete ThueLang` is the witness.
+
+The claim covers halting runs only, as the shared `TuringComplete` interface
+does everywhere; see `docs/computability-thue.md`.
 -/
 
 namespace Langlib.Computability.URMThue
@@ -3427,7 +3435,7 @@ theorem reaches_count (P : Cslib.URM.Program) (inputs : List Nat) (done : Done)
       { st with str := pre ++ token (.countPC done (n + j)) ++ post } := by
   induction j generalizing n st with
   | zero =>
-      simp only [List.replicate_zero, List.nil_append, Nat.add_zero] at hs ⊢
+      simp only [List.replicate_zero, Nat.add_zero] at hs ⊢
       have heq : { st with str := pre ++ token (.countPC done n) ++ post } = st := by
         cases st
         simp_all [List.append_assoc]
@@ -3612,6 +3620,249 @@ theorem reaches_finish (P : Cslib.URM.Program) (inputs : List Nat) (done : Done)
   simpa [mid₀, mid₁, mid₂, mid₃, mid₄, suffix, tail, seekTail,
     List.append_assoc] using htotal
 
+/-! ## One source instruction -/
+
+/-- A source instruction's whole generated block occurs in the rulebase. -/
+theorem instrRules_mem_compileAt (B : Nat) :
+    ∀ (base : Nat) (P : Cslib.URM.Program) (offset : Nat) (i : Cslib.URM.Instr),
+      P[offset]? = some i →
+      ∀ r ∈ instrRules B (base + offset) i, r ∈ compileAt B base P
+  | _, [], _, _, h, _, _ => by simp at h
+  | base, head :: rest, 0, i, h, r, hr => by
+      simp at h
+      subst head
+      exact List.mem_append_left _ (by simpa using hr)
+  | base, head :: rest, offset + 1, i, h, r, hr => by
+      change rest[offset]? = some i at h
+      apply List.mem_append_right (instrRules B base head)
+      exact instrRules_mem_compileAt B (base + 1) rest offset i h r
+        (by simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hr)
+
+theorem instrRules_mem_compileRules (P : Cslib.URM.Program) (inputs : List Nat)
+    (k : Nat) (i : Cslib.URM.Instr) (hi : P[k]? = some i) :
+    ∀ r ∈ instrRules (sourceBound P inputs) k i, r ∈ compileRules P inputs := by
+  intro r hr
+  simpa [compileRules] using
+    instrRules_mem_compileAt (sourceBound P inputs) 0 P k i hi r (by simpa using hr)
+
+/-- Deterministic selection at a source control marker picks that
+instruction's entry rule.  The canonical family of a control phase is empty,
+so the only rule that can match is a control rule, and the marker fixes
+which one. -/
+theorem firstMatch_eq_control (P : Cslib.URM.Program) (inputs : List Nat)
+    (k : Nat) (i : Cslib.URM.Instr) (hi : P[k]? = some i)
+    (pre post : List Char) (hpre : '@' ∉ pre) (hpost : '@' ∉ post) :
+    firstMatch (compileRules P inputs) (pre ++ token (.control k) ++ post) =
+      some (pre.length, rule (token (.control k))
+        (token (.exec ⟨pcReg (sourceBound P inputs), outcomes k i⟩
+          (macroCode (sourceBound P inputs) k i)))) := by
+  have hmem := control_rule_mem_compileRules P inputs k i hi
+  have heocc : firstOccurrence? (rule (token (.control k))
+      (token (.exec ⟨pcReg (sourceBound P inputs), outcomes k i⟩
+        (macroCode (sourceBound P inputs) k i)))).lhs.toList
+      (pre ++ token (.control k) ++ post) = some pre.length := by
+    simp only [rule, str, String.toList_ofList]
+    simpa using firstOccurrence_token_right (.control k) [] pre post hpre
+  obtain ⟨pos, r, hselect⟩ := firstMatch_exists_of_mem hmem heocc
+  obtain ⟨hr, hrocc⟩ := firstMatch_some hselect
+  rcases compileRules_firstMatch_origin_at P inputs (.control k) pre post
+      hpre hpost pos r hselect with hphase | hcontrol
+  · simp [phaseRules] at hphase
+  · obtain ⟨k', i', hp, hi', hrule⟩ := hcontrol
+    have hkk : k = k' := by
+      have := hp
+      simpa using this
+    subst hkk
+    have hii : i' = i := by
+      rw [hi'] at hi
+      exact Option.some.inj hi
+    subst hii
+    subst hrule
+    have hpos : pos = pre.length := by
+      rw [heocc] at hrocc
+      exact (Option.some.inj hrocc).symm
+    simpa [hpos] using hselect
+
+/-- Entering a source instruction installs its counter macro. -/
+theorem reaches_control (P : Cslib.URM.Program) (inputs : List Nat)
+    (k : Nat) (i : Cslib.URM.Instr) (hi : P[k]? = some i)
+    (pre post : List Char) (hpre : '@' ∉ pre) (hpost : '@' ∉ post) (st : MState)
+    (hs : st.str = pre ++ token (.control k) ++ post) :
+    Reaches (exec ({} : Config) (compileRules P inputs)) st
+      { st with str := pre ++ token (.exec ⟨pcReg (sourceBound P inputs),
+        outcomes k i⟩ (macroCode (sourceBound P inputs) k i)) ++ post } := by
+  apply reaches_of_step
+  unfold step
+  simp only
+  rw [hs, firstMatch_eq_control P inputs k i hi pre post hpre hpost]
+  simp only [Option.map_some]
+  refine congrArg some ?_
+  have h := applyAt_rule_right (.control k) []
+    pre (token (.exec ⟨pcReg (sourceBound P inputs), outcomes k i⟩
+      (macroCode (sourceBound P inputs) k i))) post st (by simpa using hs)
+  simpa using h
+
+/-- One URM transition is simulated by one complete pass of the generated
+rewriter: enter the instruction's macro, run the counter code, then dispatch
+on the counter it leaves behind. -/
+theorem reaches_step (P : Cslib.URM.Program) (inputs : List Nat)
+    {u u' : Cslib.URM.State} (hstep : Cslib.URM.Step P u u')
+    (w : Nat → Nat) (out : Nat) (post : List Char) (hpost : '@' ∉ post)
+    (st : MState)
+    (hsrc : SourceMatches (sourceBound P inputs) w u.regs)
+    (hpc : w (pcReg (sourceBound P inputs)) = 0)
+    (hclean : ScratchClean (sourceBound P inputs) w)
+    (hs : st.str = List.replicate out 'o' ++ token (.control u.pc) ++
+      'b' :: encodeRegs (counterBound (sourceBound P inputs)) w ++ post) :
+    ∃ w', SourceMatches (sourceBound P inputs) w' u'.regs ∧
+      w' (pcReg (sourceBound P inputs)) = 0 ∧
+      ScratchClean (sourceBound P inputs) w' ∧
+      Reaches (exec ({} : Config) (compileRules P inputs)) st
+        { st with str := List.replicate out 'o' ++ token (.control u'.pc) ++
+          'b' :: encodeRegs (counterBound (sourceBound P inputs)) w' ++ post } := by
+  obtain ⟨i, hget, hnextpc, hnextregs⟩ := step_arithmetic hstep
+  have himax : i.maxRegister < sourceBound P inputs :=
+    instr_below_sourceBound (List.mem_of_getElem? hget)
+  obtain ⟨w₁, hev, hsrc₁, hpc₁, hclean₁, hout⟩ :=
+    macroCode_correct (B := sourceBound P inputs) (k := u.pc) i u.regs himax
+      ⟨w, out⟩ hsrc hpc hclean
+  have havail := instrRules_mem_compileRules P inputs u.pc i hget
+  have hgen : ∀ r ∈ generate ⟨pcReg (sourceBound P inputs), outcomes u.pc i⟩
+      (macroCode (sourceBound P inputs) u.pc i) [], r ∈ compileRules P inputs := by
+    intro r hr
+    exact havail r (List.mem_append_left _ (List.mem_cons_of_mem _ hr))
+  have hfin : ∀ r ∈ finishRules ⟨pcReg (sourceBound P inputs), outcomes u.pc i⟩,
+      r ∈ compileRules P inputs := by
+    intro r hr
+    exact havail r (List.mem_append_right _ hr)
+  have hptarget : pcReg (sourceBound P inputs) <
+      counterBound (sourceBound P inputs) := by
+    simp [pcReg, counterBound]
+  -- enter the instruction
+  let mid₀ : MState :=
+    { st with str := List.replicate out 'o' ++
+      (token (.exec ⟨pcReg (sourceBound P inputs), outcomes u.pc i⟩
+        (macroCode (sourceBound P inputs) u.pc i)) ++
+        'b' :: encodeRegs (counterBound (sourceBound P inputs)) w ++ post) }
+  have henter : Reaches (exec ({} : Config) (compileRules P inputs)) st mid₀ := by
+    have h := reaches_control P inputs u.pc i hget (List.replicate out 'o')
+      ('b' :: encodeRegs (counterBound (sourceBound P inputs)) w ++ post)
+      (by simp) (by simp [marker_not_mem_encodeRegs, hpost]) st
+      (by simpa [List.append_assoc] using hs)
+    simpa [mid₀, List.append_assoc] using h
+  -- run the counter macro
+  let mid₁ : MState :=
+    { mid₀ with str := List.replicate out 'o' ++
+      (token (.exec ⟨pcReg (sourceBound P inputs), outcomes u.pc i⟩ []) ++
+        'b' :: encodeRegs (counterBound (sourceBound P inputs)) w₁ ++ post) }
+  have hmacro : Reaches (exec ({} : Config) (compileRules P inputs)) mid₀ mid₁ := by
+    have h := reaches_exec P inputs ⟨pcReg (sourceBound P inputs), outcomes u.pc i⟩
+      hev [] post mid₀ hpost (by simpa using hgen) (by simp [mid₀, List.append_assoc])
+    simpa [mid₁, List.append_assoc] using h
+  -- dispatch on the counter the macro left
+  let w₂ := Function.update w₁ (pcReg (sourceBound P inputs)) 0
+  let mid₂ : MState :=
+    { mid₁ with str := List.replicate out 'o' ++
+      (token (.control u'.pc) ++
+        'b' :: encodeRegs (counterBound (sourceBound P inputs)) w₂ ++ post) }
+  have hdispatch : Reaches (exec ({} : Config) (compileRules P inputs)) mid₁ mid₂ := by
+    have h := reaches_finish P inputs ⟨pcReg (sourceBound P inputs), outcomes u.pc i⟩
+      (counterBound (sourceBound P inputs)) w₁
+      ⟨w₁ (pcReg (sourceBound P inputs)), instrNextPC u.pc i u.regs⟩
+      (List.replicate out 'o') post mid₁ hptarget hout rfl
+      (by simp [hpc₁]) (outcomes_functional u.pc i)
+      (by simp [mid₁, List.append_assoc]) (by simp)
+      hpost hfin
+    simpa [mid₂, w₂, hnextpc, List.append_assoc] using h
+  have hsrc₂ : SourceMatches (sourceBound P inputs) w₂ u'.regs := by
+    intro r hr
+    have hne : r ≠ pcReg (sourceBound P inputs) := by simp [pcReg]; omega
+    rw [hnextregs]
+    simpa [w₂, Function.update_of_ne hne] using hsrc₁ r hr
+  refine ⟨w₂, hsrc₂, by simp [w₂], ?_, ?_⟩
+  · obtain ⟨h1, h2, h3, h4, h5, h6, h7⟩ := hclean₁
+    refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+    all_goals
+      simp only [w₂, savedReg, cmpXReg, cmpYReg, tmpReg, gateReg, eqReg, fallReg,
+        pcReg] at *
+      first
+        | (rw [Function.update_of_ne (by omega)]; assumption)
+  · have htotal := Reaches.trans henter (Reaches.trans hmacro hdispatch)
+    simpa [mid₀, mid₁, mid₂] using htotal
+
+/-! ## A whole halting run -/
+
+/-- Composition of the per-instruction simulation over a URM run. -/
+theorem reaches_steps (P : Cslib.URM.Program) (inputs : List Nat)
+    {u u' : Cslib.URM.State} (hsteps : Cslib.URM.Steps P u u') :
+    ∀ (w : Nat → Nat) (out : Nat) (post : List Char), '@' ∉ post →
+      ∀ st : MState,
+      SourceMatches (sourceBound P inputs) w u.regs →
+      w (pcReg (sourceBound P inputs)) = 0 →
+      ScratchClean (sourceBound P inputs) w →
+      st.str = List.replicate out 'o' ++ token (.control u.pc) ++
+        'b' :: encodeRegs (counterBound (sourceBound P inputs)) w ++ post →
+      ∃ w', SourceMatches (sourceBound P inputs) w' u'.regs ∧
+        w' (pcReg (sourceBound P inputs)) = 0 ∧
+        ScratchClean (sourceBound P inputs) w' ∧
+        Reaches (exec ({} : Config) (compileRules P inputs)) st
+          { st with str := List.replicate out 'o' ++ token (.control u'.pc) ++
+            'b' :: encodeRegs (counterBound (sourceBound P inputs)) w' ++ post } := by
+  induction hsteps with
+  | refl =>
+      intro w out post _hpost st hsrc hpc hclean hs
+      refine ⟨w, hsrc, hpc, hclean, ?_⟩
+      have heq : { st with str := List.replicate out 'o' ++ token (.control u.pc) ++
+          'b' :: encodeRegs (counterBound (sourceBound P inputs)) w ++ post } = st := by
+        cases st
+        simp_all
+      rw [heq]
+      exact Reaches.refl (exec ({} : Config) (compileRules P inputs)) st
+  | @tail z _ _hprefix hlast ih =>
+      intro w out post hpost st hsrc hpc hclean hs
+      obtain ⟨w₁, hsrc₁, hpc₁, hclean₁, hreach₁⟩ := ih w out post hpost st hsrc hpc hclean hs
+      obtain ⟨w₂, hsrc₂, hpc₂, hclean₂, hreach₂⟩ := reaches_step P inputs hlast w₁ out
+        post hpost
+        { st with str := List.replicate out 'o' ++ token (.control z.pc) ++
+          'b' :: encodeRegs (counterBound (sourceBound P inputs)) w₁ ++ post }
+        hsrc₁ hpc₁ hclean₁ rfl
+      exact ⟨w₂, hsrc₂, hpc₂, hclean₂, Reaches.trans hreach₁ hreach₂⟩
+
+/-- No rule matches once the source program counter has run off the end. -/
+theorem firstMatch_control_none (P : Cslib.URM.Program) (inputs : List Nat)
+    (k : Nat) (hk : P[k]? = none) (pre post : List Char)
+    (hpre : '@' ∉ pre) (hpost : '@' ∉ post) :
+    firstMatch (compileRules P inputs) (pre ++ token (.control k) ++ post) = none := by
+  cases hm : firstMatch (compileRules P inputs) (pre ++ token (.control k) ++ post) with
+  | none => rfl
+  | some pr =>
+      obtain ⟨pos, r⟩ := pr
+      rcases compileRules_firstMatch_origin_at P inputs (.control k) pre post
+          hpre hpost pos r hm with hphase | hcontrol
+      · simp [phaseRules] at hphase
+      · obtain ⟨k', i', hp, hi', _⟩ := hcontrol
+        have hkk : k = k' := by simpa using hp
+        subst hkk
+        simp [hk] at hi'
+
+/-- The interpreter is insensitive to the parts of its configuration that
+the rewrite strategy does not read. -/
+theorem exec_strategy_congr (cfg cfg' : Config) (h : cfg.strategy = cfg'.strategy)
+    (rules : List Rule) : ∀ (fuel : Nat) (st : MState),
+    exec cfg rules fuel st = exec cfg' rules fuel st := by
+  intro fuel
+  induction fuel with
+  | zero => intro st; rfl
+  | succ fuel ih =>
+      intro st
+      have hstep : step cfg rules st = step cfg' rules st := by
+        unfold step
+        rw [h]
+      simp only [exec, hstep]
+      split
+      · rfl
+      · exact ih _
+
 /-- Total runnable compiler from a URM program and its input vector. -/
 def compile (P : Cslib.URM.Program) (inputs : List Nat) : Prog :=
   let B := sourceBound P inputs
@@ -3670,6 +3921,91 @@ theorem decodeOutput_encodeState (R : Nat) (s : CState) (phase : Phase) :
   · simp [encodeRegs]
   · simp
 
+/-- Reading the final-state observation off a halting run. -/
+theorem evalProg_of_exec (cfg : Config) (p : Prog) (input : Input) (fuel : Nat)
+    (st : MState) (hcfg : cfg.strategy = .first) (hfinal : cfg.finalState = true)
+    (h : exec cfg p.rules fuel
+        { str := p.initial.toList, input := input, rng := 0 } =
+      (st, Langlib.Common.Exit.halted))
+    (hout : st.output = ByteArray.empty) :
+    Langlib.Thue.evalProg cfg p input fuel =
+      { output := (String.ofList st.str ++ "\n").toUTF8,
+        exit := Langlib.Common.Exit.halted } := by
+  unfold Langlib.Thue.evalProg
+  simp only [hcfg, hfinal]
+  rw [h]
+  simp [hout, ByteArray.empty_append]
+  exact fun hcon => absurd hcon (by decide)
+
+/-! ## The simulation theorem -/
+
+/-- End to end: a halting URM run is simulated by the generated Thue
+program under the deterministic strategy, and the final-state observation
+decodes to the contents of register zero. -/
+theorem simulation (P : Cslib.URM.Program) (inputs : List Nat) (result : Nat)
+    (h : Cslib.URM.HaltsWithResult P inputs result) :
+    ∃ fuel,
+      (Langlib.Thue.evalProg { finalState := true } (compile P inputs)
+          (Input.ofString "") fuel).exit = Langlib.Common.Exit.halted ∧
+      decodeOutput (Langlib.Thue.evalProg { finalState := true } (compile P inputs)
+          (Input.ofString "") fuel).output = some result := by
+  obtain ⟨u, hsteps, hhalt, hresult⟩ := h
+  obtain ⟨hsrc0, hpc0, hclean0⟩ := initial_macro_invariant P inputs
+  let st₀ : MState :=
+    { str := (compile P inputs).initial.toList, input := Input.ofString "",
+      output := ByteArray.empty, rng := 0 }
+  have hst₀ : st₀.str = List.replicate 0 'o' ++ token (.control 0) ++
+      'b' :: encodeRegs (counterBound (sourceBound P inputs))
+        (Cslib.URM.Regs.ofInputs inputs) ++ ['q'] := by
+    simp [st₀, compile, str, encodeState]
+  obtain ⟨w, hsrc, hpc, hclean, hreach⟩ :=
+    reaches_steps P inputs hsteps (Cslib.URM.Regs.ofInputs inputs) 0 ['q']
+      (by simp) st₀ hsrc0 hpc0 hclean0 hst₀
+  set stf : MState :=
+    { st₀ with str := List.replicate 0 'o' ++ token (.control u.pc) ++
+      'b' :: encodeRegs (counterBound (sourceBound P inputs)) w ++ ['q'] } with hstf
+  have hgetnone : P[u.pc]? = none := List.getElem?_eq_none hhalt
+  have hstr : stf.str = List.replicate 0 'o' ++ token (.control u.pc) ++
+      ('b' :: encodeRegs (counterBound (sourceBound P inputs)) w ++ ['q']) := by
+    simp [hstf, List.append_assoc]
+  have hnone : step ({} : Config) (compileRules P inputs) stf = none := by
+    unfold step
+    simp only
+    rw [hstr, firstMatch_control_none P inputs u.pc hgetnone
+      (List.replicate 0 'o')
+      ('b' :: encodeRegs (counterBound (sourceBound P inputs)) w ++ ['q'])
+      (by simp) (by simp [marker_not_mem_encodeRegs])]
+    rfl
+  have hexec1 : exec ({} : Config) (compileRules P inputs) 1 stf =
+      (stf, Langlib.Common.Exit.halted) := by
+    simp [exec, hnone]
+  obtain ⟨m, hm⟩ := hreach.eval 1
+  have hrun : exec ({ finalState := true } : Config) (compile P inputs).rules m st₀ =
+      (stf, Langlib.Common.Exit.halted) := by
+    rw [exec_strategy_congr ({ finalState := true } : Config) ({} : Config) rfl]
+    rw [show (compile P inputs).rules = compileRules P inputs from rfl, hm, hexec1]
+  have heval : Langlib.Thue.evalProg { finalState := true } (compile P inputs)
+      (Input.ofString "") m =
+      { output := (String.ofList stf.str ++ "\n").toUTF8,
+        exit := Langlib.Common.Exit.halted } :=
+    evalProg_of_exec { finalState := true } (compile P inputs) (Input.ofString "") m
+      stf rfl rfl hrun rfl
+  have hw0 : w 0 = result := by
+    have h0 : (0 : Nat) < sourceBound P inputs := sourceBound_pos P inputs
+    have := hsrc 0 h0
+    rw [this]
+    exact hresult
+  refine ⟨m, by rw [heval], ?_⟩
+  rw [heval]
+  have hstate : stf.str = encodeState (counterBound (sourceBound P inputs))
+      ⟨w, 0⟩ (.control u.pc) := by
+    simp [hstf, encodeState]
+  have hR : counterBound (sourceBound P inputs) = (sourceBound P inputs + 7) + 1 := by
+    simp [counterBound]
+  rw [hstate, hR]
+  simpa [hw0] using
+    decodeOutput_encodeState (sourceBound P inputs + 7) ⟨w, 0⟩ (.control u.pc)
+
 end Langlib.Computability.URMThue
 
 namespace Langlib.Computability
@@ -3683,5 +4019,12 @@ instance : ProgLang ThueLang where
   Prog := Langlib.Thue.Prog
   parse := Langlib.Thue.parse
   run := Langlib.Thue.evalProg { finalState := true }
+
+/-- Thue is Turing complete, via the verified URM-to-Thue generator. -/
+def thueComplete : TuringComplete ThueLang where
+  compile := URMThue.compile
+  encodeInput := URMThue.encodeInput
+  decodeOutput := URMThue.decodeOutput
+  simulates := fun P inputs result h => URMThue.simulation P inputs result h
 
 end Langlib.Computability
