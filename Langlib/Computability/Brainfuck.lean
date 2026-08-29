@@ -505,6 +505,34 @@ theorem tapeAt_setCell_of_ne (s : Brainfuck.State) (v : UInt8) (p : Nat)
     rw [heq]
     simp only [List.getElem?_cons_succ]
 
+theorem tapeAt_setCell (s : Brainfuck.State) (v : UInt8) (p : Nat) :
+    tapeAt { s with cell := v } p =
+      if p = s.left.length then v else tapeAt s p := by
+  by_cases h : p = s.left.length
+  · subst p; rw [if_pos rfl, tapeAt_setCell_self]
+  · rw [if_neg h, tapeAt_setCell_of_ne _ _ _ h]
+
+theorem moveRightN_output (n : Nat) (s : Brainfuck.State) :
+    (moveRightN n s).output = s.output := by
+  induction n generalizing s with
+  | zero => rfl
+  | succ n ih => rw [moveRightN, ih]; cases s <;> cases right <;> rfl
+
+theorem MoveLeftN.output {n : Nat} {s t : Brainfuck.State} (h : MoveLeftN n s t) :
+    t.output = s.output := by
+  induction h with
+  | zero => rfl
+  | succ hm _ ih =>
+    rw [ih]
+    cases s <;> cases left <;> simp [Brainfuck.State.moveLeft?] at hm
+    simp_all
+
+private theorem slot_sub (width q slot j : Nat) (hj : j ≤ q) :
+    width * q + slot - width * j = width * (q - j) + slot := by
+  have hq : q = j + (q - j) := by omega
+  conv_lhs => rw [hq, Nat.mul_add]
+  omega
+
 /-- The Brainfuck tape and output represent a counter-machine state at the
 fixed base pointer. -/
 def Matches (R : Nat) (c : CState) (s : Brainfuck.State) : Prop :=
@@ -575,7 +603,7 @@ theorem guard_ne_dataPos {R row r r' : Nat} (hR : 0 < R)
   intro h
   have hh : stride R * 0 + (2 * r + 1) = stride R * (row + 1) + 2 * r' := by
     unfold dataPos at h
-    simpa only [Nat.zero_mul, Nat.zero_add] using h
+    simpa only [Nat.mul_zero, Nat.zero_add] using h
   have hs := slotPos_inj (a := 0) (b := row + 1) hR
     (by simp [stride]; omega : 2 * r + 1 < stride R)
     (by simp [stride]; omega : 2 * r' < stride R)
@@ -588,7 +616,7 @@ theorem guard_ne_guidePos {R row r r' : Nat} (hR : 0 < R)
   have hh : stride R * 0 + (2 * r + 1) =
       stride R * (row + 1) + (2 * r' + 1) := by
     unfold guidePos dataPos at h
-    simp only [Nat.zero_mul, Nat.zero_add]
+    simp only [Nat.mul_zero, Nat.zero_add]
     omega
   have hs := slotPos_inj (a := 0) (b := row + 1) hR
     (by simp [stride]; omega : 2 * r + 1 < stride R)
