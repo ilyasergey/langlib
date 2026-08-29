@@ -4,18 +4,18 @@
 
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC (dis)proved | Correct via TC | Hosts full Turpentine | Bespoke compiler | Bespoke correct |
 | ---------- | ------ | -------- | ------------- | ------------------ | -------- | ----------------- | ----------- | ---------------- | ----------------------- | ------------------ | ----------------- |
-| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | [**yes**](../Langlib/Computability/Brainfuck.lean#L2888) | [**yes**](../Langlib/Computability/Derived.lean#L110) | yes | [yes, scalars](brainfuck/compiler.md) | planned |
-| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [**yes**](../Langlib/Computability/Derived.lean#L102) | yes | [yes](whitespace/compiler.md) | planned |
-| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [**yes**](../Langlib/Computability/Derived.lean#L106) | yes | [yes](subleq/compiler.md) | planned |
+| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | [**yes**](../Langlib/Computability/Brainfuck.lean#L2888) | [**yes**](../Langlib/Computability/Derived.lean#L110) | yes | [yes](brainfuck/compiler.md) | wip |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [**yes**](../Langlib/Computability/Derived.lean#L102) | yes | [yes](whitespace/compiler.md) | wip |
+| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [**yes**](../Langlib/Computability/Derived.lean#L106) | yes | [yes](subleq/compiler.md) | wip |
 | [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | [**no**, byte core](../Langlib/Computability/Befunge93.lean#L326) | n/a | no, 2000 code cells | [no](befunge93/compiler.md) | n/a |
 | [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [no, bounded storage](malbolge/spec.md) | wip; [control counted, transitions open](computability-malbolge.md) | n/a | no, bounded storage | [no](malbolge/compiler.md) | n/a |
 | malbolge-unshackled | wip | wip | wip | wip | `malbolge-unshackled` | yes | open | planned | expected yes | planned | planned |
 | [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | wip; [URM compiler, simulation open](computability-fractran.md) | planned | no I/O at all | [planned](fractran/compiler.md) | planned |
 | [thue](thue/spec.md) | yes | yes | yes | yes | `thue` | yes | open | planned | expected, unary output | [planned](thue/compiler.md) | planned |
 | [piet](piet/spec.md) | yes | yes | yes | yes | `piet` | yes | wip; [straight-line only](computability-piet.md) | planned | expected yes | [planned](piet/compiler.md) | planned |
-| [ook](ook/spec.md) | yes | yes | yes | yes | `ook` | yes (via brainfuck) | open | planned | yes, via brainfuck | [planned, free via brainfuck](ook/compiler.md) | planned |
-| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `brainloller` | yes (via brainfuck) | open | planned | yes, via brainfuck | [planned, free via brainfuck](brainloller/compiler.md) | planned |
-| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `deadfish` | [no, finite state](deadfish/spec.md) | [**no**, halting decidable](../Langlib/Computability/Deadfish.lean#L89) | n/a | no, output only | [planned, output-only](deadfish/compiler.md) | planned |
+| [ook](ook/spec.md) | yes | yes | yes | yes | `ook` | yes (via brainfuck) | open | planned | yes, via brainfuck | [wip, free via brainfuck](ook/compiler.md) | planned |
+| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `brainloller` | yes (via brainfuck) | open | planned | yes, via brainfuck | [wip, free via brainfuck](brainloller/compiler.md) | planned |
+| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `deadfish` | [no, every program halts](deadfish/spec.md) | [**no**, halting decidable](../Langlib/Computability/Deadfish.lean#L89) | n/a | no, output only | [planned, output-only](deadfish/compiler.md) | planned |
 | unlambda / SKI | wip | wip | wip | wip | `unlambda` | yes | open | planned | expected yes | planned | planned |
 | [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `turpentine` | yes | open | (source) | (source) | (source) | (source) |
 | [URM](#the-urm) (yardstick) | [here](#the-urm) | n/a | [yes](../Langlib/Computability/URM.lean) | yes | n/a | yes | (yardstick) | (the route itself) | no I/O at all | [yes, certified fragment](../Langlib/Turpentine/Compile/URM.lean) | [**yes**](../Langlib/Turpentine/Compile/URM.lean#L2989) |
