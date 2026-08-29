@@ -4,6 +4,8 @@
 * **Family**: StackIR (see `docs/PLAN.md`, Stage 4), shared with
   whitespace.
 
+* **Implementation**: none yet; it would go in `Langlib/Turpentine/Compile/Piet.lean`, beside the [whitespace backend](../../Langlib/Turpentine/Compile/Whitespace.lean).
+
 ## Compile and run one, once this exists
 
 Not yet implemented, so these commands do not work today. They are the

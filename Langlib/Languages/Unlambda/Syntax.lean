@@ -57,24 +57,41 @@ def newlineByte : UInt8 := 10
 /-- `r`, the customary spelling of `.` followed by a newline. -/
 def r : Term := .dot newlineByte
 
-private def showByte (b : UInt8) : String :=
-  String.ofList [Char.ofNat b.toNat]
+/-- The bytes of a builtin leaf, in concrete syntax. A `.x` printing a
+newline comes back as `r`, which parses to the same term and keeps the text
+on one line. -/
+private def leafBytes : Term → List UInt8
+  | .k => [107]
+  | .s => [115]
+  | .i => [105]
+  | .v => [118]
+  | .d => [100]
+  | .c => [99]
+  | .e => [101]
+  | .at => [64]
+  | .pipe => [124]
+  | .dot ch => if ch == newlineByte then [114] else [46, ch]
+  | .ques ch => [63, ch]
+  | .app _ _ => []
 
-/-- Render a term back to concrete syntax. A `.x` printing a newline comes
-back as `r`, which parses to the same term and keeps the text on one line. -/
-def render : Term → String
-  | .k => "k"
-  | .s => "s"
-  | .i => "i"
-  | .v => "v"
-  | .d => "d"
-  | .c => "c"
-  | .e => "e"
-  | .at => "@"
-  | .pipe => "|"
-  | .dot ch => if ch == newlineByte then "r" else "." ++ showByte ch
-  | .ques ch => "?" ++ showByte ch
-  | .app f a => "`" ++ render f ++ render a
+/-- Render a term back to concrete syntax, as bytes.
+
+Bytes rather than a `String` because `.x` and `?x` carry a *byte*, not a
+character: `.é` in a source file is `.` followed by the first byte of the
+UTF-8 encoding, and only a byte-level rendering parses back to the term it
+came from. `parse (render t) = .ok t` for every `t`. -/
+def renderBytes (t : Term) : ByteArray :=
+  go t .empty
+where
+  go : Term → ByteArray → ByteArray
+    | .app f a, acc => go a (go f (acc.push 96))
+    | leaf, acc => leaf.leafBytes.foldl ByteArray.push acc
+
+/-- Render a term back to concrete syntax. Terms whose `.x` and `?x`
+payloads are all ASCII round-trip through this; for the general case use
+`renderBytes`, which is what `parse` actually reads. -/
+def render (t : Term) : String :=
+  String.ofList ((renderBytes t).toList.map fun b => Char.ofNat b.toNat)
 
 /-- The number of leaves in a term, i.e. the number of builtins in it. -/
 def size : Term → Nat

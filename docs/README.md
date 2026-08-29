@@ -3,6 +3,21 @@
 Per-language specifications live in `docs/<langname>/spec.md`; compiler notes
 (once a Turpentine compiler exists for the language) in `docs/<langname>/compiler.md`.
 
+## Turpentine, and why it is in the table
+
+Most rows below are esoteric languages: someone else's joke, implemented
+here with a specification, an interpreter and a computational-class claim.
+The last row is different. **Turpentine** is langlib's own language, a
+small readable imperative one, and it is the *source* the others are
+compilation targets for. Write a program once in Turpentine and compile it
+to brainfuck, whitespace or subleq rather than writing brainfuck by hand.
+
+It appears in the same table because it is held to the same standard: it
+has a [spec](turpentine/spec.md), a parser, an interpreter, examples and
+tests, and it gets a computational-class claim like everything else. What
+differs is the compiler columns, which read "(source)" for it, since a
+compiler *from* Turpentine to itself is not a thing.
+
 ## Status matrix
 
 Legend: `yes` done, `wip` in progress, `-` not started, `n/a` not applicable

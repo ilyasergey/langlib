@@ -1,12 +1,12 @@
 # Compiling Turpentine to brainfuck
 
-* **Compiler**: `Langlib/Turpentine/Compile/Brainfuck.lean`
+* **Implementation**: [Langlib/Turpentine/Compile/Brainfuck.lean](../../Langlib/Turpentine/Compile/Brainfuck.lean)
   (module `Langlib.Turpentine.Compile.Brainfuck`)
 * **Entry points**: `compile : Turpentine.Program → Except String Brainfuck.Prog`
   and `compileSource : String → Except String String` (Turpentine text to
   brainfuck text, with a header comment), plus `runCompiled`, which compiles
   and runs in one step and is what the tests use
-* **Tests**: `Langlib/Tests/CompileBrainfuck.lean`
+* **Tests**: [Langlib/Tests/CompileBrainfuck.lean](../../Langlib/Tests/CompileBrainfuck.lean)
 * **Language pages**: `docs/turpentine/spec.md`, `docs/brainfuck/spec.md`
 * **Sample output**: `Langlib/Examples/Brainfuck/compiled/`
 * **Run the output with**: `lake exe brainfuck --eof zero <file>`
@@ -24,26 +24,31 @@ $ echo -n meow | lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/compil
 meow
 $ echo 17 | lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/compiled/isqrt.b
 4
+$ lake exe brainfuck --eof zero Langlib/Examples/Brainfuck/compiled/sieve.b
+2
+3
+5
+...
 ```
 
-Those three files were produced by `compileSource` from
-`Langlib/Examples/Turpentine/{hello,cat,isqrt}.turp` and are ordinary
+Those four files were produced by `compileSource` from
+`Langlib/Examples/Turpentine/{hello,cat,isqrt,sieve}.turp` and are ordinary
 brainfuck. From Lean, `compileSource` gives the text and `runCompiled`
 compiles and runs in one step with the right EOF mode already set.
 
 ## Summary
 
-Turpentine has arbitrary-precision integers, structured control flow, and
-line-oriented I/O. Brainfuck has a tape of 8-bit wrapping cells, one
-conditional construct, and one byte of I/O at a time. Bridging that is the
-whole of this page.
+Turpentine has arbitrary-precision integers, structured control flow,
+arrays, and line-oriented I/O. Brainfuck has a tape of 8-bit wrapping cells,
+one conditional construct, and one byte of I/O at a time. Bridging that is
+the whole of this page.
 
-The backend compiles the **scalar** fragment of Turpentine: every statement
-and every operator except the array forms. Integers become 16-bit two's
-complement values in two cells, which is the one real restriction and the
-one the fragment section states plainly. All eight scalar examples in
-`Langlib/Examples/Turpentine/` compile, and every one of them produces
-exactly what the reference interpreter produces.
+The backend compiles **all** of Turpentine: every statement, every operator,
+and every array form. Integers become 16-bit two's complement values in two
+cells, which is the one real restriction and the one the fragment section
+states plainly. All eleven examples in `Langlib/Examples/Turpentine/`
+compile, and every one of them produces exactly what the reference
+interpreter produces.
 
 ## Supported fragment
 
@@ -52,30 +57,21 @@ exactly what the reference interpreter produces.
 (`true`/`false`); `print`/`println` of a string literal; `printByte`;
 `readInt`; `readByte`; `+ - * / %`; `== != < <= > >=`; `&&` and `||` with
 genuine short-circuiting; unary `-` and `!`; variable declarations with
-initialisers that may mention earlier variables. Loop `invariant` and
-`decreases` annotations are ignored, exactly as the reference interpreter
-ignores them, so a program carrying them compiles unchanged.
+initialisers that may mention earlier variables; and arrays in every form,
+`var a : int[n];`, `a[i]`, `len(a)`, `a[i] := e;`,
+`a[i] := readInt();` and `a[i] := readByte();`.
 
 **Out, and reported by name as an `Except.error`:**
 
 | Construct | Message |
 |-----------|---------|
-| `var a : int[n];` | `arrays are not supported by the brainfuck backend yet (declaration of 'a')` |
-| `a[i]` | `... (a[i])` |
-| `len(a)` | `... (len(a))` |
-| `a[i] := e;` | `... (a[i] := e)` |
-| `a[i] := readInt();` | `... (a[i] := readInt())` |
-| `a[i] := readByte();` | `... (a[i] := readByte())` |
 | a literal outside `-32768 .. 32767` | `integer literal N is above/below the 16-bit range ...` |
-| more than 64 variables | `the brainfuck backend supports at most 64 variables ...` |
+| more than 64 declarations | `the brainfuck backend supports at most 64 variables ...` |
 | expressions nested deeper than 32 slots | `expression nesting of depth N exceeds the brainfuck backend's limit of 32` |
+| an array of more than 255 elements | `the brainfuck backend supports arrays of at most 255 elements, 'a' has N` |
 
-The body is checked before the declarations, so a program that uses an
-array is told which array *operation* is missing rather than being sent back
-to the `var` line that made it possible.
-
-The last two limits are tape budget, not principle. The array limit is real
-work: see the closing section.
+The first three are tape budget, not principle. The array limit is the width
+of the walk counter, which is one byte: see "Arrays" below.
 
 **In, but not identical to the reference semantics.** Four differences,
 each forced by the target machine and each pinned down by a test:
@@ -83,10 +79,12 @@ each forced by the target machine and each pinned down by a test:
 1. **Overflow wraps.** Turpentine integers are unbounded; these are 16-bit.
    `20000 + 20000` prints `-25536` rather than `40000`. Nothing warns you.
 2. **Runtime errors become divergence.** Brainfuck cannot report an error,
-   so a failed `assert` and division or modulo by zero compile to `+[]`, an
-   infinite loop. The reference interpreter says "assertion failed"; the
-   compiled program runs out of fuel. Both are failures; they are not the
-   same failure, and the `traps` suite records exactly that.
+   so a failed `assert`, division or modulo by zero, and an out-of-range
+   array index compile to `+[]`, an infinite loop. The reference interpreter
+   says "assertion failed" or "index 3 out of bounds for 'a' of length 3";
+   the compiled program runs out of fuel. Both are failures; they are not
+   the same failure, and the `traps` suite records exactly that, with a
+   companion suite recording what the interpreter says instead.
 3. **End of input is a zero byte.** Under `--eof zero` a `,` at end of input
    stores 0, which no amount of cleverness distinguishes from an input byte
    that happens to be 0. Compiled `readByte` therefore yields `-1` for both.
@@ -116,10 +114,10 @@ examples use.
 
 ## Tape layout
 
-Addresses are static. The compiler knows the exact data-pointer position at
-every point in the output, so every `>`/`<` run is a compile-time constant
-and there is no runtime address arithmetic anywhere. `V` is the number of
-declared variables and `D` the number of expression-stack slots.
+Addresses are static, with one exception the next section is about. The
+compiler knows the exact data-pointer position at every point in the output,
+so every `>`/`<` run is a compile-time constant. `V` is the number of
+declarations and `D` the number of expression-stack slots.
 
 | Cells | Contents |
 |-------|----------|
@@ -128,6 +126,13 @@ declared variables and `D` the number of expression-stack slots.
 | `3 .. 2+2V` | variables, two cells each, in declaration order |
 | `3+2V .. 2+2V+2D` | the expression stack, two cells per slot |
 | `3+2V+2D ...` | the work area: scratch bytes and 16-bit temporaries, about a hundred cells |
+| `3+2V+2D+512 ...` | the array region: one six-cell slab per element, arrays in declaration order |
+
+The 512-cell gap in front of the array region is slack: the work area is
+deepest when a division nests inside a multiply inside a comparison, and 512
+is more than that will ever need. An array declaration also takes a pair of
+cells in the variable region and never uses them, which costs two cells and
+saves a special case.
 
 Expressions compile with a stack discipline: the code for `e` into slot `k`
 may use every slot above `k` and nothing below it. `D` is the maximum
@@ -265,6 +270,134 @@ Brainfuck's only branch is "is this cell zero", so:
   the right operand of `x != 0 && 1 / x == 0` is genuinely not evaluated and
   the guarded division never traps. The reference semantics short-circuits
   too, and this is one of the tests.
+
+## Arrays, and how to have an address without addressing
+
+This is the part of the backend worth reading. Brainfuck has no addressing
+mode at all. `>` and `<` move the head by one, `[` and `]` branch on the
+cell under it, and that is the whole of memory access: there is no way to
+say "the cell whose number is in this other cell". Every other construct in
+this compiler works because the emitter knows where the head is when it
+emits each command. A computed index is precisely the case where it does
+not.
+
+The escape is the **moving-value idiom**, and its one idea is that a loop
+body may leave the head somewhere other than where it found it. If the body
+of `[...]` ends one array element to the right of where it started, then the
+`]` tests the *next* element's cell, and the loop walks. Turn "go to element
+`i`" into "take `i` steps" and the distance stops needing to be known: it
+only needs to be counted, and a count is data, which brainfuck can carry.
+
+### The slab
+
+An array of `n` elements gets `n + 1` **slabs** of six cells each. The extra
+one is a guard the walk never enters. Slab `j` is:
+
+| Offset | Name | What it holds |
+|--------|------|---------------|
+| `0` | `k` | the step counter, while the walk is passing through |
+| `1` | `m` | the return marker |
+| `2`, `3` | `d` | the payload: a 16-bit value riding along with the head |
+| `4`, `5` | `v` | the element itself |
+
+Four of the six cells are overhead, and they are all zero except during an
+access. That is the price of the idiom: everything the walk needs has to
+travel beside the head, because the head is the only thing that knows where
+it is.
+
+### Setting off
+
+Every access starts at slab 0, whose address is static, so the setup is
+ordinary compiled code. The bounds check has already forced `0 ≤ i < n` and
+`n ≤ 255`, so the index fits in one byte, and that byte goes into slab 0's
+counter cell. The payload cells get the value to be written, or stay zero
+for a read.
+
+### Walking out
+
+```
+[ - ; k -> next k ; d -> next d ; step one slab right ; m := 1 ]
+```
+
+In brainfuck, with a stride of six:
+
+```
+[ - [->>>>>>+<<<<<<] >> [->>>>>>+<<<<<<] > [->>>>>>+<<<<<<] >>>>+< ]
+```
+
+Each iteration spends one step of the counter, hands what is left of the
+counter and the whole payload to the next slab, and ends with the head on
+the next slab's counter cell, which is the cell the closing `]` reads. When
+the counter runs out the loop exits with the head standing on slab `i`, the
+payload beside it, and a `1` in the marker cell of every slab from `1` to
+`i`. If `i` is zero the loop never runs at all and the head has not moved,
+which is exactly right.
+
+### Acting
+
+The head is now on slab `i`'s counter cell, and that cell is provably zero:
+the walk spent it. Free scratch, at the one place on the tape where none was
+budgeted. So a read is
+
+```
+v -> d and k ;  k -> v          (twice, once per byte)
+```
+
+which copies the element into the payload while putting it back, and a write
+is `v := 0; d -> v`, twice, which also empties the payload so that the walk
+home carries nothing.
+
+### Walking home
+
+```
+> [ - ; d -> previous d ; step one slab left ] <
+```
+
+The marker trail is what makes this possible: the counter is spent, so the
+distance home is not a number any more, it is a path. Following it costs one
+decrement per slab instead of a full counter transfer, which is why the two
+directions are not symmetric. Walking out moves a shrinking counter `i`
+times, `O(i²)` tape units; walking home is `O(i)` plus whatever the payload
+costs. The loop stops at slab 0 because slab 0 was never marked.
+
+### What the compiler thinks is happening
+
+Nothing. The whole sequence is emitted with raw command pushes that never
+touch the emitter's record of the head position, and its net displacement is
+zero: `6i` cells right, `6i` cells left. So the compiler's claim to know
+where the head is stays false for exactly the length of a walk and is true
+again the instant it ends, and no other part of the backend needs an opinion
+about arrays. The escape hatch is real, and it is three routines wide.
+
+### The rest
+
+`len(a)` is a literal. Lengths are fixed at declaration, so there is nothing
+to compute.
+
+Elements need no initialisation, because the tape starts at zero, which is
+`0` for an `int` and `false` for a `bool`.
+
+Bounds checking is two signed 16-bit comparisons, `i < 0` and `i < n`, and
+an out-of-range index in either direction compiles to the same `+[]` a
+failed `assert` does. The reference interpreter reports `index 3 out of
+bounds for 'a' of length 3`; the compiled program hangs. That is the same
+trade the whole backend makes with runtime errors, and it is why the bounds
+check is worth emitting at all: without it an out-of-range index would walk
+off into the scratch area and quietly corrupt something.
+
+Evaluation order follows the reference exactly. For `a[i] := e` the
+right-hand side is evaluated first and the index second, and the two read
+statements consume their input before they look at the index. In the
+compiled program that ordering is invisible, since a bad right-hand side and
+a bad index both become the same hang; the test that pins it down therefore
+runs on the interpreter, where `a[5] := 1 / z` with `z = 0` reports the
+division rather than the index.
+
+Each `a[i]` costs a bounds check (two 16-bit comparisons) plus a walk
+quadratic in `i`. For the 50-element sieve that is a few tens of thousands
+of brainfuck steps at the far end of the array, and around 1% of the
+program's total running time: the decimal printer and the multiplications in
+the loop conditions dominate it comfortably.
 
 ## Input and output
 

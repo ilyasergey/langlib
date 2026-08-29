@@ -1,16 +1,11 @@
 // Integer square root: reads n, prints the r with r*r <= n < (r+1)*(r+1).
 // Ported from Velvet's flagship example (github.com/verse-lab/velvet).
-// The invariant and decreases annotations are kept for the verification
-// pipeline; the interpreter ignores them.
 // Usage: echo 17 | lake exe turpentine run Langlib/Examples/Turpentine/isqrt.turp
 var n : int;
 var x : int := 0;
 n := readInt();
 assert n >= 0;
-while (x + 1) * (x + 1) <= n
-  invariant x * x <= n
-  decreases n - x * x
-{
+while (x + 1) * (x + 1) <= n {
   x := x + 1;
 }
 println(x);

@@ -11,9 +11,10 @@ compilation, so the AST deliberately stays small and first-order: two value
 types (`int`, `bool`), mutable variables, structured control flow, and
 explicit byte- and number-level I/O matching `Langlib.Common`.
 
-Loops carry optional `invariant` and `decreases` annotations. The reference
-semantics ignores them; they are parsed, type-checked, and kept in the tree
-for the verification pipeline (see `docs/PLAN.md`, Stage 6).
+`assert` is the only specification construct. Loops carried `invariant`
+and `decreases` annotations until 2026-09-01; they were removed because
+nothing consumed them, since compiler verification reasons about the
+semantics of `while` whatever decorates it.
 -/
 
 namespace Langlib.Turpentine
@@ -70,10 +71,8 @@ inductive Stmt where
   | assign (x : String) (e : Expr)
   /-- `if c { s₁ } else { s₂ }` (the `else` branch may be `skip`). -/
   | ite (c : Expr) (s₁ s₂ : Stmt)
-  /-- `while c invariant? decreases? { body }`. Annotations are kept for
-  the verification pipeline and ignored by the reference semantics. -/
-  | while (c : Expr) (invariant : List Expr) (decreases : Option Expr)
-      (body : Stmt)
+  /-- `while c { body }`. -/
+  | while (c : Expr) (body : Stmt)
   /-- `assert e;` : runtime error if `e` evaluates to `false`. -/
   | assert (e : Expr)
   /-- `x := readInt();` : read one line, parse a decimal integer. -/

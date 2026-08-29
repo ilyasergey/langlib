@@ -28,6 +28,18 @@ usual eval/apply pair: `eval` an expression, `apply` a value to a value,
 and `ret` a value to the continuation. One fuel unit pays for one step of
 whichever kind. Unlambda has no runtime errors: every value can be applied
 to every value, so a run either halts or runs forever.
+
+Two corners worth naming, because Madore's own interpreters disagree about
+them and the tests pin our answer down:
+
+* `d` really can reach `apply`, despite being a special form. `` `cd ``
+  hands `d` a continuation that is already a value, and Madore's
+  "Promises" note says the result is the promise `` `d<cont> ``. So
+  `Value.d` applied to `a` is a promise already holding `a`.
+* `e` exits. The C interpreters shipped in Unlambda 2.0.0 parse `e` as `c`
+  (both `c/unlambda.c` and `c-refcnt/unlambda.c` build a `FUNCTION_C`),
+  which contradicts the reference section, the Java interpreter and the
+  Scheme one. We follow the specification.
 -/
 
 namespace Langlib.Unlambda

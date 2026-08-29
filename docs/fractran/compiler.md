@@ -5,6 +5,8 @@
 * **Family**: would need its own IR (an "arithmetic" IR; see
   `docs/PLAN.md`, Stage 4).
 
+* **Implementation**: none yet; it would go in `Langlib/Turpentine/Compile/Fractran.lean`, beside the [whitespace backend](../../Langlib/Turpentine/Compile/Whitespace.lean).
+
 ## Compile and run one, once this exists
 
 Not yet implemented, so these commands do not work today. They are the

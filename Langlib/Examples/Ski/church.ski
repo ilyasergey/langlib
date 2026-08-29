@@ -1,0 +1,12 @@
+# Church arithmetic: two plus three is five. langlib original.
+#
+# A Church numeral n is the function taking f and x to f applied n times
+# to x. In SKI:  1 = I,  succ = S(S(KS)K),  so 2 = succ 1 and
+# 3 = succ (succ 1). Adding is iterating succ:  m succ n  is  m + n.
+#
+# The sum is applied to S and K at the end so the answer is legible: an
+# n-fold application of S to K normalises to n nested S's, so counting
+# the S's in the normal form counts the numeral.
+#
+#   2                              succ            3
+S(S(KS)K)I  (S(S(KS)K))  (S(S(KS)K)(S(S(KS)K)I))  S K

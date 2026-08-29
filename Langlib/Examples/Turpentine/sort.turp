@@ -6,23 +6,15 @@ var a : int[6];
 var i : int := 0;
 var j : int;
 var key : int;
-while i < len(a)
-  decreases len(a) - i
-{
+while i < len(a) {
   a[i] := readInt();
   i := i + 1;
 }
 i := 1;
-while i < len(a)
-  invariant i <= len(a)
-  decreases len(a) - i
-{
+while i < len(a) {
   key := a[i];
   j := i - 1;
-  while j >= 0 && a[j] > key
-    invariant j >= -1
-    decreases j + 1
-  {
+  while j >= 0 && a[j] > key {
     a[j + 1] := a[j];
     j := j - 1;
   }
@@ -30,9 +22,7 @@ while i < len(a)
   i := i + 1;
 }
 i := 0;
-while i < len(a)
-  decreases len(a) - i
-{
+while i < len(a) {
   println(a[i]);
   i := i + 1;
 }

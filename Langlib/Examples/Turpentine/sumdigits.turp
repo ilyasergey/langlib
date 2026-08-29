@@ -5,10 +5,7 @@ var n : int;
 var sum : int := 0;
 n := readInt();
 assert n >= 0;
-while n > 0
-  invariant sum >= 0
-  decreases n
-{
+while n > 0 {
   sum := sum + n % 10;
   n := n / 10;
 }

@@ -3,6 +3,8 @@
 **Not planned.** This page records the reasoning so the question does not
 get re-opened by someone who has not thought it through.
 
+* **Implementation**: none, and none planned. For a backend that does exist, see the [whitespace one](../../Langlib/Turpentine/Compile/Whitespace.lean).
+
 ## Why not
 
 Chris Pressey designed Befunge-93 to be as hard to compile as possible,

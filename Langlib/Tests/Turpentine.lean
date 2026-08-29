@@ -15,7 +15,7 @@ private def ex (f : String) : Source :=
   .file s!"Langlib/Examples/Turpentine/{f}"
 
 def suite : Suite where
-  name := "wtf"
+  name := "turpentine"
   run := run
   cases :=
     [ -- examples
@@ -150,9 +150,12 @@ def suite : Suite where
     , { name := "type error: bool read target", source := .inline
           "var p : bool; p := readInt();",
         expect := .parseError "which is a bool" }
-    , { name := "type error: non-bool invariant", source := .inline
-          "var x : int := 3; while x > 0 invariant x { x := x - 1; }",
-        expect := .parseError "invariant" }
+    , { name := "type error: non-bool while condition", source := .inline
+          "var x : int := 3; while x { x := x - 1; }",
+        expect := .parseError "'while' condition" }
+    , { name := "invariant is no longer a keyword", source := .inline
+          "var invariant : int := 7; println(invariant);",
+        expect := .outputs "7\n" }
       -- parse errors
     , { name := "parse error: missing semicolon", source := .inline
           "var x : int := 1\nprintln(x);",

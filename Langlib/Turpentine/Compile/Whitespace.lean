@@ -442,7 +442,7 @@ private def compileStmt (ctx : Frame) : Stmt → M Unit
     emits [.jump end_, .label els]
     compileStmt ctx f
     emit (.label end_)
-  | .while c _ _ body => do
+  | .while c body => do
     let top ← fresh
     let end_ ← fresh
     emit (.label top)

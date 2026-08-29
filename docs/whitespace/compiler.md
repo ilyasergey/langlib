@@ -1,11 +1,11 @@
 # Compiling Turpentine to whitespace
 
-* **Compiler**: `Langlib/Turpentine/Compile/Whitespace.lean`
+* **Implementation**: [Langlib/Turpentine/Compile/Whitespace.lean](../../Langlib/Turpentine/Compile/Whitespace.lean)
   (module `Langlib.Turpentine.Compile.Whitespace`)
 * **Entry points**: `compile : Turpentine.Program → Except String Whitespace.Prog`
   and `compileSource : String → Except String String` (`.turp` text to `.ws`
   text)
-* **Tests**: `Langlib/Tests/CompileWhitespace.lean`
+* **Tests**: [Langlib/Tests/CompileWhitespace.lean](../../Langlib/Tests/CompileWhitespace.lean)
 * **Language pages**: `docs/turpentine/spec.md`, `docs/whitespace/spec.md`
 
 ## Compile and run one
@@ -46,10 +46,8 @@ about the one place where the two languages disagree about division).
 
 ## Supported fragment
 
-All of it. Every statement form, every operator, both I/O styles, fixed-size
-`int[n]` and `bool[n]` arrays with checked bounds, and `invariant` and
-`decreases` annotations (parsed, ignored, exactly as the reference
-interpreter ignores them).
+All of it. Every statement form, every operator, both I/O styles, and
+fixed-size `int[n]` and `bool[n]` arrays with checked bounds.
 
 `compile` returns `Except.error` only when the program does not parse or
 does not type-check. There is no unsupported construct to name.

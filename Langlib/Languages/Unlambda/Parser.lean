@@ -18,6 +18,12 @@ bytes).
 There is no recursion over the input here. A prefix expression is parsed
 with a stack of half-built applications: `none` is a backquote still waiting
 for its operator, `some F` is an application waiting for its operand.
+
+One deliberate difference from Madore's interpreters: they stop reading at
+the end of the first complete expression and treat whatever follows as the
+program's *input*, because they read program and input from the same
+stream. We take the program from a file and the input from stdin, so
+trailing text is a mistake rather than data, and it is reported as one.
 -/
 
 namespace Langlib.Unlambda
@@ -53,8 +59,13 @@ private inductive Mode where
   so this byte is the character that builtin carries. -/
   | charOf (isQues : Bool)
 
-/-- The builtin a single byte denotes, if any. Madore's interpreters accept
-either case for the letters, but only lower-case `r`. -/
+/-- The builtin a single byte denotes, if any.
+
+Either case is accepted for every letter, `r` included. Madore's own
+interpreters are split on `r` alone: the Java and Scheme ones take `R`, the
+C and Caml ones do not. Every one of them takes `K`, `S`, `I`, `V`, `D`,
+`C` and `E`, so a uniform rule has to be the permissive one. See decision 9
+in `docs/unlambda/spec.md`. -/
 private def builtinOf (b : UInt8) : Option Term :=
   match b with
   | 107 | 75 => some .k
@@ -64,10 +75,20 @@ private def builtinOf (b : UInt8) : Option Term :=
   | 100 | 68 => some .d
   | 99  | 67 => some .c
   | 101 | 69 => some .e
-  | 114 => some Term.r
+  | 114 | 82 => some Term.r
   | 64  => some .at
   | 124 => some .pipe
   | _ => none
+
+/-- How an unexpected byte is named in a parse error. Printable ASCII is
+quoted; anything else is given by its number, because a program is a byte
+stream and a stray byte 200 has no character to show. -/
+private def describeByte (b : UInt8) : String :=
+  if 32 ≤ b && b ≤ 126 then
+    let shown := String.ofList [Char.ofNat b.toNat]
+    s!"'{shown}'"
+  else
+    s!"byte {b.toNat}"
 
 /-- Parse Unlambda source into a `Prog`.
 
@@ -105,8 +126,7 @@ def parse (src : String) : Except String Prog := do
         match builtinOf b with
         | some t => leaf? := some t
         | none =>
-          let shown := String.ofList [Char.ofNat b.toNat]
-          throw s!"unrecognised character '{shown}' at {pos.show}"
+          throw s!"unrecognised character {describeByte b} at {pos.show}"
     match leaf? with
     | none => pure ()
     | some t =>

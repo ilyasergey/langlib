@@ -11,7 +11,7 @@ program  ::= decl* stmt*
 decl     ::= "var" ident ":" ("int" | "bool") (":=" expr)? ";"
 stmt     ::= ident ":=" ("readInt" "(" ")" | "readByte" "(" ")" | expr) ";"
            | "if" expr block ("else" (block | ifstmt))?
-           | "while" expr ("invariant" expr)* ("decreases" expr)? block
+           | "while" expr block
            | "assert" expr ";"
            | ("print" | "println") "(" (string | expr)? ")" ";"
            | "printByte" "(" expr ")" ";"
@@ -52,7 +52,7 @@ def Tok.show : Tok → String
 
 def keywords : List String :=
   ["var", "int", "bool", "true", "false", "if", "else", "while",
-   "invariant", "decreases", "assert", "print", "println", "printByte",
+   "assert", "print", "println", "printByte",
    "readInt", "readByte", "len"]
 
 /-- Tokenize; `partial` because it recurses on a shrinking char list, which
@@ -270,20 +270,8 @@ partial def parseStmt : P Stmt := do
   | some (.kw "while", _) =>
     bump
     let c ← parseExpr
-    let mut invs : List Expr := []
-    let mut dec : Option Expr := none
-    repeat
-      if ← atKw "invariant" then
-        bump
-        invs := invs ++ [← parseExpr]
-      else if ← atKw "decreases" then
-        bump
-        if dec.isSome then errAt "duplicate 'decreases'"
-        dec := some (← parseExpr)
-      else
-        break
     let body ← parseBlock
-    return .while c invs dec body
+    return .while c body
   | some (.kw "assert", _) =>
     bump; let e ← parseExpr; expectSym ";"
     return .assert e

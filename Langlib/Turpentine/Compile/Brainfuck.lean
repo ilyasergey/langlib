@@ -976,6 +976,8 @@ structure Layout where
   varCount : Nat
   /-- Number of expression-stack slots. -/
   depth : Nat
+  /-- Array name to the address of slab 0 and the declared length. -/
+  arrs : Std.HashMap String (Nat × Nat) := {}
 
 /-- Expression-stack slot `k`. -/
 def Layout.slot (L : Layout) (k : Nat) : Val :=
@@ -994,6 +996,57 @@ def Layout.varVal (L : Layout) (x : String) : Val :=
   | some a => ⟨a, a + 1⟩
   | none => ⟨L.work.base + 400, L.work.base + 401⟩
 
+/-- The gap between the top of the work area and the first array slab. The
+work area is a fixed region about a hundred cells deep at its deepest
+nesting; 512 is room to spare, and it is what `Layout.varVal`'s fallback
+hides in. -/
+def arrayGap : Nat := 512
+
+/-- Where the array region starts. -/
+def Layout.arrBase (L : Layout) : Nat := L.work.base + arrayGap
+
+/-- Slab 0 and the length of an array. Undeclared names cannot occur: the
+program has been type-checked. The fallback is a region well above every
+real array, so a hypothetical bug corrupts nothing that matters. -/
+def Layout.arrInfo (L : Layout) (x : String) : Nat × Nat :=
+  match L.arrs[x]? with
+  | some p => p
+  | none => (L.arrBase + slabSize * 256 * (L.varCount + 1), 1)
+
+/-- `dst := x[idx]`, preserving `idx`, which may be `dst` itself: the index
+is loaded into the counter cell before `dst` is touched.
+
+Set up at slab 0, where the address is static, then walk, fetch, and walk
+home. `checkBounds` has already forced the index into `0 .. n-1`, so its low
+byte is the whole of it and its high byte is zero. -/
+def arrayGet (L : Layout) (x : String) (dst idx : Val) : M Unit := do
+  let (base, n) := L.arrInfo x
+  checkBounds idx n L.work
+  let t := L.work.b 0
+  clr (base + dLoOff); clr (base + dHiOff)
+  cpyB (base + kOff) idx.lo t
+  goto (base + kOff)
+  walkRight
+  fetchElem
+  walkBack
+  zero16 dst
+  mv dst.lo (base + dLoOff)
+  mv dst.hi (base + dHiOff)
+
+/-- `x[idx] := val`, preserving both. The value rides out as the payload and
+the walk home carries nothing, because `storeElem` empties it. -/
+def arraySet (L : Layout) (x : String) (idx val : Val) : M Unit := do
+  let (base, n) := L.arrInfo x
+  checkBounds idx n L.work
+  let t := L.work.b 0
+  cpyB (base + dLoOff) val.lo t
+  cpyB (base + dHiOff) val.hi t
+  cpyB (base + kOff) idx.lo t
+  goto (base + kOff)
+  walkRight
+  storeElem
+  walkBack
+
 /-- How many stack slots an expression needs. -/
 def exprDepth : Expr → Nat
   | .intLit _ | .boolLit _ | .var _ | .len _ => 1
@@ -1006,11 +1059,13 @@ def stmtDepth : Stmt → Nat
   | .seq s₁ s₂ => max (stmtDepth s₁) (stmtDepth s₂)
   | .assign _ e => exprDepth e
   | .ite c s₁ s₂ => max (exprDepth c) (max (stmtDepth s₁) (stmtDepth s₂))
-  | .while c _ _ body => max (exprDepth c) (stmtDepth body)
+  | .while c body => max (exprDepth c) (stmtDepth body)
   | .assert e => exprDepth e
   | .readInt _ | .readByte _ => 1
-  | .assignIndex _ i e => max (exprDepth i) (exprDepth e)
-  | .readIntIndex _ i | .readByteIndex _ i => exprDepth i
+  -- The value goes in slot 0 and the index in slot 1, in that order,
+  -- because the reference evaluates the right-hand side first.
+  | .assignIndex _ i e => max (exprDepth e) (1 + exprDepth i)
+  | .readIntIndex _ i | .readByteIndex _ i => 1 + exprDepth i
   | .printExpr e _ => exprDepth e
   | .printStr _ _ => 1
   | .printByte e => exprDepth e
@@ -1042,10 +1097,8 @@ def checkExprSupported : Expr → Except String Unit
     else checkExprSupported (.intLit n)
   | .un _ e => checkExprSupported e
   | .bin _ e₁ e₂ => do checkExprSupported e₁; checkExprSupported e₂
-  | .index x _ =>
-    throw s!"arrays are not supported by the brainfuck backend yet ({x}[i])"
-  | .len x =>
-    throw s!"arrays are not supported by the brainfuck backend yet (len({x}))"
+  | .index _ i => checkExprSupported i
+  | .len _ => return ()
 
 def checkStmtSupported : Stmt → Except String Unit
   | .skip => return ()
@@ -1053,20 +1106,13 @@ def checkStmtSupported : Stmt → Except String Unit
   | .assign _ e => checkExprSupported e
   | .ite c s₁ s₂ => do
     checkExprSupported c; checkStmtSupported s₁; checkStmtSupported s₂
-  | .while c invs dec body => do
+  | .while c body => do
     checkExprSupported c
-    -- Annotations do not execute, so they need not be compilable; they are
-    -- ignored here exactly as the reference interpreter ignores them.
-    let _ := invs; let _ := dec
     checkStmtSupported body
   | .assert e => checkExprSupported e
   | .readInt _ | .readByte _ => return ()
-  | .assignIndex x _ _ =>
-    throw s!"arrays are not supported by the brainfuck backend yet ({x}[i] := e)"
-  | .readIntIndex x _ =>
-    throw s!"arrays are not supported by the brainfuck backend yet ({x}[i] := readInt())"
-  | .readByteIndex x _ =>
-    throw s!"arrays are not supported by the brainfuck backend yet ({x}[i] := readByte())"
+  | .assignIndex _ i e => do checkExprSupported i; checkExprSupported e
+  | .readIntIndex _ i | .readByteIndex _ i => checkExprSupported i
   | .printExpr e _ => checkExprSupported e
   | .printStr _ _ => return ()
   | .printByte e => checkExprSupported e
@@ -1076,18 +1122,19 @@ enough that a runaway one is reported rather than compiled. -/
 def maxVars : Nat := 64
 /-- Maximum expression nesting, in stack slots. -/
 def maxDepth : Nat := 32
+/-- Maximum array length. The walk counter is one byte, so an index has to
+fit in one, and an array of `n` elements has indices up to `n - 1`. -/
+def maxArrayLen : Nat := 255
 
 def checkProgramSupported (p : Program) : Except String Unit := do
   if p.decls.length > maxVars then
     throw s!"the brainfuck backend supports at most {maxVars} variables, this program declares {p.decls.length}"
-  -- The body is checked before the declarations so that a program using an
-  -- array is told which array operation is missing, rather than being sent
-  -- back to the declaration that made it possible.
   checkStmtSupported p.body
   for (x, t, init) in p.decls do
     match t with
-    | .array _ _ =>
-      throw s!"arrays are not supported by the brainfuck backend yet (declaration of '{x}')"
+    | .array _ n =>
+      if n > maxArrayLen then
+        throw s!"the brainfuck backend supports arrays of at most {maxArrayLen} elements, '{x}' has {n}"
     | _ => pure ()
     match init with
     | some e => checkExprSupported e
@@ -1103,8 +1150,10 @@ def emitExpr (L : Layout) : Expr → Nat → M Unit
   | .intLit n, k => set16 (L.slot k) n
   | .boolLit b, k => set16 (L.slot k) (if b then 1 else 0)
   | .var x, k => copy16 (L.slot k) (L.varVal x) L.work
-  | .len _, _ => pure ()
-  | .index _ _, _ => pure ()
+  | .len x, k => set16 (L.slot k) (Int.ofNat (L.arrInfo x).2)
+  | .index x i, k => do
+    emitExpr L i k
+    arrayGet L x (L.slot k) (L.slot k)
   | .un op e, k => do
     emitExpr L e k
     let v := L.slot k
@@ -1198,7 +1247,7 @@ def emitStmt (Γ : Ctx) (L : Layout) : Stmt → M Unit
     emitStmt Γ L s₂
     clr ctl1
     closeLoop ctl1 sv2
-  | .while c _ _ body => do
+  | .while c body => do
     emitExpr L c 0
     clr ctl0
     mv ctl0 (L.slot 0).lo
@@ -1217,7 +1266,22 @@ def emitStmt (Γ : Ctx) (L : Layout) : Stmt → M Unit
     ifThen ctl1 (trap L.work)
   | .readInt x => readInt16 (L.varVal x) L.work
   | .readByte x => readByte16 (L.varVal x) L.work
-  | .assignIndex _ _ _ | .readIntIndex _ _ | .readByteIndex _ _ => pure ()
+  -- The reference evaluates the right-hand side before the index, so a
+  -- failing right-hand side beats an out-of-range index; the read
+  -- statements consume their input before they look at the index for the
+  -- same reason. Both orders are observable, since either half can fail.
+  | .assignIndex x i e => do
+    emitExpr L e 0
+    emitExpr L i 1
+    arraySet L x (L.slot 1) (L.slot 0)
+  | .readIntIndex x i => do
+    readInt16 (L.slot 0) L.work
+    emitExpr L i 1
+    arraySet L x (L.slot 1) (L.slot 0)
+  | .readByteIndex x i => do
+    readByte16 (L.slot 0) L.work
+    emitExpr L i 1
+    arraySet L x (L.slot 1) (L.slot 0)
   | .printExpr e nl => do
     emitExpr L e 0
     match inferExpr Γ e with
@@ -1235,7 +1299,8 @@ def emitStmt (Γ : Ctx) (L : Layout) : Stmt → M Unit
 
 def emitProgram (Γ : Ctx) (L : Layout) (p : Program) : M Unit := do
   -- Uninitialised variables need no code: the tape starts at zero, which is
-  -- `0` for an `int` and `false` for a `bool`.
+  -- `0` for an `int` and `false` for a `bool`. Neither do array elements,
+  -- for the same reason, and arrays have no initialisers anyway.
   for (x, _, init) in p.decls do
     match init with
     | some e => do
@@ -1257,8 +1322,19 @@ def compile (p : Program) : Except String BProg := do
   for (x, _, _) in p.decls do
     vars := vars.insert x (3 + 2 * i)
     i := i + 1
-  let L : Layout :=
-    { vars, varCount := p.decls.length, depth := programDepth p + 4 }
+  let varCount := p.decls.length
+  let depth := programDepth p + 4
+  -- One slab per element plus a guard slab the walk never enters.
+  let base := 3 + 2 * varCount + 2 * depth + arrayGap
+  let mut arrs : Std.HashMap String (Nat × Nat) := {}
+  let mut next := base
+  for (x, t, _) in p.decls do
+    match t with
+    | .array _ n =>
+      arrs := arrs.insert x (next, n)
+      next := next + slabSize * (n + 1)
+    | _ => pure ()
+  let L : Layout := { vars, varCount, depth, arrs }
   let st := (emitProgram Γ L p).run (⟨#[], 0⟩ : Emit)
   return st.2.ops.toList
 
@@ -1273,7 +1349,8 @@ def headerComment : String :=
     "  lake exe brainfuck --eof zero <file>\n" ++
     "Integers are 16-bit two's complement in two cells; cell 0 is a guard\n" ++
     "that stays zero, variables follow it, then the expression stack, then\n" ++
-    "the scratch area. See docs/brainfuck/compiler.md.\n"
+    "the scratch area, then one six-cell slab per array element.\n" ++
+    "See docs/brainfuck/compiler.md.\n"
   "[" ++ (text.toList.filter (fun c => c != '[' && c != ']') |> String.ofList) ++ "]\n"
 
 /-- Turpentine source text to brainfuck source text, header included. -/

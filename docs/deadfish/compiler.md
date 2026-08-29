@@ -3,6 +3,8 @@
 * **Status**: planned as a joke that type-checks.
 * **Family**: none. Deadfish is not like anything else here.
 
+* **Implementation**: none yet; it would go in `Langlib/Turpentine/Compile/Deadfish.lean`, beside the [whitespace backend](../../Langlib/Turpentine/Compile/Whitespace.lean).
+
 ## Compile and run one, once this exists
 
 Not yet implemented, so these commands do not work today. They are the

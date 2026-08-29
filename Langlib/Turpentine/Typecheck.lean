@@ -7,9 +7,7 @@ import Std.Data.HashMap
 Turpentine is the Well-Typed Formalism, so programs are checked before they run or
 compile: variables must be declared exactly once and used at their declared
 type, conditions and assertions must be boolean, arithmetic must be on
-integers, `readInt`/`readByte` targets must be `int`, and loop annotations
-must type-check (`invariant` as `bool`, `decreases` as `int`) even though
-the reference semantics ignores them.
+integers, and `readInt`/`readByte` targets must be `int`.
 
 The checker is a plain recursive pass returning the first error as a
 human-readable message. There is no inference to do: every variable's type
@@ -103,12 +101,8 @@ def checkStmt (Γ : Ctx) : Stmt → Except String Unit
     (checkExpr Γ c .bool).mapError ("'if' condition: " ++ ·)
     checkStmt Γ s₁
     checkStmt Γ s₂
-  | .while c invs dec body => do
+  | .while c body => do
     (checkExpr Γ c .bool).mapError ("'while' condition: " ++ ·)
-    for i in invs do
-      (checkExpr Γ i .bool).mapError ("'invariant': " ++ ·)
-    if let some d := dec then
-      (checkExpr Γ d .int).mapError ("'decreases': " ++ ·)
     checkStmt Γ body
   | .assert e => (checkExpr Γ e .bool).mapError ("'assert': " ++ ·)
   | .readInt x | .readByte x =>

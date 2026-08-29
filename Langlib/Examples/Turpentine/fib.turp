@@ -6,9 +6,7 @@ var b : int := 1;
 var t : int;
 var i : int := 0;
 n := readInt();
-while i < n
-  decreases n - i
-{
+while i < n {
   println(a);
   t := a + b;
   a := b;

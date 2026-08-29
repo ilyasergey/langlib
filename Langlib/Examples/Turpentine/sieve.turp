@@ -3,14 +3,10 @@
 var composite : bool[50];
 var p : int := 2;
 var m : int;
-while p * p < len(composite)
-  decreases len(composite) - p
-{
+while p * p < len(composite) {
   if !composite[p] {
     m := p * p;
-    while m < len(composite)
-      decreases len(composite) - m
-    {
+    while m < len(composite) {
       composite[m] := true;
       m := m + p;
     }
@@ -18,9 +14,7 @@ while p * p < len(composite)
   p := p + 1;
 }
 p := 2;
-while p < len(composite)
-  decreases len(composite) - p
-{
+while p < len(composite) {
   if !composite[p] {
     println(p);
   }

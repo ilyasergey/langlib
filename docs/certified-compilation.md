@@ -131,18 +131,68 @@ What the interface buys:
   producing a second `TurpentineCompiler Whitespace`, and every consumer
   keeps working.
 
-### 3. The composition, and its correctness
+### 3. The theorem `compileToURM` must prove, and why it composes
+
+The whole design rests on one statement lining up with `TuringComplete`'s
+`simulates` field, so write it to match that field's shape exactly.
+
+`TuringComplete L` gives, for any URM program `P`, input vector `inputs`
+and answer `result`:
 
 ```lean
-def derivedCompile [Esolang L] (tc : TuringComplete L)
-    (p : Turpentine.Program) : Except String (Esolang.Prog L) :=
-  compileToURM p |>.map fun (P, inputs) => tc.compile P inputs
+HaltsWithResult P inputs result →
+  ∃ m, (run (tc.compile P inputs) (tc.encodeInput inputs) m).exit = .halted ∧
+       tc.decodeOutput (…).output = some result
 ```
 
-Correctness is the composition of two simulations, which is one lemma
-(`simulation_trans`, to be added to `Langlib/Common/`) plus the
-`compileToURM` simulation theorem. No per-language proof is needed, which
-is the entire point.
+So `compileToURM` should discharge the *hypothesis* of that implication.
+Its theorem is:
+
+```lean
+theorem compileToURM_correct
+    (p : Turpentine.Program) (P : URM.Program) (inputs : List Nat)
+    (result : Nat) (n : Nat)
+    (hc : compileToURM p = .ok (P, inputs))
+    (hp : TurpentineHaltsWith p n result) :
+    URM.HaltsWithResult P inputs result
+```
+
+where `TurpentineHaltsWith p n result` says the Turpentine program halts
+within fuel `n` having computed `result` as its answer. The two then
+compose without any glue: feed the conclusion of the first into the
+hypothesis of the second and the URM program disappears from the
+statement, leaving
+
+```lean
+theorem derived_correct [Esolang L] (tc : TuringComplete L)
+    (p : Turpentine.Program) (prog : Esolang.Prog L)
+    (result n : Nat)
+    (hc : derivedCompile tc p = .ok prog)
+    (hp : TurpentineHaltsWith p n result) :
+    ∃ m, (Esolang.run prog (tc.encodeInput …) m).exit = .halted ∧
+         tc.decodeOutput (…).output = some result
+```
+
+which is exactly a `TurpentineCompiler L` correctness field. Note what is
+quantified: `L` and `tc` are arbitrary, so **this is proved once and holds
+for every backend anyone ever proves Turing complete.** That is the sense
+in which a completeness proof yields a verified compiler.
+
+Three details that make the composition work, and are easy to get wrong:
+
+* **The answer must be a single `Nat` in register 0**, because that is
+  what `HaltsWithResult` says and what `decodeOutput` returns. So
+  `compileToURM` must fix an answer convention and the fragment must
+  guarantee one exists. This is why the fragment is I/O-free: with
+  `println` in the language there is a *stream* of answers, and the
+  statement above cannot express that.
+* **`inputs` is produced by the compiler, not supplied by the caller.**
+  `compileToURM` returns the pair, so a program's initial register vector
+  comes from its declarations. The caller passes nothing.
+* **Fuel is existential on the target side and universal on the source
+  side.** Turpentine halting within *some* `n` gives a target run halting
+  within *some* `m`, with no relation between them. Anything tighter would
+  leak the cost model of the target into the statement.
 
 ### 4. The fragment
 

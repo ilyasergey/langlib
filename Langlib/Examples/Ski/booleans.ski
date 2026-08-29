@@ -1,0 +1,7 @@
+# Booleans without a boolean type: langlib original.
+#
+# K is true and SK is false, because a conditional is just the choice of
+# an argument: K t e reduces to t, and SK t e reduces to e. The term
+# below is the false branch of that choice applied to S and I, so it
+# reduces to I. Swap the leading SK for a K and it reduces to S instead.
+SK S I

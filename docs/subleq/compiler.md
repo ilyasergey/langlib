@@ -1,11 +1,11 @@
 # Compiling Turpentine to subleq
 
-* **Compiler**: `Langlib/Turpentine/Compile/Subleq.lean`
+* **Implementation**: [Langlib/Turpentine/Compile/Subleq.lean](../../Langlib/Turpentine/Compile/Subleq.lean)
   (module `Langlib.Turpentine.Compile.Subleq`)
 * **Entry points**: `compile : Turpentine.Program → Except String Subleq.Prog`
   (the memory image) and `compileSource : String → Except String String`
   (our assembler dialect, with labels and comments)
-* **Tests**: `Langlib/Tests/CompileSubleq.lean`
+* **Tests**: [Langlib/Tests/CompileSubleq.lean](../../Langlib/Tests/CompileSubleq.lean)
 * **Language pages**: `docs/turpentine/spec.md`, `docs/subleq/spec.md`
 
 ## Compile and run one

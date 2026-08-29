@@ -646,7 +646,7 @@ private def compileStmt (types : Types) : Stmt → M Unit
     emitL els
     compileStmt types f
     emitL fin
-  | .while c _ _ body => do
+  | .while c body => do
     let top ← fresh
     let fin ← fresh
     emitC "while"

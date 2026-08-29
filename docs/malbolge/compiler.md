@@ -4,6 +4,8 @@
 `docs/malbolge-unshackled/compiler.md`). This page records
 why, because the reasoning is more interesting than the decision.
 
+* **Implementation**: none, and none planned. For a backend that does exist, see the [whitespace one](../../Langlib/Turpentine/Compile/Whitespace.lean).
+
 ## The bound settles it
 
 Malbolge has 59049 words, shared by code and data. That is a finite state

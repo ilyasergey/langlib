@@ -6,10 +6,7 @@ var t : int;
 a := readInt();
 b := readInt();
 assert a >= 0 && b >= 0;
-while b != 0
-  invariant b >= 0
-  decreases b
-{
+while b != 0 {
   t := a % b;
   a := b;
   b := t;

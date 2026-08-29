@@ -24,8 +24,7 @@ suffering. The extension `.turp` follows.
 Writing brainfuck by hand builds character, but nobody wants that much
 character. Turpentine is a small imperative language with the syntax of a
 verification-course exercise: mutable integer and boolean variables,
-`while` with `invariant` and `decreases` annotations, `assert`, and
-explicit I/O. Programs type-check, run on a pure reference interpreter,
+`while`, `assert`, and explicit I/O. Programs type-check, run on a pure reference interpreter,
 and compile to the esoteric languages of the library. The compilers, and
 eventually their correctness proofs, are the point: Turpentine is the
 common source language of the whole zoo.
@@ -46,8 +45,6 @@ var x : int := 0;
 n := readInt();
 assert n >= 0;
 while (x + 1) * (x + 1) <= n
-  invariant x * x <= n
-  decreases n - x * x
 {
   x := x + 1;
 }
@@ -68,8 +65,8 @@ variable twice, or after the first statement, is an error.
 written `int[n]` / `bool[n]` with a literal length. The type checker
 (`Langlib/Turpentine/Typecheck.lean`) enforces: declared-before-use, one
 declaration per name, `int`/`bool` discipline on every operator,
-boolean conditions, boolean `assert` and `invariant`, integer `decreases`,
-integer targets for the read statements.
+boolean conditions, boolean `assert`, integer targets for the read
+statements.
 
 ### Statements
 
@@ -77,7 +74,7 @@ integer targets for the read statements.
 |------|---------|
 | `x := e;` | assignment |
 | `if c { ... } else { ... }` | conditional; `else` optional; `else if` chains allowed |
-| `while c inv* dec? { ... }` | loop, with optional `invariant e` (repeatable) and `decreases e` |
+| `while c { ... }` | loop |
 | `assert e;` | runtime error if `e` is false |
 | `x := readInt();` | read one input line as a decimal integer |
 | `x := readByte();` | read one input byte (`0..255`), `-1` at end of input |
@@ -113,9 +110,14 @@ short-circuit.
    `assert`s, `readInt` at end of input, and `readInt` on a line that is
    not an optionally-negated decimal numeral (surrounding ASCII whitespace
    is tolerated).
-4. **Annotations do not execute.** `invariant` and `decreases` are parsed
-   and type-checked, then ignored by the interpreter; they are input to the
-   verification pipeline (`docs/PLAN.md`, Stage 6).
+4. **`assert` is the only specification construct**, and it is checked at
+   run time: a false assertion is a runtime error, like division by zero.
+   Loops carried `invariant` and `decreases` annotations until
+   2026-09-01. They were removed because nothing consumed them: compiler
+   verification reasons about the semantics of `while` whatever decorates
+   it, and program verification is not a stage in this project. A
+   whole-program precondition is written as a leading `assert` on the
+   inputs, which is what the examples do.
 5. **Arrays are fixed-length and one-dimensional**, with scalar elements
    and no initialiser: elements start at `0` or `false`. A length of zero
    is rejected. Indexing out of range, in either direction, is a runtime
@@ -147,7 +149,9 @@ re-litigated:
   explicit indices, not pointers.
 * **Procedures and recursion.** A call stack is straightforward in
   whitespace, which has one, and real work in brainfuck. Worth scoping
-  alongside any array-growth work.
+  alongside any array-growth work. Procedures are also what `requires`
+  and `ensures` would attach to; without them, a leading `assert` is the
+  whole precondition story.
 * **Strings** beyond literal arguments to `print`.
 
 ## Trying it
@@ -163,9 +167,8 @@ $ lake exe turpentine run Langlib/Examples/Turpentine/hello.turp
 Hello, Turpentine!
 ```
 
-Integer square root of 17, ported from Velvet. The `invariant` and
-`decreases` annotations in the source type-check and are then ignored at
-run time.
+Integer square root of 17, ported from Velvet. The `assert n >= 0` after
+the read is how a precondition is written.
 
 ```
 $ echo 17 | lake exe turpentine run Langlib/Examples/Turpentine/isqrt.turp

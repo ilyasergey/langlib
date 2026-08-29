@@ -10,11 +10,10 @@ turpentine dissolves tar. Full language reference:
 ## Modules
 
 * `Syntax.lean`: the deep embedding (`Ty`, `Expr`, `Stmt`, `Program`);
-  loops carry `invariant`/`decreases` annotations for the verification
-  pipeline.
+  `assert` is the only specification construct.
 * `Parser.lean`: lexer and recursive-descent parser with positioned errors.
 * `Typecheck.lean`: declared-before-use, one flat scope, `int`/`bool`
-  discipline; annotations type-check too.
+  discipline;; `assert` must be boolean.
 * `Semantics.lean`: pure fuel-based interpreter (unbounded integers,
   Euclidean `/` and `%`, short-circuit booleans, byte- and line-level I/O).
 * `Main.lean`: the runner.

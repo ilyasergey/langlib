@@ -22,8 +22,7 @@ Semantic decisions (recorded in `docs/turpentine/spec.md`):
   a malformed line or EOF is a runtime error;
 * `readByte` yields `0..255`, or `-1` at end of input;
 * `assert e` fails the run with a runtime error when `e` is false;
-* `invariant`/`decreases` annotations are not executed (they belong to the
-  verification pipeline), and uninitialised variables start at `0`/`false`.
+* uninitialised variables start at `0`/`false`.
 -/
 
 namespace Langlib.Turpentine
@@ -170,12 +169,12 @@ def exec : Nat → Stmt → State → State × Exit
       | .ok (.bool false) => exec fuel s₂ s
       | .ok _ => (s, .error "ill-typed 'if' condition")
       | .error m => (s, .error m)
-    | .while c invs dec body =>
+    | .while c body =>
       match evalExpr s.env c with
       | .ok (.bool false) => (s, .halted)
       | .ok (.bool true) =>
         match exec fuel body s with
-        | (s', .halted) => exec fuel (.while c invs dec body) s'
+        | (s', .halted) => exec fuel (.while c body) s'
         | other => other
       | .ok _ => (s, .error "ill-typed 'while' condition")
       | .error m => (s, .error m)

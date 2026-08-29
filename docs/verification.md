@@ -170,6 +170,57 @@ compared on every example. That is the practical value of doing Stage 8
 before finishing Stage 4, and it is why the scoreboard below tracks the
 derived column separately.
 
+## Compiling `assert`
+
+`assert` is Turpentine's only specification construct, and it is the one
+statement whose compilation is genuinely constrained by the target rather
+than merely awkward. The reference semantics makes a failed assert a
+*runtime error*: the run stops, the exit is `Exit.error "assertion
+failed"`, and the runner exits 1. A backend must produce something
+observably equivalent, and targets differ in what they can express.
+
+What the three backends do today, all verified by running them:
+
+| target | mechanism | observed outcome | faithful? |
+|---|---|---|---|
+| whitespace | `push -1; retrieve` | `heap retrieve at negative address -1`, exit 1 | yes, error class preserved |
+| subleq | jump to a `trap` cell holding `-2 -2 ?+1` | `negative address -2 in operand A`, exit 1 | yes, error class preserved |
+| brainfuck | `+[]`, a deliberate infinite loop | out of fuel, exit 2 | **no**, see below |
+
+The pattern for the first two is the same: find an operation the target's
+own semantics already rejects, and perform it deliberately. Whitespace
+forbids negative heap addresses and subleq forbids negative operands, so
+each has a cheap, unambiguous way to fail. Both backends reserve a
+*different* forbidden address for the array bounds check (`-2` and a
+separate trap respectively) so the two failure kinds stay distinguishable
+in the message.
+
+**Brainfuck is the outlier and the gap.** Brainfuck has no error
+condition at all in our semantics except moving left of cell 0, and that
+one is not reachable from a backend that tracks the head position
+statically. So a failed assert compiles to `+[]` and the program hangs
+until the fuel runs out. That is observably different from the reference:
+exit code 2 rather than 1, and no message. It is recorded as a deviation
+in `docs/brainfuck/compiler.md`.
+
+Two ways to close it, neither yet taken:
+
+1. **Use the one error there is.** Emit a deliberate move left of cell 0,
+   giving `pointer moved left of cell 0` and exit 1. This preserves the
+   error class exactly and costs a few instructions. It requires the
+   backend to reach cell 0 from wherever the head is, which it can, since
+   it knows the position at compile time. This looks like the right fix.
+2. **Weaken the specification.** Say that compilers may render a failed
+   assert as either an error or divergence, and prove the weaker
+   statement. Cheaper, and honest, but it gives up an observable
+   distinction for no good reason once option 1 exists.
+
+Whichever is chosen, the correctness statement in this document has to
+say what "same observable behaviour" means for a failing run, since the
+current phrasing only constrains halting runs. That is the same gap noted
+under "Later" for runtime errors generally, and `assert` is its most
+common instance.
+
 ## Recommended order
 
 1. **Turpentine → whitespace.** The relation is nearly the identity: whitespace
