@@ -119,31 +119,60 @@ that to a whole iteration: the register file advances by one step, the
 answer is left on top for the pivot, and the direction pointer turns exactly
 when the run continues.
 
-**The geometric layer, still open.** The bridge from a command trace to the
-image is
+**The geometric layer, in progress.** Every *primitive* the image-level
+simulation needs is now proved; what is missing is the composition.
+
+The bridge from a command trace to the image is
 [`exec_unitCorridor`](../Langlib/Computability/Piet.lean#L445): a run of
 isolated singleton blocks along a row is executed by the real evaluator in
 order. Building those runs from row lookups is
-[`unitCorridor_of_row`](../Langlib/Computability/Piet.lean#L1912), which
-needs only that consecutive corridor colours differ (every Piet command
-changes the colour, so they do) and that the row below is black. What is
-missing:
+[`unitCorridor_of_row`](../Langlib/Computability/Piet.lean#L1919), which
+needs only that consecutive corridor colours differ — every Piet command
+changes the colour, so they do — and that the row below is black.
 
-* the three white transits — the start slide, the separator before the
-  dispatcher body, and the three-turn return corridor — stated against
-  `Langlib.Piet.slide`;
-* the pivot, where `pointer` consumes the running flag and either turns down
-  through the ignored `pop` or continues right through `outNum`;
-* the terminal block. This is the only multi-codel block in a generated
-  image, and it has to be: a *singleton* block can never halt, because
-  whatever codel the program arrived from is an unblocked neighbour and one
-  of the eight exits will step back into it. The terminal is therefore an
-  L-shaped region whose eight selected exits are all blocked while its entry
-  codel is not among them, and establishing that means reasoning about
-  `Langlib.Piet.flood` on a region with more than one member.
-  `flood_singleton` covers the one-member case that every corridor codel
-  uses;
-* the induction that composes iterations over `Cslib.URM.Steps`.
+The white transits are proved against `Langlib.Piet.slide`:
+[`exec_white`](../Langlib/Computability/Piet.lean#L2008) carries one
+through the evaluator, and
+[`slide_return`](../Langlib/Computability/Piet.lean#L2109) is the whole
+return corridor — down from the pivot's `pop`, left along the bottom, up
+the white column, and right into the first codel of the loop body. Its
+three blocked turns leave the codel chooser toggled exactly once, which is
+what the dispatcher's trailing `switch` compensates for. The variable-length
+part is [`slide_left_run`](../Langlib/Computability/Piet.lean#L2045), which
+carries the invariant that makes the interpreter's revisit check fail:
+every remembered (codel, direction) pair is either in another direction or
+strictly to the right of where the slide now is.
+
+The terminal block was the interesting one, and it forced a change to the
+layout. **A singleton block can never halt**: whatever codel the program
+arrived from is an unblocked neighbour, and one of the eight exits steps
+back into it. So the terminal is an L of three codels — the top-right
+corner, the codel below it, and the codel to the left of that — which is
+the smallest shape that can hide its entry.
+[`flood_lblock`](../Langlib/Computability/Piet.lean#L2315) computes
+`Langlib.Piet.flood` on it (ten worklist steps over a symbolic grid, with
+the visited array tracked through three `set!` calls whose indices are
+distinct), [`localInfoAt?_lblock`](../Langlib/Computability/Piet.lean#L2375)
+turns that into the block's eight exits, and
+[`tryFrom_lblock`](../Langlib/Computability/Piet.lean#L2401) proves every
+one of them blocked.
+[`loopGrid_halt`](../Langlib/Computability/Piet.lean#L2649) instantiates all
+of that at the generated image's own terminal.
+
+What is left is the composition, and it is bookkeeping rather than
+discovery:
+
+* instantiate the corridor builder at the prologue and at the stable prefix
+  of the dispatcher body (everything before its trailing `switch` and
+  `pointer`, which are exactly the two commands a corridor may not contain,
+  since they move DP and CC);
+* the pivot: the `switch` and `pointer` transitions, then either right
+  through `outNum` to the terminal or down through the ignored `pop` into
+  the return corridor;
+* the induction that composes iterations over `Cslib.URM.Steps`, carrying
+  the invariant that ties the machine's position, direction, chooser and
+  stack to the URM state;
+* the assembly through `evalGrid` and `decodeOutput`.
 
 Until those land there is no `simulation` theorem and no `pietComplete`, and
 the certified Turpentine-to-Piet compiler described in

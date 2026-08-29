@@ -2,6 +2,44 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-30 (night): the Piet dispatcher computes, and the terminal halts
+
+Piet's completeness proof had a shape problem: the command traces were
+verified against `execOp`, but nothing said what they *computed*, and the
+image-level story was untouched. Both halves moved.
+
+`stackOf` models the dispatcher's stack as a URM register file plus the
+three control slots, and `dispatchUpdate_step` proves one dispatcher pass
+performs exactly one `Cslib.URM.Step`. The argument is the masking one the
+design rests on: a guard of zero makes an instruction the identity, the one
+instruction the program counter selects applies its arithmetic, and `J`
+writes its target to the fall-through counter exactly when both the guard
+and the register comparison hold. `runCode_dispatcherCode` lifts that to a
+whole iteration.
+
+The geometry then needed one design change, and it came from a fact worth
+writing down: **a singleton colour block can never halt a Piet program**.
+Whatever codel the program arrived from is an unblocked neighbour, and one
+of the eight selected exits steps straight back into it. The terminal block
+is therefore an L of three codels, the smallest shape that can hide its own
+entry, which also made its flood fill provable: ten worklist steps over a
+symbolic grid, with the visited array tracked through three `set!` calls at
+distinct indices. `mkInfo` then computes all eight exits in one `simp`, and
+every one of them is blocked.
+
+The white transits are proved too, including the three-turn return
+corridor, whose variable-length leg carries the invariant that makes the
+interpreter's revisit check fail: every remembered (codel, direction) pair
+is either in another direction or strictly to the right of where the slide
+now is. The three blocked turns leave the chooser toggled once, which is
+exactly what the dispatcher's trailing `switch` was already compensating
+for — the layout and the arithmetic agreed before either was proved.
+
+What is left is composition rather than discovery, and
+`docs/computability-piet.md` lists it: the two corridor instantiations, the
+pivot, the induction over `Cslib.URM.Steps`, and the assembly. The image is
+one column narrower than it was.
+
 ## 2026-08-30 (later): Malbolge Unshackled, Unlambda and SKI wired in
 
 The three trees the 2026-09-01 handoff note left as "in flight and
