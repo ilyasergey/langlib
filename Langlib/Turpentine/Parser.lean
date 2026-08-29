@@ -53,7 +53,7 @@ def Tok.show : Tok → String
 def keywords : List String :=
   ["var", "int", "bool", "true", "false", "if", "else", "while",
    "invariant", "decreases", "assert", "print", "println", "printByte",
-   "readInt", "readByte"]
+   "readInt", "readByte", "len"]
 
 /-- Tokenize; `partial` because it recurses on a shrinking char list, which
 is clearly terminating but not structurally so after multi-char tokens. -/
@@ -98,7 +98,7 @@ where
         | '&', some '&' => go rest.tail (adv 2) (acc.push (.sym "&&", p))
         | '|', some '|' => go rest.tail (adv 2) (acc.push (.sym "||", p))
         | _, _ =>
-          if "+-*/%(){};:,<>!=".toList.contains c then
+          if "+-*/%(){}[];:,<>!=".toList.contains c then
             go rest (adv 1) (acc.push (.sym (String.ofList [c]), p))
           else
             throw s!"{p.show}: unexpected character '{c}'"
@@ -167,7 +167,20 @@ partial def parseAtom : P Expr := do
   | some (.int n, _) => bump; return .intLit (Int.ofNat n)
   | some (.kw "true", _) => bump; return .boolLit true
   | some (.kw "false", _) => bump; return .boolLit false
-  | some (.ident x, _) => bump; return .var x
+  | some (.ident x, _) =>
+    bump
+    if ← atSym "[" then
+      bump
+      let i ← parseExpr
+      expectSym "]"
+      return .index x i
+    else
+      return .var x
+  | some (.kw "len", _) =>
+    bump; expectSym "("
+    let x ← expectIdent
+    expectSym ")"
+    return .len x
   | some (.sym "(", _) => bump; let e ← parseExpr; expectSym ")"; return e
   | some (.sym "-", _) => bump; return .un .neg (← parseAtom)
   | some (.sym "!", _) => bump; return .un .not (← parseAtom)
@@ -201,11 +214,22 @@ partial def parseExpr : P Expr := do
   parseBinRhs 1 (← parseAtom)
 end
 
+/-- `int`, `bool`, or `int[n]` / `bool[n]` with a literal length. -/
 def parseTy : P Ty := do
-  match ← peek? with
-  | some (.kw "int", _) => bump; return .int
-  | some (.kw "bool", _) => bump; return .bool
-  | _ => errAt "expected a type ('int' or 'bool')"
+  let elem ← do
+    match ← peek? with
+    | some (.kw "int", _) => bump; pure Ty.int
+    | some (.kw "bool", _) => bump; pure Ty.bool
+    | _ => errAt "expected a type ('int' or 'bool')"
+  if ← atSym "[" then
+    bump
+    match ← peek? with
+    | some (.int n, _) =>
+      bump; expectSym "]"
+      return .array elem n
+    | _ => errAt "array length must be a literal number"
+  else
+    return elem
 
 mutual
 partial def parseBlock : P Stmt := do
@@ -281,17 +305,33 @@ partial def parseStmt : P Stmt := do
     expectSym ")"; expectSym ";"
     return .printByte e
   | some (.ident x, _) =>
-    bump; expectSym ":="
+    bump
+    -- `a[i] := ...` or `x := ...`
+    let idx? ← do
+      if ← atSym "[" then
+        bump
+        let i ← parseExpr
+        expectSym "]"
+        pure (some i)
+      else
+        pure none
+    expectSym ":="
     if ← atKw "readInt" then
       bump; expectSym "("; expectSym ")"; expectSym ";"
-      return .readInt x
+      return match idx? with
+        | some i => .readIntIndex x i
+        | none => .readInt x
     else if ← atKw "readByte" then
       bump; expectSym "("; expectSym ")"; expectSym ";"
-      return .readByte x
+      return match idx? with
+        | some i => .readByteIndex x i
+        | none => .readByte x
     else
       let e ← parseExpr
       expectSym ";"
-      return .assign x e
+      return match idx? with
+        | some i => .assignIndex x i e
+        | none => .assign x e
   | _ => errAt "expected a statement"
 end
 

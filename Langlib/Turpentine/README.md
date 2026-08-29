@@ -50,6 +50,9 @@ Compilation subcommands arrive with Stage 4 of
 | `fib.turp` | first n Fibonacci numbers |
 | `collatz.turp` | Collatz step count |
 | `primes.turp` | primes up to n |
+| `maxelem.turp` | largest of 8 numbers (ported from Velvet) |
+| `sort.turp` | insertion sort of 6 numbers (ported from Velvet) |
+| `sieve.turp` | primes below 50, via a bool array |
 
 ## Tests
 

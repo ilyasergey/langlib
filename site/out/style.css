@@ -668,3 +668,24 @@ noscript .pg-note { color: var(--warn); }
   margin-left: 0.6rem;
   opacity: 0.85;
 }
+
+/* A <noscript> inside the playground grid must not become the grid item; its
+   children are the cells. */
+.pg-grid > noscript { display: contents; }
+
+/* Keyboard users get a visible focus ring everywhere, not only in textareas. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Long words in a narrow column (URLs in the source lists) should wrap rather
+   than push the page sideways. */
+.prose a { overflow-wrap: break-word; }
+
+@media print {
+  .masthead, .footer, .toc, .pg-bar, .skip-link { display: none; }
+  body { background: #fff; color: #000; }
+  .page { max-width: none; padding: 0; }
+}

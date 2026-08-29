@@ -23,6 +23,16 @@ abbrev Ctx := Std.HashMap String Ty
 private def Ty.show : Ty → String
   | .int => "int"
   | .bool => "bool"
+  | .array .int n => s!"int[{n}]"
+  | .array .bool n => s!"bool[{n}]"
+  | .array _ n => s!"array[{n}]"
+
+/-- Look up an array variable, reporting a useful error for a scalar. -/
+private def lookupArray (Γ : Ctx) (x : String) : Except String (Ty × Nat) :=
+  match Γ[x]? with
+  | none => throw s!"undeclared variable '{x}'"
+  | some (.array elem n) => return (elem, n)
+  | some t => throw s!"'{x}' has type {t.show}, so it cannot be indexed"
 
 /-- Infer the type of an expression in a context. -/
 def inferExpr (Γ : Ctx) : Expr → Except String Ty
@@ -30,15 +40,26 @@ def inferExpr (Γ : Ctx) : Expr → Except String Ty
   | .boolLit _ => return .bool
   | .var x =>
     match Γ[x]? with
+    | some (.array _ n) =>
+      throw s!"'{x}' is an array of length {n}; index it as '{x}[i]' or take 'len({x})'"
     | some t => return t
     | none => throw s!"undeclared variable '{x}'"
+  | .index x i => do
+    let (elem, _) ← lookupArray Γ x
+    let ti ← inferExpr Γ i
+    unless ti == .int do
+      throw s!"index of '{x}' must be an int, got {ti.show}"
+    return elem
+  | .len x => do
+    let _ ← lookupArray Γ x
+    return .int
   | .un op e => do
     let t ← inferExpr Γ e
     match op, t with
     | .neg, .int => return .int
     | .not, .bool => return .bool
-    | .neg, .bool => throw "unary '-' applied to a bool"
-    | .not, .int => throw "'!' applied to an int"
+    | .neg, t => throw s!"unary '-' applied to {t.show}"
+    | .not, t => throw s!"'!' applied to {t.show}"
   | .bin op e₁ e₂ => do
     let t₁ ← inferExpr Γ e₁
     let t₂ ← inferExpr Γ e₂
@@ -65,8 +86,19 @@ def checkStmt (Γ : Ctx) : Stmt → Except String Unit
   | .assign x e =>
     match Γ[x]? with
     | none => throw s!"assignment to undeclared variable '{x}'"
+    | some (.array _ n) =>
+      throw s!"'{x}' is an array of length {n}; assign to an element, '{x}[i] := ...'"
     | some t =>
       (checkExpr Γ e t).mapError (s!"in assignment to '{x}': " ++ ·)
+  | .assignIndex x i e => do
+    let (elem, _) ← lookupArray Γ x
+    (checkExpr Γ i .int).mapError (s!"index of '{x}': " ++ ·)
+    (checkExpr Γ e elem).mapError (s!"in assignment to '{x}[i]': " ++ ·)
+  | .readIntIndex x i | .readByteIndex x i => do
+    let (elem, _) ← lookupArray Γ x
+    (checkExpr Γ i .int).mapError (s!"index of '{x}': " ++ ·)
+    unless elem == .int do
+      throw s!"read into '{x}[i]', whose elements are {elem.show}"
   | .ite c s₁ s₂ => do
     (checkExpr Γ c .bool).mapError ("'if' condition: " ++ ·)
     checkStmt Γ s₁
@@ -84,9 +116,12 @@ def checkStmt (Γ : Ctx) : Stmt → Except String Unit
     | none => throw s!"read into undeclared variable '{x}'"
     | some .int => return ()
     | some .bool => throw s!"read into '{x}', which is a bool"
+    | some t => throw s!"read into '{x}', which is {t.show}"
   | .printExpr e _ => do
-    let _ ← inferExpr Γ e  -- either type prints
-    return ()
+    -- either scalar type prints; an array does not
+    match ← inferExpr Γ e with
+    | .array _ _ => throw "'print' of a whole array; print its elements instead"
+    | _ => return ()
   | .printStr _ _ => return ()
   | .printByte e => (checkExpr Γ e .int).mapError ("'printByte': " ++ ·)
 
@@ -96,8 +131,13 @@ def checkProgram (p : Program) : Except String Ctx := do
   for (x, t, init) in p.decls do
     if Γ.contains x then
       throw s!"variable '{x}' declared twice"
+    if let .array _ 0 := t then
+      throw s!"array '{x}' has length 0; give it at least one element"
     if let some e := init then
-      (checkExpr Γ e t).mapError (s!"initialiser of '{x}': " ++ ·)
+      match t with
+      | .array _ _ =>
+        throw s!"array '{x}' cannot have an initialiser; its elements start at 0 or false"
+      | _ => (checkExpr Γ e t).mapError (s!"initialiser of '{x}': " ++ ·)
     Γ := Γ.insert x t
   checkStmt Γ p.body
   return Γ

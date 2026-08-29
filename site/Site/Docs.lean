@@ -19,7 +19,7 @@ up looking at the actual examples.
 namespace Site
 
 /-- Where the repository lives on GitHub, for links to files the site does not publish. -/
-def repoURL : String := "https://github.com/langlib/langlib"
+def repoURL : String := "https://github.com/ilyasergey/langlib"
 
 /-- The branch those links point at. -/
 def repoBranch : String := "master"

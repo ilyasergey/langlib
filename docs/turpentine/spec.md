@@ -64,7 +64,8 @@ variable twice, or after the first statement, is an error.
 
 ### Types
 
-`int` (unbounded integers) and `bool`. The type checker
+`int` (unbounded integers), `bool`, and one-dimensional arrays of either,
+written `int[n]` / `bool[n]` with a literal length. The type checker
 (`Langlib/Turpentine/Typecheck.lean`) enforces: declared-before-use, one
 declaration per name, `int`/`bool` discipline on every operator,
 boolean conditions, boolean `assert` and `invariant`, integer `decreases`,
@@ -84,10 +85,15 @@ integer targets for the read statements.
 | `print("s");` / `println("s");` | print a literal string (escapes: `\n \t \" \\`) |
 | `println();` | print a bare newline |
 | `printByte(e);` | print the byte `e mod 256` |
+| `a[i] := e;` | write an array element |
+| `a[i] := readInt();` / `a[i] := readByte();` | read into an element |
 
 Comments run from `//` to end of line.
 
 ### Expressions
+
+Array elements are read with `a[i]`, and `len(a)` gives the length, which
+is a compile-time constant.
 
 Precedence, loosest first: `||`, `&&`, comparisons
 (`== != < <= > >=`), additive (`+ -`), multiplicative (`* / %`), unary
@@ -110,9 +116,39 @@ short-circuit.
 4. **Annotations do not execute.** `invariant` and `decreases` are parsed
    and type-checked, then ignored by the interpreter; they are input to the
    verification pipeline (`docs/PLAN.md`, Stage 6).
-5. **The interpreter is pure and fuel-based** like every interpreter in the
+5. **Arrays are fixed-length and one-dimensional**, with scalar elements
+   and no initialiser: elements start at `0` or `false`. A length of zero
+   is rejected. Indexing out of range, in either direction, is a runtime
+   error. The restrictions are what make arrays compilable to machines
+   with no dynamic allocation: subleq in particular has no computed
+   addressing, so `a[i]` becomes self-modifying address patching, and a
+   statically known base and length is what keeps that tractable. There
+   are no growable arrays and no heap allocation; see "What is missing"
+   below.
+6. **The interpreter is pure and fuel-based** like every interpreter in the
    library: one fuel unit per executed statement or loop-condition check.
    Divergence is an observable test outcome (`lake exe turpentine --fuel N`).
+
+## What is missing
+
+Deliberately absent, with the reasoning recorded so it is not
+re-litigated:
+
+* **Growable arrays and dynamic allocation.** Every target here is a
+  machine without an allocator. Supporting them means writing one (a bump
+  or free-list allocator over the target's memory) and giving Turpentine
+  a notion of a reference, which turns the flat first-order store into a
+  heap with aliasing. That is a large change to the semantics and a much
+  larger change to the verification story, since the state relation in
+  `docs/verification.md` currently maps variable names to fixed
+  locations. Fixed-size arrays cover the algorithms we want (sorting,
+  sieves, scanning) without any of it. If dynamic data becomes necessary,
+  the honest route is a Turpentine-level `arena` of fixed size with
+  explicit indices, not pointers.
+* **Procedures and recursion.** A call stack is straightforward in
+  whitespace, which has one, and real work in brainfuck. Worth scoping
+  alongside any array-growth work.
+* **Strings** beyond literal arguments to `print`.
 
 ## Trying it
 

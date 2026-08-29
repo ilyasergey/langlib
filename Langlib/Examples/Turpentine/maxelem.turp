@@ -1,0 +1,25 @@
+// Maximum element of an array, ported from Velvet's MaxElem example
+// (github.com/verse-lab/velvet). Reads len(a) numbers, one per line,
+// and prints the largest.
+// Usage: printf '3\n1\n4\n1\n5\n6\n9\n2\n' | lake exe turpentine run Langlib/Examples/Turpentine/maxelem.turp
+var a : int[8];
+var i : int := 0;
+var mx : int;
+while i < len(a)
+  decreases len(a) - i
+{
+  a[i] := readInt();
+  i := i + 1;
+}
+mx := a[0];
+i := 1;
+while i < len(a)
+  invariant i <= len(a)
+  decreases len(a) - i
+{
+  if a[i] > mx {
+    mx := a[i];
+  }
+  i := i + 1;
+}
+println(mx);

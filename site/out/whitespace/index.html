@@ -29,7 +29,7 @@
 <div class="prose">
 <div class="page-kicker">Language</div>
 <h1>whitespace</h1>
-<p class="muted">Edwin Brady and Chris Morris, 2003 · <code>lake exe whitespace</code> · <a href="https://github.com/langlib/langlib/tree/master/Langlib/Examples/Whitespace/">examples</a> · <a href="https://github.com/langlib/langlib/tree/master/Langlib/Languages/Whitespace/">Lean source</a></p>
+<p class="muted">Edwin Brady and Chris Morris, 2003 · <code>lake exe whitespace</code> · <a href="https://github.com/ilyasergey/langlib/tree/master/Langlib/Examples/Whitespace/">examples</a> · <a href="https://github.com/ilyasergey/langlib/tree/master/Langlib/Languages/Whitespace/">Lean source</a></p>
 <p class="small muted"><a href="/brainfuck/">brainfuck</a> · <strong>whitespace</strong> · <a href="/malbolge/">malbolge</a> · <a href="/befunge93/">Befunge-93</a> · <a href="/subleq/">subleq</a> · <a href="/fractran/">FRACTRAN</a> · <a href="/thue/">Thue</a> · <a href="/ook/">Ook!</a> · <a href="/deadfish/">Deadfish</a> · <a href="/piet/">Piet</a> · <a href="/brainloller/">Brainloller</a></p>
 <ul>
 <li><strong>Authors</strong>: Edwin Brady and Chris Morris</li>
@@ -179,6 +179,7 @@ whitespace: runtime error: read char at end of input</code></pre>
 <button class="pg-btn primary" type="button" data-role="run">Run</button>
 </div>
 <div class="pg-grid">
+<noscript><div class="pg-cell span2"><p class="pg-note">This playground needs JavaScript, and yours is switched off, which is a defensible position. The same programs run locally: <code>lake exe whitespace Langlib/Examples/Whitespace/hello.ws</code>.</p></div></noscript>
 <div class="pg-cell">
 <div class="pg-label">Program <span class="hint">as written: blank</span></div>
 <textarea class="program" data-role="program" spellcheck="false" aria-label="Whitespace program"></textarea>
@@ -209,7 +210,7 @@ whitespace: runtime error: read char at end of input</code></pre>
 </div>
 <div class="pg-status"><span data-role="status">not started</span><span data-role="steps"></span></div>
 </div>
-<p class="source-note">This page is <code>docs/whitespace/spec.md</code> from the repository, rendered. Corrections belong <a href="https://github.com/langlib/langlib/blob/master/docs/whitespace/spec.md">in the source file</a>, not here: the site is generated from it.</p>
+<p class="source-note">This page is <code>docs/whitespace/spec.md</code> from the repository, rendered. Corrections belong <a href="https://github.com/ilyasergey/langlib/blob/master/docs/whitespace/spec.md">in the source file</a>, not here: the site is generated from it.</p>
 <script src="/ws.js"></script>
 <script src="/playground.js"></script>
 </div>
@@ -218,11 +219,11 @@ whitespace: runtime error: read char at end of input</code></pre>
 <ul>
 <li><a href="#history">History</a></li>
 <li><a href="#the-machine">The machine</a></li>
-<li class="sub"><a href="#stack-manipulation-imp-space">Stack manipulation (IMP `[Space]`)</a></li>
-<li class="sub"><a href="#arithmetic-imp-tabspace">Arithmetic (IMP `[Tab][Space]`)</a></li>
-<li class="sub"><a href="#heap-access-imp-tabtab">Heap access (IMP `[Tab][Tab]`)</a></li>
-<li class="sub"><a href="#flow-control-imp-lf">Flow control (IMP `[LF]`)</a></li>
-<li class="sub"><a href="#io-imp-tablf">I/O (IMP `[Tab][LF]`)</a></li>
+<li class="sub"><a href="#stack-manipulation-imp-space">Stack manipulation (IMP [Space])</a></li>
+<li class="sub"><a href="#arithmetic-imp-tabspace">Arithmetic (IMP [Tab][Space])</a></li>
+<li class="sub"><a href="#heap-access-imp-tabtab">Heap access (IMP [Tab][Tab])</a></li>
+<li class="sub"><a href="#flow-control-imp-lf">Flow control (IMP [LF])</a></li>
+<li class="sub"><a href="#io-imp-tablf">I/O (IMP [Tab][LF])</a></li>
 <li><a href="#semantic-decisions-in-langlib">Semantic decisions in langlib</a></li>
 <li><a href="#trying-it">Trying it</a></li>
 <li><a href="#compilation-from-turpentine">Compilation from Turpentine</a></li>
@@ -233,7 +234,7 @@ whitespace: runtime error: read char at end of input</code></pre>
 <footer class="footer">
 <div class="footer-inner">
 <div>langlib is Apache 2.0. The languages belong to the people who thought of them, and are credited on their pages.</div>
-<div><a href="https://github.com/langlib/langlib">Source on GitHub</a></div>
+<div><a href="https://github.com/ilyasergey/langlib">Source on GitHub</a></div>
 </div>
 </footer>
 </body>

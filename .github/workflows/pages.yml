@@ -1,0 +1,112 @@
+# Builds langlib.wtf from site/ and deploys it to GitHub Pages.
+#
+# This workflow never builds the library at the repository root. The site is a
+# separate Lake package under site/ with its own lean-toolchain, so `lake build`
+# here compiles the generator and nothing else.
+#
+# One-time setup in the repository, described in site/README.md:
+#   Settings -> Pages -> Source: GitHub Actions
+#   Settings -> Pages -> Custom domain: langlib.wtf
+#   plus the DNS records at the registrar.
+
+name: langlib.wtf
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'site/**'
+      - 'docs/**'
+      - 'CONTRIBUTING.md'
+      - 'Langlib/Examples/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time, and let a running one finish rather than
+# publishing a half-built site.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # elan reads site/lean-toolchain and fetches the pinned Lean itself, so
+      # no third-party action is needed and nothing can drift from the pin.
+      - name: Install elan
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o elan-init.sh
+          sh elan-init.sh -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Cache the toolchain and the generator build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.elan
+            site/.lake
+          key: site-${{ runner.os }}-${{ hashFiles('site/lean-toolchain', 'site/lakefile.toml') }}-${{ hashFiles('site/**/*.lean') }}
+          restore-keys: |
+            site-${{ runner.os }}-${{ hashFiles('site/lean-toolchain', 'site/lakefile.toml') }}-
+            site-${{ runner.os }}-
+
+      - name: Build the generator
+        working-directory: site
+        run: lake build
+
+      - name: Generate the site
+        working-directory: site
+        run: lake exe langlib-site
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The interpreters that run in the reader's browser are checked against
+      # the library's own example programs, and the generated HTML is checked
+      # for broken links and unrendered Markdown, before anything is published.
+      - name: Check the interpreters
+        working-directory: site
+        run: |
+          node test/bf-test.mjs
+          node test/ws-test.mjs
+          node test/df-test.mjs
+
+      - name: Check the generated site
+        working-directory: site
+        run: node test/site-test.mjs
+
+      # Runs static/playground.js against the generated markup in a small DOM,
+      # pressing Run and reading the output pane, so a broken playground fails
+      # the build instead of the reader.
+      - name: Check the playgrounds
+        working-directory: site
+        run: node test/playground-test.mjs
+
+      - name: Confirm the custom domain survived into the output
+        run: |
+          test "$(cat site/out/CNAME)" = "langlib.wtf"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

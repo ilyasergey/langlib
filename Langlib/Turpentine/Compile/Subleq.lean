@@ -447,6 +447,10 @@ private def boolFromZ (d : Nat) (want : Bool) : M Unit := do
 
 /-- Compile an expression, leaving its value in the temporary `t_d`. -/
 private def compileExpr (types : Types) : Expr → Nat → M Unit
+  | .index x _, _ =>
+    throw s!"arrays are not supported by this backend yet ({x}[i])"
+  | .len x, _ =>
+    throw s!"arrays are not supported by this backend yet (len({x}))"
   | .intLit n, d => do noteDepth d; mSet (tmpW d) n
   | .boolLit b, d => do noteDepth d; mSet (tmpW d) (if b then 1 else 0)
   | .var x, d => do
@@ -507,6 +511,12 @@ private def compileExpr (types : Types) : Expr → Nat → M Unit
 /-! ## Statements -/
 
 private def compileStmt (types : Types) : Stmt → M Unit
+  | .assignIndex x _ _ =>
+    throw s!"arrays are not supported by this backend yet ({x}[i] := ...)"
+  | .readIntIndex x _ =>
+    throw s!"arrays are not supported by this backend yet ({x}[i] := readInt())"
+  | .readByteIndex x _ =>
+    throw s!"arrays are not supported by this backend yet ({x}[i] := readByte())"
   | .skip => pure ()
   | .seq a b => do compileStmt types a; compileStmt types b
   | .assign x e => do
@@ -571,6 +581,7 @@ private def compileStmt (types : Types) : Stmt → M Unit
       mOutStr "false"
       emitL fin
       if nl then mOutStr "\n"
+    | .ok (.array _ _) => throw "internal: printing a whole array"
   | .printStr s nl => mOutStr (if nl then s ++ "\n" else s)
   | .printByte e => do
     emitC "printByte"

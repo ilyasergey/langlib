@@ -15,13 +15,22 @@
   var SPEEDS = [1, 3, 12, 60, 400, 5000, Infinity];
   var SPEED_NAMES = ['1 step', '3', '12', '60', '400', '5000', 'all at once'];
   var TICK_MS = 16;
-  var FUEL = 20000000;
+  var FUEL = 5000000;
+  var MAX_SHOWN = 100000;
 
   var CONTROL_NAMES = {
     0: 'NUL', 7: 'BEL', 8: 'BS', 9: 'TAB', 10: 'LF', 13: 'CR', 27: 'ESC', 127: 'DEL'
   };
 
   function role(root, name) { return root.querySelector('[data-role="' + name + '"]'); }
+
+  // A program that never halts can print megabytes before the step budget
+  // runs out. The machine keeps all of it; the pane shows the start of it.
+  function shown(text) {
+    return text.length <= MAX_SHOWN ? text
+      : text.slice(0, MAX_SHOWN) + '\n\u2026 output truncated at ' +
+        MAX_SHOWN.toLocaleString() + ' characters';
+  }
 
   function loadExamples(id) {
     var el = document.getElementById(id);
@@ -202,7 +211,7 @@
 
     function render(m) {
       if (!m) return;
-      if (output) output.textContent = m.outputText();
+      if (output) output.textContent = shown(m.outputText());
       renderTape(m);
       renderCode(m);
       if (steps) steps.textContent = m.steps.toLocaleString() + ' steps';
@@ -309,7 +318,7 @@
 
     function render(m) {
       if (!m) return;
-      if (output) output.textContent = m.outputText();
+      if (output) output.textContent = shown(m.outputText());
       renderListing(m);
       if (stack) {
         stack.textContent = m.stack.length === 0 ? ''
@@ -395,10 +404,10 @@
 
     function render(m) {
       if (!m) return;
-      if (output) output.textContent = m.out;
+      if (output) output.textContent = shown(m.out);
       if (acc) {
         acc.textContent = m.acc.toString();
-        acc.className = 'df-acc' + (m.reset ? ' reset' : '');
+        acc.className = 'pg-out df-acc' + (m.reset ? ' reset' : '');
       }
       if (code) {
         var src = m.source, html = '';
@@ -415,7 +424,7 @@
 
     function clear() {
       if (output) output.textContent = '';
-      if (acc) { acc.textContent = '0'; acc.className = 'df-acc'; }
+      if (acc) { acc.textContent = '0'; acc.className = 'pg-out df-acc'; }
       if (code) code.textContent = '';
       if (steps) steps.textContent = '';
       setStatus(root, 'running', 'not started');

@@ -163,10 +163,14 @@
     return new Uint8Array(out);
   }
 
+  // As in bf.js: UTF-8 when the stream is UTF-8, one character per byte when
+  // it is not, because outchar is byte-oriented and the byte is the point.
   function fromBytes(b) {
-    return typeof TextDecoder !== 'undefined'
-      ? new TextDecoder('utf-8').decode(b)
-      : Array.prototype.map.call(b, function (c) { return String.fromCharCode(c); }).join('');
+    if (typeof TextDecoder !== 'undefined') {
+      try { return new TextDecoder('utf-8', { fatal: true }).decode(b); }
+      catch (e) { /* not UTF-8; fall through */ }
+    }
+    return Array.prototype.map.call(b, function (c) { return String.fromCharCode(c); }).join('');
   }
 
   function Machine(source, input, options) {

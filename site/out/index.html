@@ -34,7 +34,7 @@
 <div class="button-row">
 <a class="button" href="#playground">Run brainfuck in your browser</a>
 <a class="button ghost" href="#languages">Browse the languages</a>
-<a class="button ghost" href="https://github.com/langlib/langlib">Source on GitHub</a>
+<a class="button ghost" href="https://github.com/ilyasergey/langlib">Source on GitHub</a>
 </div>
 </section>
 <div class="section-head" id="languages">
@@ -78,6 +78,14 @@
 <span class="card-title">Deadfish<span class="card-year">2006</span></span>
 <p class="card-note">One accumulator, four commands, no input and no way to stop. Famous for what it cannot do.</p>
 </a>
+<a class="card" href="/piet/">
+<span class="card-title">Piet<span class="card-year">2002</span></span>
+<p class="card-note">Programs are abstract paintings, and the instruction is the colour change from one block to the next.</p>
+</a>
+<a class="card" href="/brainloller/">
+<span class="card-title">Brainloller<span class="card-year">2005</span></span>
+<p class="card-note">Brainfuck encoded in pixel colours: the same tape machine, delivered as a PNG.</p>
+</a>
 </div>
 <div class="section-head" id="playground">
 <h2>Brainfuck, here, now</h2>
@@ -96,6 +104,7 @@
 <button class="pg-btn primary" type="button" data-role="run">Run</button>
 </div>
 <div class="pg-grid">
+<noscript><div class="pg-cell span2"><p class="pg-note">This playground needs JavaScript, and yours is switched off, which is a defensible position. The same programs run locally: <code>lake exe brainfuck Langlib/Examples/Brainfuck/hello.b</code>.</p></div></noscript>
 <div class="pg-cell">
 <div class="pg-label">Program</div>
 <textarea class="program" data-role="program" spellcheck="false" aria-label="Brainfuck program"></textarea>
@@ -158,7 +167,7 @@ println(x);
 <footer class="footer">
 <div class="footer-inner">
 <div>langlib is Apache 2.0. The languages belong to the people who thought of them, and are credited on their pages.</div>
-<div><a href="https://github.com/langlib/langlib">Source on GitHub</a></div>
+<div><a href="https://github.com/ilyasergey/langlib">Source on GitHub</a></div>
 </div>
 </footer>
 </body>

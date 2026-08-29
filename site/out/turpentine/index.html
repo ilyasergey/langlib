@@ -29,7 +29,7 @@
 <div class="prose">
 <div class="page-kicker">Front end</div>
 <h1>Turpentine</h1>
-<p class="muted"><code>lake exe turpentine</code> · <a href="https://github.com/langlib/langlib/tree/master/Langlib/Examples/Turpentine/">examples</a> · <a href="https://github.com/langlib/langlib/tree/master/Langlib/Turpentine/">Lean source</a></p>
+<p class="muted"><code>lake exe turpentine</code> · <a href="https://github.com/ilyasergey/langlib/tree/master/Langlib/Examples/Turpentine/">examples</a> · <a href="https://github.com/ilyasergey/langlib/tree/master/Langlib/Turpentine/">Lean source</a></p>
 <ul>
 <li><strong>Role</strong>: the human-readable front end of langlib; not an esoteric language itself, but the language that compiles to them</li>
 <li><strong>File extension</strong>: <code>.turp</code></li>
@@ -105,8 +105,19 @@ Hello, Turpentine!</code></pre>
 <pre><code>$ lake exe turpentine check Langlib/Examples/Turpentine/primes.turp
 Langlib/Examples/Turpentine/primes.turp: well typed (4 variable(s), 4 declaration(s))</code></pre>
 <h2 id="compilation-to-esoteric-languages">Compilation to esoteric languages<a class="anchor" href="#compilation-to-esoteric-languages" aria-hidden="true">#</a></h2>
-<p>Stage 4 of <code>docs/PLAN.md</code>: <code>lake exe turpentine compile --to &lt;lang&gt; file.turp</code>. Each backend documents its supported fragment in <code>docs/&lt;langname&gt;/compiler.md</code>, and each is tested by running every supported example on the target's interpreter and comparing against the Turpentine interpreter's output.</p>
-<p class="source-note">This page is <code>docs/turpentine/spec.md</code> from the repository, rendered. Corrections belong <a href="https://github.com/langlib/langlib/blob/master/docs/turpentine/spec.md">in the source file</a>, not here: the site is generated from it.</p>
+<pre><code>lake exe turpentine compile --to &lt;whitespace|subleq&gt; [-o out] file.turp</code></pre>
+<p>Two backends exist so far, and both accept the entire language: no statement form, operator, or I/O style is out of fragment. Each documents its layout and its semantic gaps in <code>docs/&lt;langname&gt;/compiler.md</code>, and each is tested by compiling every example, running it on the target's interpreter, and comparing against this interpreter's output.</p>
+<p>Compile Euclid's algorithm to whitespace and run the result.</p>
+<pre><code>$ lake exe turpentine compile --to whitespace -o /tmp/gcd.ws Langlib/Examples/Turpentine/gcd.turp
+turpentine: wrote 532 bytes to /tmp/gcd.ws</code></pre>
+<pre><code>$ printf '252\n105\n' | lake exe whitespace /tmp/gcd.ws
+21</code></pre>
+<p>The same program compiled to a one-instruction machine is larger, because multiplication, division, and decimal printing all have to be built from subtract-and-branch.</p>
+<pre><code>$ lake exe turpentine compile --to subleq -o /tmp/gcd.sq Langlib/Examples/Turpentine/gcd.turp
+turpentine: wrote 22737 bytes to /tmp/gcd.sq</code></pre>
+<pre><code>$ printf '252\n105\n' | lake exe subleq /tmp/gcd.sq
+21</code></pre>
+<p class="source-note">This page is <code>docs/turpentine/spec.md</code> from the repository, rendered. Corrections belong <a href="https://github.com/ilyasergey/langlib/blob/master/docs/turpentine/spec.md">in the source file</a>, not here: the site is generated from it.</p>
 </div>
 <nav class="toc" aria-label="On this page">
 <div class="toc-title">On this page</div>
@@ -128,7 +139,7 @@ Langlib/Examples/Turpentine/primes.turp: well typed (4 variable(s), 4 declaratio
 <footer class="footer">
 <div class="footer-inner">
 <div>langlib is Apache 2.0. The languages belong to the people who thought of them, and are credited on their pages.</div>
-<div><a href="https://github.com/langlib/langlib">Source on GitHub</a></div>
+<div><a href="https://github.com/ilyasergey/langlib">Source on GitHub</a></div>
 </div>
 </footer>
 </body>

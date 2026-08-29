@@ -33,11 +33,15 @@ open Langlib.Common
 inductive Value where
   | int (n : Int)
   | bool (b : Bool)
+  /-- An array's elements, in index order. The length is fixed at
+  declaration and never changes, so `Array` needs no growth handling. -/
+  | arr (elems : Array Value)
 deriving Repr, BEq, Inhabited
 
 def Value.render : Value → String
   | .int n => toString n
   | .bool b => toString b
+  | .arr _ => "<array>"  -- the type checker rejects printing a whole array
 
 structure State where
   env : Std.HashMap String Value := {}
@@ -52,6 +56,23 @@ def evalExpr (env : Std.HashMap String Value) : Expr → Except String Value
   | .var x =>
     match env[x]? with
     | some v => return v
+    | none => throw s!"undeclared variable '{x}' (was the program type-checked?)"
+  | .index x i => do
+    match env[x]? with
+    | some (.arr elems) =>
+      match ← evalExpr env i with
+      | .int n =>
+        if n < 0 || n ≥ elems.size then
+          throw s!"index {n} out of bounds for '{x}' of length {elems.size}"
+        else
+          return elems[n.toNat]!
+      | _ => throw s!"index of '{x}' is not an int"
+    | some _ => throw s!"'{x}' is not an array"
+    | none => throw s!"undeclared variable '{x}' (was the program type-checked?)"
+  | .len x => do
+    match env[x]? with
+    | some (.arr elems) => return .int (Int.ofNat elems.size)
+    | some _ => throw s!"'{x}' is not an array"
     | none => throw s!"undeclared variable '{x}' (was the program type-checked?)"
   | .un op e => do
     match op, ← evalExpr env e with
@@ -110,6 +131,23 @@ private def parseIntLine (line : String) : Option Int :=
 private def pushStr (s : State) (str : String) : State :=
   { s with output := s.output ++ str.toUTF8 }
 
+/-- Resolve an array element write: evaluate the index, bounds-check it,
+and return the updated environment. Shared by the three indexed
+statements. -/
+private def storeIndex (env : Std.HashMap String Value) (x : String)
+    (i : Expr) (v : Value) : Except String (Std.HashMap String Value) := do
+  match env[x]? with
+  | some (.arr elems) =>
+    match ← evalExpr env i with
+    | .int n =>
+      if n < 0 || n ≥ elems.size then
+        throw s!"index {n} out of bounds for '{x}' of length {elems.size}"
+      else
+        return env.insert x (.arr (elems.set! n.toNat v))
+    | _ => throw s!"index of '{x}' is not an int"
+  | some _ => throw s!"'{x}' is not an array"
+  | none => throw s!"undeclared variable '{x}' (was the program type-checked?)"
+
 /-- Execute a statement with the given fuel. One unit of fuel pays for one
 primitive statement or one loop-condition check; `seq` is free. -/
 def exec : Nat → Stmt → State → State × Exit
@@ -161,6 +199,30 @@ def exec : Nat → Stmt → State → State × Exit
         ({ s with env := s.env.insert x (.int (Int.ofNat b.toNat)),
                   input := input' }, .halted)
       | none => ({ s with env := s.env.insert x (.int (-1)) }, .halted)
+    | .assignIndex x i e =>
+      match evalExpr s.env e with
+      | .error m => (s, .error m)
+      | .ok v =>
+        match storeIndex s.env x i v with
+        | .ok env' => ({ s with env := env' }, .halted)
+        | .error m => (s, .error m)
+    | .readIntIndex x i =>
+      match s.input.readLine? with
+      | none => (s, .error "readInt at end of input")
+      | some (line, input') =>
+        match parseIntLine line with
+        | none => (s, .error s!"readInt: not an integer: '{line.trimAscii.toString}'")
+        | some n =>
+          match storeIndex s.env x i (.int n) with
+          | .ok env' => ({ s with env := env', input := input' }, .halted)
+          | .error m => (s, .error m)
+    | .readByteIndex x i =>
+      let (b, input') := match s.input.read? with
+        | some (b, inp) => (Int.ofNat b.toNat, inp)
+        | none => ((-1 : Int), s.input)
+      match storeIndex s.env x i (.int b) with
+      | .ok env' => ({ s with env := env', input := input' }, .halted)
+      | .error m => (s, .error m)
     | .printExpr e nl =>
       match evalExpr s.env e with
       | .ok v => (pushStr s (v.render ++ if nl then "\n" else ""), .halted)
@@ -182,7 +244,12 @@ def initEnv (p : Program) : Except String (Std.HashMap String Value) := do
   for (x, t, init) in p.decls do
     let v ← match init with
       | some e => evalExpr env e
-      | none => pure (match t with | .int => .int 0 | .bool => .bool false)
+      | none =>
+        let rec default : Ty → Value
+          | .int => .int 0
+          | .bool => .bool false
+          | .array elem n => .arr (Array.replicate n (default elem))
+        pure (default t)
     env := env.insert x v
   return env
 

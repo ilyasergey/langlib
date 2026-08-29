@@ -39,6 +39,62 @@ def suite : Suite where
         input := "27\n", expect := .outputs "111\n" }
     , { name := "primes example", source := ex "primes.turp", input := "30\n",
         expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n" }
+      -- arrays
+    , { name := "maxelem example", source := ex "maxelem.turp",
+        input := "3\n1\n4\n1\n5\n6\n9\n2\n", expect := .outputs "9\n" }
+    , { name := "sort example", source := ex "sort.turp",
+        input := "5\n2\n9\n1\n5\n6\n",
+        expect := .outputs "1\n2\n5\n5\n6\n9\n" }
+    , { name := "sieve example", source := ex "sieve.turp",
+        expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n31\n37\n41\n43\n47\n" }
+    , { name := "array elements start at zero", source := .inline
+          "var a : int[3]; println(a[0] + a[1] + a[2]);",
+        expect := .outputs "0\n" }
+    , { name := "bool array starts false", source := .inline
+          "var f : bool[2]; println(f[1]);",
+        expect := .outputs "false\n" }
+    , { name := "len is the declared length", source := .inline
+          "var a : int[7]; println(len(a));",
+        expect := .outputs "7\n" }
+    , { name := "computed index", source := .inline
+          "var a : int[4]; var i : int := 1; a[i + 2] := 9; println(a[3]);",
+        expect := .outputs "9\n" }
+    , { name := "array read from input", source := .inline
+          "var a : int[2]; a[0] := readInt(); a[1] := readByte(); println(a[0]); println(a[1]);",
+        input := "42\nA", expect := .outputs "42\n65\n" }
+    , { name := "index out of bounds (high)", source := .inline
+          "var a : int[2]; println(a[2]);",
+        expect := .runtimeError "out of bounds" }
+    , { name := "index out of bounds (negative)", source := .inline
+          "var a : int[2]; println(a[-1]);",
+        expect := .runtimeError "out of bounds" }
+    , { name := "write out of bounds", source := .inline
+          "var a : int[2]; a[5] := 1;",
+        expect := .runtimeError "out of bounds" }
+    , { name := "type error: index a scalar", source := .inline
+          "var x : int; println(x[0]);",
+        expect := .parseError "cannot be indexed" }
+    , { name := "type error: bool index", source := .inline
+          "var a : int[2]; println(a[true]);",
+        expect := .parseError "must be an int" }
+    , { name := "type error: wrong element type", source := .inline
+          "var a : int[2]; a[0] := true;",
+        expect := .parseError "expected int" }
+    , { name := "type error: print whole array", source := .inline
+          "var a : int[2]; println(a);",
+        expect := .parseError "index it as" }
+    , { name := "type error: len of a scalar", source := .inline
+          "var x : int; println(len(x));",
+        expect := .parseError "cannot be indexed" }
+    , { name := "type error: zero-length array", source := .inline
+          "var a : int[0]; println(len(a));",
+        expect := .parseError "length 0" }
+    , { name := "type error: array initialiser", source := .inline
+          "var a : int[2] := 1; println(len(a));",
+        expect := .parseError "cannot have an initialiser" }
+    , { name := "parse error: non-literal length", source := .inline
+          "var n : int := 3; var a : int[n];",
+        expect := .parseError "must be a literal" }
       -- semantics pinned down
     , { name := "euclidean division", source := .inline "println(-7 / 2);",
         expect := .outputs "-4\n" }

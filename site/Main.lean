@@ -38,12 +38,21 @@ partial def copyTree (src dst : System.FilePath) : IO Unit := do
 def kicker (text : String) : String :=
   s!"<div class=\"page-kicker\">{escape text}</div>\n"
 
-/-- The line under a language heading: who, when, and how to run it locally. -/
-def langMeta (l : Lang) : String :=
+/--
+The line under a language heading: who, when, and how to run it locally. The
+directory links are emitted only when the directories are there, so a language
+whose Lean side is still landing does not get links into a 404.
+-/
+def langMeta (l : Lang) (hasExamples hasSource : Bool) : String :=
+  let link (there : Bool) (kind label : String) : String :=
+    if there then
+      s!" · <a href=\"{repoURL}/tree/{repoBranch}/Langlib/{kind}/{escape l.examplesDir}/\">{label}</a>"
+    else ""
   s!"<p class=\"muted\">{escape l.author}, {escape l.year} · " ++
-  s!"<code>{escape l.runner}</code> · " ++
-  s!"<a href=\"{repoURL}/tree/{repoBranch}/Langlib/Examples/{escape l.examplesDir}/\">examples</a> · " ++
-  s!"<a href=\"{repoURL}/tree/{repoBranch}/Langlib/Languages/{escape l.examplesDir}/\">Lean source</a></p>\n"
+  s!"<code>{escape l.runner}</code>" ++
+  link hasExamples "Examples" "examples" ++
+  link hasSource "Languages" "Lean source" ++
+  "</p>\n"
 
 /-- A strip of links to the other languages, so a reader can keep browsing. -/
 def langStrip (all : List Lang) (current : String) : String :=
@@ -170,13 +179,14 @@ def homePage (langs : List Lang) (soon : List Lang) (bfData bfPlayground : Strin
     body := body, wide := true }
 
 def languagePage (published : List Published) (all : List Lang) (l : Lang)
-    (source : String) (playground : String) (scripts : String) : Page :=
+    (source : String) (playground : String) (scripts : String)
+    (hasExamples hasSource : Bool) : Page :=
   let path := s!"docs/{l.slug}/spec.md"
   let doc := renderDoc published path source
   let body :=
     kicker "Language" ++
     s!"<h1>{escape doc.title}</h1>\n" ++
-    langMeta l ++
+    langMeta l hasExamples hasSource ++
     langStrip all l.slug ++
     doc.html ++
     playground ++
@@ -184,8 +194,7 @@ def languagePage (published : List Published) (all : List Lang) (l : Lang)
     scripts
   { url := s!"/{l.slug}/", file := s!"{l.slug}/index.html"
     title := s!"{l.name} — langlib"
-    description :=
-      if doc.summary.isEmpty then l.blurb else l.blurb
+    description := l.blurb
     body := body, toc := doc.toc }
 
 def docPage (published : List Published) (url file path title : String)
@@ -357,7 +366,9 @@ def main (args : List String) : IO UInt32 := do
           dfData ++ dfPg,
          playgroundScripts ["deadfish"])
       else ("", "")
-    pure <| languagePage published allLangs l source pg scripts
+    let hasExamples ← (System.FilePath.mk root / s!"Langlib/Examples/{l.examplesDir}").pathExists
+    let hasSource ← (System.FilePath.mk root / s!"Langlib/Languages/{l.examplesDir}").pathExists
+    pure <| languagePage published allLangs l source pg scripts hasExamples hasSource
 
   let statusSource ← readDoc root "docs/README.md"
   let relatedSource ← readDoc root "docs/RELATED.md"
@@ -368,7 +379,7 @@ def main (args : List String) : IO UInt32 := do
   let contribSource ← readDoc root "CONTRIBUTING.md"
 
   let pages : List Page :=
-    [ homePage langs stillSoon bfData bfPg turpExample ] ++
+    [ homePage allLangs stillSoon bfData bfPg turpExample ] ++
     languagePages ++
     [ docPage published "/turpentine/" "turpentine/index.html" "docs/turpentine/spec.md"
         "Turpentine — langlib" turpSource

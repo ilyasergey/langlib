@@ -71,9 +71,16 @@
     return new Uint8Array(out);
   }
 
+  // Output is a byte stream, and the semantics does no newline or encoding
+  // translation. Decoding as UTF-8 is right for everything anyone actually
+  // prints, but a program that emits a lone 0xFF is not producing UTF-8, so
+  // fall back to one character per byte rather than showing replacement
+  // characters where the byte value is the point.
   function fromBytes(bytes) {
     if (typeof TextDecoder !== 'undefined') {
-      return new TextDecoder('utf-8').decode(bytes);
+      try {
+        return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      } catch (e) { /* not UTF-8; fall through */ }
     }
     var s = '';
     for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);

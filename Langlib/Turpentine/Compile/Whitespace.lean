@@ -250,6 +250,10 @@ private def emitBool (mk : Label → M Unit) : M Unit := do
 
 /-- Compile an expression; it leaves exactly one value on the stack. -/
 private def compileExpr (ctx : Frame) : Expr → M Unit
+  | .index x _ =>
+    throw s!"arrays are not supported by this backend yet ({x}[i])"
+  | .len x =>
+    throw s!"arrays are not supported by this backend yet (len({x}))"
   | .intLit n => emit (.push n)
   | .boolLit b => emit (.push (if b then 1 else 0))
   | .var x => do
@@ -304,6 +308,12 @@ private def compileExpr (ctx : Frame) : Expr → M Unit
 
 /-- Compile a statement; the stack is empty before and after. -/
 private def compileStmt (ctx : Frame) : Stmt → M Unit
+  | .assignIndex x _ _ =>
+    throw s!"arrays are not supported by this backend yet ({x}[i] := ...)"
+  | .readIntIndex x _ =>
+    throw s!"arrays are not supported by this backend yet ({x}[i] := readInt())"
+  | .readByteIndex x _ =>
+    throw s!"arrays are not supported by this backend yet ({x}[i] := readByte())"
   | .skip => pure ()
   | .seq a b => do compileStmt ctx a; compileStmt ctx b
   | .assign x e => do
@@ -358,6 +368,7 @@ private def compileStmt (ctx : Frame) : Stmt → M Unit
       emitStr "false"
       emit (.label end_)
       if nl then emitStr "\n"
+    | .ok (.array _ _) => throw "internal: printing a whole array"
   | .printStr s nl => emitStr (if nl then s ++ "\n" else s)
   | .printByte e => do
     compileExpr ctx e

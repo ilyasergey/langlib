@@ -148,6 +148,13 @@ private def controls (extra : String) : String :=
   "<button class=\"pg-btn\" type=\"button\" data-role=\"reset\">Reset</button>\n" ++
   "<button class=\"pg-btn primary\" type=\"button\" data-role=\"run\">Run</button>\n"
 
+/-- Without scripting the panes stay empty, so say what to run instead. -/
+private def noScriptNote (runner program : String) : String :=
+  "<noscript><div class=\"pg-cell span2\"><p class=\"pg-note\">This playground needs " ++
+  "JavaScript, and yours is switched off, which is a defensible position. The same " ++
+  "programs run locally: <code>" ++ escape runner ++ " " ++ escape program ++
+  "</code>.</p></div></noscript>\n"
+
 private def exampleSelect : String :=
   "<label>Example <select data-role=\"example\"></select></label>\n"
 
@@ -169,6 +176,7 @@ def brainfuckPlayground (dataId : String) : String :=
   s!"<div class=\"pg\" data-kind=\"brainfuck\" data-examples=\"{escape dataId}\">\n" ++
   "<div class=\"pg-bar\">\n" ++ exampleSelect ++ eof ++ controls "" ++ "</div>\n" ++
   "<div class=\"pg-grid\">\n" ++
+  noScriptNote "lake exe brainfuck" "Langlib/Examples/Brainfuck/hello.b" ++
   "<div class=\"pg-cell\">\n<div class=\"pg-label\">Program</div>\n" ++
   "<textarea class=\"program\" data-role=\"program\" spellcheck=\"false\" " ++
   "aria-label=\"Brainfuck program\"></textarea>\n" ++
@@ -190,6 +198,7 @@ def whitespacePlayground (dataId : String) : String :=
   s!"<div class=\"pg\" data-kind=\"whitespace\" data-examples=\"{escape dataId}\">\n" ++
   "<div class=\"pg-bar\">\n" ++ exampleSelect ++ controls "" ++ "</div>\n" ++
   "<div class=\"pg-grid\">\n" ++
+  noScriptNote "lake exe whitespace" "Langlib/Examples/Whitespace/hello.ws" ++
   "<div class=\"pg-cell\">\n<div class=\"pg-label\">Program <span class=\"hint\">as written: blank</span></div>\n" ++
   "<textarea class=\"program\" data-role=\"program\" spellcheck=\"false\" " ++
   "aria-label=\"Whitespace program\"></textarea>\n" ++
@@ -214,6 +223,7 @@ def deadfishPlayground (dataId : String) : String :=
   s!"<div class=\"pg\" data-kind=\"deadfish\" data-examples=\"{escape dataId}\">\n" ++
   "<div class=\"pg-bar\">\n" ++ exampleSelect ++ controls "" ++ "</div>\n" ++
   "<div class=\"pg-grid\">\n" ++
+  noScriptNote "lake exe deadfish" "Langlib/Examples/Deadfish/hello.df" ++
   "<div class=\"pg-cell\">\n<div class=\"pg-label\">Program <span class=\"hint\">i d s o</span></div>\n" ++
   "<textarea class=\"program small\" data-role=\"program\" spellcheck=\"false\" " ++
   "aria-label=\"Deadfish program\"></textarea>\n" ++

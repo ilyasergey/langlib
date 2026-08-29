@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Verification pipeline — langlib</title>
-<meta name="description" content="This document designs the correctness story for langlib's compilers: what &quot;the compiler is correct&quot; means here, why the statement is shared across wildly different targets, and in what order to prove it. It is the design input for Stage 6 of [PLAN.md](PLAN.md); proofs land incrementally, and this page records what is proved and what is still a plan.">
+<meta name="description" content="This document designs the correctness story for langlib's compilers: what &quot;the compiler is correct&quot; means here, why the statement is shared across wildly different targets, and in what order to prove it. It is the design input for Stage 6 of PLAN.md; proofs land incrementally, and this page records what is proved and what is still a plan.">
 <link rel="canonical" href="https://langlib.wtf/verification/">
 <meta property="og:title" content="Verification pipeline — langlib">
-<meta property="og:description" content="This document designs the correctness story for langlib's compilers: what &quot;the compiler is correct&quot; means here, why the statement is shared across wildly different targets, and in what order to prove it. It is the design input for Stage 6 of [PLAN.md](PLAN.md); proofs land incrementally, and this page records what is proved and what is still a plan.">
+<meta property="og:description" content="This document designs the correctness story for langlib's compilers: what &quot;the compiler is correct&quot; means here, why the statement is shared across wildly different targets, and in what order to prove it. It is the design input for Stage 6 of PLAN.md; proofs land incrementally, and this page records what is proved and what is still a plan.">
 <meta property="og:url" content="https://langlib.wtf/verification/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="langlib">
@@ -29,7 +29,7 @@
 <div class="prose">
 <div class="page-kicker">The long game</div>
 <h1>The verification pipeline</h1>
-<p>This document designs the correctness story for langlib's compilers: what &quot;the compiler is correct&quot; means here, why the statement is shared across wildly different targets, and in what order to prove it. It is the design input for Stage 6 of <a href="https://github.com/langlib/langlib/blob/master/docs/PLAN.md">PLAN.md</a>; proofs land incrementally, and this page records what is proved and what is still a plan.</p>
+<p>This document designs the correctness story for langlib's compilers: what &quot;the compiler is correct&quot; means here, why the statement is shared across wildly different targets, and in what order to prove it. It is the design input for Stage 6 of <a href="https://github.com/ilyasergey/langlib/blob/master/docs/PLAN.md">PLAN.md</a>; proofs land incrementally, and this page records what is proved and what is still a plan.</p>
 <h2 id="what-the-targets-have-in-common">What the targets have in common<a class="anchor" href="#what-the-targets-have-in-common" aria-hidden="true">#</a></h2>
 <p>The esoteric languages in this library look nothing alike. One is a tape of bytes, one a stack machine written in invisible characters, one a list of fractions, one a single instruction repeated. Yet every interpreter in langlib has the same shape, and that is what makes a shared statement possible:</p>
 <pre><code class="language-lean">run : Source → Input → Fuel → Except ParseError RunResult
@@ -100,7 +100,7 @@ theorem halted_stable (p) (i) {n m} (h : n ≤ m) :
 <li><strong>Runtime-error correspondence</strong>: Turpentine's <code>assert</code> failures and division by zero currently have no target-side counterpart (brainfuck cannot report an error). Options: compile errors to a documented halting signal, or restrict the fragment. Decide when the compilers stabilise.</li>
 <li><strong>Velvet as the source.</strong> The long-term goal (see <code>docs/turpentine/spec.md</code>) is to compile a fragment of shallowly-embedded Velvet into Turpentine by relational compilation. That adds one more layer to the pipeline, and the layer composes: Velvet-to-Turpentine correctness plus Turpentine-to-target correctness gives Velvet-to-target. Keeping Turpentine small is what makes that composition affordable.</li>
 </ul>
-<p class="source-note">This page is <code>docs/verification.md</code> from the repository, rendered. Corrections belong <a href="https://github.com/langlib/langlib/blob/master/docs/verification.md">in the source file</a>, not here: the site is generated from it.</p>
+<p class="source-note">This page is <code>docs/verification.md</code> from the repository, rendered. Corrections belong <a href="https://github.com/ilyasergey/langlib/blob/master/docs/verification.md">in the source file</a>, not here: the site is generated from it.</p>
 </div>
 <nav class="toc" aria-label="On this page">
 <div class="toc-title">On this page</div>
@@ -118,7 +118,7 @@ theorem halted_stable (p) (i) {n m} (h : n ≤ m) :
 <footer class="footer">
 <div class="footer-inner">
 <div>langlib is Apache 2.0. The languages belong to the people who thought of them, and are credited on their pages.</div>
-<div><a href="https://github.com/langlib/langlib">Source on GitHub</a></div>
+<div><a href="https://github.com/ilyasergey/langlib">Source on GitHub</a></div>
 </div>
 </footer>
 </body>

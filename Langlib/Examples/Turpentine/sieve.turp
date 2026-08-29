@@ -1,0 +1,28 @@
+// Sieve of Eratosthenes over a bool array: prints every prime below 50.
+// Original example for langlib, and the reason Turpentine has arrays.
+var composite : bool[50];
+var p : int := 2;
+var m : int;
+while p * p < len(composite)
+  decreases len(composite) - p
+{
+  if !composite[p] {
+    m := p * p;
+    while m < len(composite)
+      decreases len(composite) - m
+    {
+      composite[m] := true;
+      m := m + p;
+    }
+  }
+  p := p + 1;
+}
+p := 2;
+while p < len(composite)
+  decreases len(composite) - p
+{
+  if !composite[p] {
+    println(p);
+  }
+  p := p + 1;
+}

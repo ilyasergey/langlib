@@ -100,21 +100,18 @@ Already ported (Stage 3): `isqrt.turp` (Velvet's `Sqrt`) and
 `sumdigits.turp` (`SumOfDigits`). Both are scalar loops, which is all
 Turpentine currently has.
 
-**Blocker, decided deliberately:** the remaining interesting Velvet
-examples (`MaxElem`, `IsSorted`, `InsertionSort`, `RunLengthEncoding`)
-are all about arrays, and Turpentine has no array type. Adding one is a
-Stage 5 prerequisite, not a Stage 3 omission to fix in a hurry: the AST
-change ripples into the type checker, the interpreter, and every backend
-(a brainfuck backend needs a tape layout for a variable-length array; a
-whitespace backend gets it nearly free from the heap; subleq needs
-computed addressing, which subleq does not have, so it needs
-self-modifying address patching). Do it after the first three compilers
-land and their fragments are documented, so the array design can be
-chosen against real backend constraints rather than guessed.
+**Arrays landed** (2026-08-30), unblocking the array algorithms:
+fixed-length, one-dimensional, scalar elements, bounds-checked at run
+time. `maxelem.turp` (Velvet's `MaxElem`) and `sort.turp` (Velvet's
+`InsertionSort`) are ported, plus `sieve.turp` as a bool-array showcase.
+The restrictions are documented in `docs/turpentine/spec.md`; the reason
+for them is subleq, which has no computed addressing and needs
+self-modifying address patching for `a[i]`.
 
-Scalar Velvet examples portable today without arrays: `IsNonPrime`,
-`Loops`, `LoopControl`, `Recursion` (needs procedures, another gap worth
-scoping at the same time).
+Still to port: `IsSorted`, `RunLengthEncoding`, and the scalar examples
+`IsNonPrime`, `Loops`, `LoopControl`. `Recursion` needs procedures, which
+Turpentine does not have; scope that alongside any future dynamic-data
+work.
 
 ## Stage 6: verification pipeline `[~]`
 

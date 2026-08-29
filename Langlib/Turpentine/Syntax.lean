@@ -19,10 +19,18 @@ for the verification pipeline (see `docs/PLAN.md`, Stage 6).
 namespace Langlib.Turpentine
 
 /-- Turpentine value types. Integers are unbounded (`Int`); compilers to bounded
-targets document their restrictions. -/
+targets document their restrictions.
+
+Arrays are one-dimensional with a length fixed at compile time, and their
+elements are scalars. Both restrictions are deliberate: the compilers have
+to lay arrays out in machines with no dynamic allocation, and subleq has no
+computed addressing at all, so a statically known length and element size
+is what makes `a[i]` compilable there. See `docs/turpentine/spec.md`. -/
 inductive Ty where
   | int
   | bool
+  /-- `int[n]` or `bool[n]`; `elem` is always `int` or `bool`. -/
+  | array (elem : Ty) (len : Nat)
 deriving Repr, BEq, Inhabited
 
 /-- Binary operators. Arithmetic is `Int`-valued; `div`/`mod` are Euclidean
@@ -45,6 +53,12 @@ inductive Expr where
   | var (x : String)
   | un (op : UnOp) (e : Expr)
   | bin (op : BinOp) (e₁ e₂ : Expr)
+  /-- `a[i]` : read an array element. Out of bounds is a runtime error. -/
+  | index (x : String) (i : Expr)
+  /-- `len(a)` : the array's length. Statically known, so the type checker
+  could fold it to a literal; it is kept as a node so error messages and
+  the verification pipeline can see where the programmer wrote it. -/
+  | len (x : String)
 deriving Repr, BEq, Inhabited
 
 /-- Statements. I/O is statement-level, so expressions stay pure; this keeps
@@ -66,6 +80,13 @@ inductive Stmt where
   | readInt (x : String)
   /-- `x := readByte();` : read one byte (`0..255`), or `-1` at EOF. -/
   | readByte (x : String)
+  /-- `a[i] := e;` : write an array element. Out of bounds is a runtime
+  error, and the index is evaluated before the right-hand side. -/
+  | assignIndex (x : String) (i : Expr) (e : Expr)
+  /-- `a[i] := readInt();` -/
+  | readIntIndex (x : String) (i : Expr)
+  /-- `a[i] := readByte();` -/
+  | readByteIndex (x : String) (i : Expr)
   /-- `print(e);` / `println(e);` : decimal rendering of an integer or
   `true`/`false` for a boolean, then a newline if `newline`. -/
   | printExpr (e : Expr) (newline : Bool)

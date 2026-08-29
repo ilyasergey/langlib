@@ -19,3 +19,6 @@ lake-packages/
 
 # Test scratch output
 *.out.tmp
+
+# Generated website (site/README.md)
+site/out/
