@@ -1,0 +1,8 @@
+# call/cc, the escaping kind: langlib original.
+#
+# `c<F> applies <F> to the continuation of the c itself. Here <F> hands
+# that continuation a printer of end, so the c returns immediately with
+# that printer as its value and the operand that would have printed
+# skipped is never evaluated. Evaluation then carries on where the c
+# was: start is printed, and the returned printer is applied to it.
+``c``s``si`k``s`kr``s`k.d``s`k.n.e``s``s``s``s``s``s``s``s`k.s`k.k`k.i`k.p`k.p`k.e`k.d`kr`ki``````.s.t.a.r.tri

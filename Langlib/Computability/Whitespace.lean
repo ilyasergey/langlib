@@ -526,14 +526,14 @@ theorem heapMatches_write {heap : Std.HashMap Int Int} {regs : Regs}
   · rw [if_neg (by simp only [beq_iff_eq]; omega), h r', Cslib.URM.Regs.write,
       Function.update_of_ne hr]
 
-/-- The simulation invariant: empty stacks, a heap that agrees with the
-registers, and a program counter at the entry of the current block. -/
-structure Matches (P : Program) (inputs : List Nat) (s : Cslib.URM.State)
-    (w : Whitespace.State) : Prop where
-  pc : w.pc = entry P inputs (min s.pc P.length)
-  stack : w.stack = []
-  calls : w.calls = []
-  heap : HeapMatches w.heap s.regs
+/-! ## The simulation invariant
+
+A URM configuration `s` corresponds to
+the Whitespace state `⟨[], calls, heap, inp, out, entry P inputs (min s.pc
+P.length)⟩` with `HeapMatches heap s.regs`: both stacks empty, the heap in
+step with the registers, and the counter at the entry of the current block.
+It is spelled out in the lemmas below rather than named, so that the states
+appear as explicit records and the fuel arithmetic stays visible. -/
 
 /-! ## Reading a whole block, terminating label included -/
 
@@ -821,7 +821,7 @@ theorem foldDigits_toDigits (n : Nat) : foldDigits (Nat.toDigits 10 n) = some n 
     split
     · rename_i hlt
       simp only [foldDigits, List.foldl_cons, List.foldl_nil, Option.bind_some,
-        digitVal_digitChar hlt, Option.map_some]
+        digitVal_digitChar hlt, Option.map_some, Nat.zero_mul, Nat.zero_add]
     · rename_i hge
       have hn : 10 ≤ n := by omega
       have hdiv : n / 10 < n := Nat.div_lt_self (by omega) (by omega)
@@ -831,8 +831,8 @@ theorem foldDigits_toDigits (n : Nat) : foldDigits (Nat.toDigits 10 n) = some n 
       omega
 
 theorem decodeDecimal_toDigits (n : Nat) : decodeDecimal (Nat.toDigits 10 n) = some n := by
-  simp only [decodeDecimal, List.isEmpty_iff, Nat.toDigits_ne_nil, if_neg,
-    foldDigits_toDigits]
+  simp only [decodeDecimal, List.isEmpty_iff, Nat.toDigits_ne_nil,
+    foldDigits_toDigits, if_false]
 
 theorem fromUTF8?_toUTF8 (s : String) : String.fromUTF8? s.toUTF8 = some s := by
   simp only [String.toUTF8_eq_toByteArray, String.fromUTF8?, dif_pos s.isValidUTF8,
@@ -845,3 +845,280 @@ theorem decodeOutput_encode (n : Nat) :
   have hstr : toString ((n : Nat) : Int) = Nat.repr n := by simp [Int.repr_eq_if]
   simp only [decodeOutput, fromUTF8?_toUTF8, hstr]
   rw [Nat.toList_repr, decodeDecimal_toDigits]
+
+/-! ## The prologue -/
+
+/-- The register state after the prologue has stored `vs` from address `a`. -/
+def loadFrom (a : Nat) : List Nat → Regs → Regs
+  | [], regs => regs
+  | v :: vs, regs => loadFrom (a + 1) vs (regs.write a v)
+
+theorem loadFrom_apply (vs : List Nat) :
+    ∀ (a : Nat) (regs : Regs) (r : Nat),
+      loadFrom a vs regs r = if r < a then regs r else vs.getD (r - a) (regs r) := by
+  induction vs with
+  | nil => intro a regs r; simp [loadFrom]
+  | cons v vs ih =>
+    intro a regs r
+    rw [loadFrom, ih]
+    by_cases h1 : r < a
+    · rw [if_pos (by omega), if_pos h1, Cslib.URM.Regs.write,
+        Function.update_of_ne (by omega : r ≠ a)]
+    · by_cases h2 : r = a
+      · subst h2
+        rw [if_pos (by omega), if_neg h1]
+        simp [Cslib.URM.Regs.write]
+      · rw [if_neg (by omega), if_neg h1, Cslib.URM.Regs.write,
+          Function.update_of_ne (by omega : r ≠ a),
+          show r - a = (r - (a + 1)) + 1 from by omega]
+        simp
+
+theorem loadFrom_zero (inputs : List Nat) :
+    loadFrom 0 inputs (fun _ => 0) = Cslib.URM.Regs.ofInputs inputs := by
+  funext r
+  rw [loadFrom_apply]
+  simp [Cslib.URM.Regs.ofInputs]
+
+theorem reaches_prologue (P : Program) (inputs : List Nat) (vs : List Nat) :
+    ∀ (a p : Nat) (calls : List Nat) (heap : Std.HashMap Int Int) (inp : Input)
+      (out : ByteArray) (regs : Regs),
+      CodeAt (compile P inputs) p (prologue a vs) → HeapMatches heap regs →
+      ∃ heap', Reaches (Ex P inputs)
+          ⟨[], calls, heap, inp, out, p⟩
+          ⟨[], calls, heap', inp, out, p + 3 * vs.length⟩
+        ∧ HeapMatches heap' (loadFrom a vs regs) := by
+  induction vs with
+  | nil =>
+    intro a p calls heap inp out regs _ hh
+    refine ⟨heap, ?_, hh⟩
+    simp only [List.length_nil, Nat.mul_zero, Nat.add_zero]
+    exact Reaches.refl _ _
+  | cons v vs ih =>
+    intro a p calls heap inp out regs hcode hh
+    have h0 := hcode.get 0 (by simp [prologue])
+    have h1 := hcode.get 1 (by simp [prologue])
+    have h2 := hcode.get 2 (by simp [prologue])
+    simp only [prologue, List.getElem_cons_zero, List.getElem_cons_succ] at h0 h1 h2
+    have hcode' : CodeAt (compile P inputs) (p + 3) (prologue (a + 1) vs) := by
+      intro j hj
+      have hlen : (prologue (a + 1) vs).length = 3 * vs.length := prologue_length _ _
+      have := hcode (j + 3) (by
+        rw [prologue_length]
+        simp only [List.length_cons]
+        rw [hlen] at hj
+        omega)
+      rw [show p + (j + 3) = p + 3 + j from by omega] at this
+      rw [this]
+      simp [prologue]
+    cases ih (a + 1) (p + 3) calls (heap.insert (a : Int) (v : Int)) inp out
+        (regs.write a v) hcode' (heapMatches_write hh a v) with
+    | intro heap' hres =>
+      refine ⟨heap', ?_, hres.2⟩
+      have chain : Reaches (Ex P inputs) ⟨[], calls, heap, inp, out, p⟩
+          ⟨[], calls, heap.insert (a : Int) (v : Int), inp, out, p + 3⟩ := by
+        rw [show p + 3 = p + 1 + 1 + 1 from by omega]
+        refine Reaches.trans (reaches_push _ _ (by simpa using h0)) ?_
+        refine Reaches.trans (reaches_push _ _ (by simpa using h1)) ?_
+        exact reaches_store _ (a : Int) (v : Int) [] rfl (by omega) (by simpa using h2)
+      rw [show p + 3 * (v :: vs).length = p + 3 + 3 * vs.length from by
+        simp only [List.length_cons]; omega]
+      exact Reaches.trans chain hres.1
+
+/-! ## The epilogue -/
+
+theorem exec_epilogue (P : Program) (inputs : List Nat) (calls : List Nat)
+    (heap : Std.HashMap Int Int) (inp : Input) (out : ByteArray) :
+    ∃ m, Ex P inputs m ⟨[], calls, heap, inp, out, entry P inputs P.length⟩
+      = (⟨[], calls, heap, inp, out ++ (toString (heap.getD (0 : Int) 0)).toUTF8,
+          entry P inputs P.length + 1 + 1 + 1 + 1⟩, Exit.halted) := by
+  have hcode := codeAt_epilogue P inputs
+  have h0 := hcode.get 0 (by simp)
+  have h1 := hcode.get 1 (by simp)
+  have h2 := hcode.get 2 (by simp)
+  have h3 := hcode.get 3 (by simp)
+  simp only [List.getElem_cons_zero, List.getElem_cons_succ] at h0 h1 h2 h3
+  have chain : Reaches (Ex P inputs)
+      ⟨[], calls, heap, inp, out, entry P inputs P.length⟩
+      ⟨[], calls, heap, inp, out ++ (toString (heap.getD (0 : Int) 0)).toUTF8,
+        entry P inputs P.length + 1 + 1 + 1⟩ := by
+    refine Reaches.trans (reaches_push _ _ (by simpa using h0)) ?_
+    refine Reaches.trans (reaches_retrieve _ (0 : Int) [] rfl (by omega)
+      (by simpa using h1)) ?_
+    exact reaches_outNum _ (heap.getD (0 : Int) 0) [] rfl (by simpa using h2)
+  cases chain with
+  | intro c hc =>
+    refine ⟨c + 1, ?_⟩
+    rw [hc 1]
+    exact exec_halt _ (by simpa using h3) 0
+
+/-! ## The simulation -/
+
+private theorem lt_len {P : Program} {k : Nat} {i : Cslib.URM.Instr} (h : P[k]? = some i) :
+    k < P.length := by
+  cases Nat.lt_or_ge k P.length with
+  | inl hlt => exact hlt
+  | inr hge => rw [List.getElem?_eq_none hge] at h; exact absurd h (by simp)
+
+private theorem getElem_of_getElem? {P : Program} {k : Nat} {i : Cslib.URM.Instr}
+    (h : P[k]? = some i) : P[k]'(lt_len h) = i := by
+  rw [List.getElem?_eq_getElem (lt_len h)] at h
+  exact Option.some.inj h
+
+/-- One URM step becomes one labelled block. -/
+theorem step_sim (P : Program) (inputs : List Nat) {s s' : Cslib.URM.State}
+    (hstep : Step P s s') (calls : List Nat) (heap : Std.HashMap Int Int)
+    (inp : Input) (out : ByteArray) (hh : HeapMatches heap s.regs) :
+    ∃ heap', Reaches (Ex P inputs)
+        ⟨[], calls, heap, inp, out, entry P inputs (min s.pc P.length)⟩
+        ⟨[], calls, heap', inp, out, entry P inputs (min s'.pc P.length)⟩
+      ∧ HeapMatches heap' s'.regs := by
+  cases hstep
+  case zero n hi =>
+    have hk : s.pc < P.length := lt_len hi
+    rw [Nat.min_eq_left (Nat.le_of_lt hk), Nat.min_eq_left (show s.pc + 1 ≤ P.length by omega)]
+    refine ⟨heap.insert (n : Int) 0,
+      block_Z P inputs s.pc n hk (getElem_of_getElem? hi) calls heap inp out, ?_⟩
+    simpa using heapMatches_write hh n 0
+  case succ n hi =>
+    have hk : s.pc < P.length := lt_len hi
+    rw [Nat.min_eq_left (Nat.le_of_lt hk), Nat.min_eq_left (show s.pc + 1 ≤ P.length by omega)]
+    refine ⟨heap.insert (n : Int) (heap.getD (n : Int) 0 + 1),
+      block_S P inputs s.pc n hk (getElem_of_getElem? hi) calls heap inp out, ?_⟩
+    have hval : heap.getD (n : Int) 0 + 1 = ((s.regs.read n + 1 : Nat) : Int) := by
+      rw [hh n]; simp [Cslib.URM.Regs.read]
+    rw [hval]
+    exact heapMatches_write hh n (s.regs.read n + 1)
+  case transfer m n hi =>
+    have hk : s.pc < P.length := lt_len hi
+    rw [Nat.min_eq_left (Nat.le_of_lt hk), Nat.min_eq_left (show s.pc + 1 ≤ P.length by omega)]
+    refine ⟨heap.insert (n : Int) (heap.getD (m : Int) 0),
+      block_T P inputs s.pc m n hk (getElem_of_getElem? hi) calls heap inp out, ?_⟩
+    rw [show heap.getD (m : Int) 0 = ((s.regs.read m : Nat) : Int) from hh m]
+    exact heapMatches_write hh n (s.regs.read m)
+  case jump_eq m n q hi heq =>
+    have hk : s.pc < P.length := lt_len hi
+    rw [Nat.min_eq_left (Nat.le_of_lt hk)]
+    refine ⟨heap, block_J_taken P inputs s.pc m n q hk (getElem_of_getElem? hi)
+      calls heap inp out ?_, hh⟩
+    rw [hh m, hh n]
+    exact congrArg _ heq
+  case jump_ne m n q hi hne =>
+    have hk : s.pc < P.length := lt_len hi
+    rw [Nat.min_eq_left (Nat.le_of_lt hk), Nat.min_eq_left (show s.pc + 1 ≤ P.length by omega)]
+    refine ⟨heap, block_J_untaken P inputs s.pc m n q hk (getElem_of_getElem? hi)
+      calls heap inp out ?_, hh⟩
+    rw [hh m, hh n]
+    intro hc
+    exact hne (by simp only [Cslib.URM.Regs.read]; exact_mod_cast hc)
+
+/-- A whole URM run becomes a whole run of the compiled program. -/
+theorem steps_sim (P : Program) (inputs : List Nat) {s₀ s : Cslib.URM.State}
+    (hsteps : Steps P s₀ s) (calls : List Nat) (heap : Std.HashMap Int Int)
+    (inp : Input) (out : ByteArray) (hh : HeapMatches heap s₀.regs) :
+    ∃ heap', Reaches (Ex P inputs)
+        ⟨[], calls, heap, inp, out, entry P inputs (min s₀.pc P.length)⟩
+        ⟨[], calls, heap', inp, out, entry P inputs (min s.pc P.length)⟩
+      ∧ HeapMatches heap' s.regs := by
+  induction hsteps with
+  | refl => exact ⟨heap, Reaches.refl _ _, hh⟩
+  | tail _ hlast ih =>
+    cases ih with
+    | intro h₁ hr₁ =>
+      cases step_sim P inputs hlast calls h₁ inp out hr₁.2 with
+      | intro h₂ hr₂ => exact ⟨h₂, Reaches.trans hr₁.1 hr₂.1, hr₂.2⟩
+
+theorem getElem?_block0_label (P : Program) (inputs : List Nat) :
+    (compile P inputs)[blockPos P inputs 0]? = some (Instr.label (labelAt P.length 0)) := by
+  by_cases h : 0 < P.length
+  · rw [labelAt, if_pos h]
+    have hb := getElem?_first_label P inputs h
+    simpa [blockPos, codeSize] using hb
+  · have hz : P.length = 0 := by omega
+    rw [labelAt, if_neg (by omega)]
+    have hb := getElem?_lend_label P inputs
+    rw [hz] at hb
+    exact hb
+
+/-! ## The end-to-end theorem -/
+
+/-- **The simulation.** Whenever the URM `P` halts on `inputs` with `result`
+in register 0, the compiled Whitespace program halts, for some fuel bound,
+having printed `result` in decimal. The input stream is irrelevant: the
+compiled program never reads it. -/
+theorem simulation (P : Program) (inputs : List Nat) (result : Nat)
+    (h : HaltsWithResult P inputs result) (input : Input) :
+    ∃ m, (evalProg (compile P inputs) input m).exit = Exit.halted ∧
+         decodeOutput (evalProg (compile P inputs) input m).output = some result := by
+  cases h with
+  | intro s hs =>
+    have hinit : HeapMatches (∅ : Std.HashMap Int Int) (fun _ => 0) := by
+      intro r; simp
+    cases reaches_prologue P inputs inputs 0 0 [] ∅ input ByteArray.empty (fun _ => 0)
+        (codeAt_prologue P inputs) hinit with
+    | intro heap0 hpro =>
+      have hheap0 : HeapMatches heap0 (Cslib.URM.Regs.ofInputs inputs) := by
+        rw [← loadFrom_zero inputs]; exact hpro.2
+      have hlab : Reaches (Ex P inputs)
+          ⟨[], [], heap0, input, ByteArray.empty, 0 + 3 * inputs.length⟩
+          ⟨[], [], heap0, input, ByteArray.empty, entry P inputs 0⟩ := by
+        rw [show (0 : Nat) + 3 * inputs.length = blockPos P inputs 0 by
+          simp [blockPos, base, codeSize]]
+        exact reaches_label _ _ (getElem?_block0_label P inputs)
+      cases steps_sim P inputs hs.1 [] heap0 input ByteArray.empty hheap0 with
+      | intro heapF hsim =>
+        simp only [Cslib.URM.State.init, Nat.zero_min,
+          Nat.min_eq_right hs.2.1] at hsim
+        cases exec_epilogue P inputs [] heapF input ByteArray.empty with
+        | intro m₀ hep =>
+          have htot : Reaches (Ex P inputs)
+              ⟨[], [], ∅, input, ByteArray.empty, 0⟩
+              ⟨[], [], heapF, input, ByteArray.empty, entry P inputs P.length⟩ :=
+            Reaches.trans hpro.1 (Reaches.trans hlab hsim.1)
+          cases htot with
+          | intro c hc =>
+            refine ⟨c + m₀, ?_⟩
+            have hzero : heapF.getD (0 : Int) 0 = ((s.regs 0 : Nat) : Int) := by
+              simpa using hsim.2 0
+            simp only [evalProg]
+            rw [show ({ input := input } : Whitespace.State)
+                  = ⟨[], [], ∅, input, ByteArray.empty, 0⟩ from rfl,
+              show exec (compile P inputs) (labelMap (compile P inputs)) (c + m₀)
+                  = Ex P inputs (c + m₀) from rfl,
+              hc m₀, hep]
+            refine ⟨rfl, ?_⟩
+            simp only [ByteArray.empty_append, hzero]
+            rw [decodeOutput_encode (s.regs 0)]
+            exact congrArg some hs.2.2
+
+end Langlib.Computability.URMWhitespace
+
+namespace Langlib.Computability
+
+open Langlib.Common
+
+/-- The tag type naming Whitespace for the `Esolang` class. -/
+inductive WhitespaceLang : Type
+
+instance : Esolang WhitespaceLang where
+  Prog := Langlib.Whitespace.Prog
+  parse := Langlib.Whitespace.parse
+  run := Langlib.Whitespace.evalProg
+
+/-- **Whitespace is Turing complete.**
+
+The witness is the compiler `URMWhitespace.compile`, which turns a URM
+program and its input vector into a Whitespace program, and the simulation
+`URMWhitespace.simulation`. The compiled program ignores its input stream
+and prints the URM's answer, the contents of register 0, in decimal.
+
+Since the unlimited register machine computes every partial computable
+function (Shepherdson and Sturgis 1963; Cutland, *Computability*, chapter
+3), so does Whitespace. -/
+def whitespaceComplete : TuringComplete WhitespaceLang where
+  compile := URMWhitespace.compile
+  encodeInput := fun _ => Input.ofString ""
+  decodeOutput := URMWhitespace.decodeOutput
+  simulates := fun P inputs result h =>
+    URMWhitespace.simulation P inputs result h (Input.ofString "")
+
+end Langlib.Computability

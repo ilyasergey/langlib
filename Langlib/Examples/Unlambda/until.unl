@@ -1,0 +1,10 @@
+# Echo standard input until the first q, then stop. langlib original.
+#
+# Usage: echo -n abcqdef | lake exe unlambda Langlib/Examples/Unlambda/until.unl
+#
+# ?q asks whether the byte @ last read was a q, and applies its argument
+# to i if so. Since v can only swallow a branch and never select one,
+# the way out is call/cc: the whole loop runs inside a `c, and the q
+# case applies that continuation, which abandons the rest of the
+# computation and ends the program.
+`c``s``s``s`k`s`k`s`k@``s``s`ks``s`k`s`ks``s`k`s`k`s`ks``s`k`s`k`s`k`si``s`k`s`k`s`k`s`kd``s``s`ks``s`k`s`ks``s`k`s`k`s`ks``s`k`s`k`s`k`s`k?q``s``s`ks``s`k`s`ks``s`k`s`k`s`ks``s`k`s`k`s`k`s`ks``s`k`s`k`s`k`s`k`si``s`k`s`k`s`k`s`k`s`kd``s``s`ks``s`k`s`ks``s`k`s`k`s`ks``s`k`s`k`s`k`s`ks``s`k`s`k`s`k`s`kk``s`k`s`k`s`kk``s`k`s`kkk`k`k`k`k`ki`k`k`k`k`ki`k``s`k`s`k`s``s`k|`k``si`ki``s``s`ks``s`k`s`ks``s``s`ks``s`k`s`ks``s`k`s`kkk``s`k`s`kkk`k`k`ki`k`k`k`ki``s`k`s`k`s`k@``s``s`ks``s`k`s`ks``s`k`s`k`s`ks``s`k`s`k`s`k`si``s`k`s`k`s`k`s`kd``s``s`ks``s`k`s`ks``s`k`s`k`s`ks``s`k`s`k`s`k`s`k?q``s``s`ks``s`k`s`ks``s`k`s`k`s`ks``s`k`s`k`s`k`s`ks``s`k`s`k`s`k`s`k`si``s`k`s`k`s`k`s`k`s`kd``s``s`ks``s`k`s`ks``s`k`s`k`s`ks``s`k`s`k`s`k`s`ks``s`k`s`k`s`k`s`kk``s`k`s`k`s`kk``s`k`s`kkk`k`k`k`k`ki`k`k`k`k`ki`k``s`k`s`k`s``s`k|`k``si`ki``s``s`ks``s`k`s`ks``s``s`ks``s`k`s`ks``s`k`s`kkk``s`k`s`kkk`k`k`ki`k`k`k`ki`ki

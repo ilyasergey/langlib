@@ -1,0 +1,10 @@
+# Five rows of asterisks, one longer than the last: langlib original.
+#
+# Unlambda has no numbers, so the counter is the loop's own shape: the
+# program is five copies of one step function applied to each other,
+# ending in `ki, which throws its argument away and stops. The state is
+# a function that prints this row's stars; each step wraps it in one
+# more .* before handing it on. Written as
+#   step = ^g^f ``r`$f i `$g `<inc>$f
+# and put through abstraction elimination.
+````s`k`s``s`kr``si`ki``s``s`ksk`k``s``s`ksk`k.*```s`k`s``s`kr``si`ki``s``s`ksk`k``s``s`ksk`k.*```s`k`s``s`kr``si`ki``s``s`ksk`k``s``s`ksk`k.*```s`k`s``s`kr``si`ki``s``s`ksk`k``s``s`ksk`k.*```s`k`s``s`kr``si`ki``s``s`ksk`k``s``s`ksk`k.*`ki.*

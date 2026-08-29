@@ -1,0 +1,12 @@
+# Copy standard input to standard output, byte for byte.
+# langlib original.
+#
+# Usage: echo -n meow | lake exe unlambda Langlib/Examples/Unlambda/cat.unl
+#
+# @ reads a byte and applies its argument to i on success or to v at end
+# of input; | hands the byte back as a printing function. The loop is a
+# function applied to itself, and the recursive call sits inside a `d
+# promise so that it is not evaluated until the i case forces it. Give
+# the v case that promise instead and nothing happens, because v
+# swallows whatever it is applied to: that is the whole conditional.
+````s`k`s`k@``s``s`ks``s`k`s`ks``s`k`s`k`si``s`k`s`k`s`kd``s`k`s`k`s``s`k|`k``si`ki``s``s`ks``s`k`s`ks``s``s`ks``s`k`s`ks``s`k`s`kkk``s`k`s`kkk`k`k`ki`k`k`ki``s`k`s`k@``s``s`ks``s`k`s`ks``s`k`s`k`si``s`k`s`k`s`kd``s`k`s`k`s``s`k|`k``si`ki``s``s`ks``s`k`s`ks``s``s`ks``s`k`s`ks``s`k`s`kkk``s`k`s`kkk`k`k`ki`k`k`kii

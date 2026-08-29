@@ -1,0 +1,3 @@
+# The smallest term with no normal form: SII(SII) reduces to itself.
+# langlib original (the term is folklore, and older than SKI notation).
+SII(SII)

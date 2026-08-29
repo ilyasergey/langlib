@@ -1,0 +1,8 @@
+# The d special form: langlib original.
+#
+# The program prints now, then later, although later comes first in the
+# source. `d<X> does not evaluate <X>; it returns a promise, and the
+# promise is forced when it is applied, which happens only after the
+# operand has printed now. Replace the d with an i and the output turns
+# round, because then the operand is evaluated as usual.
+``d``````.l.a.t.e.rri````.n.o.wri

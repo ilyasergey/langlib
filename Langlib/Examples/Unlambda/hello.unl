@@ -1,0 +1,6 @@
+# Hello, world! in Unlambda: langlib original.
+#
+# A chain of printing functions, applied left to right. `.H.e prints H
+# and returns .e, which is then applied to .l, and so on; r prints the
+# newline and returns i, which ends the chain by doing nothing at all.
+``````````````.H.e.l.l.o.,. .w.o.r.l.d.!ri

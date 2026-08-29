@@ -1,0 +1,6 @@
+# Bracket abstraction at work: langlib original.
+#
+# The lambda term  \f.\x.\y. f y x  has no variables left after abstraction
+# elimination, only the term below. Applied to K, S and I it swaps the last
+# two, so it computes K I S, which is I.
+S(S(KS)(S(K(S(KS)))(S(S(KS)(S(K(S(KS)))(S(K(S(KK)))K)))(K(KI)))))(KK)KSI
