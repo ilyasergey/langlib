@@ -39,71 +39,74 @@ the difference between them is the whole point of this library:
   URM-computable partial function wherever it is defined. `no` means nobody has proved it here yet, whatever the
   literature believes. `yes` links to the theorem.
 
-One entry in the proved column now reads `yes`:
-[whitespace](../Langlib/Computability/Whitespace.lean) is machine-checked
-Turing complete, by compiling cslib's unlimited register machine into it
-and proving the compilation simulates. `#print axioms` on the result
-reports only `propext`, `Classical.choice` and `Quot.sound`, so nothing is
-resting on a `sorry`. The rest still read `no`, which is the honest state:
-the interpreters and compilers came first, and Stage 8 of
+A `yes` there means a completeness proof exists in this repository: a
+compiler from cslib's unlimited register machine into the language, plus a
+proof that the compilation simulates, audited by
+[scripts/axioms.lean](../scripts/axioms.lean) to confirm it rests on
+nothing but Lean's three standard axioms. Most rows read `no`, which is the
+honest state: the interpreters and compilers came first, and Stage 8 of
 [PLAN.md](PLAN.md) is where that column keeps changing. Every language
 claimed Turing complete is also a language Turpentine should compile to.
 
-| Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved | Turpentine compiler | Correctness proved |
-|----------|------|--------|-------------|------------------|--------|-----------------|-----------|---------------------|-------------------|
-| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `lake exe brainfuck` | yes | no | [bespoke, scalars](brainfuck/compiler.md) | no |
-| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `lake exe whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [bespoke](whitespace/compiler.md) | no (via TC in progress) |
-| [subleq](subleq/spec.md) | yes | yes | yes | yes | `lake exe subleq` | yes | no | [bespoke](subleq/compiler.md) | no |
-| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `lake exe befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | no | [not planned](befunge93/compiler.md) | n/a |
-| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `lake exe malbolge` | [no, bounded storage](malbolge/spec.md) | no | [not planned](malbolge/compiler.md) | n/a |
-| malbolge-unshackled | wip | wip | wip | wip | `lake exe malbolge-unshackled` | yes | no | planned, via TC | no |
-| [fractran](fractran/spec.md) | yes | yes | yes | yes | `lake exe fractran` | yes | no | [planned, via TC](fractran/compiler.md) | no |
-| [thue](thue/spec.md) | yes | yes | yes | yes | `lake exe thue` | yes | no | [planned, via TC](thue/compiler.md) | no |
-| [piet](piet/spec.md) | yes | yes | yes | yes | `lake exe piet` | yes | no | [planned, via TC](piet/compiler.md) | no |
-| [ook](ook/spec.md) | yes | yes | yes | yes | `lake exe ook` | yes (via brainfuck) | no | [bespoke, free via brainfuck](ook/compiler.md) | no |
-| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `lake exe brainloller` | yes (via brainfuck) | no | [bespoke, free via brainfuck](brainloller/compiler.md) | no |
-| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `lake exe deadfish` | [no, finite state](deadfish/spec.md) | no | [bespoke, output-only](deadfish/compiler.md) | no |
-| unlambda / SKI | wip | wip | wip | wip | `lake exe unlambda` | yes | no | planned, bespoke | no |
-| [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `lake exe turpentine` | yes | no | (source) | (source) |
+| Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved | Bespoke compiler | Bespoke correct | Correct via TC |
+|----------|------|--------|-------------|------------------|--------|-----------------|-----------|------------------|-----------------|----------------|
+| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `lake exe brainfuck` | yes | no | [yes, scalars](brainfuck/compiler.md) | no | no |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `lake exe whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [yes](whitespace/compiler.md) | no | no |
+| [subleq](subleq/spec.md) | yes | yes | yes | yes | `lake exe subleq` | yes | no | [yes](subleq/compiler.md) | no | no |
+| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `lake exe befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | no | [not planned](befunge93/compiler.md) | n/a | n/a |
+| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `lake exe malbolge` | [no, bounded storage](malbolge/spec.md) | no | [not planned](malbolge/compiler.md) | n/a | n/a |
+| malbolge-unshackled | wip | wip | wip | wip | `lake exe malbolge-unshackled` | yes | no | planned | no | no |
+| [fractran](fractran/spec.md) | yes | yes | yes | yes | `lake exe fractran` | yes | no | [planned](fractran/compiler.md) | no | no |
+| [thue](thue/spec.md) | yes | yes | yes | yes | `lake exe thue` | yes | no | [planned](thue/compiler.md) | no | no |
+| [piet](piet/spec.md) | yes | yes | yes | yes | `lake exe piet` | yes | no | [planned](piet/compiler.md) | no | no |
+| [ook](ook/spec.md) | yes | yes | yes | yes | `lake exe ook` | yes (via brainfuck) | no | [planned, free via brainfuck](ook/compiler.md) | no | no |
+| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `lake exe brainloller` | yes (via brainfuck) | no | [planned, free via brainfuck](brainloller/compiler.md) | no | no |
+| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `lake exe deadfish` | [no, finite state](deadfish/spec.md) | no | [planned, output-only](deadfish/compiler.md) | no | no |
+| unlambda / SKI | wip | wip | wip | wip | `lake exe unlambda` | yes | no | planned | no | no |
+| [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `lake exe turpentine` | yes | no | (source) | (source) | (source) |
 
 When a proof lands, its `no` becomes a `yes` linking to the theorem in
 `computability.md`, and the claim in the known column stops being the last
 word on the subject.
 
-### Reading the two compiler columns
+### Why two kinds of compiler
 
-A language can have a compiler by two routes, and the columns say which.
+A Turpentine program can reach a target two ways, and the library keeps
+both because neither subsumes the other.
 
-* **Turpentine compiler** is what exists and what kind:
-  * **bespoke** means hand-written for that target, accepting the whole
-    language (or a named fragment) and producing compact output. This is
-    what `lake exe turpentine compile --to <lang>` runs.
-  * **via TC** means it comes free from a Turing-completeness proof, by
-    composing that proof's compiler with one Turpentine-to-register-machine
-    pass. Nobody writes a backend; the completeness proof is the backend.
-    See [certified-compilation.md](certified-compilation.md).
-  * A language can eventually have both, and several will. Derived
-    compilers are verified but enormous and restricted to an I/O-free
-    fragment; bespoke ones are practical. Neither subsumes the other.
-* **Correctness proved** is whether a machine-checked correctness theorem
-  exists for that compiler, and by which route. `no` means it does not,
-  whatever the tests say. When one lands the cell links straight to the
-  theorem, and names the route, so `yes, via TC` and `yes, bespoke` are
-  different claims about different artifacts:
-  * *via TC* means the theorem is an instance of the single
-    `derived_correct`, which is proved once and holds for every language
-    proved complete. Cheap per language, once the pipeline exists.
-  * *bespoke* means somebody proved that particular hand-written backend
-    correct against the Turpentine semantics, which is real per-language
-    work.
+A **bespoke** compiler is written by hand for that target. It accepts the
+whole language, produces compact output, and is what
+`lake exe turpentine compile --to <lang>` actually runs. It is also
+unverified until somebody does the per-language proof work.
 
-Both routes land in the same interface, `TurpentineCompiler L`, so a
-language with both gets `agree` for free: the two compilers provably
-produce the same observable behaviour on programs both accept.
+A compiler **via TC** costs nothing to write: a Turing-completeness proof
+already contains a verified compiler from a register machine, so composing
+it with one shared Turpentine-to-register-machine pass yields a
+correct-by-construction compiler into any language proved complete (see
+[certified-compilation.md](certified-compilation.md)). The catch is that it
+runs everything through a machine simulation, so its output is enormous and
+its fragment is I/O-free.
 
-Nothing reads `yes` in that column today. Whitespace is closest: its
-completeness proof is done, so the moment `compileToURM` is proved, its
-cell becomes `yes, via TC` without any further backend work.
+So: bespoke compilers are for running programs, derived ones are for
+proving things, and until a bespoke compiler is verified the derived one is
+the strongest check on it. Both are instances of a single
+`TurpentineCompiler` interface, so a language with both gets `agree` for
+free: the two provably produce the same observable behaviour on programs
+both accept.
+
+The three columns follow from that.
+
+* **Bespoke compiler**: whether a hand-written backend exists, and for
+  what fragment.
+* **Bespoke correct**: whether *that* backend has a machine-checked
+  correctness theorem. Real per-language proof work.
+* **Correct via TC**: whether the derived compiler exists for this
+  language, which requires only its completeness proof plus the shared
+  pipeline. An instance of one `derived_correct`, so it is cheap once per
+  language.
+
+`no` in either correctness column means no theorem exists here, whatever
+the tests say; when one lands the cell links to it.
 
 Note the pattern in the compiler column: **a language cannot host a full
 compiler unless it is Turing complete.** A bounded-storage language can
