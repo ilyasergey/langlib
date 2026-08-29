@@ -218,53 +218,66 @@ test than a golden file.
 
 ## Dependency graph
 
-Solid arrows are built and checked in. Dashed arrows are planned.
+Two views, both reading top to bottom. Solid arrows are built and checked
+in; dashed arrows are planned.
+
+### The pipeline, for any one target language
 
 ```mermaid
 graph TD
-  TURP[Turpentine<br/>source language]
-  URM[cslib URM<br/>universal model]
+  TURP["Turpentine program"]
+  URM["URM program<br/>(cslib, universal model)"]
+  TC["TuringComplete L<br/>the completeness proof"]
+  DER["derived compiler<br/>TurpentineCompiler L"]
+  EFF["effective compiler<br/>hand-written, per language"]
+  AGREE["theorem agree<br/>both produce the same behaviour"]
 
-  TURP -. compileToURM<br/>the one missing piece .-> URM
+  TURP -. "compileToURM<br/>the one missing piece" .-> URM
+  URM --> TC
+  TC --> DER
+  DER --> AGREE
+  EFF --> AGREE
 
-  URM ==>|proved| WSTC[TuringComplete Whitespace<br/>axiom-clean]
-  URM -.->|planned| SQTC[TuringComplete Subleq]
-  URM -.->|planned| BFTC[TuringComplete Brainfuck<br/>via Minsky counters]
-  URM -.->|planned| PIETC[TuringComplete Piet]
-  URM -.->|planned| MUTC[TuringComplete Malbolge Unshackled]
-  URM -.->|planned| THUETC[TuringComplete Thue]
-  URM -.->|planned| FRTC[TuringComplete Fractran]
-
-  LAM[lambda calculus<br/>bracket abstraction] -.->|planned| SKITC[TuringComplete SKI / Unlambda]
-
-  WSTC ==> DWS[derived compiler<br/>Turpentine to Whitespace]
-  SQTC -.-> DSQ[derived: Subleq]
-  BFTC -.-> DBF[derived: Brainfuck]
-  PIETC -.-> DPI[derived: Piet]
-  MUTC -.-> DMU[derived: Malbolge Unshackled]
-
-  BFTC -.->|parse . render = id| OOKTC[Ook, Brainloller<br/>free by composition]
-
-  EWS[effective: Whitespace] -.->|oracle| DWS
-  ESQ[effective: Subleq] -.->|oracle| DSQ
-  EBF[effective: Brainfuck, scalars] -.->|oracle| DBF
-
-  BOUND[BoundedStorage<br/>+ decidable halting] -.->|planned| DF[Deadfish: not TC]
-  BOUND -.->|planned| MB[Malbolge: not TC]
-  BOUND -.->|planned| B93[Befunge-93 with byte cells: not TC]
-
-  style WSTC fill:#cfc,stroke:#2a2
-  style DWS fill:#cfc,stroke:#2a2
-  style EWS fill:#ccf,stroke:#22a
-  style ESQ fill:#ccf,stroke:#22a
-  style EBF fill:#ccf,stroke:#22a
+  style TC fill:#cfc,stroke:#2a2
+  style EFF fill:#ccf,stroke:#22a
 ```
 
-Reading it: everything hangs off `compileToURM`, which is why that is the
-next thing to build. Each `TuringComplete` instance unlocks its own
-derived compiler by composition. The effective backends (blue) already
-exist and are unverified; they become the things the derived compilers
-test against.
+Every target follows this shape. The only per-language work is the
+`TuringComplete L` proof: the derived compiler below it is a composition,
+and `agree` is a theorem about the interface rather than about any
+particular language.
+
+### What unlocks what
+
+```mermaid
+graph TD
+  S1["1. compileToURM<br/>+ its simulation theorem"]
+  S2["2. derived Turpentine to Whitespace<br/>(whitespaceComplete already proved)"]
+  S3["3. TuringComplete Subleq<br/>unbounded words, maps onto subtract-and-branch"]
+  S4["4. TuringComplete Brainfuck<br/>via two-counter Minsky machines"]
+  S5["5. Ook and Brainloller<br/>free: parse . render = id"]
+  S6["6. BoundedStorage instances<br/>Deadfish, Malbolge, byte-celled Befunge-93"]
+  S7["7. SKI and Unlambda<br/>by bracket abstraction, not simulation"]
+
+  S1 --> S2
+  S2 -.-> S3
+  S3 -.-> S4
+  S4 -.-> S5
+  S5 -.-> S6
+  S6 -.-> S7
+
+  style S2 fill:#cfc,stroke:#2a2
+```
+
+Step 1 gates everything, which is why it is being built first. Steps 3 and
+4 are ordered by difficulty rather than necessity: subleq needs no
+encoding at all, brainfuck needs unary counters on a tape, and doing the
+easy one first settles the shape of the proof. Step 6 exercises the other
+half of the interface, and step 7 is the one completeness argument in the
+library that is not a machine simulation.
+
+Per-language status, including which languages have which compilers
+today, lives in the status matrix in [README.md](README.md).
 
 ## Order of work
 

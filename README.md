@@ -32,44 +32,51 @@ For each language, langlib provides:
   Turing complete, and a machine-checked proof of it;
 * where the language can host one, a **compiler from Turpentine**.
 
-## Computability is the point
+## Computability
 
-Esolang folklore is full of confident claims that nobody has checked. Since
-langlib writes the semantics down formally, it can do better: every
-language gets a claim about its computational class and a machine-checked
-proof, stated against the Turing machine and register machine from
-[cslib](https://github.com/leanprover/cslib), which the project depends on.
+Esolang folklore is full of claims nobody has checked. Every language here
+gets a claim about its computational class and a machine-checked proof,
+stated against the Turing machine and register machine from
+[cslib](https://github.com/leanprover/cslib). Completeness is proved by
+compiling a universal machine into the language; incompleteness by
+bounding its state space. Status per language is in the
+[status matrix](docs/README.md), the plan is
+[Stage 8](docs/PLAN.md), and `scripts/axioms.lean` audits every result,
+since a proof resting on `sorry` type-checks like a real one.
 
-Completeness is proved by compiling a universal machine into the language
-and proving the compilation simulates. Incompleteness is proved by bounding
-the state space, which is the more entertaining direction:
-[deadfish](docs/deadfish/spec.md) is famous for computing nothing at all,
-and [malbolge](docs/malbolge/spec.md) has 59049 words of storage and so is
-decidably bounded.
+Precision here has already paid. [Befunge-93](docs/befunge93/spec.md) is
+called incomplete because of its 80 by 25 playfield, but the real argument
+is that the reference implementation gives it byte-sized cells, making it
+a pushdown automaton. Our cells hold unbounded integers, so the language
+we implement *is* complete. Same name, two languages.
 
-Being precise here already paid off. [befunge93](docs/befunge93/spec.md) is
-usually called incomplete because of its 80 by 25 playfield. The real
-argument is that the reference implementation gives it byte-sized cells and
-a finite stack alphabet, making it a pushdown automaton. Our
-implementation stores unbounded integers in those cells, which turns them
-into 2000 unbounded registers and makes the language we implement Turing
-complete. Two different languages, one name, and the difference is
-invisible until someone asks.
+## Verified compilers
 
-Completeness also produces compilers. A completeness proof *contains* a
-verified compiler from a register machine into the language, so composing
-it with one Turpentine-to-register-machine compiler yields a **derived
-compiler** into every language proved complete, correct by construction and
-free. Derived compilers are also unusable, since they thread everything
-through a machine simulation, so each target additionally gets a
-hand-written **effective** compiler, separately verified. The derived one
-serves as a test oracle for the effective one. See
-[docs/PLAN.md](docs/PLAN.md) and [docs/verification.md](docs/verification.md).
+Two strategies, and langlib keeps both. **Bespoke** compilers are written
+by hand per target, accept the whole of Turpentine, and produce small
+output: this is what `lake exe turpentine compile` runs today for
+brainfuck, whitespace and subleq. **Via the URM**, a compiler comes free
+from a completeness proof, because such a proof already contains a
+verified compiler from a register machine; composing it with one
+Turpentine-to-register-machine pass yields a correct-by-construction
+compiler into every language proved complete.
+
+Neither subsumes the other. Derived compilers are verified but enormous
+and restricted to an I/O-free fragment; bespoke ones are practical but so
+far unverified, and the derived one is the oracle that tests them. Both
+are instances of one `TurpentineCompiler` interface, so agreement between
+them is a theorem rather than a hope. The pipeline and its diagrams are in
+[certified-compilation.md](docs/certified-compilation.md), the correctness
+statements in [verification.md](docs/verification.md), and each target's
+own decisions in `docs/<langname>/compiler.md`, for example
+[whitespace](docs/whitespace/compiler.md),
+[subleq](docs/subleq/compiler.md) and
+[brainfuck](docs/brainfuck/compiler.md).
 
 Turpentine is deeply embedded in Lean and modelled on
-[Velvet](https://github.com/verse-lab/velvet). In the longer term the plan
-is to compile shallowly-embedded Velvet programs to Turpentine, and from
-there to any esolang in the library, using relational compilation.
+[Velvet](https://github.com/verse-lab/velvet). The longer-term plan is to
+compile shallowly-embedded Velvet to Turpentine, and from there to any
+esolang here, by relational compilation.
 
 ## Building
 
@@ -231,6 +238,23 @@ run ended: halted, runtime error, or out of fuel), and `--help`. Exit codes:
 programs state their own usage in a comment where the language permits one;
 each language's README under `Langlib/Languages/` has the full example
 inventory.
+
+## Documentation
+
+* [docs/README.md](docs/README.md): the status matrix, one row per
+  language, with computational class and compiler status.
+* [docs/PLAN.md](docs/PLAN.md): the staged workplan.
+* [docs/certified-compilation.md](docs/certified-compilation.md): verified
+  compilation via the URM, with dependency diagrams.
+* [docs/verification.md](docs/verification.md): what compiler correctness
+  means here and how the proofs factor.
+* [docs/TESTING.md](docs/TESTING.md): the two test layers, and what to
+  install to run the differential tests.
+* [docs/ROADMAP.md](docs/ROADMAP.md): candidate languages.
+* [docs/RELATED.md](docs/RELATED.md): other people's formalisations.
+* [docs/PROGRESS.md](docs/PROGRESS.md): dated log, newest first.
+* Per language: `docs/<langname>/spec.md` and
+  `docs/<langname>/compiler.md`.
 
 ## Contributing
 
