@@ -591,6 +591,13 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.hop_eq_vmap
 #print axioms Unshackled.hop_hop_hop
 
+-- Why the unbounded part cannot live in fresh memory: a virgin phase that
+-- can rotate can also halt, 42 addresses along in the same phase.
+#print axioms Unshackled.opcode_of_decode
+#print axioms Unshackled.virgin_phase_parity
+#print axioms Unshackled.rotr_forces_halt
+#print axioms Unshackled.halt_forces_rotr
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

@@ -253,6 +253,52 @@ The revised trade, then:
   against the reference policy is the honest first target, and the
   quantified statement is a later strengthening.
 
+## The architecture decision: finite code, not fresh code
+
+Self-encryption makes re-executing a cell awkward, so the tempting escape
+is to never re-execute one. A compiler builds its `Image` directly rather
+than through the loader, so unlike a loaded program it may choose all six
+entries of `rest` and make **fresh memory executable** — the obstruction
+recorded above under "a route that is closed" binds `load`, not `compile`.
+The question is whether the unbounded computation can live out there. It
+can, but at a price that decides the architecture.
+
+The addresses of one virgin phase are the naturals congruent to `j` modulo
+6, all holding the same word, so their opcodes are `(w + a) mod 94` as `a`
+runs through the phase. Addresses in a phase share a parity, so opcodes in
+a phase share a parity, and the split is exactly:
+
+| parity | instructions available |
+|---|---|
+| even | `jmp`, `movd`, `crazy`, `nop` |
+| odd  | `out`, `inp`, `rotr`, `halt` |
+
+Four per phase per 282-cycle, and no other choice. An all-even background
+is a compute engine with no `halt` — attractive until you notice it has no
+`rotr` either, and `widthBounded_step1` says rotation is mandatory for
+unbounded storage. A rotating background is an odd-parity background, and
+then:
+
+```lean
+theorem rotr_forces_halt {w a : Nat} (h₁ : 33 ≤ w) (h₂ : w ≤ 126)
+    (hrot : decode (Value.ofNat w) (Value.ofNat a).modClass = .rotr) :
+    (a + 42) % 6 = a % 6
+    ∧ decode (Value.ofNat w) (Value.ofNat (a + 42)).modClass = .halt
+```
+
+`81 - 39 = 42`, a multiple of 6, so the halt lands in the *same phase*, 42
+addresses along; `halt_forces_rotr` is the converse, so the two are
+inseparable. A fresh-memory compiler must steer past a halt every 42
+addresses of every rotating phase.
+
+That is a tax, not a contradiction, and this page does not claim
+impossibility. But it means the fresh-memory route buys no simplification
+over the finite one: both need computed jump targets, and only the fresh
+route also needs halt-dodging. **The architecture is therefore a finite,
+self-modifying code region with its `xlat2` orbits managed across passes**,
+which is what `loop.mu` demonstrates at three cells and what the dispatcher
+must do at gadget scale.
+
 ## What a backend can build on today
 
 The dispatcher a virtual machine needs is a loop, and there is now a

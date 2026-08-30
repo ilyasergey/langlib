@@ -542,6 +542,38 @@ source cell is consumed, which a move is allowed to do. Together with the
 mux (`branch_arith`) and straight-line rows (`crazy_run`), data movement
 completes the set of value-level primitives a register file needs.
 
+## Why the unbounded part cannot live in fresh memory
+
+A compiler builds its `Image` directly, so it may choose all six entries of
+`rest` and make fresh memory executable: the obstruction in
+`restTable_not_printable` binds `load`, not `compile`. So the escape from
+self-encryption — never re-execute a cell — is genuinely on the table, and
+this is why it was not taken.
+
+One virgin phase is the addresses congruent to `j` modulo 6, all holding
+the same word, so opcodes run `(w + a) mod 94` across the phase. Addresses
+in a phase share a parity, hence so do opcodes (`virgin_phase_parity`), and
+the even opcodes are exactly `jmp`, `movd`, `crazy`, `nop` while the odd
+ones are `out`, `inp`, `rotr`, `halt`. An all-even background has no halt
+and no `rotr`; `widthBounded_step1` says the second is fatal, since
+rotation is the only source of unbounded storage. A rotating background is
+odd, and then
+
+```lean
+theorem rotr_forces_halt {w a : Nat} (h₁ : 33 ≤ w) (h₂ : w ≤ 126)
+    (hrot : decode (Value.ofNat w) (Value.ofNat a).modClass = .rotr) :
+    (a + 42) % 6 = a % 6
+    ∧ decode (Value.ofNat w) (Value.ofNat (a + 42)).modClass = .halt
+```
+
+with `halt_forces_rotr` as the converse: `81 - 39 = 42`, a multiple of 6,
+so the halt is in the same phase 42 addresses along, and the two
+instructions are inseparable. Fresh-memory execution therefore costs a
+halt-dodge every 42 addresses of every rotating phase, on top of the
+computed jump targets the finite route needs anyway. It buys nothing, so
+the development targets a finite self-modifying code region with managed
+`xlat2` orbits.
+
 ## What is proved, what is cited, what is open
 
 **Proved, axiom-clean**: the `ProgLang` instance; the memory laws

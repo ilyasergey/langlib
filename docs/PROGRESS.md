@@ -2,7 +2,42 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): the Malbolge spec, and four more programs from the wild
+## 2026-08-30 (latest): the architecture decision, settled by a theorem
+
+The frontier was re-enterability: a dispatcher re-executes its cells, and
+every cell is overwritten by its own encryption. Two architectures were on
+the table. (A) A finite self-modifying code region whose `xlat2` orbits are
+managed across passes, which `loop.mu` demonstrates at three cells. (B)
+Never re-execute a cell at all: run the unbounded computation through fresh
+memory. (B) is genuinely available to a *compiler*, which builds its
+`Image` directly and so chooses all six entries of `rest`; the
+`restTable_not_printable` obstruction binds `load`, not `compile`. So the
+choice had to be made on merits.
+
+It is settled against (B), and by arithmetic rather than taste. A virgin
+phase is the addresses congruent to `j` modulo 6, all holding one word, so
+opcodes run `(w + a) mod 94` across the phase. Addresses in a phase share a
+parity, hence so do opcodes, and the split is exact: the even opcodes are
+`jmp`, `movd`, `crazy`, `nop`, the odd ones `out`, `inp`, `rotr`, `halt`,
+four per phase per 282-cycle and no other option. An all-even background is
+a compute engine with no halt, which looks ideal until one notices it has
+no `rotr`, and `widthBounded_step1` already proved rotation mandatory for
+unbounded storage. A rotating background is an odd background, and then
+`rotr_forces_halt`: since `81 - 39 = 42` and 42 is a multiple of 6, a
+`rotr` at address `a` puts a `halt` at `a + 42` **in the same phase**.
+`halt_forces_rotr` is the converse, so the two are inseparable.
+
+Fresh-memory execution therefore costs a halt-dodge every 42 addresses of
+every rotating phase, on top of the computed jump targets the finite route
+needs anyway. It is a tax, not a contradiction, and the docs say so; but it
+buys no simplification, so the development commits to (A): a finite
+self-modifying code region with managed orbits. Both doc pages record the
+decision and the reasoning.
+
+The next layer is now well posed: take the eight-instruction branch gadget
+and make it survive repeated entry, the way `loop.mu`'s three cells do.
+
+## 2026-08-30: the Malbolge spec, and four more programs from the wild
 
 `docs/malbolge/spec.md` grew from a reference card into something you could
 learn the language from, and four example programs joined it, each verified

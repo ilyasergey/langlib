@@ -2356,6 +2356,79 @@ theorem hop_hop_hop {v : Value} (hv : v.Normalized) : hop (hop (hop v)) = v := b
   rw [hop_eq_vmap, hop_eq_vmap, hop_eq_vmap, vmap_vmap, vmap_vmap]
   exact vmap_id (fun t => by cases t <;> rfl) hv
 
+/-! ## Why the unbounded part cannot live in fresh memory
+
+`widthBounded_step1` says a rot-free run keeps every storable value in a
+finite alphabet, so rotation is mandatory for unbounded storage. The
+tempting way to dodge self-encryption is then to put the unbounded
+computation in memory the loader never wrote and *never re-execute a cell*:
+a compiler builds its `Image` directly, so unlike a loaded program it may
+choose all six entries of `rest` and make fresh memory executable.
+
+The addresses of one such phase are the naturals congruent to `j` modulo 6,
+all holding the same word, so their opcodes are `(w + a) mod 94` as `a`
+runs through that phase. Two consequences, and they are what close the
+question. Opcodes in a phase all have the same parity, because addresses in
+a phase do; the four even opcodes are `jmp`, `movd`, `crazy` and `nop`, and
+the four odd ones are `out`, `inp`, `rotr` and `halt`. So a phase that can
+rotate is a phase that can halt, and precisely:
+
+```lean
+theorem rotr_forces_halt … (hrot : decode (Value.ofNat w) (Value.ofNat a).modClass = .rotr) :
+    (a + 42) % 6 = a % 6
+    ∧ decode (Value.ofNat w) (Value.ofNat (a + 42)).modClass = .halt
+```
+
+`81 - 39 = 42`, and 42 is a multiple of 6, so the halt sits in the *same*
+phase, 42 addresses along. A compiler that runs its unbounded computation
+through fresh memory must therefore either forgo rotation, and with it
+unbounded storage, or steer past a halt every 42 addresses of every
+rotating phase. That is not a contradiction, and this file does not claim
+one; it is a standing tax that makes the finite self-modifying code region,
+with its `xlat2` orbits managed across passes, the cheaper architecture.
+`docs/malbolge-unshackled/compiler.md` records the decision. -/
+
+/-- Reading an opcode back off a decoded instruction. -/
+theorem opcode_of_decode {w a : Nat} (h₁ : 33 ≤ w) (h₂ : w ≤ 126) {instr : Instr}
+    (hdec : decode (Value.ofNat w) (Value.ofNat a).modClass = instr)
+    (hne : instr ≠ .nop) : (w + a) % 94 = opcodeOf instr := by
+  rw [decode_at_ofNat h₁ h₂] at hdec
+  cases hq : Instr.ofOpcode? ((w + a) % 94) with
+  | none => rw [hq] at hdec; exact absurd hdec.symm hne
+  | some i =>
+    rw [hq] at hdec
+    simp only [Option.getD_some] at hdec
+    subst hdec
+    exact (opcodeOf_ofOpcode? hq).symm
+
+/-- Every address of one virgin phase holds the same word, so their opcodes
+share a parity. -/
+theorem virgin_phase_parity (w a a' : Nat) (h : a % 2 = a' % 2) :
+    ((w + a) % 94) % 2 = ((w + a') % 94) % 2 := by omega
+
+/-- **A virgin phase that can rotate can also halt**, 42 addresses along
+and in the same phase. Rotation is the language's only source of
+unboundedly wide values (`widthBounded_step1`), so a compiler that puts its
+unbounded computation in never-re-executed fresh memory pays this tax
+everywhere it rotates. -/
+theorem rotr_forces_halt {w a : Nat} (h₁ : 33 ≤ w) (h₂ : w ≤ 126)
+    (hrot : decode (Value.ofNat w) (Value.ofNat a).modClass = .rotr) :
+    (a + 42) % 6 = a % 6
+    ∧ decode (Value.ofNat w) (Value.ofNat (a + 42)).modClass = .halt := by
+  have h39 : (w + a) % 94 = 39 := opcode_of_decode h₁ h₂ hrot (by simp)
+  refine ⟨by omega, ?_⟩
+  rw [decode_at_ofNat h₁ h₂, show (w + (a + 42)) % 94 = 81 by omega]
+  rfl
+
+/-- The converse direction of the same arithmetic: a phase offering `halt`
+offers `rotr` 42 addresses earlier, so the two really are inseparable. -/
+theorem halt_forces_rotr {w a : Nat} (h₁ : 33 ≤ w) (h₂ : w ≤ 126)
+    (hhalt : decode (Value.ofNat w) (Value.ofNat (a + 42)).modClass = .halt) :
+    decode (Value.ofNat w) (Value.ofNat a).modClass = .rotr := by
+  have h81 : (w + (a + 42)) % 94 = 81 := opcode_of_decode h₁ h₂ hhalt (by simp)
+  rw [decode_at_ofNat h₁ h₂, show (w + a) % 94 = 39 by omega]
+  rfl
+
 end Unshackled
 
 end Langlib.Computability
