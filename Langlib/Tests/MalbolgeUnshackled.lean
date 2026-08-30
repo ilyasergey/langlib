@@ -53,6 +53,20 @@ def suite : Suite where
       -- this cycle never halts; the test checks the interpreter agrees.
     , { name := "loop example never halts", source := ex "loop.mu",
         fuel := 200_000, expect := .diverges }
+      -- Constructed examples. `star.mu` gets its value from a rotation
+      -- whose low trit is zero, so the result is the same at every width;
+      -- `answer.mu` and `banner.mu` build theirs out of crazy operations,
+      -- which touch no width at all.
+    , { name := "halt example", source := ex "halt.mu",
+        expect := .outputs "" }
+    , { name := "echo example prints the byte it read", source := ex "echo.mu",
+        input := "Z", expect := .outputs "Z" }
+    , { name := "star example prints without reading", source := ex "star.mu",
+        expect := .outputs "*" }
+    , { name := "answer example", source := ex "answer.mu",
+        expect := .outputs "42" }
+    , { name := "banner example", source := ex "banner.mu",
+        expect := .outputs "MALBOLGE" }
       -- Micro-programs.
     , { name := "halt at address 0", source := .inline "Q'",
         expect := .outputs "" }
@@ -83,7 +97,13 @@ def suiteWidth : Suite where
   run := runWith { rotWidth := 37 }
   cases :=
     [ { name := "hello example at rotation width 37", source := ex "hello.mu",
-        expect := .outputs "Hello, world!\n" } ]
+        expect := .outputs "Hello, world!\n" }
+    , { name := "star example at rotation width 37", source := ex "star.mu",
+        expect := .outputs "*" }
+    , { name := "answer example at rotation width 37", source := ex "answer.mu",
+        expect := .outputs "42" }
+    , { name := "banner example at rotation width 37", source := ex "banner.mu",
+        expect := .outputs "MALBOLGE" } ]
 
 /-- Johansen's `-n`: source characters outside 33..126 are a load error
 rather than being loaded unchecked. -/

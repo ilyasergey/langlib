@@ -213,6 +213,75 @@ Output:
 malbolge-unshackled: runtime error: the word 13 at c has no encryption; Johansen's interpreter crashes here (Malbolge would leave it unchanged)
 ```
 
+The shortest program that does anything at all is two characters and halts
+at once. It prints nothing, so there is no output block below; `--verbose`
+is the way to see that it really did stop rather than hang.
+
+```
+lake exe malbolge-unshackled --verbose Langlib/Examples/MalbolgeUnshackled/halt.mu
+```
+
+Output, on stderr:
+
+```
+malbolge-unshackled: halted normally; read 0 input byte(s), wrote 0 output byte(s)
+```
+
+`echo.mu` is `cat.mu` with a bound: it reads one character, prints it, and
+halts, which makes it the smallest program here that does I/O and still
+finishes.
+
+```
+echo -n Z | lake exe malbolge-unshackled Langlib/Examples/MalbolgeUnshackled/echo.mu
+```
+
+Output:
+
+```
+Z
+```
+
+`star.mu` prints a character without reading one, in eleven characters, and
+it is the cheapest way to see a value being *made*. See the "Example
+programs" section for how.
+
+```
+lake exe malbolge-unshackled Langlib/Examples/MalbolgeUnshackled/star.mu
+```
+
+Output:
+
+```
+*
+```
+
+Building a whole string takes rather more. `answer.mu` prints `42` in 134
+characters and `banner.mu` prints `MALBOLGE` in 160.
+
+```
+lake exe malbolge-unshackled Langlib/Examples/MalbolgeUnshackled/banner.mu
+```
+
+Output:
+
+```
+MALBOLGE
+```
+
+Every one of those three works at any legal rotation width, which is the
+property that matters and the one a hand-written program usually fails.
+Check it the same way `hello.mu` was checked:
+
+```
+lake exe malbolge-unshackled --rot-width 37 Langlib/Examples/MalbolgeUnshackled/banner.mu
+```
+
+Output:
+
+```
+MALBOLGE
+```
+
 ## Compilation from Turpentine
 
 Planned, and the reason this variant is implemented at all: unbounded
@@ -227,7 +296,8 @@ at — so these texts are as literal as texts get. What is new is that a
 program must work at *every* rotation width, which is why the interesting
 examples are so much larger than their Malbolge counterparts.
 
-**Halt** (two characters) — the same minimal program as in Malbolge.
+**Halt** (`halt.mu`, two characters) — the same minimal program as in
+Malbolge, and the only one here anyone would call portable.
 
 ```
 QC
@@ -235,26 +305,81 @@ QC
 
 `Q` is code 81 and lands at address 0, so the dispatch is
 `(81 + 0) mod 94 = 81`, which is halt. It runs and stops in one step, at
-any rotation width, which makes it the only program here anyone would call
-portable.
+any rotation width. The second character is there because the loader wants
+two seeds for the memory fill and refuses a one-character program.
 
-**The rotation crash** (`rotcrash.mu`) — three characters, and the failure
-you should expect from anything written by hand.
-
-```
-'bO
-```
-
-The rotate instruction produces a word that is no longer a printable
-natural, and the encryption step immediately afterwards has nothing to look
-up. Johansen's interpreter crashes here and so do we:
+**Echo** (`echo.mu`, three characters) — read one character, print it, stop.
 
 ```
-malbolge-unshackled: runtime error: the word 13 at c has no encryption; Johansen's interpreter crashes here (Malbolge would leave it unchanged)
+ubO
 ```
 
-Malbolge, whose words are bounded, simply leaves such a word alone. This is
-the sharpest single difference between the two languages.
+The whole of it is the address arithmetic: an instruction at address `i` is
+`(mem[i] + i) mod 94`, and the printable range 33..126 is exactly 94 wide,
+so for every address there is exactly one character meaning a given
+instruction there. `u` is 117 and `(117 + 0) mod 94 = 23`, input; `b` is 98
+and `(98 + 1) mod 94 = 5`, output; `O` is 79 and `(79 + 2) mod 94 = 81`,
+halt. That is the entire program, and it is `cat.mu` with a bound.
+
+**A character out of nothing** (`star.mu`, eleven characters) — prints `*`
+without reading anything.
+
+```
+DCBA@?>~[H
+```
+
+Seven no-ops, then rotate, output, halt. The rotate is the interesting one.
+At address 7 the character that means rotate is `~`, code 126, and a
+rotation moves the lowest trit to the top of the window: `126 = 11200₃`, so
+the result is `126 / 3 = 42` with a zero carried to the top. Two things
+follow. The result is 42, which is `*`. And **the width does not appear in
+the answer**, because the trit that would have been placed at the far end
+of the window is zero — so this prints `*` at width 10, at width 11, and at
+width 37 alike. Change the low trit and both properties go: that is
+`rotcrash.mu`, whose rotation lands on 13, which is not printable, and the
+encryption step then has nothing to look up.
+
+**Whole strings** (`answer.mu`, `banner.mu`) — 134 and 160 characters,
+printing `42` and `MALBOLGE`. `answer.mu` is the direct counterpart of
+Malbolge's `answer.mal`, which prints the same two characters in 28
+instructions and does not survive the move here:
+
+```
+DCBA@?>=~5432V0/S@210/.-,+*)('&%$#"!~}|{zyxwvutsrqponmlkjihgfedcba`_^]\[ZY
+XWVUTSRQPONMLKJIHGFEDCBA@?>=<;:9876543210/.-,+*)('&%$#@ca}v_
+```
+
+And `banner.mu`:
+
+```
+DCBA@?>=~543210T.-,+O)('&J$#G!~}|Bzy?wv<ts9&vutsrqponmlkjihgfedcba`_^]\[ZY
+XWVUTSRQPONMLKJIHGFEDCBA@?>=<;:9876543210/.-,+*)('&%$#"!>=O{)(r&v$#m2qSBn-
+,NNiu'frqc"!
+```
+
+Neither uses a rotation at all, so neither can depend on the width. They
+are built the way every Malbolge generator builds things, adapted to
+Unshackled's infinite words. `a` starts at `...0`. One crazy operation
+against a printable — so `...0` — cell gives a word whose prefix is `...1`,
+which the output instruction refuses; a second brings the prefix back to
+`...0` and it can be printed. So characters are built by an **even** number
+of crazy operations, and the operand of each is a memory cell the program
+chose.
+
+Getting clean cells to operate on is the other half. `d` follows `c` one
+for one, so `mem[d]` is the instruction being executed and a crazy
+operation would overwrite it and then crash the encryption step. A
+load-`d` first walks `d` away — its own character decides where it lands,
+which is `(7 - k) mod 94 + 33` for a load-`d` at address `k` — and after
+that the crazy operations eat a run of cells nowhere near the code.
+
+Searching those chains breadth-first, the alphabet this construction
+reaches is exactly **space through `P`**, 49 of the 95 printable
+characters, and letting the chains run longer does not extend it. So
+`MALBOLGE` is constructible and `Hello, world!` is not: the first lowercase
+letter is out of reach, and so is anything from `Q` upward. That is a limit
+of this particular construction rather than of the language — `hello.mu`
+below prints a lowercase greeting, in two hundred times the space.
 
 **cat** and the **truth-machine** (`cat.mu`, `truth.mu`) — byte-for-byte the
 same files as `cat.mal` and `truth.mal` in the Malbolge examples.
@@ -268,9 +393,32 @@ gJ%
 ```
 
 They happen to survive the move: nothing they do depends on the width being
-exactly ten. That is the exception rather than the rule — a Malbolge program
-written against the fixed width generally stops working the moment the width
-is free to change, and `rotcrash.mu` above is what that looks like.
+exactly ten. That is the exception rather than the rule, and it is worth
+being exact about how rare it is. Of the eight programs in
+`Langlib/Examples/Malbolge/`, **three** run unchanged here — `cat.mal`,
+`truth.mal`, and `nop.mal`, which is `halt.mu` under another name. The
+other five do not, and they all fail the same way:
+
+```
+lake exe malbolge-unshackled Langlib/Examples/Malbolge/hello.mal
+```
+
+Output — one character, and then the run dies:
+
+```
+Hmalbolge-unshackled: runtime error: cannot output ...10221: values starting with trit 1 or 2 are reserved, and only ...22 and ...21 have meanings so far
+```
+
+That is the difference between the two languages in one line. Malbolge's
+words are ten trits and everything above them is thrown away, so a program
+may leave rubbish in the high trits and print the low ones regardless.
+Unshackled's words have no top, the rubbish stays, and the output
+instruction will not print a word whose infinite prefix is not `...0`. The
+greeting gets as far as `H` and then meets a word beginning `...1`.
+
+`rotcrash.mu` above is the same disagreement from the other side: a
+rotation whose result Malbolge would quietly leave alone is a word
+Unshackled cannot encrypt.
 
 **Hello, world** (`hello.mu`) — 24365 characters, of which the first two
 lines' worth are
