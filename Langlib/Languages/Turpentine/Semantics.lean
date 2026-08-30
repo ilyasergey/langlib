@@ -142,16 +142,7 @@ def evalExpr (env : Std.HashMap String Value) : Expr → Except String Value
         | _ => throw "ill-typed operation"
       | _, _ => throw "ill-typed operation"
 
-private def parseIntLine (line : String) : Option Int :=
-  let s := line.trimAscii.toString
-  if s.isEmpty then none
-  else
-    let (neg, digits) :=
-      if s.front == '-' then (true, (s.drop 1).toString) else (false, s)
-    if digits.isEmpty || !digits.all (·.isDigit) then none
-    else
-      let n : Int := Int.ofNat digits.toNat!
-      some (if neg then -n else n)
+private def parseIntLine (line : String) : Option Int := Langlib.Common.parseNumLine line
 
 private def pushStr (s : State) (str : String) : State :=
   s.emitBytes str.toUTF8

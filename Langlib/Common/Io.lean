@@ -284,6 +284,37 @@ theorem readLine?_pos_le_size {i : Input} {s : String} {i' : Input}
 
 end Input
 
+/-! ### Reading a number off a line
+
+Whitespace's `readnum` and Turpentine's `readInt` are the same operation:
+read a line with `readLine?`, then parse it as a decimal integer. They used
+to parse it with two different functions that agreed on every line a reader
+can produce — the differences were `'\n'`, which `readLine?` never leaves in
+a line, and `String.toNat!`'s underscore skipping, which both rejected
+before reaching it. Agreeing by accident is not something a compiler proof
+can rest on, and proving the two equal meant reasoning about
+`String.Slice.foldl`, which has no lemmas at all. So there is one parser,
+here, and the agreement is definitional.
+
+The accepted shape is: ASCII blanks, an optional `-`, then at least one
+base-10 digit, then ASCII blanks. Nothing else — no `+`, no underscores, no
+other bases. -/
+
+/-- Parse one line as a decimal integer: optional surrounding blanks, an
+optional minus sign, then base-10 digits. `none` on anything else. -/
+def parseNumLine (line : String) : Option Int :=
+  let isWs := fun c => c == ' ' || c == '\t' || c == '\r'
+  let cs := (line.toList.dropWhile isWs).reverse.dropWhile isWs |>.reverse
+  let digits (ds : List Char) : Option Nat :=
+    if ds.isEmpty then none
+    else ds.foldl (fun acc c =>
+      acc.bind fun n => if c.isDigit then some (10 * n + (c.toNat - '0'.toNat)) else none)
+      (some 0)
+  match cs with
+  | '-' :: ds => (digits ds).map fun n => -(n : Int)
+  | ds => (digits ds).map fun n => (n : Int)
+
+
 /-- How a run ended. -/
 inductive Exit where
   /-- The program terminated normally. -/

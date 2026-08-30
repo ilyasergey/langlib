@@ -83,18 +83,12 @@ def labelMap (prog : Prog) : Std.HashMap Label Nat := Id.run do
   return m
 
 /-- Parse one line of numeric input: optional surrounding whitespace, an
-optional minus sign, then base-10 digits. `none` on anything else. -/
-def parseNumLine (line : String) : Option Int :=
-  let isWs := fun c => c == ' ' || c == '\t' || c == '\r'
-  let cs := (line.toList.dropWhile isWs).reverse.dropWhile isWs |>.reverse
-  let digits (ds : List Char) : Option Nat :=
-    if ds.isEmpty then none
-    else ds.foldl (fun acc c =>
-      acc.bind fun n => if c.isDigit then some (10 * n + (c.toNat - '0'.toNat)) else none)
-      (some 0)
-  match cs with
-  | '-' :: ds => (digits ds).map fun n => -(n : Int)
-  | ds => (digits ds).map fun n => (n : Int)
+optional minus sign, then base-10 digits. `none` on anything else.
+
+This is `Langlib.Common.parseNumLine`, which Turpentine's `readInt` also
+calls: the two languages read a number the same way by construction rather
+than by coincidence. See `Langlib/Common/Io.lean` for why that matters. -/
+def parseNumLine (line : String) : Option Int := Langlib.Common.parseNumLine line
 
 /-- Execute a program with the given fuel. One unit of fuel pays for one
 executed instruction (`label` no-ops included). -/

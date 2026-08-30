@@ -2,7 +2,37 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-31 (latest): a compiler proved to behave, not just to answer
+## 2026-08-31 (latest): one parser, because two agreed only by accident
+
+Stage 6 milestone 2 opened with a question: do whitespace's `parseNumLine`
+and Turpentine's `parseIntLine` accept the same lines and agree on the
+value? `docs/whitespace/compiler.md` had asserted they do, and the plan
+said finding out was worth the trip.
+
+They did. On every line a reader can produce, by **two accidents that
+cancel**. Turpentine trimmed with `String.trimAscii`, which strips newlines
+as well as blanks — unobservable, because `readLine?` never leaves a
+newline inside a line. And its digits went through `String.toNat!`, which
+skips underscores and panics on a non-numeral — unobservable, because the
+`all Char.isDigit` guard in front of it rejects `_` first. Two languages
+reading a number the same way for reasons neither of them states.
+
+What did not survive was proving it. `String.toNat!` is a
+`String.Slice.foldl`, and core ships no lemmas about slice folds at all, so
+certifying the coincidence meant developing that theory first — a
+disproportionate amount of work to establish something that ought to hold
+by construction. So there is now one parser, `Langlib.Common.parseNumLine`,
+sitting beside the `readLine?` both languages already shared, and the
+agreement is definitional rather than accidental. Turpentine's accepted
+language is unchanged on every input a program can be given; the whitespace
+and Turpentine golden suites, and the trace suite that runs the two
+interpreters against each other, all pass unchanged.
+
+This is the prerequisite for the rest of milestone 2, which is the proof:
+`SimS` relating the two cursors, `readInt` joining the fragment, and
+`encodeInput` becoming the identity instead of "run the target on nothing".
+
+## 2026-08-31: a compiler proved to behave, not just to answer
 
 `IOCertifiedCompiler` has an inhabitant. `bespokeWhitespaceIO` is the
 hand-written Turpentine-to-whitespace backend proved *behaviourally*

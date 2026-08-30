@@ -416,11 +416,34 @@ booleans. What it cost that this plan did not foresee is recorded in
 steps 3 and 4 above — a new epilogue and decoder, and a fragment that has
 to be type-checked.
 
-**Milestone 2 — `readInt`.** Needs step 0's byte-level lemmas plus one
-that nobody has proved: that whitespace's `parseNumLine` and Turpentine's
-`parseIntLine` accept the same lines and agree on the value.
-`docs/whitespace/compiler.md` asserts they do; it may not survive contact
-with a proof, and finding out is worth the trip.
+**Milestone 2 — `readInt` `[~]`.** The question this milestone opened with
+— do whitespace's `parseNumLine` and Turpentine's `parseIntLine` accept the
+same lines and agree on the value? — has an answer, and it was worth the
+trip. **They did agree, on every line a reader can produce, by two
+accidents that cancel**: Turpentine trimmed newlines that `readLine?` never
+leaves in a line, and its digits went through `String.toNat!`, which skips
+underscores that the `isDigit` guard in front of it had already rejected.
+Neither difference is reachable, so no program could tell them apart.
+
+What did not survive was the idea of *proving* it. `String.toNat!` is a
+`String.Slice.foldl`, and core provides no lemmas about that at all, so
+establishing the agreement meant developing slice-fold theory to certify a
+coincidence. The parser now lives once, in `Langlib/Common/Io.lean` beside
+the line reader both languages already shared, and the agreement is
+definitional. Turpentine's accepted language is unchanged on every input a
+program can be given, which the golden suites confirm.
+
+What remains for the milestone is the proof itself:
+
+* `SimS` has to relate the two cursors — the target starts where the source
+  starts and ends where the source ends — which is what turns `encodeInput`
+  from "run the target on nothing" into the identity, and what makes an
+  input event on one side the same byte as an input event on the other.
+* `readInt x` joins the fragment, with `x` declared `int`, and needs a
+  `reaches_readNum` atom of the shape the other instructions have.
+* `bespokeCompile_core` has to run the target on the source's stream rather
+  than on `Input.ofString ""`, and `bespokeWhitespaceIO.encodeInput`
+  becomes `id`.
 
 **Then subleq**, where `encodeTrace` is the identity too and steps 0 and 2
 are already paid for. Its step 1 is done: `Subleq.State` records the run's

@@ -307,12 +307,31 @@ checks the index (as the reference does): at end of input the compiled form
 raises the read error where the reference would have stored `-1` and then
 possibly complained about the index.
 
-`readInt` has no such problem. Both languages read one line and fail at end
-of input or on a line that is not an optionally negated decimal numeral,
-and they even agree on the padding they tolerate: within a line,
-Turpentine's `String.trimAscii` strips exactly space, tab and carriage
-return, which is the set whitespace's `readnum` strips. Only the wording of
-the failure differs.
+`readInt` has no such problem, and as of 2026-08-31 it has no such
+*coincidence* either. Both languages read one line with the same
+`Input.readLine?` and then parse it with the same function,
+`Langlib.Common.parseNumLine`: optional blanks, an optional `-`, then
+base-10 digits. Only the wording of the failure differs.
+
+They did not always share it, and the difference is worth recording,
+because the plan for behavioural certification asked whether the claim that
+the two parsers agree survives contact with a proof. It does — but only
+just, and not for a reason a proof can use.
+
+* Turpentine trimmed with `String.trimAscii`, which strips space, tab,
+  carriage return **and newline**; whitespace's stripped the first three.
+  Unobservable, because `readLine?` never leaves a newline inside a line.
+* Turpentine's digits went through `String.toNat!`, which **skips
+  underscores** and panics on a non-numeral. Unobservable, because the
+  `all Char.isDigit` guard in front of it rejects `_` first.
+
+So the two agreed on every line a reader can produce, by two accidents that
+cancel. Proving that in Lean meant reasoning about `String.Slice.foldl`,
+for which core provides no lemmas at all — a disproportionate amount of
+work to establish something that ought to be true by construction. One
+parser, in `Langlib/Common/Io.lean` beside the line reader both languages
+already shared, makes the agreement definitional instead. Turpentine's
+accepted language is unchanged on every input a program can be given.
 
 ## Correctness
 
