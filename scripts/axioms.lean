@@ -686,6 +686,14 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.regMem_up
 #print axioms Unshackled.regMem_down
 
+-- The simulation invariant, and the four ways a command moves it.
+#print axioms Unshackled.sim_init
+#print axioms Unshackled.sim_inc
+#print axioms Unshackled.sim_dec
+#print axioms Unshackled.sim_emit
+#print axioms Unshackled.sim_frame
+#print axioms Unshackled.sim_loop_test
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

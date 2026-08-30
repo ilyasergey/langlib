@@ -79,6 +79,7 @@ than by taste:
 | Two-tape registers | `TapePair` — `inc`, `dec` and the zero test all forward |
 | Register file | `RegFile.Refines` and `refines_up/down/emit/zero_iff` |
 | Tape memory layout | `regAddr`, `RegMem`, `regMem_up`, `regMem_down` |
+| Simulation invariant | `Sim`, `sim_inc`, `sim_dec`, `sim_emit`, `sim_frame`, `sim_loop_test` |
 
 ## Remaining
 
@@ -100,10 +101,15 @@ than by taste:
 5. **The assembler** — `compile : Program → List Nat → Image`, total and
    runnable, laying gadgets out at stride 94 with data after the code.
 6. **The induction on `Ev`** — the largest piece by volume, standing on
-   `run_of_measure` at the top and `exec_halts_of_run?` at the bottom. The
-   data side of its invariant is already proved: `RegFile.Refines` tracks
-   `Counter.CState` through `up`, `down` and `emitOne`, and turns the loop
-   condition into a comparison of two tape lengths.
+   `run_of_measure` at the top and `exec_halts_of_run?` at the bottom. Its
+   invariant is already proved: `Sim` ties a Malbolge Unshackled state to a
+   `Counter.CState`, and `sim_inc`, `sim_dec`, `sim_emit` and `sim_frame`
+   say how each command moves it. `sim_loop_test` reduces the loop
+   condition to reading one cell, the one a walk halts on.
+
+What each gadget must now do is *reach* the write that these lemmas
+consume: the gadget machinery (`gadget_run`, `chain_run`) executes the
+arithmetic, and `sim_*` closes the step.
 
 Nothing left lacks a verified precedent in the file, so what remains is
 construction rather than discovery. It is still a lot of construction.

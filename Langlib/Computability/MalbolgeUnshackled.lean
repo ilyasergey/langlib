@@ -3934,6 +3934,104 @@ theorem regMem_down {DB SI R : Nat} (hSI : 2 * R ≤ SI) {f : RegFile} {m : Memo
         hrr (regAddr_inj hSI hr hr' hh).1.symm)), (h r' hr' i).2,
         RegFile.down_of_ne f hrr]
 
+/-! ## The simulation invariant
+
+Putting the data side together. `Sim` says a Malbolge Unshackled state
+represents a counter-machine state: memory lays the tapes out as `RegMem`
+says, those tapes denote the counter machine's registers, the bytes emitted
+so far are its output count, and the output stream is still open.
+
+The three lemmas below are what a gadget's correctness proof ends with.
+Each says: perform the one memory write the command calls for, and the
+invariant carries over to the counter machine's next state. They are proved
+here, ahead of the gadgets that will invoke them, because they depend only
+on the layout and not on how the write is reached. -/
+
+/-- A Malbolge Unshackled state represents a counter-machine state. -/
+structure Sim (DB SI R : Nat) (f : RegFile) (σ : Counter.CState) (s : State) : Prop where
+  /-- The tapes are laid out as the layout says. -/
+  mem : RegMem DB SI R f s.mem
+  /-- They denote the counter machine's registers, and the byte count is
+  its output. -/
+  refines : RegFile.Refines f s.output.size σ
+  /-- Emitting is still possible. -/
+  open' : s.outClosed = false
+
+theorem sim_init {DB SI R : Nat} {s : State}
+    (hmem : RegMem DB SI R RegFile.init s.mem) (hout : s.output.size = 0)
+    (hopen : s.outClosed = false) :
+    Sim DB SI R RegFile.init ⟨fun _ => 0, 0⟩ s :=
+  ⟨hmem, ⟨RegFile.init_wf, fun _ => rfl, hout⟩, hopen⟩
+
+/-- **`inc` preserves the invariant.** Writing a mark at the first blank of
+register `r`'s first tape carries `Sim` to the counter machine's `up r`. -/
+theorem sim_inc {DB SI R : Nat} (hSI : 2 * R ≤ SI) {f : RegFile}
+    {σ : Counter.CState} {s : State} (hs : Sim DB SI R f σ s) {r : Nat} (hr : r < R) :
+    Sim DB SI R (f.up r) (σ.up r)
+      { s with mem := s.mem.set (Value.ofNat (regAddr DB SI r false (f r).p)) cellMark } :=
+  ⟨regMem_up hSI hs.mem hr, RegFile.refines_up hs.refines r, hs.open'⟩
+
+/-- **`dec` preserves the invariant**, under the nonzero side condition the
+counter machine already imposes. -/
+theorem sim_dec {DB SI R : Nat} (hSI : 2 * R ≤ SI) {f : RegFile}
+    {σ : Counter.CState} {s : State} (hs : Sim DB SI R f σ s) {r : Nat} (hr : r < R)
+    (hnz : σ.regs r ≠ 0) :
+    Sim DB SI R (f.down r) (σ.down r)
+      { s with mem := s.mem.set (Value.ofNat (regAddr DB SI r true (f r).q)) cellMark } :=
+  ⟨regMem_down hSI hs.mem hr, RegFile.refines_down hs.refines hnz, hs.open'⟩
+
+/-- **`emit` preserves the invariant.** One byte appended, and the stream
+stays open, so emits compose. -/
+theorem sim_emit {DB SI R : Nat} {f : RegFile} {σ : Counter.CState} {s : State}
+    (hs : Sim DB SI R f σ s) {s' : State}
+    (hmem : s'.mem = s.mem) (hsize : s'.output.size = s.output.size + 1)
+    (hopen : s'.outClosed = false) :
+    Sim DB SI R f σ.emitOne s' := by
+  refine ⟨by rw [hmem]; exact hs.mem, ?_, hopen⟩
+  obtain ⟨hwf, hval, hout⟩ := hs.refines
+  exact ⟨hwf, hval, by rw [hsize, hout]; rfl⟩
+
+/-- The invariant survives any write outside the tapes, which is what lets
+a gadget scribble on its own code and constants without disturbing the
+register file. -/
+theorem sim_frame {DB SI R : Nat} {f : RegFile} {σ : Counter.CState} {s s' : State}
+    (hs : Sim DB SI R f σ s)
+    (hmem : ∀ r, r < R → ∀ (q : Bool) (i : Nat),
+      s'.mem.get (Value.ofNat (regAddr DB SI r q i))
+        = s.mem.get (Value.ofNat (regAddr DB SI r q i)))
+    (hout : s'.output.size = s.output.size) (hopen : s'.outClosed = s.outClosed) :
+    Sim DB SI R f σ s' := by
+  refine ⟨fun r hr i => ⟨?_, ?_⟩, ?_, by rw [hopen]; exact hs.open'⟩
+  · rw [hmem r hr false i]; exact (hs.mem r hr i).1
+  · rw [hmem r hr true i]; exact (hs.mem r hr i).2
+  · obtain ⟨hwf, hval, ho⟩ := hs.refines
+    exact ⟨hwf, hval, by rw [hout]; exact ho⟩
+
+/-- **The loop condition, at the machine level.** A compiled `loop r b`
+must decide whether `σ.regs r` is zero, and the invariant turns that into a
+question the layout answers: the cell at index `(f r).q` of the first tape
+is a mark exactly when the register is nonzero. That cell is the one a walk
+over the interleaved pair halts on, and probing it is
+`register_probe`. -/
+theorem sim_loop_test {DB SI R : Nat} {f : RegFile} {σ : Counter.CState} {s : State}
+    (hs : Sim DB SI R f σ s) {r : Nat} (hr : r < R) :
+    s.mem.get (Value.ofNat (regAddr DB SI r false (f r).q))
+      = (if σ.regs r = 0 then cellBlank else cellMark) := by
+  obtain ⟨hwf, hval, _⟩ := hs.refines
+  rw [(hs.mem r hr (f r).q).1]
+  by_cases hz : σ.regs r = 0
+  · rw [if_pos hz, if_neg]
+    rw [← hval r] at hz
+    rw [TapePair.value_eq_zero_iff (hwf r)] at hz
+    omega
+  · rw [if_neg hz, if_pos]
+    rw [← hval r] at hz
+    have := TapePair.value_eq_zero_iff (hwf r) (x := f r)
+    unfold TapePair.value at hz
+    have hq := hwf r
+    unfold TapePair.Wf at hq
+    omega
+
 end Unshackled
 
 end Langlib.Computability
