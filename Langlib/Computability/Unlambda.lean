@@ -572,13 +572,14 @@ theorem subst_noVars : ∀ {e : Expr}, noVars e = true → ∀ σ, subst σ e = 
       simp only [noVars, Bool.and_eq_true] at h
       simp [subst, subst_noVars h.1, subst_noVars h.2]
 
-/-- `E` evaluates without printing, without reading and without looping.
-Every argument the compiler passes is pure in this sense, which is what makes
-call by value safe to reason about one substitution at a time. -/
-def PureE (E : Expr) : Prop := ∃ v, VE E v
+/-- `E` is a *value expression*: a builtin or a partial application of `k` or
+`s` to value expressions. Only these may be handed to an abstraction, because
+`lam_spec` substitutes the argument into the body, and a substituted
+expression is evaluated once for every occurrence rather than once. -/
+def ValE (E : Expr) : Prop := ∃ v, VE E v
 
-theorem PureE.lam {σ : Nat → Expr} (hσ : ∀ y, ∃ u, VE (σ y) u) (x : Nat)
-    (E : Expr) : PureE (subst σ (lam x E)) := lam_VE x E σ hσ
+theorem valE_subst_lam {σ : Nat → Expr} (hσ : ∀ y, ∃ u, VE (σ y) u) (x : Nat)
+    (E : Expr) : ValE (subst σ (lam x E)) := lam_VE x E σ hσ
 
 /-- Same evaluations, so interchangeable in operator position. -/
 def EqE (E F : Expr) : Prop := ∀ n v, Ev (toTerm E) n v ↔ Ev (toTerm F) n v
@@ -609,7 +610,7 @@ end EqE
 /-- **Beta, for Unlambda.** Applying an abstraction to a pure argument is
 substitution. -/
 theorem ev_app_lam {σ : Nat → Expr} (hσ : ∀ y, ∃ u, VE (σ y) u) {x : Nat}
-    {E N : Expr} (hN : PureE N) :
+    {E N : Expr} (hN : ValE N) :
     EqE (.app (subst σ (lam x E)) N) (subst (updE σ x N) E) := by
   obtain ⟨nv, hNv⟩ := hN
   obtain ⟨w, hw⟩ := lam_VE x E σ hσ
@@ -633,8 +634,775 @@ theorem ev_app_lam {σ : Nat → Expr} (hσ : ∀ y, ∃ u, VE (σ y) u) {x : Na
 /-- The closed-abstraction case, which is the one the compiler uses: every
 combinator it defines has no free variables. -/
 theorem ev_app_lam0 {x : Nat} {E N : Expr} (hc : noVars (lam x E) = true)
-    (hN : PureE N) : EqE (.app (lam x E) N) (subst (updE σ0 x N) E) := by
+    (hN : ValE N) : EqE (.app (lam x E) N) (subst (updE σ0 x N) E) := by
   have := ev_app_lam (σ := σ0) hσ0 (x := x) (E := E) (N := N) hN
   rwa [subst_noVars hc σ0] at this
+
+/-! ### Equivalence up to a byte count
+
+`EqE` cannot describe a step that prints, and the compiled programs print.
+`EqK k E F` says `E` computes what `F` computes after emitting `k` more
+bytes, which is exactly the bookkeeping the counter machine's `emit` needs.
+Both congruences hold with no side condition, because call by value
+decomposes an application the same way whatever its parts do. -/
+
+/-- `E` does what `F` does, having printed `k` more bytes. -/
+def EqK (k : Nat) (E F : Expr) : Prop :=
+  ∀ n v, Ev (toTerm E) n v ↔ ∃ m, n = k + m ∧ Ev (toTerm F) m v
+
+namespace EqK
+
+theorem ofE {E F : Expr} (h : EqE E F) : EqK 0 E F := by
+  intro n v
+  constructor
+  · intro hr; exact ⟨n, by omega, (h n v).mp hr⟩
+  · rintro ⟨m, rfl, hm⟩; exact (h _ v).mpr (by simpa using hm)
+
+theorem toE {E F : Expr} (h : EqK 0 E F) : EqE E F := by
+  intro n v
+  constructor
+  · intro hr; obtain ⟨m, hm, hr'⟩ := (h n v).mp hr; rwa [hm, Nat.zero_add]
+  · intro hr; exact (h n v).mpr ⟨n, by omega, hr⟩
+
+theorem trans {k j : Nat} {E F G : Expr} (h₁ : EqK k E F) (h₂ : EqK j F G) :
+    EqK (k + j) E G := by
+  intro n v
+  constructor
+  · intro hr
+    obtain ⟨m, rfl, hm⟩ := (h₁ n v).mp hr
+    obtain ⟨p, rfl, hp⟩ := (h₂ m v).mp hm
+    exact ⟨p, by omega, hp⟩
+  · rintro ⟨p, rfl, hp⟩
+    exact (h₁ _ v).mpr ⟨j + p, by omega, (h₂ _ v).mpr ⟨p, rfl, hp⟩⟩
+
+theorem app_left {k : Nat} {E F : Expr} (h : EqK k E F) (C : Expr) :
+    EqK k (.app E C) (.app F C) := by
+  intro n v
+  constructor
+  · intro hr
+    obtain ⟨nf, na, np, vf, va, hf, hd, ha, hp, rfl⟩ := ev_app_inv hr
+    obtain ⟨m, rfl, hm⟩ := (h nf vf).mp hf
+    exact ⟨m + na + np, by omega, Run.app hm hd ha hp⟩
+  · rintro ⟨m, rfl, hm⟩
+    obtain ⟨nf, na, np, vf, va, hf, hd, ha, hp, rfl⟩ := ev_app_inv hm
+    have : Ev (.app (toTerm E) (toTerm C)) ((k + nf) + na + np) v :=
+      Run.app ((h (k + nf) vf).mpr ⟨nf, rfl, hf⟩) hd ha hp
+    have heq : k + (nf + na + np) = (k + nf) + na + np := by omega
+    rw [heq]; exact this
+
+theorem app_right {k : Nat} {C D : Expr} (h : EqK k C D) (G : Expr) :
+    EqK k (.app G C) (.app G D) := by
+  intro n v
+  constructor
+  · intro hr
+    obtain ⟨nf, na, np, vf, va, hf, hd, ha, hp, rfl⟩ := ev_app_inv hr
+    obtain ⟨m, rfl, hm⟩ := (h na va).mp ha
+    exact ⟨nf + m + np, by omega, Run.app hf hd hm hp⟩
+  · rintro ⟨m, rfl, hm⟩
+    obtain ⟨nf, na, np, vf, va, hf, hd, ha, hp, rfl⟩ := ev_app_inv hm
+    have : Ev (.app (toTerm G) (toTerm C)) (nf + (k + na) + np) v :=
+      Run.app hf hd ((h (k + na) va).mpr ⟨na, rfl, ha⟩) hp
+    have heq : k + (nf + na + np) = nf + (k + na) + np := by omega
+    rw [heq]; exact this
+
+end EqK
+
+/-- `EqE` chains into `EqK` on either side; the `0 +` and `+ 0` bookkeeping
+is done here once. -/
+theorem EqE.transK {k : Nat} {E F G : Expr} (h₁ : EqE E F) (h₂ : EqK k F G) :
+    EqK k E G := by simpa using (EqK.ofE h₁).trans h₂
+
+theorem EqK.transE {k : Nat} {E F G : Expr} (h₁ : EqK k E F) (h₂ : EqE F G) :
+    EqK k E G := by simpa using h₁.trans (EqK.ofE h₂)
+
+/-- `i` is the identity, whatever its argument does. -/
+theorem ev_app_I (C : Expr) : EqE (.app .I C) C := by
+  intro n v
+  constructor
+  · intro hr
+    obtain ⟨nf, na, np, vf, va, hf, _, ha, hp, rfl⟩ := ev_app_inv hr
+    obtain ⟨rfl, rfl⟩ := (ev_leaf_inv (t := Term.i) (v := Value.i) rfl).mp hf
+    obtain ⟨rfl, rfl⟩ := ap_i_inv hp
+    simpa using ha
+  · intro hr
+    have h2 : Ev (.app (toTerm .I) (toTerm C)) (0 + n + 0) v :=
+      Run.app (.leaf rfl) rfl hr .i
+    simpa [toTerm] using h2
+
+/-- `.x` prints one byte and hands back its argument. -/
+theorem ev_app_dot {c : UInt8} {C N : Expr} {k : Nat} (h : EqK k C N) :
+    EqK (k + 1) (.app (.dot c) C) N := by
+  refine EqK.trans (EqK.app_right h (.dot c)) ?_
+  intro n v
+  constructor
+  · intro hr
+    obtain ⟨nf, na, np, vf, va, hf, _, ha, hp, rfl⟩ := ev_app_inv hr
+    obtain ⟨rfl, rfl⟩ := (ev_leaf_inv (t := Term.dot c) (v := Value.dot c) rfl).mp hf
+    obtain ⟨rfl, rfl⟩ := ap_dot_inv hp
+    exact ⟨na, by omega, ha⟩
+  · rintro ⟨m, rfl, hm⟩
+    have : Ev (.app (toTerm (.dot c)) (toTerm N)) (0 + m + 1) v :=
+      Run.app (.leaf rfl) rfl hm .dot
+    have heq : 1 + m = 0 + m + 1 := by omega
+    rw [heq]; exact this
+
+/-! ### Closedness
+
+The compiler's combinators have no free variables, which is what lets
+`ev_app_lam0` drop the environment. `noVarsBut x` is the invariant that makes
+that provable by induction: abstraction removes `x`, so a body whose only
+variable is `x` abstracts to a closed expression. -/
+
+/-- Every variable of `e` is in `xs`. -/
+def varsIn (xs : List Nat) : Expr → Bool
+  | .var y => xs.contains y
+  | .app f a => varsIn xs f && varsIn xs a
+  | _ => true
+
+theorem isVal_noVars : ∀ {e : Expr}, isVal e = true → noVars e = true
+  | .K, _ => rfl
+  | .S, _ => rfl
+  | .I, _ => rfl
+  | .dot _, _ => rfl
+  | .app .K e, h => by simpa [noVars] using isVal_noVars (e := e) (by simpa [isVal] using h)
+  | .app .S e, h => by simpa [noVars] using isVal_noVars (e := e) (by simpa [isVal] using h)
+  | .app (.app .S e₁) e₂, h => by
+      simp only [isVal, Bool.and_eq_true] at h
+      simp [noVars, isVal_noVars h.1, isVal_noVars h.2]
+
+theorem varsIn_of_noVars : ∀ {e : Expr}, noVars e = true → ∀ xs, varsIn xs e = true
+  | .K, _, _ => rfl
+  | .S, _, _ => rfl
+  | .I, _, _ => rfl
+  | .dot _, _, _ => rfl
+  | .var _, h, _ => by simp [noVars] at h
+  | .app f a, h, xs => by
+      simp only [noVars, Bool.and_eq_true] at h
+      simp [varsIn, varsIn_of_noVars h.1 xs, varsIn_of_noVars h.2 xs]
+
+theorem noVars_of_varsIn_nil : ∀ {e : Expr}, varsIn [] e = true → noVars e = true
+  | .K, _ => rfl
+  | .S, _ => rfl
+  | .I, _ => rfl
+  | .dot _, _ => rfl
+  | .var _, h => by simp [varsIn] at h
+  | .app f a, h => by
+      simp only [varsIn, Bool.and_eq_true] at h
+      simp [noVars, noVars_of_varsIn_nil h.1, noVars_of_varsIn_nil h.2]
+
+/-- Abstraction removes exactly one variable. This is the invariant that makes
+the compiler's combinators closed: every one of them abstracts every variable
+its body mentions. -/
+theorem lam_varsIn (x : Nat) (xs : List Nat) : ∀ {E : Expr},
+    varsIn (x :: xs) E = true → varsIn xs (lam x E) = true
+  | .var y, h => by
+      by_cases hy : y = x
+      · have he : lam x (.var y) = .I := by simp [lam, hy]
+        rw [he]; rfl
+      · have he : lam x (.var y) = .app .K (.var y) := by simp [lam, hy]
+        rw [he]
+        simp only [varsIn, List.contains_cons, Bool.or_eq_true, beq_iff_eq] at h
+        rcases h with h | h
+        · exact absurd h hy
+        · simpa [varsIn] using h
+  | .K, _ => rfl
+  | .S, _ => rfl
+  | .I, _ => rfl
+  | .dot _, _ => rfl
+  | .app f a, h => by
+      simp only [varsIn, Bool.and_eq_true] at h
+      by_cases hv : isVal (.app f a)
+      · have he : lam x (.app f a) = .app .K (.app f a) := by simp [lam, hv]
+        rw [he]
+        simpa [varsIn] using varsIn_of_noVars (isVal_noVars hv) xs
+      · have he : lam x (.app f a) = .app (.app .S (lam x f)) (lam x a) := by
+          simp [lam, hv]
+        rw [he]
+        simp [varsIn, lam_varsIn x xs h.1, lam_varsIn x xs h.2]
+
+/-- Abstracting a body whose only variable is `x` gives a closed expression. -/
+theorem lam_noVars (x : Nat) {E : Expr} (h : varsIn [x] E = true) :
+    noVars (lam x E) = true :=
+  noVars_of_varsIn_nil (lam_varsIn x [] h)
+
+theorem valE_I : ValE .I := ⟨_, .I⟩
+
+/-- A closed abstraction is a value expression. -/
+theorem valE_lam {x : Nat} {E : Expr} (h : noVars (lam x E) = true) :
+    ValE (lam x E) := by
+  have hv := valE_subst_lam hσ0 x E
+  rwa [subst_noVars h σ0] at hv
+
+/-- Substituting closed expressions gives a closed expression. -/
+theorem subst_closed {σ : Nat → Expr} (hσ : ∀ y, noVars (σ y) = true) :
+    ∀ {e : Expr}, noVars (subst σ e) = true
+  | .var y => hσ y
+  | .K | .S | .I | .dot _ => rfl
+  | .app f a => by
+      simp [subst, noVars, subst_closed hσ (e := f), subst_closed hσ (e := a)]
+
+theorem noVars_σ0 : ∀ y, noVars (σ0 y) = true := fun _ => rfl
+
+theorem noVars_updE {σ : Nat → Expr} (hσ : ∀ y, noVars (σ y) = true) {x : Nat}
+    {N : Expr} (hN : noVars N = true) : ∀ y, noVars (updE σ x N y) = true := by
+  intro y
+  by_cases h : y = x
+  · simpa [updE, h] using hN
+  · simpa [updE, h] using hσ y
+
+/-! ## Scott numerals
+
+A number is a two-way branch: `0` picks its first argument, `m + 1` hands the
+numeral for `m` to its second. That is the encoding the counter machine wants,
+because every one of its four commands is a case on whether a register is
+zero, and because the predecessor is free rather than the quadratic
+subtraction Church numerals would need.
+
+`NumE m E` is *behavioural*: it says `E` branches like `m`, not that `E` is
+any particular expression. It has to be, because `succF` applied to a numeral
+does not produce the numeral literal `numE (m + 1)`: bracket abstraction is
+sensitive to which of its subexpressions are closed, so the two agree on
+every argument while differing as trees. -/
+
+/-- The numeral literal for `m`. -/
+def numE : Nat → Expr
+  | 0 => lam 0 (lam 1 (var 0))
+  | m + 1 => lam 0 (lam 1 (.app (.var 1) (numE m)))
+
+theorem numE_noVars : ∀ m, noVars (numE m) = true
+  | 0 => by decide
+  | m + 1 => by
+      refine lam_noVars 0 (lam_varsIn 1 [0] ?_)
+      simp [varsIn, varsIn_of_noVars (numE_noVars m)]
+
+theorem numE_ValE (m : Nat) : ValE (numE m) := by
+  cases m with
+  | zero => exact valE_lam (x := 0) (E := lam 1 (.var 0)) (numE_noVars 0)
+  | succ m =>
+    exact valE_lam (x := 0) (E := lam 1 (.app (.var 1) (numE m))) (numE_noVars (m + 1))
+
+/-- `E` branches the way the number `m` does. -/
+def NumE : Nat → Expr → Prop
+  | 0, E => ValE E ∧ ∀ A B, ValE A → ValE B → EqE (.app (.app E A) B) A
+  | m + 1, E => ValE E ∧ ∃ P, NumE m P ∧ ∀ A B, ValE A → ValE B →
+      EqE (.app (.app E A) B) (.app B P)
+
+theorem NumE.valE : ∀ {m : Nat} {E : Expr}, NumE m E → ValE E
+  | 0, _, h => h.1
+  | _ + 1, _, h => h.1
+
+/-- Applying a two-argument abstraction, as one rewriting step. -/
+theorem app2_lam {σ : Nat → Expr} (hσ : ∀ y, ∃ u, VE (σ y) u) {x y : Nat}
+    {E A B : Expr} (hA : ValE A) (hB : ValE B) :
+    EqE (.app (.app (subst σ (lam x (lam y E))) A) B)
+      (subst (updE (updE σ x A) y B) E) := by
+  obtain ⟨av, hav⟩ := hA
+  refine EqE.trans (EqE.app_left (ev_app_lam hσ (E := lam y E) ⟨av, hav⟩) B) ?_
+  exact ev_app_lam (hupd hσ hav) hB
+
+theorem numE_spec : ∀ m, NumE m (numE m)
+  | 0 => by
+    refine ⟨numE_ValE 0, fun A B hA hB => ?_⟩
+    have hc : noVars (lam 0 (lam 1 (Expr.var 0))) = true := numE_noVars 0
+    have h := app2_lam (σ := σ0) hσ0 (x := 0) (y := 1) (E := Expr.var 0) hA hB
+    rw [subst_noVars hc σ0] at h
+    have harg : subst (updE (updE σ0 0 A) 1 B) (Expr.var 0) = A := by
+      simp [subst, updE]
+    rw [harg] at h
+    exact h
+  | m + 1 => by
+    refine ⟨numE_ValE (m + 1), numE m, numE_spec m, fun A B hA hB => ?_⟩
+    have hc : noVars (lam 0 (lam 1 (Expr.app (.var 1) (numE m)))) = true :=
+      numE_noVars (m + 1)
+    have h := app2_lam (σ := σ0) hσ0 (x := 0) (y := 1)
+      (E := Expr.app (.var 1) (numE m)) hA hB
+    rw [subst_noVars hc σ0] at h
+    have harg : subst (updE (updE σ0 0 A) 1 B) (Expr.app (.var 1) (numE m))
+        = .app B (numE m) := by
+      simp [subst, updE, subst_noVars (numE_noVars m)]
+    rw [harg] at h
+    exact h
+
+/-! ### The two arithmetic operations the counter machine needs -/
+
+/-- `E` turns a numeral for `m` into one for `f m`. -/
+def NumFun (F : Expr) (f : Nat → Nat) : Prop :=
+  noVars F = true ∧ ∀ m N, NumE m N → ∃ M, NumE (f m) M ∧ EqE (.app F N) M
+
+/-- The successor. -/
+def succF : Expr := lam 2 (lam 0 (lam 1 (.app (.var 1) (.var 2))))
+
+/-- The predecessor, with `pred 0 = 0`: a numeral applied to `0` and the
+identity returns its own predecessor when there is one. -/
+def predF : Expr := lam 2 (.app (.app (.var 2) (numE 0)) .I)
+
+theorem succF_noVars : noVars succF = true := by decide
+
+theorem predF_noVars : noVars predF = true := by
+  refine lam_noVars 2 ?_
+  simp [varsIn, varsIn_of_noVars (numE_noVars 0)]
+
+theorem succF_spec : NumFun succF (fun m => m + 1) := by
+  refine ⟨succF_noVars, fun m N hN => ?_⟩
+  obtain ⟨nv, hnv⟩ := hN.valE
+  refine ⟨subst (updE σ0 2 N) (lam 0 (lam 1 (.app (.var 1) (.var 2)))),
+    ⟨valE_subst_lam (hupd hσ0 hnv) 0 _, N, hN, fun A B hA hB => ?_⟩,
+    ev_app_lam0 succF_noVars hN.valE⟩
+  have h := app2_lam (σ := updE σ0 2 N) (hupd (x := 2) hσ0 hnv) (x := 0) (y := 1)
+    (E := Expr.app (.var 1) (.var 2)) hA hB
+  have harg : subst (updE (updE (updE σ0 2 N) 0 A) 1 B) (Expr.app (.var 1) (.var 2))
+      = .app B N := by simp [subst, updE]
+  rw [harg] at h
+  exact h
+
+theorem predF_spec : NumFun predF (fun m => m - 1) := by
+  refine ⟨predF_noVars, fun m N hN => ?_⟩
+  have hstep : EqE (.app predF N) (.app (.app N (numE 0)) .I) := by
+    refine EqE.trans (ev_app_lam0 predF_noVars hN.valE) ?_
+    have harg : subst (updE σ0 2 N) (Expr.app (.app (.var 2) (numE 0)) .I)
+        = .app (.app N (numE 0)) .I := by
+      simp [subst, updE, subst_noVars (numE_noVars 0)]
+    rw [harg]
+    exact EqE.refl _
+  cases m with
+  | zero =>
+    exact ⟨numE 0, numE_spec 0,
+      EqE.trans hstep (hN.2 (numE 0) .I (numE_ValE 0) valE_I)⟩
+  | succ j =>
+    obtain ⟨P, hP, hspec⟩ := hN.2
+    refine ⟨P, hP, EqE.trans hstep ?_⟩
+    exact EqE.trans (hspec (numE 0) .I (numE_ValE 0) valE_I) (ev_app_I P)
+
+/-! ## The register file
+
+A counter machine's state is a fixed number of registers, and the compiler
+knows every index it will ever touch, so the file is a Scott-encoded list and
+every access is unrolled at compile time. Nothing is looked up at run time,
+which is why `getE i` and `setE i f` are linear in `i` rather than needing a
+comparison loop, and why nothing in the file has to know how long the list is.
+
+The empty list is never destructured: the counter semantics only admits
+commands whose register index is below the bound, so every access stops at a
+cons cell. `nilE` is therefore junk, and `ListE [] E` asks nothing of `E`
+beyond being a value. -/
+
+/-- The cons cell as a literal, for the initial state. -/
+def consE (H T : Expr) : Expr := lam 0 (lam 1 (.app (.app (.var 1) H) T))
+
+/-- The cons cell as a function, for updates: an increment has to be computed
+before the cell holding it is built, which is what handing it to a function
+does under call by value. -/
+def consF : Expr := lam 4 (lam 5 (lam 0 (lam 1 (.app (.app (.var 1) (.var 4)) (.var 5)))))
+
+/-- The unreachable end of the list. -/
+def nilE : Expr := numE 0
+
+/-- `E` behaves like the list `xs` of register contents. -/
+def ListE : List Nat → Expr → Prop
+  | [], E => ValE E
+  | x :: xs, E => ValE E ∧ ∃ H T, NumE x H ∧ ListE xs T ∧
+      ∀ A B, ValE A → ValE B → EqE (.app (.app E A) B) (.app (.app B H) T)
+
+theorem ListE.valE : ∀ {xs : List Nat} {E : Expr}, ListE xs E → ValE E
+  | [], _, h => h
+  | _ :: _, _, h => h.1
+
+theorem EqE.app_right {C D : Expr} (h : EqE C D) (G : Expr) :
+    EqE (.app G C) (.app G D) := EqK.toE (EqK.app_right (EqK.ofE h) G)
+
+theorem consF_noVars : noVars consF = true := by decide
+
+theorem nilE_noVars : noVars nilE = true := numE_noVars 0
+
+theorem nilE_ValE : ValE nilE := numE_ValE 0
+
+theorem consE_noVars {H T : Expr} (hH : noVars H = true) (hT : noVars T = true) :
+    noVars (consE H T) = true := by
+  refine lam_noVars 0 (lam_varsIn 1 [0] ?_)
+  simp [varsIn, varsIn_of_noVars hH, varsIn_of_noVars hT]
+
+theorem consE_spec {H T : Expr} (hH : noVars H = true) (hT : noVars T = true) :
+    ValE (consE H T) ∧ ∀ A B, ValE A → ValE B →
+      EqE (.app (.app (consE H T) A) B) (.app (.app B H) T) := by
+  refine ⟨valE_lam (consE_noVars hH hT), fun A B hA hB => ?_⟩
+  have h := app2_lam (σ := σ0) hσ0 (x := 0) (y := 1)
+    (E := Expr.app (.app (.var 1) H) T) hA hB
+  rw [show subst σ0 (lam 0 (lam 1 (Expr.app (.app (.var 1) H) T)))
+        = lam 0 (lam 1 (Expr.app (.app (.var 1) H) T)) from
+      subst_noVars (consE_noVars hH hT) σ0] at h
+  have harg : subst (updE (updE σ0 0 A) 1 B) (Expr.app (.app (.var 1) H) T)
+      = .app (.app B H) T := by
+    simp [subst, updE, subst_noVars hH, subst_noVars hT]
+  rw [harg] at h
+  exact h
+
+theorem consF_spec {H T : Expr} (hH : ValE H) (hT : ValE T) :
+    ∃ M, ValE M ∧ EqE (.app (.app consF H) T) M ∧
+      ∀ A B, ValE A → ValE B → EqE (.app (.app M A) B) (.app (.app B H) T) := by
+  obtain ⟨hv, hhv⟩ := hH
+  obtain ⟨tv, htv⟩ := hT
+  refine ⟨subst (updE (updE σ0 4 H) 5 T) (lam 0 (lam 1
+      (.app (.app (.var 1) (.var 4)) (.var 5)))),
+    valE_subst_lam (hupd (hupd hσ0 hhv) htv) 0 _, ?_, fun A B hA hB => ?_⟩
+  · have h := app2_lam (σ := σ0) hσ0 (x := 4) (y := 5)
+      (E := lam 0 (lam 1 (Expr.app (.app (.var 1) (.var 4)) (.var 5))))
+      ⟨hv, hhv⟩ ⟨tv, htv⟩
+    rw [show subst σ0 (lam 4 (lam 5 (lam 0 (lam 1
+          (Expr.app (.app (.var 1) (.var 4)) (.var 5))))))
+        = lam 4 (lam 5 (lam 0 (lam 1
+          (Expr.app (.app (.var 1) (.var 4)) (.var 5))))) from
+      subst_noVars consF_noVars σ0] at h
+    exact h
+  · have h := app2_lam (σ := updE (updE σ0 4 H) 5 T)
+      (hupd (hupd hσ0 hhv) htv) (x := 0) (y := 1)
+      (E := Expr.app (.app (.var 1) (.var 4)) (.var 5)) hA hB
+    have harg : subst (updE (updE (updE (updE σ0 4 H) 5 T) 0 A) 1 B)
+        (Expr.app (.app (.var 1) (.var 4)) (.var 5)) = .app (.app B H) T := by
+      simp [subst, updE]
+    rw [harg] at h
+    exact h
+
+/-- Reading register `i`. -/
+def getE : Nat → Expr
+  | 0 => lam 3 (.app (.app (.var 3) nilE) (lam 4 (lam 5 (.var 4))))
+  | i + 1 => lam 3 (.app (.app (.var 3) nilE) (lam 4 (lam 5 (.app (getE i) (.var 5)))))
+
+/-- Applying `f` to register `i` and rebuilding the file. -/
+def setE : Nat → Expr → Expr
+  | 0, F => lam 3 (.app (.app (.var 3) nilE)
+      (lam 4 (lam 5 (.app (.app consF (.app F (.var 4))) (.var 5)))))
+  | i + 1, F => lam 3 (.app (.app (.var 3) nilE)
+      (lam 4 (lam 5 (.app (.app consF (.var 4)) (.app (setE i F) (.var 5))))))
+
+/-- Both accessors have the same outer shape: destructure the file, and act
+on the head or recurse into the tail. This packages the closedness argument
+for that shape once. -/
+theorem access_noVars {C : Expr} (hC : noVars C = true) :
+    noVars (lam 3 (.app (.app (.var 3) nilE) C)) = true := by
+  refine lam_noVars 3 ?_
+  simp [varsIn, varsIn_of_noVars nilE_noVars, varsIn_of_noVars hC]
+
+theorem getE_noVars : ∀ i, noVars (getE i) = true
+  | 0 => by decide
+  | i + 1 => by
+      refine access_noVars (lam_noVars 4 (lam_varsIn 5 [4] ?_))
+      simp [varsIn, varsIn_of_noVars (getE_noVars i)]
+
+theorem setE_noVars {F : Expr} (hF : noVars F = true) :
+    ∀ i, noVars (setE i F) = true
+  | 0 => by
+      refine access_noVars (lam_noVars 4 (lam_varsIn 5 [4] ?_))
+      simp [varsIn, varsIn_of_noVars consF_noVars, varsIn_of_noVars hF]
+  | i + 1 => by
+      refine access_noVars (lam_noVars 4 (lam_varsIn 5 [4] ?_))
+      simp [varsIn, varsIn_of_noVars consF_noVars,
+        varsIn_of_noVars (setE_noVars hF i)]
+
+/-- Both accessors start the same way: hand the file its two branches. -/
+theorem access_step {C L : Expr} (hC : noVars C = true) (hL : ValE L) :
+    EqE (.app (lam 3 (.app (.app (.var 3) nilE) C)) L) (.app (.app L nilE) C) := by
+  refine EqE.trans (ev_app_lam0 (access_noVars hC) hL) ?_
+  have harg : subst (updE σ0 3 L) (Expr.app (.app (.var 3) nilE) C)
+      = .app (.app L nilE) C := by
+    simp [subst, updE, subst_noVars nilE_noVars, subst_noVars hC]
+  rw [harg]
+  exact EqE.refl _
+
+/-- Destructuring a nonempty file: the two branches meet the head and the
+tail. -/
+theorem cons_step {x : Nat} {xs : List Nat} {L C : Expr} (hL : ListE (x :: xs) L)
+    (hC : ValE C) : ∃ H T, NumE x H ∧ ListE xs T ∧
+      EqE (.app (.app L nilE) C) (.app (.app C H) T) := by
+  obtain ⟨_, H, T, hH, hT, hspec⟩ := hL
+  exact ⟨H, T, hH, hT, hspec nilE C nilE_ValE hC⟩
+
+theorem getE_spec : ∀ (i : Nat) (xs : List Nat) (L : Expr), ListE xs L →
+    ∀ (x : Nat), xs[i]? = some x → ∃ H, NumE x H ∧ EqE (.app (getE i) L) H := by
+  intro i
+  induction i with
+  | zero =>
+    intro xs L hL x hx
+    cases xs with
+    | nil => simp at hx
+    | cons y ys =>
+      simp only [List.getElem?_cons_zero, Option.some.injEq] at hx
+      subst hx
+      have hCc : noVars (lam 4 (lam 5 (Expr.var 4))) = true := by decide
+      obtain ⟨H, T, hH, hT, hcase⟩ := cons_step hL (valE_lam hCc)
+      refine ⟨H, hH, ?_⟩
+      refine EqE.trans (access_step hCc hL.valE) (EqE.trans hcase ?_)
+      have h := app2_lam (σ := σ0) hσ0 (x := 4) (y := 5) (E := Expr.var 4)
+        hH.valE hT.valE
+      rw [show subst σ0 (lam 4 (lam 5 (Expr.var 4))) = lam 4 (lam 5 (Expr.var 4))
+        from subst_noVars hCc σ0] at h
+      have harg : subst (updE (updE σ0 4 H) 5 T) (Expr.var 4) = H := by
+        simp [subst, updE]
+      rw [harg] at h
+      exact h
+  | succ i ih =>
+    intro xs L hL x hx
+    cases xs with
+    | nil => simp at hx
+    | cons y ys =>
+      simp only [List.getElem?_cons_succ] at hx
+      have hCc : noVars (lam 4 (lam 5 (Expr.app (getE i) (.var 5)))) = true :=
+        lam_noVars 4 (lam_varsIn 5 [4] (by simp [varsIn, varsIn_of_noVars (getE_noVars i)]))
+      obtain ⟨H, T, hH, hT, hcase⟩ := cons_step hL (valE_lam hCc)
+      obtain ⟨G, hG, hGeq⟩ := ih ys T hT x hx
+      refine ⟨G, hG, ?_⟩
+      refine EqE.trans (access_step hCc hL.valE) (EqE.trans hcase ?_)
+      have h := app2_lam (σ := σ0) hσ0 (x := 4) (y := 5)
+        (E := Expr.app (getE i) (.var 5)) hH.valE hT.valE
+      rw [show subst σ0 (lam 4 (lam 5 (Expr.app (getE i) (.var 5))))
+          = lam 4 (lam 5 (Expr.app (getE i) (.var 5))) from subst_noVars hCc σ0] at h
+      have harg : subst (updE (updE σ0 4 H) 5 T) (Expr.app (getE i) (.var 5))
+          = .app (getE i) T := by
+        simp [subst, updE, subst_noVars (getE_noVars i)]
+      rw [harg] at h
+      exact EqE.trans h hGeq
+
+theorem setE_spec {F : Expr} {f : Nat → Nat} (hF : NumFun F f) :
+    ∀ (i : Nat) (xs : List Nat) (L : Expr), ListE xs L →
+      ∀ (x : Nat), xs[i]? = some x →
+        ∃ L', ListE (xs.set i (f x)) L' ∧ EqE (.app (setE i F) L) L' := by
+  intro i
+  induction i with
+  | zero =>
+    intro xs L hL x hx
+    cases xs with
+    | nil => simp at hx
+    | cons y ys =>
+      simp only [List.getElem?_cons_zero, Option.some.injEq] at hx
+      subst hx
+      have hCc : noVars (lam 4 (lam 5
+          (Expr.app (.app consF (.app F (.var 4))) (.var 5)))) = true :=
+        lam_noVars 4 (lam_varsIn 5 [4]
+          (by simp [varsIn, varsIn_of_noVars consF_noVars, varsIn_of_noVars hF.1]))
+      obtain ⟨H, T, hH, hT, hcase⟩ := cons_step hL (valE_lam hCc)
+      obtain ⟨M1, hM1, hM1eq⟩ := hF.2 y H hH
+      obtain ⟨M, hMv, hMeq, hMspec⟩ := consF_spec hM1.valE hT.valE
+      refine ⟨M, ⟨hMv, M1, T, hM1, hT, hMspec⟩, ?_⟩
+      refine EqE.trans (access_step hCc hL.valE) (EqE.trans hcase ?_)
+      have h := app2_lam (σ := σ0) hσ0 (x := 4) (y := 5)
+        (E := Expr.app (.app consF (.app F (.var 4))) (.var 5)) hH.valE hT.valE
+      rw [show subst σ0 (lam 4 (lam 5
+            (Expr.app (.app consF (.app F (.var 4))) (.var 5))))
+          = lam 4 (lam 5 (Expr.app (.app consF (.app F (.var 4))) (.var 5))) from
+        subst_noVars hCc σ0] at h
+      have harg : subst (updE (updE σ0 4 H) 5 T)
+          (Expr.app (.app consF (.app F (.var 4))) (.var 5))
+          = .app (.app consF (.app F H)) T := by
+        simp [subst, updE, subst_noVars consF_noVars, subst_noVars hF.1]
+      rw [harg] at h
+      refine EqE.trans h (EqE.trans ?_ hMeq)
+      exact EqE.app_left (EqE.app_right hM1eq consF) T
+  | succ i ih =>
+    intro xs L hL x hx
+    cases xs with
+    | nil => simp at hx
+    | cons y ys =>
+      simp only [List.getElem?_cons_succ] at hx
+      have hCc : noVars (lam 4 (lam 5
+          (Expr.app (.app consF (.var 4)) (.app (setE i F) (.var 5))))) = true :=
+        lam_noVars 4 (lam_varsIn 5 [4]
+          (by simp [varsIn, varsIn_of_noVars consF_noVars,
+            varsIn_of_noVars (setE_noVars hF.1 i)]))
+      obtain ⟨H, T, hH, hT, hcase⟩ := cons_step hL (valE_lam hCc)
+      obtain ⟨T', hT', hT'eq⟩ := ih ys T hT x hx
+      obtain ⟨M, hMv, hMeq, hMspec⟩ := consF_spec hH.valE hT'.valE
+      refine ⟨M, ⟨hMv, H, T', hH, hT', hMspec⟩, ?_⟩
+      refine EqE.trans (access_step hCc hL.valE) (EqE.trans hcase ?_)
+      have h := app2_lam (σ := σ0) hσ0 (x := 4) (y := 5)
+        (E := Expr.app (.app consF (.var 4)) (.app (setE i F) (.var 5)))
+        hH.valE hT.valE
+      rw [show subst σ0 (lam 4 (lam 5
+            (Expr.app (.app consF (.var 4)) (.app (setE i F) (.var 5)))))
+          = lam 4 (lam 5 (Expr.app (.app consF (.var 4))
+            (.app (setE i F) (.var 5)))) from subst_noVars hCc σ0] at h
+      have harg : subst (updE (updE σ0 4 H) 5 T)
+          (Expr.app (.app consF (.var 4)) (.app (setE i F) (.var 5)))
+          = .app (.app consF H) (.app (setE i F) T) := by
+        simp [subst, updE, subst_noVars consF_noVars, subst_noVars (setE_noVars hF.1 i)]
+      rw [harg] at h
+      refine EqE.trans h (EqE.trans ?_ hMeq)
+      exact EqE.app_right hT'eq (.app consF H)
+
+/-! ## Recursion
+
+Call by value rules out the usual `Y`: the argument `f (x x)` would be
+evaluated before `f` could ask for it, and the term would loop on its own.
+`selfE F` is the strict variant, which delays the self-application behind an
+abstraction, so that unfolding costs one application and happens only when the
+loop asks for another turn.
+
+`selfE F` is *defined* as the substitution instance rather than as a
+combinator written out, and that is deliberate. Bracket abstraction is
+sensitive to which subexpressions are closed, so the abstraction of the
+doubling body and the substituted copy of it are different trees; defining
+`selfE` as the substituted copy makes the unfolding lemma an identity rather
+than an extensional argument the equivalence here is too fine to make. -/
+
+/-- `fun u => x x u`, with `x` free: the delayed self-application. -/
+def dblE : Expr := lam 10 (.app (.app (.var 9) (.var 9)) (.var 10))
+
+/-- `fun x => F (fun u => x x u)`. -/
+def wrapE (F : Expr) : Expr := lam 9 (.app F dblE)
+
+/-- The fixed point of `F`, ready to be applied. -/
+def selfE (F : Expr) : Expr := subst (updE σ0 9 (wrapE F)) dblE
+
+theorem dblE_varsIn : varsIn [9] dblE = true := by decide
+
+theorem wrapE_noVars {F : Expr} (hF : noVars F = true) : noVars (wrapE F) = true := by
+  refine lam_noVars 9 ?_
+  simp [varsIn, varsIn_of_noVars hF, dblE_varsIn]
+
+theorem selfE_noVars {F : Expr} (hF : noVars F = true) : noVars (selfE F) = true :=
+  subst_closed (noVars_updE noVars_σ0 (wrapE_noVars hF))
+
+theorem selfE_ValE {F : Expr} (hF : noVars F = true) : ValE (selfE F) := by
+  obtain ⟨wv, hwv⟩ := valE_lam (wrapE_noVars hF)
+  exact valE_subst_lam (hupd hσ0 hwv) 10 _
+
+/-- **Unfolding the fixed point.** One application of `selfE F` is one
+application of `F` to `selfE F`. -/
+theorem selfE_unfold {F A : Expr} (hF : noVars F = true) (hA : ValE A) :
+    EqE (.app (selfE F) A) (.app (.app F (selfE F)) A) := by
+  have hWc : noVars (wrapE F) = true := wrapE_noVars hF
+  obtain ⟨wv, hwv⟩ := valE_lam hWc
+  have h1 : EqE (.app (selfE F) A) (.app (.app (wrapE F) (wrapE F)) A) := by
+    have h := ev_app_lam (σ := updE σ0 9 (wrapE F)) (hupd hσ0 hwv) (x := 10)
+      (E := Expr.app (.app (.var 9) (.var 9)) (.var 10)) hA
+    have harg : subst (updE (updE σ0 9 (wrapE F)) 10 A)
+        (Expr.app (.app (.var 9) (.var 9)) (.var 10))
+        = .app (.app (wrapE F) (wrapE F)) A := by simp [subst, updE]
+    rw [harg] at h
+    exact h
+  have h2 : EqE (.app (wrapE F) (wrapE F)) (.app F (selfE F)) := by
+    have h := ev_app_lam0 (x := 9) (E := Expr.app F dblE) hWc (valE_lam hWc)
+    have hsplit : subst (updE σ0 9 (lam 9 (Expr.app F dblE))) (Expr.app F dblE)
+        = .app (subst (updE σ0 9 (lam 9 (Expr.app F dblE))) F)
+            (subst (updE σ0 9 (lam 9 (Expr.app F dblE))) dblE) := rfl
+    have harg : subst (updE σ0 9 (lam 9 (Expr.app F dblE))) (Expr.app F dblE)
+        = .app F (selfE F) := by
+      rw [hsplit, subst_noVars hF]
+      rfl
+    rw [harg] at h
+    exact h
+  exact EqE.trans h1 (EqE.app_left h2 A)
+
+/-! ## The while loop
+
+`loop r b` runs `b` while register `r` is nonzero. Reading the register gives
+a Scott numeral, and applying it to two branches chooses between exiting and
+going round again. Both branches are wrapped in an abstraction and forced with
+`i` afterwards: under call by value an unguarded branch would be evaluated
+before the numeral could discard it, so the loop would run its body once even
+on a zero register, and then forever. -/
+
+/-- The functional whose fixed point is the loop. -/
+def loopBody (r : Nat) (B : Expr) : Expr :=
+  lam 6 (lam 3 (.app (.app (.app (.app (getE r) (.var 3))
+      (lam 7 (.var 3)))
+      (lam 8 (lam 7 (.app (.var 6) (.app B (.var 3))))))
+    .I))
+
+/-- While register `r` is nonzero, run `B`. -/
+def loopE (r : Nat) (B : Expr) : Expr := selfE (loopBody r B)
+
+theorem loopBody_noVars {r : Nat} {B : Expr} (hB : noVars B = true) :
+    noVars (loopBody r B) = true := by
+  refine lam_noVars 6 (lam_varsIn 3 [6] ?_)
+  have hZ : varsIn [3, 6] (lam 7 (Expr.var 3)) = true :=
+    lam_varsIn 7 [3, 6] (by decide)
+  have hS : varsIn [3, 6] (lam 8 (lam 7 (Expr.app (.var 6) (.app B (.var 3))))) = true := by
+    refine lam_varsIn 8 [3, 6] (lam_varsIn 7 [8, 3, 6] ?_)
+    simp [varsIn, varsIn_of_noVars hB]
+  simp [varsIn, varsIn_of_noVars (getE_noVars r), hZ, hS]
+
+theorem loopE_noVars {r : Nat} {B : Expr} (hB : noVars B = true) :
+    noVars (loopE r B) = true := selfE_noVars (loopBody_noVars hB)
+
+/-- One turn of the loop, as far as the test: the register's numeral is
+applied to the exit branch and the repeat branch, and the result to `i`. -/
+theorem loopE_step {r : Nat} {B : Expr} (hB : noVars B = true)
+    {xs : List Nat} {L : Expr} (hL : ListE xs L) {x : Nat} (hr : xs[r]? = some x) :
+    ∃ H, NumE x H ∧
+      EqE (.app (loopE r B) L)
+        (.app (.app (.app H
+            (subst (updE (updE σ0 6 (selfE (loopBody r B))) 3 L) (lam 7 (.var 3))))
+          (subst (updE (updE σ0 6 (selfE (loopBody r B))) 3 L)
+            (lam 8 (lam 7 (.app (.var 6) (.app B (.var 3)))))))
+          .I) := by
+  obtain ⟨H, hH, hget⟩ := getE_spec r xs L hL x hr
+  refine ⟨H, hH, ?_⟩
+  have hFc : noVars (loopBody r B) = true := loopBody_noVars hB
+  have hself : ValE (selfE (loopBody r B)) := selfE_ValE hFc
+  obtain ⟨sv, hsv⟩ := id hself
+  have h1 : EqE (.app (loopE r B) L)
+      (.app (.app (loopBody r B) (selfE (loopBody r B))) L) :=
+    selfE_unfold hFc hL.valE
+  have h2 : EqE (.app (loopBody r B) (selfE (loopBody r B)))
+      (subst (updE σ0 6 (selfE (loopBody r B)))
+        (lam 3 (.app (.app (.app (.app (getE r) (.var 3)) (lam 7 (.var 3)))
+          (lam 8 (lam 7 (.app (.var 6) (.app B (.var 3)))))) .I))) :=
+    ev_app_lam0 (x := 6) hFc hself
+  have h3 := ev_app_lam (σ := updE σ0 6 (selfE (loopBody r B))) (hupd hσ0 hsv)
+    (x := 3)
+    (E := Expr.app (.app (.app (.app (getE r) (.var 3)) (lam 7 (.var 3)))
+      (lam 8 (lam 7 (.app (.var 6) (.app B (.var 3)))))) .I) hL.valE
+  have harg : subst (updE (updE σ0 6 (selfE (loopBody r B))) 3 L)
+      (Expr.app (.app (.app (.app (getE r) (.var 3)) (lam 7 (.var 3)))
+        (lam 8 (lam 7 (.app (.var 6) (.app B (.var 3)))))) .I)
+      = .app (.app (.app (.app (getE r) L)
+          (subst (updE (updE σ0 6 (selfE (loopBody r B))) 3 L) (lam 7 (.var 3))))
+        (subst (updE (updE σ0 6 (selfE (loopBody r B))) 3 L)
+          (lam 8 (lam 7 (.app (.var 6) (.app B (.var 3))))))) .I := by
+    simp [subst, updE, subst_noVars (getE_noVars r)]
+  rw [harg] at h3
+  refine EqE.trans h1 (EqE.trans (EqE.app_left h2 L) (EqE.trans h3 ?_))
+  exact EqE.app_left (EqE.app_left (EqE.app_left hget _) _) _
+
+theorem loopE_zero {r : Nat} {B : Expr} (hB : noVars B = true)
+    {xs : List Nat} {L : Expr} (hL : ListE xs L) (hr : xs[r]? = some 0) :
+    EqE (.app (loopE r B) L) L := by
+  obtain ⟨H, hH, hstep⟩ := loopE_step hB hL hr
+  refine EqE.trans hstep ?_
+  set σ3 := updE (updE σ0 6 (selfE (loopBody r B))) 3 L with hσ3
+  have hself : ValE (selfE (loopBody r B)) := selfE_ValE (loopBody_noVars hB)
+  obtain ⟨sv, hsv⟩ := id hself
+  obtain ⟨lv, hlv⟩ := hL.valE
+  have hσ3ok : ∀ y, ∃ u, VE (σ3 y) u := hupd (hupd hσ0 hsv) hlv
+  have hZ : ValE (subst σ3 (lam 7 (Expr.var 3))) := valE_subst_lam hσ3ok 7 _
+  have hS : ValE (subst σ3 (lam 8 (lam 7 (Expr.app (.var 6) (.app B (.var 3)))))) :=
+    valE_subst_lam hσ3ok 8 _
+  refine EqE.trans (EqE.app_left (hH.2 _ _ hZ hS) .I) ?_
+  have h := ev_app_lam (σ := σ3) hσ3ok (x := 7) (E := Expr.var 3) valE_I
+  have harg : subst (updE σ3 7 .I) (Expr.var 3) = L := by simp [hσ3, subst, updE]
+  rw [harg] at h
+  exact h
+
+theorem loopE_succ {r j : Nat} {B : Expr} (hB : noVars B = true)
+    {xs : List Nat} {L : Expr} (hL : ListE xs L) (hr : xs[r]? = some (j + 1)) :
+    EqE (.app (loopE r B) L) (.app (loopE r B) (.app B L)) := by
+  obtain ⟨H, hH, hstep⟩ := loopE_step hB hL hr
+  refine EqE.trans hstep ?_
+  set σ3 := updE (updE σ0 6 (selfE (loopBody r B))) 3 L with hσ3
+  have hself : ValE (selfE (loopBody r B)) := selfE_ValE (loopBody_noVars hB)
+  obtain ⟨sv, hsv⟩ := id hself
+  obtain ⟨lv, hlv⟩ := hL.valE
+  have hσ3ok : ∀ y, ∃ u, VE (σ3 y) u := hupd (hupd hσ0 hsv) hlv
+  have hZ : ValE (subst σ3 (lam 7 (Expr.var 3))) := valE_subst_lam hσ3ok 7 _
+  have hS : ValE (subst σ3 (lam 8 (lam 7 (Expr.app (.var 6) (.app B (.var 3)))))) :=
+    valE_subst_lam hσ3ok 8 _
+  obtain ⟨P, hP, hbranch⟩ := hH.2
+  refine EqE.trans (EqE.app_left (hbranch _ _ hZ hS) .I) ?_
+  have h := app2_lam (σ := σ3) hσ3ok (x := 8) (y := 7)
+    (E := Expr.app (.var 6) (.app B (.var 3))) hP.valE valE_I
+  have harg : subst (updE (updE σ3 8 P) 7 .I) (Expr.app (.var 6) (.app B (.var 3)))
+      = .app (loopE r B) (.app B L) := by
+    simp [hσ3, subst, updE, subst_noVars hB, loopE]
+  rw [harg] at h
+  exact h
 
 end Langlib.Computability.URMUnlambda
