@@ -1,11 +1,12 @@
 import Langlib.Computability.Brainfuck
+import Langlib.Computability.Counter
 import Langlib.Languages.Thue.Semantics
 
 /-!
 # Thue is Turing complete: a verified URM-to-Thue generator
 
 The compiler reuses the structured counter machine proved correct in
-`Langlib.Computability.Brainfuck`.  Its counters are rendered as finite unary
+`Langlib.Computability.Counter`.  Its counters are rendered as finite unary
 runs separated by `d`.  A self-delimiting control token contains the current
 counter-code continuation.  Rewrite phases move that token to the selected
 counter, perform one local operation, and move it back to the left boundary.
@@ -20,7 +21,7 @@ active phase.  Because a phase and the one adjacent cell determine the rule,
 not deterministic.
 
 On top of that, `reaches_exec` lifts a whole big-step counter-machine
-derivation (`URMBrainfuck.Ev`) to a run of the generated rules, `reaches_finish`
+derivation (`Counter.Ev`) to a run of the generated rules, `reaches_finish`
 dispatches the counter the macro leaves behind back to a source control
 marker, and `reaches_steps` composes those over a halting URM run.
 `simulation` then reads register zero out of the halted final state, and
@@ -35,6 +36,7 @@ namespace Langlib.Computability.URMThue
 open Langlib.Common
 open Langlib.Thue
 open Langlib.Computability.URMBrainfuck
+open Langlib.Computability.Counter
 
 /-! ## Self-delimiting control encodings -/
 
