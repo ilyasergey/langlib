@@ -48,19 +48,188 @@ def read? (i : Input) : Option (UInt8 × Input) :=
 /-- Are we at end of input? -/
 def atEof (i : Input) : Bool := i.pos ≥ i.data.size
 
+/-! ### What a read does to the cursor
+
+`read?` is a `dite`, so every fact about it needs the branch split done
+once. These three lemmas do it, and everything downstream — the line
+reader's termination proof, and the input half of a language's trace —
+goes through them rather than unfolding `read?` again. -/
+
+/-- A successful read was in range. -/
+theorem lt_of_read? {i : Input} {b : UInt8} {i' : Input} (h : i.read? = some (b, i')) :
+    i.pos < i.data.size := by
+  unfold read? at h
+  split at h
+  · assumption
+  · exact absurd h (by simp)
+
+/-- Reading never replaces the stream, only the cursor into it. -/
+theorem read?_data {i : Input} {b : UInt8} {i' : Input} (h : i.read? = some (b, i')) :
+    i'.data = i.data := by
+  unfold read? at h
+  split at h
+  · simp only [Option.some.injEq, Prod.mk.injEq] at h
+    rw [← h.2]
+  · exact absurd h (by simp)
+
+/-- A successful read advances the cursor by exactly one. -/
+theorem read?_pos {i : Input} {b : UInt8} {i' : Input} (h : i.read? = some (b, i')) :
+    i'.pos = i.pos + 1 := by
+  unfold read? at h
+  split at h
+  · simp only [Option.some.injEq, Prod.mk.injEq] at h
+    rw [← h.2]
+  · exact absurd h (by simp)
+
+/-! ### Reading a line
+
+Languages with line-oriented numeric input (Whitespace's `readnum`,
+Turpentine's `readInt`, Thue, FRACTRAN) all read a line through here, which
+is why they agree on what a line is and how much of the stream one costs.
+
+The worker is well-founded rather than `partial`: it recurses on the bytes
+the cursor has left, `data.size - pos`, which a successful read strictly
+decreases. That matters beyond tidiness. A `partial def` is an opaque
+constant with no equations, so nothing about the bytes a `readnum` consumed
+could be proved, and `Langlib/Common/Computability.lean` records that as the
+reason the Whitespace completeness witness loads its registers from
+compiled-in constants instead of from its input stream. -/
+
+/-- Accumulate bytes until the next `'\n'` (consumed, and not accumulated)
+or the end of the stream.
+
+This is `read?`'s `dite` written out, so that the recursion is visibly on
+`data.size - pos` and every proof below can `split` on the same condition
+instead of unfolding `read?` again. -/
+def readLineGo (acc : ByteArray) (j : Input) : ByteArray × Input :=
+  if h : j.pos < j.data.size then
+    if j.data[j.pos] == '\n'.toUInt8 then
+      (acc, { j with pos := j.pos + 1 })
+    else
+      readLineGo (acc.push j.data[j.pos]) { j with pos := j.pos + 1 }
+  else
+    (acc, j)
+  termination_by j.data.size - j.pos
+  decreasing_by simp_wf; omega
+
+/-- Read one full line as raw bytes, up to and excluding `'\n'`, which is
+consumed if present. `none` at end of input; a final unterminated line is
+returned. -/
+def readLineBytes? (i : Input) : Option (ByteArray × Input) :=
+  if i.atEof then none else some (readLineGo .empty i)
+
 /-- Read one full line (up to and excluding `'\n'`) as a `String`.
 Used by languages with line-oriented numeric input (e.g. Whitespace).
 Returns `none` at end of input; a final unterminated line is returned. -/
-partial def readLine? (i : Input) : Option (String × Input) :=
-  if i.atEof then none
-  else
-    let rec go (acc : ByteArray) (j : Input) : String × Input :=
+def readLine? (i : Input) : Option (String × Input) :=
+  match readLineBytes? i with
+  | none => none
+  | some (bs, i') => some (String.fromUTF8! bs, i')
+
+/-- The line reader is `read?` in a loop: one turn of it is one read.
+Proofs that already speak in terms of `read?` use this rather than the
+`dite` the definition is written with. -/
+theorem readLineGo_eq (acc : ByteArray) (j : Input) :
+    readLineGo acc j =
       match j.read? with
-      | none => (String.fromUTF8! acc, j)
-      | some (b, j') =>
-        if b == '\n'.toUInt8 then (String.fromUTF8! acc, j')
-        else go (acc.push b) j'
-    some (go .empty i)
+      | none => (acc, j)
+      | some (b, j') => if b == '\n'.toUInt8 then (acc, j') else readLineGo (acc.push b) j' := by
+  rw [readLineGo]
+  unfold read?
+  split <;> rfl
+
+/-- The line reader does not replace the stream, only the cursor into it. -/
+theorem readLineGo_data (acc : ByteArray) (j : Input) :
+    (readLineGo acc j).2.data = j.data := by
+  induction acc, j using readLineGo.induct with
+  | case1 acc j h hnl => rw [readLineGo, dif_pos h, if_pos hnl]
+  | case2 acc j h hnl ih => rw [readLineGo, dif_pos h, if_neg hnl, ih]
+  | case3 acc j h => rw [readLineGo, dif_neg h]
+
+/-- The line reader only ever moves the cursor forwards. -/
+theorem readLineGo_pos_le (acc : ByteArray) (j : Input) :
+    j.pos ≤ (readLineGo acc j).2.pos := by
+  induction acc, j using readLineGo.induct with
+  | case1 acc j h hnl =>
+    rw [readLineGo, dif_pos h, if_pos hnl]; exact Nat.le_succ _
+  | case2 acc j h hnl ih =>
+    rw [readLineGo, dif_pos h, if_neg hnl]; exact Nat.le_trans (Nat.le_succ _) ih
+  | case3 acc j h => rw [readLineGo, dif_neg h]; exact Nat.le_refl _
+
+/-- The line reader leaves the cursor inside the stream. -/
+theorem readLineGo_pos_le_size (acc : ByteArray) (j : Input) :
+    j.pos ≤ j.data.size → (readLineGo acc j).2.pos ≤ j.data.size := by
+  induction acc, j using readLineGo.induct with
+  | case1 acc j h hnl => intro _; rw [readLineGo, dif_pos h, if_pos hnl]; exact h
+  | case2 acc j h hnl ih => intro _; rw [readLineGo, dif_pos h, if_neg hnl]; exact ih h
+  | case3 acc j h => intro hj; rw [readLineGo, dif_neg h]; exact hj
+
+/-! ### The same three facts, for the readers a language actually calls
+
+`readnum`, `readInt` and their kin all land here, and these are what an
+interpreter's trace obligation needs: the stream is not swapped out, the
+cursor only advances, and it never leaves the data. -/
+
+theorem readLineBytes?_data {i : Input} {bs : ByteArray} {i' : Input}
+    (h : readLineBytes? i = some (bs, i')) : i'.data = i.data := by
+  unfold readLineBytes? at h
+  split at h
+  · exact absurd h (by simp)
+  · simp only [Option.some.injEq] at h
+    have hi' : i' = (readLineGo .empty i).2 := by rw [h]
+    rw [hi']; exact readLineGo_data _ _
+
+theorem readLineBytes?_pos_le {i : Input} {bs : ByteArray} {i' : Input}
+    (h : readLineBytes? i = some (bs, i')) : i.pos ≤ i'.pos := by
+  unfold readLineBytes? at h
+  split at h
+  · exact absurd h (by simp)
+  · simp only [Option.some.injEq] at h
+    have hi' : i' = (readLineGo .empty i).2 := by rw [h]
+    rw [hi']; exact readLineGo_pos_le _ _
+
+theorem readLineBytes?_pos_le_size {i : Input} {bs : ByteArray} {i' : Input}
+    (h : readLineBytes? i = some (bs, i')) (hi : i.pos ≤ i.data.size) :
+    i'.pos ≤ i.data.size := by
+  unfold readLineBytes? at h
+  split at h
+  · exact absurd h (by simp)
+  · simp only [Option.some.injEq] at h
+    have hi' : i' = (readLineGo .empty i).2 := by rw [h]
+    rw [hi']; exact readLineGo_pos_le_size _ _ hi
+
+theorem readLine?_data {i : Input} {s : String} {i' : Input}
+    (h : readLine? i = some (s, i')) : i'.data = i.data := by
+  unfold readLine? at h
+  cases hb : readLineBytes? i with
+  | none => rw [hb] at h; exact absurd h (by simp)
+  | some p =>
+    rw [hb] at h
+    simp only [Option.some.injEq, Prod.mk.injEq] at h
+    rw [← h.2]
+    exact readLineBytes?_data (bs := p.1) (by rw [hb])
+
+theorem readLine?_pos_le {i : Input} {s : String} {i' : Input}
+    (h : readLine? i = some (s, i')) : i.pos ≤ i'.pos := by
+  unfold readLine? at h
+  cases hb : readLineBytes? i with
+  | none => rw [hb] at h; exact absurd h (by simp)
+  | some p =>
+    rw [hb] at h
+    simp only [Option.some.injEq, Prod.mk.injEq] at h
+    rw [← h.2]
+    exact readLineBytes?_pos_le (bs := p.1) (by rw [hb])
+
+theorem readLine?_pos_le_size {i : Input} {s : String} {i' : Input}
+    (h : readLine? i = some (s, i')) (hi : i.pos ≤ i.data.size) : i'.pos ≤ i.data.size := by
+  unfold readLine? at h
+  cases hb : readLineBytes? i with
+  | none => rw [hb] at h; exact absurd h (by simp)
+  | some p =>
+    rw [hb] at h
+    simp only [Option.some.injEq, Prod.mk.injEq] at h
+    rw [← h.2]
+    exact readLineBytes?_pos_le_size (bs := p.1) (by rw [hb]) hi
 
 end Input
 

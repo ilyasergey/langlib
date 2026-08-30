@@ -58,14 +58,17 @@ what can actually be proved (see `docs/computability.md`):
   a function `Nat → Nat`, and no finite input stream can encode one. cslib's
   own convention is the same: `Cslib.URM.Regs.ofInputs : List Nat → Regs`,
   and `Cslib.URM.HaltsWithResult` is stated over `List Nat` too.
-* `compile` takes the input vector as well as the program. Whitespace's
-  numeric input goes through `Langlib.Common.Input.readLine?`, which is a
-  `partial def` and therefore admits no equational reasoning, so the
-  Whitespace witness loads its registers from compiled-in constants and
-  ignores the input stream. A backend whose input reading *is* provable
-  supplies a `compile` that ignores its second argument. Universality is
-  unaffected: a URM can build any constant in its registers from zero, so
-  quantifying over input vectors on the left is the same claim.
+* `compile` takes the input vector as well as the program. The Whitespace
+  witness loads its registers from compiled-in constants and ignores the
+  input stream, which was originally forced: whitespace's numeric input
+  goes through `Langlib.Common.Input.readLine?`, and that was a `partial
+  def`, an opaque constant admitting no equational reasoning. It is now
+  well-founded, with the cursor lemmas to match, so the constraint is
+  gone and only the witness's shape still reflects it. A backend whose
+  input reading is proved supplies a `compile` that ignores its second
+  argument. Universality is unaffected either way: a URM can build any
+  constant in its registers from zero, so quantifying over input vectors
+  on the left is the same claim.
 
 `TuringComplete` is an *answer-only* claim, in the sense of
 `Langlib/Common/Compilation.lean`: it says the compiled program halts and

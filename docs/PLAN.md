@@ -263,15 +263,19 @@ answer-only corollary to check against `bespokeCompile_correct`.
 
 The steps, in order:
 
-0. **`Input.readLine?` must stop being a `partial def`.** It admits no
-   equational reasoning today, which is already why the whitespace
-   completeness witness loads its registers from compiled-in constants
-   (`Langlib/Common/Computability.lean`). This is a prerequisite even for
+0. **`Input.readLine?` must stop being a `partial def`** `[x]`. It admitted
+   no equational reasoning, which is why the whitespace completeness
+   witness loads its registers from compiled-in constants
+   (`Langlib/Common/Computability.lean`). It was a prerequisite even for
    the output-only fragment, because `trace_inputs` is a law about *every*
-   whitespace program, `readnum` included. Make it structurally recursive
-   on `data.size - pos`, and split out a `readLineBytes?` so the trace and
-   the numeric-parser lemmas can talk about bytes instead of going through
-   `String.fromUTF8!`.
+   whitespace program, `readnum` included, and a trace that composes over
+   two reads needs to know the second read sees the same stream the first
+   left. Done: `readLineGo` recurses on `data.size - pos`, `readLineBytes?`
+   exposes the raw bytes so the numeric-parser lemmas need not go through
+   `String.fromUTF8!`, and `readLine?` is its `String` wrapper. The three
+   cursor facts — the stream is not swapped out, the cursor only advances,
+   and it stays inside the data — are proved for `read?`, for the worker,
+   and for both readers.
 1. **Traces in the whitespace interpreter.** A `trace` field on
    `Whitespace.State`, appended at `outchar`, `outnum`, `readchar` and
    `readnum`; `trace_outputs` and `trace_inputs` by fuel induction over

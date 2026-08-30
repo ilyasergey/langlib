@@ -2,7 +2,34 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): re-enterable gadgets, by running the row twice
+## 2026-08-30 (latest): reading a line is no longer opaque
+
+`Input.readLine?` was a `partial def`, which Lean compiles to a constant
+with no equations, so nothing whatever could be proved about the bytes a
+line read consumes. Four interpreters call it — whitespace's `readnum`,
+Turpentine's `readInt`, Thue and FRACTRAN — and the hole was already
+load-bearing: `Langlib/Common/Computability.lean` records it as the reason
+the whitespace completeness witness loads its registers from compiled-in
+constants instead of from its input stream.
+
+It is now well-founded. `readLineGo` recurses on `data.size - pos`, which
+a successful read strictly decreases; `readLineBytes?` returns the raw
+bytes, so the numeric-parser lemmas that milestone 2 needs will not have
+to go through `String.fromUTF8!`; and `readLine?` is the thin `String`
+wrapper the callers already used. Behaviour is unchanged, edge cases
+included — an unterminated final line is still returned, the newline is
+still consumed, empty lines still come back empty.
+
+The point of the exercise is the three cursor facts, proved for `read?`,
+for the worker, and for both readers: reading never swaps the stream out,
+the cursor only advances, and it never leaves the data. Those are exactly
+what `TraceLang.trace_inputs` needs, and needs for *every* whitespace
+program rather than only the fragment a compiler proof covers — a trace
+that composes over two reads has to know the second read sees the stream
+the first one left. First step of Stage 6's behavioural certification for
+whitespace; the plan is in `docs/PLAN.md`.
+
+## 2026-08-30: re-enterable gadgets, by running the row twice
 
 With the architecture settled on a finite self-modifying code region, the
 frontier was making a gadget survive repeated entry. The discipline turns
