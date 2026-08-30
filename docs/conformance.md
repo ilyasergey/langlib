@@ -91,7 +91,8 @@ disagreement is a real finding rather than a golden file drifting.
 | `hello` | [yes](../Langlib/Examples/Brainfuck/suite/hello.b) |
 | `triangle` | [yes](../Langlib/Examples/Brainfuck/suite/triangle.b) |
 | `count` | [yes](../Langlib/Examples/Brainfuck/suite/count.b) |
-| the other seventeen | — |
+| `fib` | [yes](../Langlib/Examples/Brainfuck/suite/fib.b) |
+| the other sixteen | — |
 
 Coverage is filled in language by language, and the gaps have reasons
 worth recording rather than hiding.

@@ -58,7 +58,7 @@ so the convention does not matter; it is named to keep the runner honest. -/
 def brainfuck : Suite where
   name := "conformance: brainfuck by hand"
   run := Langlib.Brainfuck.run {}
-  cases := cases "Brainfuck" "b" ["hello", "triangle", "count"]
+  cases := cases "Brainfuck" "b" ["hello", "triangle", "count", "fib"]
 
 def suites : List Suite := [brainfuck]
 
