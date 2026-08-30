@@ -304,8 +304,8 @@ as the proof.
 
 | Backend | Effective compiler | Simulation | End-to-end theorem | Derived compiler | Behavioural (I/O) |
 |---------|--------------------|------------|--------------------|------------------|-------------------|
-| whitespace | yes | [yes](../Langlib/Computability/BespokeWhitespace.lean#L3247) | [yes, scalar fragment](../Langlib/Computability/BespokeWhitespace.lean#L3247) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | - |
-| subleq | yes | [yes](../Langlib/Computability/BespokeSubleq.lean#L630) | [yes, two shapes](../Langlib/Computability/BespokeSubleq.lean#L630) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118) | - |
+| whitespace | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3249) | [yes, scalar fragment](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3249) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | - |
+| subleq | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L631) | [yes, two shapes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L631) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118) | - |
 | brainfuck | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L122) | - |
 | fractran | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L127) | n/a (no I/O) |
 | thue | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L133) | - |

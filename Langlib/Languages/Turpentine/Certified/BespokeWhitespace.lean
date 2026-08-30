@@ -65,9 +65,10 @@ lemmas, and a composition step.
 open private compileExpr compileStmt emit emits fresh addrOf emitTrap emitBool emitStr
   emitOobTrap from Langlib.Languages.Turpentine.Compile.Whitespace
 
-namespace Langlib.Computability.BespokeWhitespace
+namespace Langlib.Turpentine.Certified.BespokeWhitespace
 
 open Langlib.Common
+open Langlib.Computability (WhitespaceLang)
 open Langlib.Whitespace (Instr Prog Label)
 open Langlib.Turpentine
 open Langlib.Turpentine.Compile.Whitespace (Frame St M labelOf compileChecked slotSize Types)
@@ -3094,7 +3095,7 @@ decimal. -/
 theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
     (hc : bespokeCompile p = .ok prog) (hp : HaltsWithAnswer p n result) :
     ∃ m, (Whitespace.evalProg prog (Input.ofString "") m).exit = Exit.halted ∧
-      URMWhitespace.decodeOutput
+      Langlib.Computability.URMWhitespace.decodeOutput
         (Whitespace.evalProg prog (Input.ofString "") m).output = some result := by
   obtain ⟨env₀, st, hinit, hex, hans⟩ := hp
   have hcf : checkFragment p = .ok () := by
@@ -3226,28 +3227,29 @@ theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
     exec_halt (prog := W.toArray) (labels := labels) _ (by simpa using hhalt) 0]
   refine ⟨rfl, ?_⟩
   simp only [ByteArray.empty_append]
-  exact URMWhitespace.decodeOutput_encode result
+  exact Langlib.Computability.URMWhitespace.decodeOutput_encode result
 
-end Langlib.Computability.BespokeWhitespace
+end Langlib.Turpentine.Certified.BespokeWhitespace
 
-namespace Langlib.Computability
+namespace Langlib.Turpentine.Certified
 
 open Langlib.Common
+open Langlib.Computability (WhitespaceLang)
 open Langlib.Turpentine.Compile.URM (TurpentineHaltsWith)
 open Langlib.Turpentine.Compile (TurpentineCompiler derivedWhitespace)
 
 /-- **The hand-written Turpentine-to-Whitespace backend, as a verified
 compiler.** `compile` is `Langlib.Turpentine.Compile.Whitespace`'s own
 `compileChecked`, gated by the fragment check of
-`Langlib.Computability.BespokeWhitespace` and applied to the source program
-with `print(answer)` appended.
+`Langlib.Turpentine.Certified.BespokeWhitespace` and applied to the source
+program with `print(answer)` appended.
 
 The second inhabitant of `TurpentineCompiler WhitespaceLang`, and the first
 one that is not derived from a completeness proof. -/
 def bespokeWhitespace : TurpentineCompiler WhitespaceLang where
   compile := BespokeWhitespace.bespokeCompile
   encodeInput := Input.ofString ""
-  decodeOutput := URMWhitespace.decodeOutput
+  decodeOutput := Langlib.Computability.URMWhitespace.decodeOutput
   correct := fun p prog result n hc hp =>
     BespokeWhitespace.bespokeCompile_correct p prog result n hc hp
 
@@ -3273,4 +3275,4 @@ theorem bespokeWhitespace_agrees_derived (p : Turpentine.Program)
           (ProgLang.run prog₂ derivedWhitespace.encodeInput m₂).output :=
   CertifiedCompiler.agree bespokeWhitespace derivedWhitespace p prog₁ prog₂ result n h₁ h₂ hp
 
-end Langlib.Computability
+end Langlib.Turpentine.Certified

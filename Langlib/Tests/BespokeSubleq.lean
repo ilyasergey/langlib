@@ -1,5 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.BespokeSubleq
+import Langlib.Languages.Turpentine.Certified.BespokeSubleq
 import Langlib.Languages.Subleq.Semantics
 import Langlib.Languages.Turpentine.Semantics
 
@@ -31,6 +31,7 @@ namespace Langlib.Tests.BespokeSubleq
 
 open Langlib.Common
 open Langlib.Computability
+open Langlib.Turpentine.Certified
 
 /-- The `answer` the Turpentine reference semantics leaves behind, which is
 what `TurpentineHaltsWith` names and what both compilers have to reproduce. -/

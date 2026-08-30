@@ -96,10 +96,22 @@ human-readable front-end language (Turpentine) and verified compilers from it.
 * Keep Mathlib and cslib confined to `Langlib/Computability/` plus
   `Langlib/Common/Computability.lean`. Interpreters, parsers, runners and
   hand-written compilers under `Langlib/Languages/` must not import them,
-  so they stay light and compile fast. Two files are the documented
-  exceptions, both because they are built out of completeness witnesses:
+  so they stay light and compile fast. Three places are the documented
+  exceptions, all of them proof-side rather than runner-side:
   `Langlib/Languages/Turpentine/Compile/Derived.lean` and the `--tc` half
-  of `Langlib/Languages/Turpentine/Main.lean`.
+  of `Langlib/Languages/Turpentine/Main.lean`, both built out of
+  completeness witnesses, and everything under
+  `Langlib/Languages/Turpentine/Certified/`.
+* `Langlib/Languages/Turpentine/Certified/` holds the correctness proofs of
+  the hand-written Turpentine backends (namespace
+  `Langlib.Turpentine.Certified`, one file per target). Those proofs sit
+  next to the backends they are about rather than in
+  `Langlib/Computability/`, which is reserved for the Turing-completeness
+  results and their URM bridges. Nothing a runner imports may import
+  `Certified/`: the executables keep compiling without Mathlib.
+  Note that `Langlib.Turpentine.Certified` nests inside `Langlib.Turpentine`,
+  so unqualified names resolve to the front end first — write
+  `Langlib.Subleq.exec`, not `exec`, when you mean the target language's.
 * `Langlib/Common/Compilation.lean` — `ProgLang`, `CertifiedCompiler`,
   `IOCertifiedCompiler` — is deliberately free of both, and
   `Langlib/Common.lean` rolls it up while leaving

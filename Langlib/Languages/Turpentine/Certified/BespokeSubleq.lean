@@ -116,9 +116,10 @@ open private emitItem emitData emitI emitL emitC wZ wSc NEXT OUT tmpW varW varRe
   labelAddrs resolveWord offSuffix
   from Langlib.Languages.Turpentine.Compile.Subleq
 
-namespace Langlib.Computability
+namespace Langlib.Turpentine.Certified
 
 open Langlib.Common
+open Langlib.Computability (SubleqLang)
 open Langlib.Subleq
 open Langlib.Turpentine (Ty)
 open Langlib.Turpentine.Compile.Subleq (Item Word Types buildChecked assembleItems)
@@ -165,7 +166,7 @@ theorem stepSub {m : Mem} {pc A B C vA vB : Int} {inp : Input} {out : ByteArray}
     (hA0 : 0 ≤ A) (hB0 : 0 ≤ B) (hvA : m.get A = vA) (hvB : m.get B = vB)
     {m' : Mem} {pc' : Int}
     (hm' : m.set B (vB - vA) = m') (hpc' : (if vB - vA ≤ 0 then C else pc + 3) = pc') :
-    Reaches exec ⟨m, pc, inp, out⟩ ⟨m', pc', inp, out⟩ := by
+    Reaches Langlib.Subleq.exec ⟨m, pc, inp, out⟩ ⟨m', pc', inp, out⟩ := by
   have h := reaches_sub m pc inp out hpc hext (by rw [hA]; exact hA0) (by rw [hB]; exact hB0)
   rw [hA, hB, hC, hvA, hvB, hm', hpc'] at h
   exact h
@@ -176,7 +177,7 @@ theorem stepOut {m : Mem} {pc A vA : Int} {inp : Input} {out : ByteArray}
     (hpc : 0 ≤ pc) (hext : pc < m.extent)
     (hA : m.get pc = A) (hB : m.get (pc + 1) = -1)
     (hA0 : 0 ≤ A) (hvA : m.get A = vA) {pc' : Int} (hpc' : pc + 3 = pc') :
-    Reaches exec ⟨m, pc, inp, out⟩ ⟨m, pc', inp, out.push ((vA.emod 256).toNat.toUInt8)⟩ := by
+    Reaches Langlib.Subleq.exec ⟨m, pc, inp, out⟩ ⟨m, pc', inp, out.push ((vA.emod 256).toNat.toUInt8)⟩ := by
   have h := reaches_out m pc inp out hpc hext (by rw [hA]; exact hA0) hB
   rw [hA, hvA, hpc'] at h
   exact h
@@ -184,7 +185,7 @@ theorem stepOut {m : Mem} {pc A vA : Int} {inp : Input} {out : ByteArray}
 /-- Running a chain that ends at a negative program counter: the machine
 halts there, so the whole image's run is the chain's output. -/
 theorem eval_of_reaches {p : Prog} {m : Mem} {pc : Int} {inp : Input} {out : ByteArray}
-    (h : Reaches exec ⟨Mem.ofProg p, 0, inp, ByteArray.empty⟩ ⟨m, pc, inp, out⟩)
+    (h : Reaches Langlib.Subleq.exec ⟨Mem.ofProg p, 0, inp, ByteArray.empty⟩ ⟨m, pc, inp, out⟩)
     (hpc : pc < 0) :
     ∃ f, evalProg p inp f = { output := out, exit := Exit.halted } := by
   obtain ⟨f, hf⟩ := Reaches.eval h 1
@@ -224,7 +225,7 @@ one to print it, and the halt. Every instruction's third word is the address
 of the next one, so no branch is taken until the halt, and the value of `k`
 never decides control flow. -/
 theorem reaches_print (k : Int) (inp : Input) (out : ByteArray) :
-    Reaches exec ⟨M0 k, 0, inp, out⟩
+    Reaches Langlib.Subleq.exec ⟨M0 k, 0, inp, out⟩
       ⟨M11 k, -1, inp, out.push ((k.emod 256).toNat.toUInt8)⟩ := by
   refine Reaches.trans (stepSub (m' := M1 k) (pc' := 3) (m := M0 k) (pc := 0)
       (A := 40) (B := 40) (C := 3) (vA := 0) (vB := 0)
@@ -276,7 +277,7 @@ theorem reaches_print (k : Int) (inp : Input) (out : ByteArray) :
 /-- **The empty image halts at once.** `Z Z -1` subtracts the zero cell from
 itself, which is `<= 0`, so the machine jumps to `-1` and stops. -/
 theorem reaches_skip (inp : Input) (out : ByteArray) :
-    Reaches exec ⟨Mem.ofProg imgSkip, 0, inp, out⟩
+    Reaches Langlib.Subleq.exec ⟨Mem.ofProg imgSkip, 0, inp, out⟩
       ⟨(Mem.ofProg imgSkip).set 8 0, -1, inp, out⟩ :=
   stepSub (m := Mem.ofProg imgSkip) (pc := 0) (A := 8) (B := 8) (C := -1)
     (vA := 0) (vB := 0) (m' := (Mem.ofProg imgSkip).set 8 0) (pc' := -1)
@@ -717,4 +718,4 @@ theorem bespokeSubleq_agrees_derived_nonvacuous :
     bespokeSubleq_agrees_derived _ _ prog₂ 0 1 h₁ h₂ hp
   exact ⟨_, prog₂, m₁, m₂, h₁, h₂, e₁, e₂, e₃⟩
 
-end Langlib.Computability
+end Langlib.Turpentine.Certified

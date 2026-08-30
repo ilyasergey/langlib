@@ -6,8 +6,8 @@
   and `compileSource : String → Except String String` (`.turp` text to `.ws`
   text)
 * **Tests**: [Langlib/Tests/CompileWhitespace.lean](../../Langlib/Tests/CompileWhitespace.lean)
-* **Correctness proof**: [Langlib/Computability/BespokeWhitespace.lean](../../Langlib/Computability/BespokeWhitespace.lean)
-  (module `Langlib.Computability.BespokeWhitespace`), tested by
+* **Correctness proof**: [Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean](../../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean)
+  (module `Langlib.Languages.Turpentine.Certified.BespokeWhitespace`), tested by
   [Langlib/Tests/BespokeWhitespace.lean](../../Langlib/Tests/BespokeWhitespace.lean)
 * **Language pages**: `docs/turpentine/spec.md`, `docs/whitespace/spec.md`
 
@@ -318,7 +318,7 @@ the failure differs.
 
 This backend is the first hand-written compiler in the library with a
 machine-checked correctness theorem. The proof is
-[Langlib/Computability/BespokeWhitespace.lean](../../Langlib/Computability/BespokeWhitespace.lean);
+[Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean](../../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean);
 it reasons about the code generator in
 `Langlib/Languages/Turpentine/Compile/Whitespace.lean` itself, not about a copy of it.
 
@@ -354,7 +354,7 @@ Packaged as a `TurpentineCompiler WhitespaceLang`:
 def bespokeWhitespace : TurpentineCompiler WhitespaceLang where
   compile := BespokeWhitespace.bespokeCompile
   encodeInput := Input.ofString ""
-  decodeOutput := URMWhitespace.decodeOutput
+  decodeOutput := Langlib.Computability.URMWhitespace.decodeOutput
   correct := …
 ```
 

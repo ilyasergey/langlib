@@ -663,19 +663,19 @@ which is the whole point: with two inhabitants,
 [`agree`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L174) applies,
 and "the derived compiler is an oracle for the hand-written one" stops being
 a testing practice and becomes a corollary
-([`bespokeSubleq_agrees_derived`](../Langlib/Computability/BespokeSubleq.lean#L672),
-[`bespokeWhitespace_agrees_derived`](../Langlib/Computability/BespokeWhitespace.lean#L3262)).
+([`bespokeSubleq_agrees_derived`](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L673),
+[`bespokeWhitespace_agrees_derived`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3264)).
 
-**[`bespokeWhitespace`](../Langlib/Computability/BespokeWhitespace.lean#L3247)**
+**[`bespokeWhitespace`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3249)**
 covers the larger fragment: scalar `int` and `bool` declarations without
 initialisers, the whole expression language including subtraction, unary
 minus and negative literals, and `skip`, sequencing, assignment, `if`,
 `while` and `assert`. Left out are `/` and `%` (the backend's Euclidean
 correction branches on the sign of the divisor, a separate arithmetic
 obligation), arrays, and every I/O statement. The end-to-end theorem is
-[`bespokeCompile_correct`](../Langlib/Computability/BespokeWhitespace.lean#L3094).
+[`bespokeCompile_correct`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3095).
 
-**[`bespokeSubleq`](../Langlib/Computability/BespokeSubleq.lean#L630)**
+**[`bespokeSubleq`](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L631)**
 covers two program shapes — `var answer: int := k; printByte(answer);` for
 `1 ≤ k ≤ 255`, and `var answer: int;` with an empty body — and that is
 honest rather than lazy. `TurpentineHaltsWith` names a single number, and a
@@ -855,8 +855,8 @@ completeness result too):
 'Langlib.Common.IOCertifiedCompiler.output_eq' depends on axioms: [propext]
 'Langlib.Common.IOCertifiedCompiler.agree' depends on axioms: [propext]
 'Langlib.Common.TraceLang.ofInputFree' depends on axioms: [propext, Quot.sound]
-'Langlib.Computability.bespokeSubleq_agrees_derived' depends on axioms: [propext, Classical.choice, Quot.sound]
-'Langlib.Computability.bespokeWhitespace_agrees_derived' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Certified.bespokeSubleq_agrees_derived' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Certified.bespokeWhitespace_agrees_derived' depends on axioms: [propext, Classical.choice, Quot.sound]
 ```
 
 Three axioms — `propext`, `Classical.choice`, `Quot.sound` — are Lean's own

@@ -585,7 +585,7 @@ comment that says which label it is rewriting.
 The backend described above compiles all of Turpentine and is checked by the
 differential tests in the table above. Since 2026-08-30 a *fragment* of it is
 also proved correct, in
-[`Langlib/Computability/BespokeSubleq.lean`](../../Langlib/Computability/BespokeSubleq.lean).
+[`Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean`](../../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean).
 This section says exactly what that theorem covers, since the gap between the
 compiler and the theorem is large and the point of writing it down is that
 nobody has to guess.

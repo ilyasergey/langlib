@@ -5,8 +5,8 @@
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved / disproved | Correct via TC | Hosts full Turpentine | Bespoke compiler | Bespoke correct |
 | ---------- | ------ | -------- | ------------- | ------------------ | -------- | ----------------- | ----------- | ---------------- | ----------------------- | ------------------ | ----------------- |
 | [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | [**yes**](../Langlib/Computability/Brainfuck.lean#L1269) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L122) | yes | [yes](../Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317), [notes](brainfuck/compiler.md) | - |
-| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | yes | [yes](../Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530), [notes](whitespace/compiler.md) | [**yes**, scalar fragment](../Langlib/Computability/BespokeWhitespace.lean#L3247) |
-| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118) | yes | [yes](../Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125), [notes](subleq/compiler.md) | [**yes**, two shapes](../Langlib/Computability/BespokeSubleq.lean#L630) |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | yes | [yes](../Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530), [notes](whitespace/compiler.md) | [**yes**, scalar fragment](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3249) |
+| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118) | yes | [yes](../Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125), [notes](subleq/compiler.md) | [**yes**, two shapes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L631) |
 | [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | [yes, byte core](../Langlib/Computability/Befunge93.lean#L343) | n/a | no, 2000 code cells | [no](befunge93/compiler.md) | n/a |
 | [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [yes, bounded storage](malbolge/spec.md) | [**no**, halting decidable](../Langlib/Computability/Malbolge.lean#L743) | n/a | no, bounded storage | [yes](malbolge/compiler.md) | n/a |
 | [malbolge-unshackled](malbolge-unshackled/spec.md) | yes | yes | yes | yes | `malbolge-unshackled` | yes | open | [planned](malbolge-unshackled/compiler.md) | expected yes | [planned](malbolge-unshackled/compiler.md) | [planned](malbolge-unshackled/compiler.md) |
@@ -313,14 +313,14 @@ The three columns follow from that, in the order the table puts them.
   [certified-compilation.md](certified-compilation.md) section 1.2).
 
   The first one has landed:
-  [`bespokeSubleq`](../Langlib/Computability/BespokeSubleq.lean#L630) is a
+  [`bespokeSubleq`](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L631) is a
   second `TurpentineCompiler SubleqLang` beside the derived one, so
   [`agree`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L174) applies and "the
   derived compiler is an oracle for the hand-written one" is a corollary
   rather than a testing practice. Its fragment is two program shapes, which
   is small, and honestly so: `docs/subleq/compiler.md` lists what is
   refused.
-  [`bespokeWhitespace`](../Langlib/Computability/BespokeWhitespace.lean#L3247)
+  [`bespokeWhitespace`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3249)
   followed, over a much larger fragment: scalar `int`/`bool`, the whole
   expression language including subtraction and negative literals, `if`,
   `while` and `assert`, leaving out `/`, `%`, arrays and I/O. That fragment

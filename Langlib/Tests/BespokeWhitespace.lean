@@ -1,11 +1,11 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.BespokeWhitespace
+import Langlib.Languages.Turpentine.Certified.BespokeWhitespace
 import Langlib.Languages.Whitespace.Semantics
 
 /-!
-Tests for `Langlib.Computability.bespokeWhitespace`: the hand-written
+Tests for `Langlib.Turpentine.Certified.bespokeWhitespace`: the hand-written
 Turpentine-to-Whitespace backend, restricted to the fragment
-`Langlib/Computability/BespokeWhitespace.lean` proves it correct on.
+`Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean` proves it correct on.
 
 Four suites.
 
@@ -33,6 +33,7 @@ namespace Langlib.Tests.BespokeWhitespace
 
 open Langlib.Common
 open Langlib.Computability
+open Langlib.Turpentine.Certified
 open Langlib.Turpentine.Compile (derivedWhitespace)
 
 /-- Compile Turpentine source with the bespoke compiler, render it to

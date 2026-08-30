@@ -2,7 +2,31 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): the copy algebra
+## 2026-08-30 (latest): the bespoke proofs move next to the backends
+
+`Langlib/Computability/` is for Turing-completeness results and their URM
+bridges. The two correctness proofs of the hand-written Turpentine
+backends were sitting there because that is where the `TurpentineCompiler`
+vocabulary happened to be, not because they belong. They now live in
+`Langlib/Languages/Turpentine/Certified/`, one file per target, under the
+namespace `Langlib.Turpentine.Certified`.
+
+Two things had to be said out loud for the move to work. First,
+`Certified/` is a documented Mathlib exception under `Langlib/Languages/`,
+alongside `Compile/Derived.lean` and the `--tc` half of `Main.lean`: it is
+proof-side, and nothing a runner imports may reach it, so the executables
+still compile without Mathlib. Second, `Langlib.Turpentine.Certified`
+nests inside `Langlib.Turpentine`, and Lean resolves enclosing namespaces
+before opened ones, so a bare `exec` in the subleq proof silently became
+the *front end's* statement executor. It is now `Langlib.Subleq.exec`, and
+`CLAUDE.md` carries the warning for the next proof that moves in.
+
+Everything else is mechanical: imports, the two test modules,
+`scripts/axioms.lean`, and every doc link and line anchor. The axiom audit
+prints `Langlib.Turpentine.Certified.*` and still shows nothing but
+`propext`, `Classical.choice` and `Quot.sound`. 1164 tests pass.
+
+## 2026-08-30: the copy algebra
 
 Short addition completing the value-level primitive set. The crazy
 operation has exactly two per-trit bijections: reading a cell through
