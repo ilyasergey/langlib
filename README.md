@@ -84,7 +84,7 @@ status matrix, including compilers):
 | [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1117)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L114) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530) ([certified on a fragment](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3249)) |
 | [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1201)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L118) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125) ([certified on a fragment](Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L631)) |
 | [fractran](docs/fractran/spec.md) | yes | **[yes](Langlib/Computability/Fractran.lean#L4471)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L127) (certified), and [bespoke](docs/fractran/compiler.md) (trusted) |
-| [piet](docs/piet/spec.md) | yes | **[yes](Langlib/Computability/Piet.lean#L3992)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L139) (certified); [bespoke planned](docs/piet/compiler.md) |
+| [piet](docs/piet/spec.md) | yes | **[yes](Langlib/Computability/Piet.lean#L3992)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L139) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Piet.lean) (trusted, no arrays) |
 | [thue](docs/thue/spec.md) | yes | **[yes](Langlib/Computability/Thue.lean#L4026)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L133) (certified); [bespoke planned](docs/thue/compiler.md) |
 | [ook](docs/ook/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Ook.lean#L540)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L145) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Ook.lean#L49) (trusted) |
 | [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Brainloller.lean#L329)**, bar the [pixel walk](docs/brainloller/compiler.md) | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L150) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Brainloller.lean#L57) (trusted) |
@@ -566,6 +566,36 @@ Output:
 4
 ```
 
+One target's compiled program is a *picture*. The Piet backend lays the
+program out as corridors of colour wired together with white, and emits a
+PPM.
+
+```
+lake exe turpentine compile --to piet --bespoke -o /tmp/tri.ppm Langlib/Examples/Turpentine/suite/triangle.turp
+```
+
+Output:
+
+```
+turpentine: wrote 43787 bytes to /tmp/tri.ppm [bespoke, hand-written and unverified]
+```
+
+That is an 88 x 42 codel image, and it runs like any other Piet program.
+
+```
+lake exe piet /tmp/tri.ppm
+```
+
+Output:
+
+```
+*
+**
+***
+****
+*****
+```
+
 The certified compiler needs a program in its fragment: no I/O, no
 subtraction, and the result left in a variable called `answer`. Arrays are
 in, since the dispatch-chain work landed.
@@ -615,7 +645,7 @@ inventory.
   means here and how the proofs factor.
 * [docs/conformance.md](docs/conformance.md): the conformance suite —
   twenty programs, one expected output each, run on every language that
-  can host them.
+  can host them, compiled *and* hand-written.
 * [docs/TESTING.md](docs/TESTING.md): the two test layers, and what to
   install to run the differential tests.
 * [docs/ROADMAP.md](docs/ROADMAP.md): candidate languages.
