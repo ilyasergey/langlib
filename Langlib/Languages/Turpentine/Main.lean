@@ -6,6 +6,7 @@ import Langlib.Languages.Turpentine.Compile.Whitespace
 import Langlib.Languages.Turpentine.Compile.Ook
 import Langlib.Languages.Turpentine.Compile.Brainloller
 import Langlib.Languages.Turpentine.Compile.Fractran
+import Langlib.Languages.Turpentine.Compile.Piet
 import Langlib.Languages.Brainfuck.Semantics
 import Langlib.Languages.Subleq.Semantics
 import Langlib.Languages.Whitespace.Semantics
@@ -193,6 +194,8 @@ def backends : List Backend :=
       -- The target text is an ASCII PPM image, as `lake exe piet` reads.
       -- `Grid.toImage` paints it and `colorOfRgb_toRgb` says the parser
       -- reads back the colours the compiler chose.
+    , bespoke := some (compilerOfSource Compile.Piet.compileSource
+        (Langlib.Piet.run {}))
     , certified := some (compilerOfCertified
         Langlib.Turpentine.Compile.derivedPiet.compileSource
         (fun grid => grid.toImage.toPpm3)
