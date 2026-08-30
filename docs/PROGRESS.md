@@ -26,6 +26,88 @@ number would need rotations and a loop, while blank-or-mark needs nothing.
 It is an argument for the unary register representation, made by the
 arithmetic rather than by taste.
 
+## 2026-08-30: a bespoke Piet backend, and whitespace takes the whole suite
+
+Two things, and the second was easy because of what the first one was not.
+
+### Piet, without going through a register machine
+
+`Langlib/Languages/Turpentine/Compile/Piet.lean`, reachable as
+`--to piet --bespoke` and tested in `Langlib/Tests/CompilePiet.lean`. Two
+compilers stacked: the first lowers Turpentine to a flat list of **lanes**
+— straight-line runs of Piet commands ending in a `goto`, a two-way branch
+or a halt — and holds no geometry; the second lays lanes out as corridors
+wired with white and holds no Turpentine.
+
+The layout rests on the four facts recorded last commit, each checked
+against `evalGrid` rather than reasoned about. Lane `i` is a corridor on
+row `2i`; odd rows are white, which is what keeps two corridors from
+merging. A jump is one clockwise circuit and no commands at all: right to a
+wall, down a wire column, left to the target's entry column, up to its
+row, right onto its first block.
+
+**The constraint that is not obvious** is that lanes' end columns strictly
+decrease down the picture. A branch's wire falls down its own lane's end
+column, crossing every lane below it, and may only do that because a lower
+lane ends further left and so cannot reach that column. Getting that
+backwards is the one way to build a picture that looks right and runs
+wrong.
+
+Halting is the shape the prototype found, and the probe confirmed both
+halves: a bar of three entered from above through its middle codel halts,
+and the same picture with a bar of one escapes back into the white it
+arrived through and runs forever.
+
+Variables live on the stack, reached with `roll` — `O(depth)`, the price of
+having no heap. Constants are built rather than spelled out, since a `push`
+pushes the block's codel count: 16384 costs 51 codels instead of 16384.
+`opFor_advance` proves the generator's colour arithmetic inverts `opFor` on
+all 17 commands at all 18 colours, by `decide`, so no Mathlib crosses into
+`Langlib/Languages/`. With `colorOfRgb_toRgb` that is both round trips: the
+image is the grid the compiler built, and the grid is the commands it
+chose. The *layout* is proved by nothing and carried by test.
+
+**Two bugs the tests caught rather than the design avoided.** Lane 0 has to
+be the program's, not the trap's, since execution starts on row 0. And the
+compile-time stack depth is a property of the program point, not of the
+path walked to it: letting the counter run on through both branches of the
+division correction put every variable access after a `/` one slot too low,
+which surfaced as `gcd.turp` printing 42 where the reference printed 21.
+The generator now checks that two joining lanes agree.
+
+14 of the 20 conformance programs compile and match the reference, all four
+sign pairs of Euclidean division among them. The other six use arrays,
+which the backend refuses by name: a *computed* index needs the roll depth
+itself computed at run time, and that is written up rather than attempted.
+Sizes, measured: `answer := 2` is 98,338 bytes through the certified route
+and 8,757 through this one, which also prints its answer.
+
+### Whitespace takes all twenty
+
+The hand-written half of the conformance suite goes from 4 of 20 to 4 and
+20. Whitespace takes the lot, and the reason is the language rather than
+the effort: `outnum` prints a *number*, so nothing needs brainfuck's
+divide-by-ten printer; cells are unbounded signed integers, so `fact` and
+`power` need nothing special; and the heap is integer-addressed, so an
+array index is an `add` and a `retrieve`.
+
+Whitespace has no comment syntax because it does not need one — every
+character that is not a space, tab or linefeed is ignored — so the `.ws`
+files carry a mnemonic in brackets before each instruction's tokens and the
+author's prose in braces, and are still exactly what the interpreter runs.
+The prose is underscore-joined because a comment may not contain a space, a
+tab or a linefeed: all three are code.
+
+Two of the twenty earned their keep. `divmod.ws` is the one program whose
+answer whitespace cannot give directly, since its `div` and `mod` floor
+where Turpentine's are Euclidean; the hand-written program reaches the same
+correction the compiler emits, independently, which is exactly the
+agreement the suite exists to notice. And every array program writes each
+cell before reading one: our heap defaults to zero and would have let a
+lazier program pass, but the authors' `wspace` crashes on a cell that was
+never stored.
+
+
 ## 2026-08-30: reading a line is no longer opaque
 
 `Input.readLine?` was a `partial def`, which Lean compiles to a constant
