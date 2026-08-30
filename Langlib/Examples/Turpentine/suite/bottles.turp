@@ -1,0 +1,18 @@
+// Conformance suite: the last three verses of the bottles song.
+// The most text of any program here, and the one that mixes a counted
+// loop with a singular/plural branch taken three times per verse.
+var n : int := 3;
+while n > 0 {
+  print(n);
+  if n == 1 { print(" bottle"); } else { print(" bottles"); }
+  println(" of beer on the wall,");
+  print(n);
+  if n == 1 { print(" bottle"); } else { print(" bottles"); }
+  println(" of beer.");
+  println("Take one down, pass it around,");
+  print(n - 1);
+  if n - 1 == 1 { print(" bottle"); } else { print(" bottles"); }
+  println(" of beer on the wall.");
+  println();
+  n := n - 1;
+}

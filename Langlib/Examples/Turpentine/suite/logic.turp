@@ -1,0 +1,16 @@
+// Conformance suite: every boolean and comparison operator, printed as
+// `true` or `false`. No arithmetic at all, so a backend that renders
+// booleans differently from the reference fails here and nowhere else.
+var t : bool := 1 < 2;
+var f : bool := 2 < 1;
+println(t);
+println(f);
+println(t && f);
+println(t || f);
+println(!t);
+println(3 == 3);
+println(3 != 3);
+println(3 <= 3);
+println(3 >= 4);
+println(3 > 2);
+println(2 < 3);

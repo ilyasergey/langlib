@@ -1,0 +1,14 @@
+// Conformance suite: the first 12 Fibonacci numbers.
+// Two accumulators updated in step, so a backend that gets temporaries
+// wrong produces a plausible-looking wrong sequence rather than a crash.
+var a : int := 0;
+var b : int := 1;
+var t : int;
+var n : int := 0;
+while n < 12 {
+  println(a);
+  t := a + b;
+  a := b;
+  b := t;
+  n := n + 1;
+}

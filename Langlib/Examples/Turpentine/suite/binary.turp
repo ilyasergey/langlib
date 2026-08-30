@@ -1,0 +1,30 @@
+// Conformance suite: 0, 1, 5, 64 and 1000 in binary, most significant bit
+// first. Bits are recovered by repeated halving into an array and printed
+// in reverse, so the program needs an array as a stack.
+var vals : int[5];
+var bits : int[16];
+var k : int := 0;
+var n : int;
+var m : int;
+var i : int;
+vals[0] := 0; vals[1] := 1; vals[2] := 5; vals[3] := 64; vals[4] := 1000;
+while k < 5 {
+  n := vals[k];
+  m := 0;
+  if n == 0 {
+    print("0");
+  } else {
+    while n > 0 {
+      bits[m] := n % 2;
+      n := n / 2;
+      m := m + 1;
+    }
+    i := m;
+    while i > 0 {
+      i := i - 1;
+      print(bits[i]);
+    }
+  }
+  println();
+  k := k + 1;
+}

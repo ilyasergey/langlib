@@ -1,0 +1,14 @@
+// Conformance suite: a triangle of stars, five rows.
+// Byte output rather than decimal output, and a loop whose body prints a
+// variable number of times.
+var i : int := 1;
+var j : int;
+while i <= 5 {
+  j := 0;
+  while j < i {
+    print("*");
+    j := j + 1;
+  }
+  println();
+  i := i + 1;
+}

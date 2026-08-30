@@ -1,0 +1,16 @@
+// Conformance suite: sieve of Eratosthenes below 50, printing the primes.
+// The array program: 50 cells, written through a computed index.
+var composite : bool[50];
+var i : int := 2;
+var j : int;
+while i < 50 {
+  if !composite[i] {
+    println(i);
+    j := i * i;
+    while j < 50 {
+      composite[j] := true;
+      j := j + i;
+    }
+  }
+  i := i + 1;
+}

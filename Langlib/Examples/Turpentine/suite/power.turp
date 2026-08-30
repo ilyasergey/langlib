@@ -1,0 +1,10 @@
+// Conformance suite: the powers of two up to 2^14.
+// Doubling, so the last value is 16384 and every backend's cell width is
+// exercised right up to the brainfuck limit without passing it.
+var p : int := 1;
+var n : int := 0;
+while n <= 14 {
+  println(p);
+  p := p * 2;
+  n := n + 1;
+}

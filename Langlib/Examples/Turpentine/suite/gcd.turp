@@ -1,0 +1,19 @@
+// Conformance suite: Euclid's algorithm on four fixed pairs.
+// The one program here whose inner loop length depends on the data.
+var a : int;
+var b : int;
+var t : int;
+var k : int := 0;
+while k < 4 {
+  if k == 0 { a := 252; b := 105; }
+  if k == 1 { a := 1071; b := 462; }
+  if k == 2 { a := 17; b := 5; }
+  if k == 3 { a := 30; b := 30; }
+  while b != 0 {
+    t := a % b;
+    a := b;
+    b := t;
+  }
+  println(a);
+  k := k + 1;
+}

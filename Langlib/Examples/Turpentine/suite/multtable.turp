@@ -1,0 +1,14 @@
+// Conformance suite: a five-by-five multiplication table, tab separated.
+// Nested loops with output inside both.
+var i : int := 1;
+var j : int;
+while i <= 5 {
+  j := 1;
+  while j <= 5 {
+    print(i * j);
+    if j < 5 { print("\t"); }
+    j := j + 1;
+  }
+  println();
+  i := i + 1;
+}

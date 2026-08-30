@@ -1,0 +1,21 @@
+// Conformance suite: the largest, smallest and total of eight numbers.
+// One pass, three accumulators.
+var a : int[8];
+var i : int := 1;
+var lo : int;
+var hi : int;
+var sum : int;
+a[0] := 3; a[1] := 1; a[2] := 4; a[3] := 1;
+a[4] := 5; a[5] := 9; a[6] := 2; a[7] := 6;
+lo := a[0];
+hi := a[0];
+sum := a[0];
+while i < 8 {
+  if a[i] < lo { lo := a[i]; }
+  if a[i] > hi { hi := a[i]; }
+  sum := sum + a[i];
+  i := i + 1;
+}
+println(lo);
+println(hi);
+println(sum);

@@ -13,6 +13,13 @@ Two layers of tests keep the interpreters honest:
    byte for byte. Each section skips gracefully when its reference binary
    is not installed, so the script is always safe to run.
 
+Inside the first layer sits the **conformance suite**: twenty Turpentine
+programs that read no input, each with a single expected output, run
+through the reference interpreter and through every bespoke backend, so
+that one written-down answer constrains every language that can host the
+program. [conformance.md](conformance.md) has the programs, the rule for
+what may join them, and how to add one.
+
 A third check is not a test of the interpreters but of the documentation:
 
 3. **Documentation images** (`./scripts/render-docs-images.sh --check`):

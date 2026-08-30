@@ -109,9 +109,7 @@ Its output is also enormous. A **bespoke** one is hand-written for that
 target: it emits compact, readable code and supports the whole language.
 *(trusted)* means tested rather than proved; *(certified on a fragment)*
 means a correctness theorem covers part of what the compiler accepts, and
-links it. Whitespace and subleq have one, over fragments the compiler
-states as data by refusing everything outside them.
-[Verified compilers](#verified-compilers) below explains why the library
+links it. [Verified compilers](#verified-compilers) below explains why the library
 keeps both kinds.
 
 
@@ -614,6 +612,9 @@ inventory.
   compilation via the URM, with dependency diagrams.
 * [docs/verification.md](docs/verification.md): what compiler correctness
   means here and how the proofs factor.
+* [docs/conformance.md](docs/conformance.md): the conformance suite —
+  twenty programs, one expected output each, run on every language that
+  can host them.
 * [docs/TESTING.md](docs/TESTING.md): the two test layers, and what to
   install to run the differential tests.
 * [docs/ROADMAP.md](docs/ROADMAP.md): candidate languages.

@@ -1,0 +1,17 @@
+// Conformance suite: integer square roots of 0, 1, 15, 16, 17 and 200.
+// Counting up until the square passes the argument.
+var a : int[6];
+var k : int := 0;
+var n : int;
+var r : int;
+a[0] := 0;  a[1] := 1;  a[2] := 15;
+a[3] := 16; a[4] := 17; a[5] := 200;
+while k < 6 {
+  n := a[k];
+  r := 0;
+  while (r + 1) * (r + 1) <= n {
+    r := r + 1;
+  }
+  println(r);
+  k := k + 1;
+}

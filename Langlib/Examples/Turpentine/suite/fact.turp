@@ -1,0 +1,16 @@
+// Conformance suite: factorials 0! through 7!.
+// Repeated multiplication, and 7! = 5040 stays inside the brainfuck
+// backend's 16-bit cells.
+var n : int := 0;
+var f : int := 1;
+var i : int;
+while n <= 7 {
+  f := 1;
+  i := 1;
+  while i <= n {
+    f := f * i;
+    i := i + 1;
+  }
+  println(f);
+  n := n + 1;
+}

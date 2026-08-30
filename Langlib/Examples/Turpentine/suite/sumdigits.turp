@@ -1,0 +1,18 @@
+// Conformance suite: digit sums of 0, 7, 9045 and 32767.
+// Division and modulo by ten, which is where an off-by-one in a backend's
+// divmod routine shows up immediately.
+var a : int[4];
+var k : int := 0;
+var n : int;
+var s : int;
+a[0] := 0; a[1] := 7; a[2] := 9045; a[3] := 32767;
+while k < 4 {
+  n := a[k];
+  s := 0;
+  while n > 0 {
+    s := s + n % 10;
+    n := n / 10;
+  }
+  println(s);
+  k := k + 1;
+}

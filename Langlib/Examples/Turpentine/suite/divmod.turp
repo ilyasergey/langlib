@@ -1,0 +1,11 @@
+// Conformance suite: Euclidean division and modulo at all four sign
+// combinations. Turpentine's remainder is always non-negative, and this is
+// the program that pins that down for every backend.
+println(17 / 5);
+println(17 % 5);
+println(-17 / 5);
+println(-17 % 5);
+println(17 / -5);
+println(17 % -5);
+println(-17 / -5);
+println(-17 % -5);

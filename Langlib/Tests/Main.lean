@@ -10,6 +10,7 @@ import Langlib.Tests.CompileBrainloller
 import Langlib.Tests.CompileOok
 import Langlib.Tests.CompileSubleq
 import Langlib.Tests.CompileWhitespace
+import Langlib.Tests.Conformance
 import Langlib.Tests.DerivedFractran
 import Langlib.Tests.DerivedPiet
 import Langlib.Tests.DerivedSubleq
@@ -54,6 +55,7 @@ def main : IO UInt32 :=
     , Langlib.Tests.CompileOok.suites
     , Langlib.Tests.CompileSubleq.suites
     , Langlib.Tests.CompileWhitespace.suites
+    , Langlib.Tests.Conformance.suites
     , Langlib.Tests.DerivedFractran.suites
     , Langlib.Tests.DerivedPiet.suites
     , Langlib.Tests.DerivedSubleq.suites

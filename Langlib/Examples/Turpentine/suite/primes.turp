@@ -1,0 +1,15 @@
+// Conformance suite: the primes below 30, by trial division.
+// A doubly nested loop with an early exit expressed as a flag.
+var n : int := 2;
+var d : int;
+var isPrime : bool;
+while n < 30 {
+  isPrime := true;
+  d := 2;
+  while d * d <= n {
+    if n % d == 0 { isPrime := false; }
+    d := d + 1;
+  }
+  if isPrime { println(n); }
+  n := n + 1;
+}

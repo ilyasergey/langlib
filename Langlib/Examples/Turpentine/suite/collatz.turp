@@ -1,0 +1,15 @@
+// Conformance suite: Collatz step counts for 1 through 10.
+// Alternating branches inside a loop whose length the data decides.
+var n : int := 1;
+var v : int;
+var steps : int;
+while n <= 10 {
+  v := n;
+  steps := 0;
+  while v != 1 {
+    if v % 2 == 0 { v := v / 2; } else { v := 3 * v + 1; }
+    steps := steps + 1;
+  }
+  println(steps);
+  n := n + 1;
+}

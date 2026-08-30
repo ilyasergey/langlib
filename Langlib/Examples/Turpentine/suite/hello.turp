@@ -1,0 +1,4 @@
+// Conformance suite: the smallest program with observable output.
+// A backend that gets this wrong has not got a working print at all.
+// Expected output: Hello, World!
+println("Hello, World!");
