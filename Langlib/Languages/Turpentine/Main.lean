@@ -11,6 +11,7 @@ import Langlib.Languages.Whitespace.Semantics
 import Langlib.Languages.Ook.Semantics
 import Langlib.Languages.Brainloller.Semantics
 import Langlib.Languages.Fractran.Semantics
+import Langlib.Languages.Piet.Semantics
 import Langlib.Languages.Thue.Semantics
 import Langlib.Languages.Turpentine.Compile.Derived
 
@@ -167,6 +168,14 @@ def backends : List Backend :=
           (Langlib.Brainloller.encode (Langlib.Brainfuck.Prog.render prog)
             Compile.Brainloller.defaultWidth).toPpm3)
         (Langlib.Brainloller.run { eof := .zero })) }
+  , { name := "piet"
+      -- The target text is an ASCII PPM image, as `lake exe piet` reads.
+      -- `Grid.toImage` paints it and `colorOfRgb_toRgb` says the parser
+      -- reads back the colours the compiler chose.
+    , certified := some (compilerOfCertified
+        Langlib.Turpentine.Compile.derivedPiet.compileSource
+        (fun grid => grid.toImage.toPpm3)
+        (Langlib.Piet.run {})) }
   , { name := "fractran"
     , certified := some fractranCertified }
   , { name := "thue"

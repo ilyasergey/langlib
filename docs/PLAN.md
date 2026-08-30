@@ -101,8 +101,9 @@ state first-order, I/O explicit.
 * Turpentine -> thue, -> fractran and -> piet `[ ]` (bespoke): planned via a
   shared register machine (RegIR); see their compiler pages. All three
   already have a *derived*, certified compiler out of their completeness
-  proofs (`derivedThue`, `derivedFractran`, `derivedPiet`), so what a
-  bespoke backend would add is readable output and I/O, not correctness.
+  proofs (`derivedThue`, `derivedFractran`, `derivedPiet`), all three are
+  reachable from the CLI as `--to <lang> --tc`, so what a bespoke backend
+  would add is readable output and I/O, not correctness.
 
 ### Intermediate representations, and why
 

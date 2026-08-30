@@ -820,7 +820,7 @@ end to end against the Turpentine reference interpreter.
 | [DerivedSubleq](../Langlib/Tests/DerivedSubleq.lean) | 10 | the derived subleq compiler on its own |
 | [DerivedFractran](../Langlib/Tests/DerivedFractran.lean) | 5 | the bundled fraction list and starting integer, run directly |
 | [DerivedThue](../Langlib/Tests/DerivedThue.lean) | 5 | the rulebase and initial string, answer read from the halted state |
-| [DerivedPiet](../Langlib/Tests/DerivedPiet.lean) | 3 | the emitted codel grid |
+| [DerivedPiet](../Langlib/Tests/DerivedPiet.lean) | 6 | the emitted codel grid, and the same grid painted as a PPM and re-parsed — the path `--to piet` takes |
 | [BespokeWhitespace](../Langlib/Tests/BespokeWhitespace.lean) | 53 | the hand-written backend, including agreement with the derived one |
 | [BespokeSubleq](../Langlib/Tests/BespokeSubleq.lean) | 13 | the same, for subleq |
 
@@ -1026,6 +1026,26 @@ turpentine: emitting 3809 bytes [certified, derived from the Turing-completeness
 turpentine: run it with: lake exe fractran --out final --n 19 <file>
 ```
 
+### A target whose artifact is a picture
+
+Piet's compiled program is an image, so the emitted text is an ASCII PPM
+and every codel is three numbers in it. The same five-line `sum.turp`:
+
+```
+lake exe turpentine compile --to piet --tc Langlib/Examples/Turpentine/sum.turp > /tmp/sum.ppm
+```
+
+Output:
+
+```
+turpentine: emitting 853773 bytes [certified, derived from the Turing-completeness proof]
+```
+
+That is a `30501 x 3` corridor of codels for a loop that adds up 0 through
+4, which is the derived route's size penalty made visible. Running it is a
+separate matter — see [piet/compiler.md](piet/compiler.md), which measures
+the cliff.
+
 ### When it refuses
 
 Out of fragment, the certified compiler names the construct rather than
@@ -1076,13 +1096,13 @@ An unknown target is refused by name, and the message lists the ones that
 exist:
 
 ```
-lake exe turpentine compile --to piet --tc Langlib/Examples/Turpentine/sum.turp
+lake exe turpentine compile --to befunge93 --tc Langlib/Examples/Turpentine/sum.turp
 ```
 
 Output:
 
 ```
-turpentine compile: unknown target 'piet' (expected brainfuck|whitespace|subleq|ook|brainloller|fractran|thue)
+turpentine compile: unknown target 'befunge93' (expected brainfuck|whitespace|subleq|ook|brainloller|piet|fractran|thue)
 ```
 
 Running out of fuel is reported distinctly from halting, and exits 2:

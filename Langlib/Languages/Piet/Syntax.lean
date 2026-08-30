@@ -16,7 +16,7 @@ This module defines the colour types, the wheel arithmetic, the
 
 namespace Langlib.Piet
 
-open Langlib.Common (Rgb)
+open Langlib.Common (Rgb Image)
 
 /-- The six hues, in wheel order. Hue steps are counted cyclically in this
 order (red -> yellow -> ... -> magenta -> red). -/
@@ -102,6 +102,44 @@ def colorOfRgb (c : Rgb) : Option Codel :=
   | 0x00, 0x00, 0x00 => some .black
   | _, _, _ => none
 
+/-- The RGB value of a codel: the inverse of `colorOfRgb`. Needed by
+anything that *emits* a Piet program rather than reading one, which is the
+Turpentine backend and the example generators.
+
+`colorOfRgb_toRgb` below is the reason this is not just a table someone
+typed twice. -/
+def Codel.toRgb : Codel → Rgb
+  | .chromatic .red .light => ⟨0xFF, 0xC0, 0xC0⟩
+  | .chromatic .red .normal => ⟨0xFF, 0x00, 0x00⟩
+  | .chromatic .red .dark => ⟨0xC0, 0x00, 0x00⟩
+  | .chromatic .yellow .light => ⟨0xFF, 0xFF, 0xC0⟩
+  | .chromatic .yellow .normal => ⟨0xFF, 0xFF, 0x00⟩
+  | .chromatic .yellow .dark => ⟨0xC0, 0xC0, 0x00⟩
+  | .chromatic .green .light => ⟨0xC0, 0xFF, 0xC0⟩
+  | .chromatic .green .normal => ⟨0x00, 0xFF, 0x00⟩
+  | .chromatic .green .dark => ⟨0x00, 0xC0, 0x00⟩
+  | .chromatic .cyan .light => ⟨0xC0, 0xFF, 0xFF⟩
+  | .chromatic .cyan .normal => ⟨0x00, 0xFF, 0xFF⟩
+  | .chromatic .cyan .dark => ⟨0x00, 0xC0, 0xC0⟩
+  | .chromatic .blue .light => ⟨0xC0, 0xC0, 0xFF⟩
+  | .chromatic .blue .normal => ⟨0x00, 0x00, 0xFF⟩
+  | .chromatic .blue .dark => ⟨0x00, 0x00, 0xC0⟩
+  | .chromatic .magenta .light => ⟨0xFF, 0xC0, 0xFF⟩
+  | .chromatic .magenta .normal => ⟨0xFF, 0x00, 0xFF⟩
+  | .chromatic .magenta .dark => ⟨0xC0, 0x00, 0xC0⟩
+  | .white => ⟨0xFF, 0xFF, 0xFF⟩
+  | .black => ⟨0x00, 0x00, 0x00⟩
+
+/-- **Painting a codel and reading it back is the identity.** The two
+tables are inverse on all 20 colours, so an image emitted from a grid
+parses back to the colours it was built from — the codel-level half of
+"what the compiler emitted is what the interpreter runs". -/
+theorem colorOfRgb_toRgb (c : Codel) : colorOfRgb c.toRgb = some c := by
+  cases c with
+  | chromatic h l => cases h <;> cases l <;> rfl
+  | white => rfl
+  | black => rfl
+
 /-- The codel grid: the parsed form of a Piet program. `codels` is
 row-major, of size `width * height`. -/
 structure Grid where
@@ -119,6 +157,19 @@ def get (g : Grid) (x y : Nat) : Codel :=
     g.codels[y * g.width + x]?.getD .black
   else
     .black
+
+/-- Paint the grid as an image, one pixel per codel. With
+`Image.toPpm3` this is how a Piet program gets written to a file; a grid
+short of `width * height` codels is padded with black, matching `get`. -/
+def toImage (g : Grid) : Image :=
+  { width := g.width
+  , height := g.height
+  , pixels := Id.run do
+      let mut px : Array Rgb := Array.mkEmpty (g.width * g.height)
+      for y in [0:g.height] do
+        for x in [0:g.width] do
+          px := px.push (g.get x y).toRgb
+      return px }
 
 end Grid
 

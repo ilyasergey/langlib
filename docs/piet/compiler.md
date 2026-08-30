@@ -1,10 +1,12 @@
 # Compiling Turpentine to Piet
 
-* **Status**: a *derived*, certified compiler exists
-  ([`derivedPiet`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L137)); the
-  bespoke one is planned, not started.
+* **Status**: the *derived*, certified compiler
+  ([`derivedPiet`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L137))
+  is wired up and reachable as `--to piet --tc`; the bespoke one is
+  planned, not started.
 * **Family**: StackIR (see `docs/PLAN.md`, Stage 4), shared with
   whitespace.
+* **Tests**: [Langlib/Tests/DerivedPiet.lean](../../Langlib/Tests/DerivedPiet.lean)
 * **Implementation**: the bespoke backend would go in
   `Langlib/Languages/Turpentine/Compile/Piet.lean`, beside the
   [whitespace backend](../../Langlib/Languages/Turpentine/Compile/Whitespace.lean).
@@ -21,40 +23,86 @@ every literal is built from one-codel pushes. `docs/computability-piet.md`
 has the measured sizes. What a bespoke backend would add is a readable
 image and Piet's own `inNum` and `inChar`.
 
-## Compile and run one, once this exists
+Turning that grid into a file needs one thing the completeness proof does
+not: a way to *paint* a codel. That is
+[`Codel.toRgb`](../../Langlib/Languages/Piet/Syntax.lean#L111), the inverse
+of the palette table the parser uses, and
+[`colorOfRgb_toRgb`](../../Langlib/Languages/Piet/Syntax.lean#L137) proves
+the two are inverse on all 20 colours — so the image the compiler writes
+out is read back as the grid it meant. (That is the codel-level half; that
+the *whole* grid survives the round trip is carried by test, like
+brainloller's pixel walk.)
 
-Not yet implemented, so these commands do not work today. They are the
-interface this page is a plan for, and they are what the other backends
-already do (see `docs/whitespace/compiler.md` for a working example).
+## Compile and run one
+
+The derived compiler is the only one, so `--tc` is required; without it the
+command asks for the hand-written backend that does not exist yet. The
+program must be in the certified fragment: no I/O, no subtraction, answer
+left in `answer` (see [certified-compilation.md](../certified-compilation.md)).
 
 ```
-lake exe turpentine compile --to piet -o /tmp/hello.ppm Langlib/Examples/Turpentine/hello.turp
+lake exe turpentine compile --to piet --tc -o /tmp/fact.ppm Langlib/Examples/Turpentine/fact-tc.turp
 ```
 
-Then run it:
+Output, on stderr:
 
 ```
-lake exe piet /tmp/hello.ppm
+turpentine: wrote 1431593 bytes to /tmp/fact.ppm [certified, derived from the Turing-completeness proof]
+```
+
+That is 5! as a `51135 x 3` codel image: a corridor three codels tall and
+thirty thousand long, in ASCII PPM, which is what `lake exe piet` reads.
+Something small enough to actually watch run:
+
+```
+lake exe turpentine compile --to piet --tc -o /tmp/two.ppm /dev/stdin <<< 'var answer : int; answer := 2;'
+```
+
+Output, on stderr:
+
+```
+turpentine: wrote 98338 bytes to /tmp/two.ppm [certified, derived from the Turing-completeness proof]
+```
+
+Then run the image. The answer comes back as the decimal number the picture
+prints before it halts — Piet has real numeric output, so unlike FRACTRAN
+or Thue there is nothing to decode.
+
+```
+lake exe piet --fuel 5000000 /tmp/two.ppm
 ```
 
 Output:
 
 ```
-Hello, Turpentine!
+2
 ```
 
-Or in one step, compiling in memory and running the result on the
-piet interpreter:
+Or in one step, compiling in memory and running the result on the piet
+interpreter, which is the differential test against `turpentine run`:
 
 ```
-lake exe turpentine exec --via piet Langlib/Examples/Turpentine/hello.turp
+lake exe turpentine exec --via piet --tc --fuel 5000000 /dev/stdin <<< 'var answer : int; var b : int; answer := 2; b := 3; answer := answer + b;'
 ```
 
 Output:
 
 ```
-Hello, Turpentine!
+5
 ```
+
+### A warning about the fuel
+
+These images are slow out of all proportion to what they compute, and the
+reason is not the register machine — it is Piet. Finding the colour block
+under the interpreter's pointer is a flood fill, and it happens at every
+step, so the cost of one instruction grows with the size of the picture.
+Singleton normalization then makes the picture grow with the size of the
+program. The product is the cliff: the 3,516-codel image above prints its
+answer in about two seconds, while the 51,135-codel factorial had printed
+nothing after twenty minutes, and neither had the 30,501-codel image of
+`sum.turp`, which only adds up 0 through 4. This is a beautiful
+construction to look at, not a way to compute 5!.
 
 ## The semantics are easy and the layout is hard
 
@@ -113,5 +161,9 @@ documenting as a performance cliff rather than a semantic restriction.
 
 ## Output format
 
-The compiler should emit P3 (ASCII) PPM, matching what
-`lake exe piet` reads and what the examples use, with codel size 1.
+P3 (ASCII) PPM at codel size 1, matching what `lake exe piet` reads and what
+the examples use. The derived route already emits it: `--to piet` renders
+the grid with
+[`Grid.toImage`](../../Langlib/Languages/Piet/Syntax.lean#L164) and
+`Image.toPpm3`, one line of the file per image row. A bespoke backend
+should do the same.

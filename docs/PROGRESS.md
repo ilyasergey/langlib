@@ -2,7 +2,44 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): every spec ends with programs you can read
+## 2026-08-30 (latest): `--to piet` exists
+
+`derivedPiet` had been correct-by-construction since Piet's completeness
+proof landed, and unreachable from the command line the whole time: the
+`backends` table in `Langlib/Languages/Turpentine/Main.lean` had no `piet`
+row, so `--to piet` was the *example of an unknown target* in
+`docs/certified-compilation.md`. It is a target now.
+
+**The missing piece was a painter.** The completeness proof produces a
+`Grid`, and `Grid` is the parser's output type; nothing in the library went
+the other way. `Codel.toRgb` in `Langlib/Languages/Piet/Syntax.lean` is the
+inverse of the palette table `colorOfRgb` reads, `Grid.toImage` paints a
+whole grid, and `Image.toPpm3` writes it — so the emitted file is ASCII P3
+PPM at codel size 1, exactly what `lake exe piet` reads.
+
+Painting a codel and reading it back is proved to be the identity
+(`colorOfRgb_toRgb`, twenty cases by `rfl`), which is the codel-level half
+of "the image the compiler wrote is the grid it meant". The whole-grid round
+trip is carried by test: `Langlib/Tests/DerivedPiet.lean` gained a second
+suite that renders the PPM and hands it back to `Piet.run`, so the CLI's
+actual path — codegen, renderer, parser, `evalGrid` — is what runs. All
+982 tests pass.
+
+**The size and the speed, measured rather than guessed.** A compiled
+`answer := 2` is a 3,516-codel image that prints `2` in about two seconds.
+`fact-tc.turp` compiles in 1.4 s to `51135 x 3` codels and had printed
+nothing after twenty minutes; `sum.turp`, which adds 0 through 4, compiles
+to `30501 x 3` and behaves the same way. The cause is not the register
+machine: Piet block-finding is a flood fill *per step*, so instruction cost
+grows with image size while singleton normalization grows the image with the
+program. `docs/piet/compiler.md` says so, with the numbers.
+
+`docs/certified-compilation.md` needed a different unknown target for its
+error example (`befunge93` now) and gained a Piet block beside the FRACTRAN
+one, since the two are the interesting artifact shapes: a fraction list plus
+a starting integer, and a picture.
+
+## 2026-08-30: every spec ends with programs you can read
 
 Documentation and one new script; no Lean touched.
 
