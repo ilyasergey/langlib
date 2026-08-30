@@ -825,6 +825,47 @@ theorem not_halts_of_invariant {P : State → Prop}
         = evalImage {} img input n from rfl, image_neverHalts hstep hs n] at hn
   exact Exit.noConfusion hn
 
+/-! ## The crazy operation consumes its operand
+
+`p` writes the result to `mem[d]`, the very cell it read the operand from.
+So the constant a compiler places for one crazy operation is **destroyed by
+using it**, and a value cannot be built by returning to a cell and combining
+against it repeatedly. Two operations against two constants set the
+accumulator to anything (`crz_two_steps`), and they leave two spent cells
+behind.
+
+The second thing this lemma pins down is why `d` must differ from `c`. The
+crazy operation writes at `d`; the encryption that follows reads at `c`. If
+they coincide the encryption sees the result of the crazy operation, which
+is essentially never a printable word, and the interpreter crashes. That is
+the runtime error the test suite records as "a crazy-operated word has no
+encryption", and it is why the two pointers have to be separated before any
+arithmetic happens. -/
+
+/-- One `p` step, with both writes it performs spelled out: the operand cell
+is overwritten by the result, and the code cell by its own encryption. -/
+theorem exec_crazy {s : State} {code : Nat} (fuel : Nat)
+    (h : decode (s.mem.get s.c) s.c.modClass = .crazy)
+    (hne : s.d ≠ s.c)
+    (hcode : printableCode? (s.mem.get s.c) = some code) :
+    exec (fuel + 1) s =
+      exec fuel
+        { s with a := Value.crz s.a (s.mem.get s.d),
+                 mem := (s.mem.set s.d (Value.crz s.a (s.mem.get s.d))).set s.c
+                          (Value.ofNat (encrypt code)),
+                 c := s.c.succ, d := s.d.succ } := by
+  refine exec_step fuel h (by simp) (by simp) rfl ?_
+  show printableCode? ((s.mem.set s.d (Value.crz s.a (s.mem.get s.d))).get s.c) = some code
+  rw [get_set_ne _ hne]
+  exact hcode
+
+/-- The operand cell afterwards holds the result, not the constant that was
+there before: **using a constant destroys it**. -/
+theorem crazy_consumes_operand (s : State) :
+    (s.mem.set s.d (Value.crz s.a (s.mem.get s.d))).get s.d
+      = Value.crz s.a (s.mem.get s.d) :=
+  get_set_self _ _ _
+
 /-! ## What a loadable jump table can look like
 
 `jmp_cell_stable` says a `jmp` cell survives its own execution, so the way

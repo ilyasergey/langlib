@@ -114,6 +114,27 @@ not carry over to it: SKI is normal order rather than call by value, and
 it has no output instruction, so its answer has to be a normal form rather
 than a stream of bytes.
 
+## 2026-08-30: the crazy operation consumes its operand
+
+A short follow-up with one finding, which sharpens what `crz_two_steps`
+buys a backend. `exec_crazy` writes out both memory effects of a `p` step,
+and the first is the constraint: **`p` writes its result to `mem[d]`, the
+cell it just read the operand from**, so a constant is destroyed by being
+used (`crazy_consumes_operand`). A value cannot be built by returning to
+one cell and combining against it repeatedly; every crazy operation needs a
+fresh constant. The only infinite supply of constants in a loaded image is
+the 6-periodic fill, which offers six values, so a loop that builds
+arbitrary values has to regenerate its own constants rather than read them
+off a table. That is now the sharpest open question for the backend.
+
+The second effect explains a runtime error the test suite already had a
+case for. The crazy operation writes at `d` and the encryption that follows
+reads at `c`. If the two coincide, the encryption sees the result of the
+crazy operation, which is essentially never a printable word, and the
+interpreter crashes. `c` and `d` start equal, so a prologue has to separate
+them before any arithmetic happens; `rotcrash.mu` is that mistake in three
+characters.
+
 ## 2026-08-30: two crazy operations reach anything
 
 The compiler page for Malbolge Unshackled argues that a backend should

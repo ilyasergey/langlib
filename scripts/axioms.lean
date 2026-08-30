@@ -524,6 +524,8 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.exec_jmp
 #print axioms Unshackled.jmp_cell_stable
 #print axioms Unshackled.exec_nonjmp_encrypts_self
+#print axioms Unshackled.exec_crazy
+#print axioms Unshackled.crazy_consumes_operand
 
 -- What a loadable jump table may look like.
 #print axioms Unshackled.gap_of_repeated_word

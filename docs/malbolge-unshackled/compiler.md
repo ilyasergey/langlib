@@ -159,6 +159,25 @@ memory, that is a usable primitive: writing a computed address into a jump
 table costs two crazy operations, and a data-driven branch is exactly a
 computed jump-table entry.
 
+Two things about `p` shape how that primitive can be used, and both are in
+`exec_crazy`.
+
+**The operand cell is consumed.** `p` writes its result to `mem[d]`, the
+cell it just read the operand from, so a constant is destroyed by being
+used (`crazy_consumes_operand`). A value cannot be built by returning to
+one cell and combining against it over and over; each crazy operation needs
+a fresh constant, and a loop that does arithmetic needs a supply of them.
+The only infinite supply in a loaded image is the 6-periodic fill, which
+offers six values and no more, so a loop that must build arbitrary values
+has to regenerate its own constants rather than draw on a table.
+
+**`d` must differ from `c`.** The crazy operation writes at `d` and the
+encryption that follows reads at `c`. If they coincide, the encryption sees
+the result of the crazy operation, which is essentially never a printable
+word, and the interpreter crashes. The two pointers start equal, so a
+prologue has to separate them before any arithmetic happens; `rotcrash.mu`
+in the examples is that mistake in three characters.
+
 ## A route that is closed, and worth knowing is closed
 
 Unbounded memory suggests an escape from obstacle 1 that Malbolge never

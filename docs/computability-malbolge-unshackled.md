@@ -404,6 +404,15 @@ constants**, and the witnesses are computed rather than searched for
 primitive that a data-driven branch is built from: writing a computed
 address into a jump table costs two crazy operations.
 
+Two facts about `p` itself limit how that primitive can be used, both in
+`exec_crazy`. The operand cell is **consumed**: `p` writes its result to
+`mem[d]`, the cell it read the operand from, so a constant is destroyed by
+being used (`crazy_consumes_operand`), and each operation needs a fresh
+one. And `d` must differ from `c`, since the crazy operation writes at `d`
+while the encryption that follows reads at `c`; if they coincide the
+encryption sees a value that is essentially never printable and the run
+crashes. The two pointers start equal, so a prologue has to separate them.
+
 The supporting lemma is value extensionality, `ext_of_trits`: two
 normalised values with the same repeating trit and the same trit at every
 position are equal. Without it a tritwise argument cannot conclude an
