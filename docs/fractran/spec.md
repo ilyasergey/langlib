@@ -296,10 +296,121 @@ Output:
 
 ## Compilation from Turpentine
 
-Not planned (see `docs/PLAN.md`, Stage 4): compiling to FRACTRAN means
-arithmetising a register machine, which is possible in principle and
-recorded on the roadmap, but the result would be a slow number rather than
-an instructive one.
+Both routes exist, and `docs/fractran/compiler.md` has the construction.
+The **bespoke** one compiles Turpentine to a Minsky machine and the machine
+to fractions; the **certified** one composes the shared Turpentine-to-URM
+pass with FRACTRAN's Turing-completeness proof and is correct by
+construction.
+
+Use the bespoke one unless you want the proof: it emits a fifth of the
+fractions and its answer needs no decoding.
+
+### The answer convention
+
+FRACTRAN has no output, so a compiled program has to leave its result in
+the only thing there is: the final integer. The bespoke backend gives the
+variable `answer` the prime **2**, gives every other register and every
+state an **odd** prime, and clears everything else before it halts. The run
+therefore ends on exactly `2 ^ answer`, and no earlier state is a power of
+two, because until the last step an odd state prime always divides it.
+
+`--out pow2` prints `k` whenever a step produces `2 ^ k`, so it prints the
+answer, once, in decimal. The certified route instead prints the final
+state under `--out final` and leaves you to take the logarithm.
+
+### A worked example
+
+`sumsq.turp` adds up the squares below five. Compile it:
+
+```
+lake exe turpentine compile --to fractran --bespoke -o /tmp/sumsq.ft Langlib/Examples/Turpentine/sumsq.turp
+```
+
+Output, on stderr:
+
+```
+turpentine: wrote 2125 bytes to /tmp/sumsq.ft [bespoke, hand-written and unverified]
+turpentine: run it with: lake exe fractran --out pow2 --n 307 /tmp/sumsq.ft
+```
+
+The starting value is not in the file — a `.ft` file is fractions and
+nothing else — so the compiler prints the command that supplies it. Run
+exactly that:
+
+```
+lake exe fractran --out pow2 --n 307 /tmp/sumsq.ft
+```
+
+Output:
+
+```
+30
+```
+
+Or skip the file and do both at once:
+
+```
+lake exe turpentine exec --via fractran --bespoke Langlib/Examples/Turpentine/sumsq.turp
+```
+
+Output:
+
+```
+30
+```
+
+### Every example that compiles
+
+The same two commands work for each program below: `compile --to fractran
+--bespoke -o <file>` and then the `lake exe fractran --out pow2 --n <start>
+<file>` the compiler tells you to use. The starting value is the entry
+state's prime, so it differs per program and the compiler is the thing that
+knows it.
+
+| program | fractions | file | `--n` | answer |
+|---|---|---|---|---|
+| [`sum.turp`](../../Langlib/Examples/Turpentine/sum.turp) | 160 | 1619 B | 197 | 10 |
+| [`sumsq.turp`](../../Langlib/Examples/Turpentine/sumsq.turp) | 212 | 2125 B | 307 | 30 |
+| [`fact-tc.turp`](../../Langlib/Examples/Turpentine/fact-tc.turp) | 208 | 2053 B | 761 | 120 |
+| [`fib-tc.turp`](../../Langlib/Examples/Turpentine/fib-tc.turp) | 221 | 2180 B | 839 | 55 |
+| [`isqrt-tc.turp`](../../Langlib/Examples/Turpentine/isqrt-tc.turp) | 261 | 2596 B | 1061 | 4 |
+| [`gcd-tc.turp`](../../Langlib/Examples/Turpentine/gcd-tc.turp) | 595 | 6159 B | 3617 | 21 |
+| [`hello-tc.turp`](../../Langlib/Examples/Turpentine/hello-tc.turp) | 567 | 6222 B | 3767 | 18537 |
+| [`cat-tc.turp`](../../Langlib/Examples/Turpentine/cat-tc.turp) | 1 | 278 B | 3 | 0 |
+
+Every one of those finishes in well under a second.
+
+`hello-tc.turp` is the one worth staring at. It packs the two bytes of
+`"Hi"` into a single number, `72 * 256 + 105`, so the answer is 18537 and
+the run ends on `2 ^ 18537` — an integer of 5581 decimal digits, reached by
+multiplying by 2 eighteen thousand times. `cat-tc.turp` is the opposite
+joke: it compiles to *one fraction*, because a streaming echo cannot be
+expressed in this model at all, so what is left of it computes nothing.
+
+### The ones that compile and will not finish
+
+Three more are accepted and are not worth running:
+
+| program | fractions | why it is hopeless |
+|---|---|---|
+| `collatz-tc.turp` | 393 | Collatz for 27 reaches 9232, so a register holds its prime to the 9232nd power |
+| `primes-tc.turp` | 514 | trial division, and every `%` is a counting loop |
+| `sumdigits-tc.turp` | 9329 | the literal 9045 is built by 9045 increments, which is most of the program |
+
+That last row is the honest measure of the whole approach: a constant costs
+one fraction per unit. Left running with 500 million steps of fuel, none of
+the three had printed anything after several minutes.
+
+### What is refused
+
+The bespoke backend rejects, by name: `-`, unary minus and negative
+literals, because a prime exponent is a natural; `readInt` and `readByte`,
+because FRACTRAN has no input; `print`, `println` and `printByte`, because
+it has no output; arrays, because the backend lays out one register per
+variable and no dispatch chain for a computed index; and a program with no
+`answer` variable, because the final value is all there is. So
+`sieve-tc.turp`, `maxelem-tc.turp` and `sort-tc.turp` are out, all three
+for the array rule.
 
 ## Example programs
 
