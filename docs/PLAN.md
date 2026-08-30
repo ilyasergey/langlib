@@ -350,7 +350,23 @@ that nobody has proved: that whitespace's `parseNumLine` and Turpentine's
 with a proof, and finding out is worth the trip.
 
 **Then subleq**, where `encodeTrace` is the identity too and steps 0 and 2
-are already paid for.
+are already paid for. Its step 1 is done: `Subleq.State` records the run's
+events and `Langlib/Languages/Subleq/Trace.lean` proves the two laws, so
+`instance : TraceLang SubleqLang` sits beside `ProgLang SubleqLang`. One
+instruction, two of whose forms do I/O; reading at end of input consumes
+nothing and so records nothing. The cost was the same as whitespace's:
+threading an events parameter through the positional state literals of the
+completeness proof, which are now stated for an arbitrary prior trace.
+
+`encodeTrace = id` for subleq is no longer only a claim either.
+`Langlib/Tests/SubleqTrace.lean` runs a program through the reference
+interpreter and through the hand-written subleq backend and fails unless the
+traces agree — including `printint`, which builds a decimal numeral by
+repeated doubling on a self-modifying calling convention and still emits
+exactly the bytes `Value.render` does.
+
+What is left for subleq is its own steps 3–5: widening the two-shape
+fragment, and the instance.
 
 ## Stage 7: website `[ ]`
 

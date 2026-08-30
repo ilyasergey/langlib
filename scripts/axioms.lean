@@ -21,6 +21,7 @@ incompleteness instance lands.
 -/
 import Langlib.Computability.Whitespace
 import Langlib.Computability.Subleq
+import Langlib.Languages.Subleq.Trace
 import Langlib.Languages.Turpentine.Compile.Derived
 import Langlib.Languages.Turpentine.Trace
 import Langlib.Languages.Turpentine.Certified.BespokeWhitespace
@@ -741,6 +742,14 @@ open Langlib.Turpentine.Compile
 #print axioms Langlib.Turpentine.behavesWith_trace
 #print axioms Langlib.Turpentine.behavesWith_wf
 #print axioms Langlib.Turpentine.behavesWith_haltsWith
+
+-- Subleq reports its events too. One instruction, two of whose forms do
+-- I/O, so the record is short; the laws come from the same invariant.
+-- With this the two backends the library has proved answer-correct can
+-- both be stated behaviourally.
+#print axioms Langlib.Subleq.exec_wf
+#print axioms Langlib.Subleq.evalTrace_outputs
+#print axioms Langlib.Subleq.evalTrace_inputs
 
 -- SKI: the same counter machine in front, and nothing shared behind it.
 -- Head reduction and its bridge to the interpreter, the combinators, the

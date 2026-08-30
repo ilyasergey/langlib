@@ -52,13 +52,31 @@ def set (m : Mem) (a v : Int) : Mem :=
 
 end Mem
 
-/-- The machine state: memory, program counter, input cursor, and the
-output accumulated so far. -/
+/-- The machine state: memory, program counter, input cursor, the output
+accumulated so far, and the run's I/O events. -/
 structure State where
   mem : Mem
   pc : Int := 0
   input : Input
   output : ByteArray := .empty
+  /-- The run's I/O events, **most recent first**; `State.trace` turns them
+  over. Keeping them reversed makes recording a byte O(1). Only the two I/O
+  forms of the single instruction touch this field. -/
+  events : List Event := []
+
+/-- The observable behaviour of the run so far: the bytes it consumed and
+emitted, in the order they happened. This is what `Langlib.Common.TraceLang`
+asks a language for. -/
+def State.trace (s : State) : Trace := s.events.reverse
+
+/-- Emit one byte: to the output, and to the trace. -/
+def State.emit (s : State) (b : UInt8) : State :=
+  { s with output := s.output.push b, events := .out b :: s.events }
+
+/-- Consume one byte, recording it. Reading at end of input consumes
+nothing, and so records nothing. -/
+def State.consumeByte (s : State) (b : UInt8) (input' : Input) : State :=
+  { s with input := input', events := .inp b :: s.events }
 
 /-- Execute with the given fuel; one unit of fuel per instruction. -/
 def exec : Nat → State → State × Exit
@@ -77,18 +95,21 @@ def exec : Nat → State → State × Exit
         if b < 0 then
           (s, .error s!"input into negative address {b} at pc {s.pc}")
         else
-          let (v, input) :=
-            match s.input.read? with
-            | some (byte, rest) => ((byte.toNat : Int), rest)
-            | none => (-1, s.input)
-          exec fuel { s with mem := s.mem.set b v, input, pc := s.pc + 3 }
+          -- The two ends of input are written out rather than shared
+          -- through a `let`, so that a proof can case on the read.
+          match s.input.read? with
+          | some (byte, rest) =>
+            exec fuel { s.consumeByte byte rest with
+                          mem := s.mem.set b (byte.toNat : Int), pc := s.pc + 3 }
+          | none =>
+            exec fuel { s with mem := s.mem.set b (-1), pc := s.pc + 3 }
       else if b == -1 then
         -- Output: the byte mem[A] mod 256 (always in 0..255). No branch.
         if a < 0 then
           (s, .error s!"negative address {a} in operand A at pc {s.pc}")
         else
           let byte := ((s.mem.get a).emod 256).toNat.toUInt8
-          exec fuel { s with output := s.output.push byte, pc := s.pc + 3 }
+          exec fuel { s.emit byte with pc := s.pc + 3 }
       else if a < 0 then
         (s, .error s!"negative address {a} in operand A at pc {s.pc}")
       else if b < 0 then
@@ -103,6 +124,13 @@ def exec : Nat → State → State × Exit
 def evalProg (p : Prog) (input : Input) (fuel : Nat) : RunResult :=
   let (s, exit) := exec fuel { mem := Mem.ofProg p, input }
   { output := s.output, exit }
+
+/-- The observable behaviour of a run: the same run as `evalProg`, reporting
+its I/O events rather than its output bytes.
+`Langlib/Languages/Subleq/Trace.lean` proves the two agree, which is what makes
+this a lawful `TraceLang.trace`. -/
+def evalTrace (p : Prog) (input : Input) (fuel : Nat) : Trace :=
+  (exec fuel { mem := Mem.ofProg p, input }).1.trace
 
 /-- Assemble and run: the entry point used by the runner and the tests. -/
 def run (src : String) (input : Input) (fuel : Nat) : Except String RunResult := do

@@ -169,17 +169,22 @@ stream, and FRACTRAN — whose `run` takes an `Input` and never looks at it —
 discharges that by `rfl`. It was the library's first instance, and it is
 the cheap case.
 
-**Whitespace is the other kind**, and now has an instance too. Whitespace
-reads, so the interpreter has to record what it did:
+**Whitespace and subleq are the other kind**, and both now have instances.
+They read, so the interpreter has to record what it did:
 `Langlib.Whitespace.State` carries the run's events, the four I/O
 instructions append to them, and
 [`Langlib/Languages/Whitespace/Trace.lean`](../Langlib/Languages/Whitespace/Trace.lean)
-proves the two laws. Both follow from one invariant on a reachable state —
-what the trace says was emitted *is* the output, and what it says was
-consumed *followed by what the cursor has left* is what the stream started
-with. The second half is stronger than the prefix law it implies, and being
-an equation is exactly what lets it survive a second read: the residue is
-what the next read draws on.
+proves the two laws.
+[Subleq's](../Langlib/Languages/Subleq/Trace.lean) is the same, and shorter,
+because subleq has one instruction and only two of its forms do I/O.
+
+Both follow from one invariant on a reachable state — what the trace says
+was emitted *is* the output, and what it says was consumed *followed by what
+the cursor has left* is what the stream started with. The second half is
+stronger than the prefix law it implies, and being an equation is exactly
+what lets it survive a second read: the residue is what the next read draws
+on. Subleq's read at end of input consumes nothing and so records nothing,
+which is the honest report: no byte crossed the boundary.
 
 That invariant is also why [PLAN.md](PLAN.md) had to make
 `Input.readLine?` well-founded first. It was a `partial def`, an opaque
@@ -276,7 +281,7 @@ bespoke backends of section 3, which do compile Turpentine's `read` and
 | Backend | Proved today | What the upgrade needs |
 |---|---|---|
 | [Whitespace](../Langlib/Languages/Turpentine/Compile/Whitespace.lean) | `CertifiedCompiler`, scalar fragment | **both trace semantics done**; the print cases of the simulation, and the instance |
-| [Subleq](../Langlib/Languages/Turpentine/Compile/Subleq.lean) | `CertifiedCompiler`, two shapes | a `TraceLang` instance; `encodeTrace` is the identity |
+| [Subleq](../Langlib/Languages/Turpentine/Compile/Subleq.lean) | `CertifiedCompiler`, two shapes | **`TraceLang` done**; `encodeTrace` is the identity, now checked |
 | [Brainfuck](../Langlib/Languages/Turpentine/Compile/Brainfuck.lean) | tested, not proved | the correctness proof first |
 | [Ook!](../Langlib/Languages/Turpentine/Compile/Ook.lean), [Brainloller](../Langlib/Languages/Turpentine/Compile/Brainloller.lean) | tested, not proved | Brainfuck's, then re-encoding |
 
@@ -303,6 +308,16 @@ runs a program through the reference interpreter and through the
 hand-written whitespace backend and fails unless the two performed the same
 events in the same order. The proof is still to write; the claim it will
 make is already being checked on every `lake test`.
+
+**The same is true of subleq, which is the more surprising half.** The
+table above has always said `encodeTrace` is the identity there, on the
+grounds that the backend hands the target the bytes the source read and
+wrote. Nothing checked it, and there was room to doubt: subleq prints
+integers through the `printint` runtime routine, which builds a decimal
+numeral by repeated doubling on top of a self-modifying calling convention.
+It emits exactly the bytes `Value.render` does.
+[`Langlib/Tests/SubleqTrace.lean`](../Langlib/Tests/SubleqTrace.lean) pins
+that, alongside `readInt` agreeing on what it consumed.
 
 ## 2. Route one: derived, via the URM
 

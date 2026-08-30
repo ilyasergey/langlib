@@ -2,7 +2,42 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-31 (latest): a better register encoding, and the probe
+## 2026-08-31 (latest): subleq reports its events, and printint is honest
+
+The third and last of the trace semantics, and the shortest: subleq has one
+instruction, two of whose forms do I/O. `Subleq.State` records the run's
+events, `Langlib/Languages/Subleq/Trace.lean` proves the two `TraceLang` laws
+from the same invariant as whitespace's, and `instance : TraceLang
+SubleqLang` now sits beside `ProgLang SubleqLang`. Reading at end of input
+consumes nothing and so records nothing, which is the honest report: no byte
+crossed the boundary.
+
+Both backends the library has proved answer-correct can therefore now be
+*stated* behaviourally. That was the whole point of the exercise.
+
+The interesting part is what the tests found. `docs/certified-compilation.md`
+has always said `encodeTrace` for the subleq backend is the identity, on the
+grounds that it hands the target the bytes the source read and wrote.
+Nothing checked it, and there was room to doubt, because subleq does not
+have an "print this integer" instruction: it prints integers through the
+`printint` runtime routine, which builds a decimal numeral by repeated
+doubling on top of a self-modifying calling convention. It emits exactly the
+bytes `Value.render` does.
+
+    println(-12345)   turpentine  >45 >49 >50 >51 >52 >53 >10
+                      subleq      >45 >49 >50 >51 >52 >53 >10
+
+Ten new tests, three of them that cross-check. The cost was the same as
+whitespace's and is worth recording because the next backend will pay it
+too: the completeness proof builds machine states with positional `⟨…⟩`
+literals, so a fifth field meant threading an events parameter through
+thirty-odd of them. They are now stated for an arbitrary prior trace, which
+is the more useful form. The subleq input branch also had to be rewritten
+from a shared `let` into two branches so that a proof can case on the read —
+the third time that pattern has come up, after Turpentine's
+`a[i] := readByte()`.
+
+## 2026-08-31: a better register encoding, and the probe
 
 A correction to the encoding committed earlier, and an improvement worth
 the change. Blank `...000` with mark `...111` makes set, clear and test one

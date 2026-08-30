@@ -161,38 +161,45 @@ lands, and discharges each as a separate side goal. -/
 
 /-- One subtract-and-branch instruction. -/
 theorem stepSub {m : Mem} {pc A B C vA vB : Int} {inp : Input} {out : ByteArray}
+    {es : List Event}
     (hpc : 0 ≤ pc) (hext : pc < m.extent)
     (hA : m.get pc = A) (hB : m.get (pc + 1) = B) (hC : m.get (pc + 2) = C)
     (hA0 : 0 ≤ A) (hB0 : 0 ≤ B) (hvA : m.get A = vA) (hvB : m.get B = vB)
     {m' : Mem} {pc' : Int}
     (hm' : m.set B (vB - vA) = m') (hpc' : (if vB - vA ≤ 0 then C else pc + 3) = pc') :
-    Reaches Langlib.Subleq.exec ⟨m, pc, inp, out⟩ ⟨m', pc', inp, out⟩ := by
-  have h := reaches_sub m pc inp out hpc hext (by rw [hA]; exact hA0) (by rw [hB]; exact hB0)
+    Reaches Langlib.Subleq.exec ⟨m, pc, inp, out, es⟩ ⟨m', pc', inp, out, es⟩ := by
+  have h := reaches_sub m pc inp out es hpc hext (by rw [hA]; exact hA0) (by rw [hB]; exact hB0)
   rw [hA, hB, hC, hvA, hvB, hm', hpc'] at h
   exact h
 
 /-- One output instruction: `B` is the `-1` sentinel, so the machine emits
 `mem[A] mod 256` and falls through. -/
 theorem stepOut {m : Mem} {pc A vA : Int} {inp : Input} {out : ByteArray}
+    {es : List Event}
     (hpc : 0 ≤ pc) (hext : pc < m.extent)
     (hA : m.get pc = A) (hB : m.get (pc + 1) = -1)
     (hA0 : 0 ≤ A) (hvA : m.get A = vA) {pc' : Int} (hpc' : pc + 3 = pc') :
-    Reaches Langlib.Subleq.exec ⟨m, pc, inp, out⟩ ⟨m, pc', inp, out.push ((vA.emod 256).toNat.toUInt8)⟩ := by
-  have h := reaches_out m pc inp out hpc hext (by rw [hA]; exact hA0) hB
+    Reaches Langlib.Subleq.exec ⟨m, pc, inp, out, es⟩
+      ⟨m, pc', inp, out.push ((vA.emod 256).toNat.toUInt8),
+        Event.out ((vA.emod 256).toNat.toUInt8) :: es⟩ := by
+  have h := reaches_out m pc inp out es hpc hext (by rw [hA]; exact hA0) hB
   rw [hA, hvA, hpc'] at h
   exact h
 
 /-- Running a chain that ends at a negative program counter: the machine
 halts there, so the whole image's run is the chain's output. -/
 theorem eval_of_reaches {p : Prog} {m : Mem} {pc : Int} {inp : Input} {out : ByteArray}
-    (h : Reaches Langlib.Subleq.exec ⟨Mem.ofProg p, 0, inp, ByteArray.empty⟩ ⟨m, pc, inp, out⟩)
+    {es : List Event}
+    (h : Reaches Langlib.Subleq.exec ⟨Mem.ofProg p, 0, inp, ByteArray.empty, []⟩
+      ⟨m, pc, inp, out, es⟩)
     (hpc : pc < 0) :
     ∃ f, evalProg p inp f = { output := out, exit := Exit.halted } := by
   obtain ⟨f, hf⟩ := Reaches.eval h 1
   refine ⟨f, ?_⟩
   simp only [evalProg]
   rw [show ({ mem := Mem.ofProg p, input := inp } : Langlib.Subleq.State)
-      = ⟨Mem.ofProg p, 0, inp, ByteArray.empty⟩ from rfl, hf, exec_halt m pc inp out hpc 0]
+      = ⟨Mem.ofProg p, 0, inp, ByteArray.empty, []⟩ from rfl, hf,
+    exec_halt m pc inp out es hpc 0]
 
 /-! ## The twelve memories of the printing image
 
@@ -224,9 +231,10 @@ build `k` in `t_0`, four to move it into `v_answer`, four to move it back,
 one to print it, and the halt. Every instruction's third word is the address
 of the next one, so no branch is taken until the halt, and the value of `k`
 never decides control flow. -/
-theorem reaches_print (k : Int) (inp : Input) (out : ByteArray) :
-    Reaches Langlib.Subleq.exec ⟨M0 k, 0, inp, out⟩
-      ⟨M11 k, -1, inp, out.push ((k.emod 256).toNat.toUInt8)⟩ := by
+theorem reaches_print (k : Int) (inp : Input) (out : ByteArray) (es : List Event) :
+    Reaches Langlib.Subleq.exec ⟨M0 k, 0, inp, out, es⟩
+      ⟨M11 k, -1, inp, out.push ((k.emod 256).toNat.toUInt8),
+        Event.out ((k.emod 256).toNat.toUInt8) :: es⟩ := by
   refine Reaches.trans (stepSub (m' := M1 k) (pc' := 3) (m := M0 k) (pc := 0)
       (A := 40) (B := 40) (C := 3) (vA := 0) (vB := 0)
       (by decide) (by simp) (by simp) (by simp) (by simp)
@@ -276,9 +284,9 @@ theorem reaches_print (k : Int) (inp : Input) (out : ByteArray) :
 
 /-- **The empty image halts at once.** `Z Z -1` subtracts the zero cell from
 itself, which is `<= 0`, so the machine jumps to `-1` and stops. -/
-theorem reaches_skip (inp : Input) (out : ByteArray) :
-    Reaches Langlib.Subleq.exec ⟨Mem.ofProg imgSkip, 0, inp, out⟩
-      ⟨(Mem.ofProg imgSkip).set 8 0, -1, inp, out⟩ :=
+theorem reaches_skip (inp : Input) (out : ByteArray) (es : List Event) :
+    Reaches Langlib.Subleq.exec ⟨Mem.ofProg imgSkip, 0, inp, out, es⟩
+      ⟨(Mem.ofProg imgSkip).set 8 0, -1, inp, out, es⟩ :=
   stepSub (m := Mem.ofProg imgSkip) (pc := 0) (A := 8) (B := 8) (C := -1)
     (vA := 0) (vB := 0) (m' := (Mem.ofProg imgSkip).set 8 0) (pc' := -1)
     (by decide) (by simp [imgSkip]) (by simp [imgSkip]) (by simp [imgSkip]) (by simp [imgSkip])
@@ -287,11 +295,11 @@ theorem reaches_skip (inp : Input) (out : ByteArray) :
 theorem run_print (k : Int) (inp : Input) :
     ∃ f, evalProg (imgPrint k) inp f =
       { output := ByteArray.empty.push ((k.emod 256).toNat.toUInt8), exit := Exit.halted } :=
-  eval_of_reaches (reaches_print k inp ByteArray.empty) (by decide)
+  eval_of_reaches (reaches_print k inp ByteArray.empty []) (by decide)
 
 theorem run_skip (inp : Input) :
     ∃ f, evalProg imgSkip inp f = { output := ByteArray.empty, exit := Exit.halted } :=
-  eval_of_reaches (reaches_skip inp ByteArray.empty) (by decide)
+  eval_of_reaches (reaches_skip inp ByteArray.empty []) (by decide)
 
 /-! ## The fragment -/
 

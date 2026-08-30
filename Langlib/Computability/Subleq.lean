@@ -2,6 +2,7 @@ import Langlib.Common.Fuel
 import Langlib.Common.Computability
 import Langlib.Computability.URM
 import Langlib.Languages.Subleq.Semantics
+import Langlib.Languages.Subleq.Trace
 
 /-!
 # Subleq is Turing complete
@@ -424,13 +425,13 @@ theorem extent_set (m : Mem) (a v : Int) : (m.set a v).extent = max m.extent (a 
 /-! ## One subleq instruction -/
 
 /-- The subtract-and-branch case. -/
-theorem reaches_sub (m : Mem) (pc : Int) (inp : Input) (out : ByteArray)
+theorem reaches_sub (m : Mem) (pc : Int) (inp : Input) (out : ByteArray) (es : List Event)
     (hpc : 0 ≤ pc) (hext : pc < m.extent)
     (hA : 0 ≤ m.get pc) (hB : 0 ≤ m.get (pc + 1)) :
-    Reaches exec ⟨m, pc, inp, out⟩
+    Reaches exec ⟨m, pc, inp, out, es⟩
       ⟨m.set (m.get (pc + 1)) (m.get (m.get (pc + 1)) - m.get (m.get pc)),
         (if m.get (m.get (pc + 1)) - m.get (m.get pc) ≤ 0 then m.get (pc + 2) else pc + 3),
-        inp, out⟩ :=
+        inp, out, es⟩ :=
   Reaches.one fun f => by
     have hrun : ¬ (decide (pc < 0) || decide (pc ≥ m.extent)) = true := by
       simp only [Bool.or_eq_true, decide_eq_true_eq]
@@ -442,11 +443,12 @@ theorem reaches_sub (m : Mem) (pc : Int) (inp : Input) (out : ByteArray)
     simp only [exec, if_neg hrun, if_neg hA1, if_neg hB1, if_neg hA2, if_neg hB2]
 
 /-- The output case: `B == -1` writes one byte and never branches. -/
-theorem reaches_out (m : Mem) (pc : Int) (inp : Input) (out : ByteArray)
+theorem reaches_out (m : Mem) (pc : Int) (inp : Input) (out : ByteArray) (es : List Event)
     (hpc : 0 ≤ pc) (hext : pc < m.extent)
     (hA : 0 ≤ m.get pc) (hB : m.get (pc + 1) = -1) :
-    Reaches exec ⟨m, pc, inp, out⟩
-      ⟨m, pc + 3, inp, out.push (((m.get (m.get pc)).emod 256).toNat.toUInt8)⟩ :=
+    Reaches exec ⟨m, pc, inp, out, es⟩
+      ⟨m, pc + 3, inp, out.push (((m.get (m.get pc)).emod 256).toNat.toUInt8),
+        Event.out (((m.get (m.get pc)).emod 256).toNat.toUInt8) :: es⟩ :=
   Reaches.one fun f => by
     have hrun : ¬ (decide (pc < 0) || decide (pc ≥ m.extent)) = true := by
       simp only [Bool.or_eq_true, decide_eq_true_eq]
@@ -454,11 +456,11 @@ theorem reaches_out (m : Mem) (pc : Int) (inp : Input) (out : ByteArray)
     have hA1 : ¬ (m.get pc == -1) = true := by simp only [beq_iff_eq]; omega
     have hB1 : (m.get (pc + 1) == -1) = true := by simp only [beq_iff_eq]; omega
     have hA2 : ¬ m.get pc < 0 := by omega
-    simp only [exec, if_neg hrun, if_neg hA1, if_pos hB1, if_neg hA2]
+    simp only [exec, if_neg hrun, if_neg hA1, if_pos hB1, if_neg hA2, State.emit]
 
 /-- A negative program counter halts. -/
-theorem exec_halt (m : Mem) (pc : Int) (inp : Input) (out : ByteArray) (h : pc < 0) (f : Nat) :
-    exec (f + 1) ⟨m, pc, inp, out⟩ = (⟨m, pc, inp, out⟩, Exit.halted) := by
+theorem exec_halt (m : Mem) (pc : Int) (inp : Input) (out : ByteArray) (es : List Event) (h : pc < 0) (f : Nat) :
+    exec (f + 1) ⟨m, pc, inp, out, es⟩ = (⟨m, pc, inp, out, es⟩, Exit.halted) := by
   have hrun : (decide (pc < 0) || decide (pc ≥ m.extent)) = true := by
     simp only [Bool.or_eq_true, decide_eq_true_eq]
     exact Or.inl h
@@ -589,14 +591,14 @@ theorem get_epi (hok : Ok P inputs m regs) (j : Nat) (hj : j < 21) :
 
 /-! ## One subleq instruction, with its operands named -/
 
-theorem reaches_word (m : Mem) (p A B C : Int) (inp : Input) (out : ByteArray)
+theorem reaches_word (m : Mem) (p A B C : Int) (inp : Input) (out : ByteArray) (es : List Event)
     (hp : 0 ≤ p) (hext : p < m.extent)
     (hA : m.get p = A) (hB : m.get (p + 1) = B) (hC : m.get (p + 2) = C)
     (hA0 : 0 ≤ A) (hB0 : 0 ≤ B) :
-    Reaches exec ⟨m, p, inp, out⟩
+    Reaches exec ⟨m, p, inp, out, es⟩
       ⟨m.set B (m.get B - m.get A),
-        (if m.get B - m.get A ≤ 0 then C else p + 3), inp, out⟩ := by
-  have h := reaches_sub m p inp out hp hext (by rw [hA]; exact hA0) (by rw [hB]; exact hB0)
+        (if m.get B - m.get A ≤ 0 then C else p + 3), inp, out, es⟩ := by
+  have h := reaches_sub m p inp out es hp hext (by rw [hA]; exact hA0) (by rw [hB]; exact hB0)
   rw [hA, hB, hC] at h
   exact h
 
@@ -606,11 +608,11 @@ theorem step_code (hok : Ok P inputs m regs) {k : Nat} (i : Cslib.URM.Instr)
     (hA : (instrWords P (entryAddr P k) i).getD j 0 = A)
     (hB : (instrWords P (entryAddr P k) i).getD (j + 1) 0 = B)
     (hC : (instrWords P (entryAddr P k) i).getD (j + 2) 0 = C)
-    (hA0 : 0 ≤ A) (hB0 : 0 ≤ B) (inp : Input) (out : ByteArray) :
-    Reaches exec ⟨m, ((entryAddr P k + j : Nat) : Int), inp, out⟩
+    (hA0 : 0 ≤ A) (hB0 : 0 ≤ B) (inp : Input) (out : ByteArray) (es : List Event) :
+    Reaches exec ⟨m, ((entryAddr P k + j : Nat) : Int), inp, out, es⟩
       ⟨m.set B (m.get B - m.get A),
         (if m.get B - m.get A ≤ 0 then C else ((entryAddr P k + (j + 3) : Nat) : Int)),
-        inp, out⟩ := by
+        inp, out, es⟩ := by
   have hj' : j < instrSize P[k] := by rw [hPk]; omega
   have hb := code_bound P k hk j hj'
   have hext : ((entryAddr P k + j : Nat) : Int) < m.extent := by
@@ -623,7 +625,7 @@ theorem step_code (hok : Ok P inputs m regs) {k : Nat} (i : Cslib.URM.Instr)
     push_cast; omega
   have e3 : ((entryAddr P k + j : Nat) : Int) + 3 = ((entryAddr P k + (j + 3) : Nat) : Int) := by
     push_cast; omega
-  have h := reaches_word m ((entryAddr P k + j : Nat) : Int) A B C inp out
+  have h := reaches_word m ((entryAddr P k + j : Nat) : Int) A B C inp out es
     (Int.natCast_nonneg _) hext
     (by rw [get_code hok i hk hPk j (by omega), hA])
     (by rw [e1, get_code hok i hk hPk (j + 1) (by omega), hB])
@@ -637,11 +639,11 @@ theorem step_epi (hok : Ok P inputs m regs) (j : Nat) (hj : j + 2 < 21)
     (hA : (epiWords P).getD j 0 = A)
     (hB : (epiWords P).getD (j + 1) 0 = B)
     (hC : (epiWords P).getD (j + 2) 0 = C)
-    (hA0 : 0 ≤ A) (hB0 : 0 ≤ B) (inp : Input) (out : ByteArray) :
-    Reaches exec ⟨m, ((epiAddr P + j : Nat) : Int), inp, out⟩
+    (hA0 : 0 ≤ A) (hB0 : 0 ≤ B) (inp : Input) (out : ByteArray) (es : List Event) :
+    Reaches exec ⟨m, ((epiAddr P + j : Nat) : Int), inp, out, es⟩
       ⟨m.set B (m.get B - m.get A),
         (if m.get B - m.get A ≤ 0 then C else ((epiAddr P + (j + 3) : Nat) : Int)),
-        inp, out⟩ := by
+        inp, out, es⟩ := by
   have hb : epiAddr P + j < regBase P := by simp only [regBase]; omega
   have hext : ((epiAddr P + j : Nat) : Int) < m.extent := by
     have h1 := hok.ext
@@ -653,7 +655,7 @@ theorem step_epi (hok : Ok P inputs m regs) (j : Nat) (hj : j + 2 < 21)
     push_cast; omega
   have e3 : ((epiAddr P + j : Nat) : Int) + 3 = ((epiAddr P + (j + 3) : Nat) : Int) := by
     push_cast; omega
-  have h := reaches_word m ((epiAddr P + j : Nat) : Int) A B C inp out
+  have h := reaches_word m ((epiAddr P + j : Nat) : Int) A B C inp out es
     (Int.natCast_nonneg _) hext
     (by rw [get_epi hok j (by omega), hA])
     (by rw [e1, get_epi hok (j + 1) (by omega), hB])
@@ -663,9 +665,9 @@ theorem step_epi (hok : Ok P inputs m regs) (j : Nat) (hj : j + 2 < 21)
   exact h
 
 /-- The one output instruction, in the epilogue. -/
-theorem step_epi_out (hok : Ok P inputs m regs) (inp : Input) (out : ByteArray) :
-    Reaches exec ⟨m, ((epiAddr P + 12 : Nat) : Int), inp, out⟩
-      ⟨m, ((epiAddr P + 15 : Nat) : Int), inp, out.push 49⟩ := by
+theorem step_epi_out (hok : Ok P inputs m regs) (inp : Input) (out : ByteArray) (es : List Event) :
+    Reaches exec ⟨m, ((epiAddr P + 12 : Nat) : Int), inp, out, es⟩
+      ⟨m, ((epiAddr P + 15 : Nat) : Int), inp, out.push 49, Event.out 49 :: es⟩ := by
   have hb : epiAddr P + 12 < regBase P := by simp only [regBase]; omega
   have hext : ((epiAddr P + 12 : Nat) : Int) < m.extent := by
     have h1 := hok.ext
@@ -679,7 +681,7 @@ theorem step_epi_out (hok : Ok P inputs m regs) (inp : Input) (out : ByteArray) 
     rw [get_epi hok 12 (by omega)]; rfl
   have hB : m.get (((epiAddr P + 12 : Nat) : Int) + 1) = -1 := by
     rw [e1, get_epi hok 13 (by omega)]; rfl
-  have h := reaches_out m ((epiAddr P + 12 : Nat) : Int) inp out (Int.natCast_nonneg _) hext
+  have h := reaches_out m ((epiAddr P + 12 : Nat) : Int) inp out es (Int.natCast_nonneg _) hext
     (by rw [hA]; omega) hB
   rw [hA, hok.outc, e3] at h
   have : ((49 : Int).emod 256).toNat.toUInt8 = (49 : UInt8) := by decide
@@ -716,9 +718,9 @@ private theorem get_set_other (m : Mem) {a b : Int} (h : b ≠ a) (v : Int) :
     (m.set a v).get b = m.get b := by rw [get_set, if_neg h]
 
 theorem block_Z (hok : Ok P inputs m regs) {k r : Nat} (hk : k < P.length)
-    (hPk : P[k] = .Z r) (inp : Input) (out : ByteArray) :
-    ∃ m', Reaches exec ⟨m, ((entryAddr P k : Nat) : Int), inp, out⟩
-        ⟨m', ((entryAddr P (k + 1) : Nat) : Int), inp, out⟩
+    (hPk : P[k] = .Z r) (inp : Input) (out : ByteArray) (es : List Event) :
+    ∃ m', Reaches exec ⟨m, ((entryAddr P k : Nat) : Int), inp, out, es⟩
+        ⟨m', ((entryAddr P (k + 1) : Nat) : Int), inp, out, es⟩
       ∧ Ok P inputs m' (regs.write r 0) := by
   have hsucc : entryAddr P k + 3 = entryAddr P (k + 1) := by
     have h := entryAddr_succ P k hk
@@ -726,7 +728,7 @@ theorem block_Z (hok : Ok P inputs m regs) {k r : Nat} (hk : k < P.length)
     simpa [instrSize] using h
   have s0 := step_code (A := regAddr P r) (B := regAddr P r)
       (C := ((entryAddr P k + 3 : Nat) : Int)) hok (.Z r) hk hPk 0 (by simp [instrSize])
-      rfl rfl rfl (Int.natCast_nonneg _) (Int.natCast_nonneg _) inp out
+      rfl rfl rfl (Int.natCast_nonneg _) (Int.natCast_nonneg _) inp out es
   rw [show m.get (regAddr P r) - m.get (regAddr P r) = 0 from by omega,
     if_pos (le_refl 0), Nat.add_zero, hsucc] at s0
   refine ⟨m.set (regAddr P r) 0, s0, ?_⟩
@@ -734,9 +736,9 @@ theorem block_Z (hok : Ok P inputs m regs) {k r : Nat} (hk : k < P.length)
   simpa using this
 
 theorem block_S (hok : Ok P inputs m regs) {k r : Nat} (hk : k < P.length)
-    (hPk : P[k] = .S r) (inp : Input) (out : ByteArray) :
-    ∃ m', Reaches exec ⟨m, ((entryAddr P k : Nat) : Int), inp, out⟩
-        ⟨m', ((entryAddr P (k + 1) : Nat) : Int), inp, out⟩
+    (hPk : P[k] = .S r) (inp : Input) (out : ByteArray) (es : List Event) :
+    ∃ m', Reaches exec ⟨m, ((entryAddr P k : Nat) : Int), inp, out, es⟩
+        ⟨m', ((entryAddr P (k + 1) : Nat) : Int), inp, out, es⟩
       ∧ Ok P inputs m' (regs.write r (regs.read r + 1)) := by
   have hsucc : entryAddr P k + 3 = entryAddr P (k + 1) := by
     have h := entryAddr_succ P k hk
@@ -744,7 +746,7 @@ theorem block_S (hok : Ok P inputs m regs) {k r : Nat} (hk : k < P.length)
     simpa [instrSize] using h
   have s0 := step_code (A := 4) (B := regAddr P r)
       (C := ((entryAddr P k + 3 : Nat) : Int)) hok (.S r) hk hPk 0 (by simp [instrSize])
-      rfl rfl rfl (by omega) (Int.natCast_nonneg _) inp out
+      rfl rfl rfl (by omega) (Int.natCast_nonneg _) inp out es
   have hval : m.get (regAddr P r) - m.get 4 = ((regs.read r + 1 : Nat) : Int) := by
     rw [hok.reg r, hok.neg]
     simp [Cslib.URM.Regs.read]
@@ -762,9 +764,9 @@ private theorem reg_ne_scratch (P : Program) (r : Nat) (a : Int) (ha : a ≤ 7) 
   omega
 
 theorem block_T (hok : Ok P inputs m regs) {k x y : Nat} (hk : k < P.length)
-    (hPk : P[k] = .T x y) (inp : Input) (out : ByteArray) :
-    ∃ m', Reaches exec ⟨m, ((entryAddr P k : Nat) : Int), inp, out⟩
-        ⟨m', ((entryAddr P (k + 1) : Nat) : Int), inp, out⟩
+    (hPk : P[k] = .T x y) (inp : Input) (out : ByteArray) (es : List Event) :
+    ∃ m', Reaches exec ⟨m, ((entryAddr P k : Nat) : Int), inp, out, es⟩
+        ⟨m', ((entryAddr P (k + 1) : Nat) : Int), inp, out, es⟩
       ∧ Ok P inputs m' (regs.write y (regs.read x)) := by
   have hsucc : entryAddr P k + 12 = entryAddr P (k + 1) := by
     have h := entryAddr_succ P k hk
@@ -772,7 +774,7 @@ theorem block_T (hok : Ok P inputs m regs) {k x y : Nat} (hk : k < P.length)
     simpa [instrSize] using h
   -- `T1 := 0`
   have s0 := step_code (A := 5) (B := 5) (C := ((entryAddr P k + 3 : Nat) : Int))
-      hok (.T x y) hk hPk 0 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out
+      hok (.T x y) hk hPk 0 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out es
   rw [show m.get 5 - m.get 5 = 0 from by omega, if_pos (le_refl 0), Nat.add_zero] at s0
   have ok1 : Ok P inputs (m.set 5 0) regs := scratch5 hok 0
   have g1_5 : (m.set 5 0).get 5 = 0 := get_set_self m 5 0
@@ -781,7 +783,7 @@ theorem block_T (hok : Ok P inputs m regs) {k x y : Nat} (hk : k < P.length)
   -- `T1 := -R[x]`
   have s1 := step_code (A := regAddr P x) (B := 5) (C := ((entryAddr P k + 6 : Nat) : Int))
       ok1 (.T x y) hk hPk 3 (by simp [instrSize]) rfl rfl rfl
-      (Int.natCast_nonneg _) (by omega) inp out
+      (Int.natCast_nonneg _) (by omega) inp out es
   rw [g1_5, g1_x, if_pos (by omega)] at s1
   have ok2 : Ok P inputs ((m.set 5 0).set 5 (0 - ((regs.read x : Nat) : Int))) regs :=
     scratch5 ok1 _
@@ -790,7 +792,7 @@ theorem block_T (hok : Ok P inputs m regs) {k x y : Nat} (hk : k < P.length)
   -- `R[y] := 0`
   have s2 := step_code (A := regAddr P y) (B := regAddr P y)
       (C := ((entryAddr P k + 9 : Nat) : Int)) ok2 (.T x y) hk hPk 6 (by simp [instrSize])
-      rfl rfl rfl (Int.natCast_nonneg _) (Int.natCast_nonneg _) inp out
+      rfl rfl rfl (Int.natCast_nonneg _) (Int.natCast_nonneg _) inp out es
   rw [show ((m.set 5 0).set 5 (0 - ((regs.read x : Nat) : Int))).get (regAddr P y)
         - ((m.set 5 0).set 5 (0 - ((regs.read x : Nat) : Int))).get (regAddr P y) = 0 from by omega,
     if_pos (le_refl 0)] at s2
@@ -807,7 +809,7 @@ theorem block_T (hok : Ok P inputs m regs) {k x y : Nat} (hk : k < P.length)
   -- `R[y] := R[x]`
   have s3 := step_code (A := 5) (B := regAddr P y) (C := ((entryAddr P k + 12 : Nat) : Int))
       ok3 (.T x y) hk hPk 9 (by simp [instrSize]) rfl rfl rfl (by omega)
-      (Int.natCast_nonneg _) inp out
+      (Int.natCast_nonneg _) inp out es
   rw [g3_y, g3_5, show (0 : Int) - (0 - ((regs.read x : Nat) : Int))
       = ((regs.read x : Nat) : Int) from by omega,
     show entryAddr P k + (9 + 3) = entryAddr P k + 12 from by omega, hsucc] at s3
@@ -824,16 +826,16 @@ theorem block_T (hok : Ok P inputs m regs) {k x y : Nat} (hk : k < P.length)
 /-- The first five subleq instructions of a `J` block: they leave `X - Y` in
 scratch cell 6 and `-X` in scratch cell 5, and branch on `X <= Y`. -/
 private theorem J_prefix (hok : Ok P inputs m regs) {k x y q : Nat} (hk : k < P.length)
-    (hPk : P[k] = .J x y q) (inp : Input) (out : ByteArray) :
-    ∃ m5, Reaches exec ⟨m, ((entryAddr P k : Nat) : Int), inp, out⟩
+    (hPk : P[k] = .J x y q) (inp : Input) (out : ByteArray) (es : List Event) :
+    ∃ m5, Reaches exec ⟨m, ((entryAddr P k : Nat) : Int), inp, out, es⟩
         ⟨m5, (if ((regs.read x : Nat) : Int) - ((regs.read y : Nat) : Int) ≤ 0
               then ((entryAddr P k + 18 : Nat) : Int) else ((entryAddr P k + 15 : Nat) : Int)),
-          inp, out⟩
+          inp, out, es⟩
       ∧ Ok P inputs m5 regs
       ∧ m5.get 5 = 0 - ((regs.read x : Nat) : Int)
       ∧ m5.get 6 = ((regs.read x : Nat) : Int) - ((regs.read y : Nat) : Int) := by
   have s0 := step_code (A := 5) (B := 5) (C := ((entryAddr P k + 3 : Nat) : Int))
-      hok (.J x y q) hk hPk 0 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out
+      hok (.J x y q) hk hPk 0 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out es
   rw [show m.get 5 - m.get 5 = 0 from by omega, if_pos (le_refl 0), Nat.add_zero] at s0
   have ok1 : Ok P inputs (m.set 5 0) regs := scratch5 hok 0
   have g1_5 : (m.set 5 0).get 5 = 0 := get_set_self m 5 0
@@ -841,13 +843,13 @@ private theorem J_prefix (hok : Ok P inputs m regs) {k x y q : Nat} (hk : k < P.
     rw [get_set_other m (reg_ne_scratch P x 5 (by omega)) 0]; exact hok.reg x
   have s1 := step_code (A := regAddr P x) (B := 5) (C := ((entryAddr P k + 6 : Nat) : Int))
       ok1 (.J x y q) hk hPk 3 (by simp [instrSize]) rfl rfl rfl
-      (Int.natCast_nonneg _) (by omega) inp out
+      (Int.natCast_nonneg _) (by omega) inp out es
   rw [g1_5, g1_x, if_pos (by omega)] at s1
   set m2 := (m.set 5 0).set 5 (0 - ((regs.read x : Nat) : Int)) with hm2
   have ok2 : Ok P inputs m2 regs := scratch5 ok1 _
   have g2_5 : m2.get 5 = 0 - ((regs.read x : Nat) : Int) := get_set_self _ 5 _
   have s2 := step_code (A := 6) (B := 6) (C := ((entryAddr P k + 9 : Nat) : Int))
-      ok2 (.J x y q) hk hPk 6 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out
+      ok2 (.J x y q) hk hPk 6 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out es
   rw [show m2.get 6 - m2.get 6 = 0 from by omega, if_pos (le_refl 0)] at s2
   set m3 := m2.set 6 0 with hm3
   have ok3 : Ok P inputs m3 regs := scratch6 ok2 0
@@ -855,7 +857,7 @@ private theorem J_prefix (hok : Ok P inputs m regs) {k x y q : Nat} (hk : k < P.
   have g3_5 : m3.get 5 = 0 - ((regs.read x : Nat) : Int) := by
     rw [hm3, get_set_other _ (by omega) 0, g2_5]
   have s3 := step_code (A := 5) (B := 6) (C := ((entryAddr P k + 12 : Nat) : Int))
-      ok3 (.J x y q) hk hPk 9 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out
+      ok3 (.J x y q) hk hPk 9 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out es
   rw [g3_6, g3_5, show (0 : Int) - (0 - ((regs.read x : Nat) : Int))
       = ((regs.read x : Nat) : Int) from by omega,
     show entryAddr P k + (9 + 3) = entryAddr P k + 12 from by omega,
@@ -870,7 +872,7 @@ private theorem J_prefix (hok : Ok P inputs m regs) {k x y q : Nat} (hk : k < P.
   have g4_y : m4.get (regAddr P y) = ((regs.read y : Nat) : Int) := ok4.reg y
   have s4 := step_code (A := regAddr P y) (B := 6) (C := ((entryAddr P k + 18 : Nat) : Int))
       ok4 (.J x y q) hk hPk 12 (by simp [instrSize]) rfl rfl rfl
-      (Int.natCast_nonneg _) (by omega) inp out
+      (Int.natCast_nonneg _) (by omega) inp out es
   rw [g4_6, g4_y, show entryAddr P k + (12 + 3) = entryAddr P k + 15 from by omega] at s4
   refine ⟨m4.set 6 (((regs.read x : Nat) : Int) - ((regs.read y : Nat) : Int)),
     Reaches.trans s0 (Reaches.trans s1 (Reaches.trans s2 (Reaches.trans s3 s4))),
@@ -879,41 +881,41 @@ private theorem J_prefix (hok : Ok P inputs m regs) {k x y q : Nat} (hk : k < P.
 
 theorem block_J_taken (hok : Ok P inputs m regs) {k x y q : Nat} (hk : k < P.length)
     (hPk : P[k] = .J x y q) (heq : regs.read x = regs.read y)
-    (inp : Input) (out : ByteArray) :
-    ∃ m', Reaches exec ⟨m, ((entryAddr P k : Nat) : Int), inp, out⟩
-        ⟨m', target P q, inp, out⟩ ∧ Ok P inputs m' regs := by
-  obtain ⟨m5, hr, ok5, g5_5, g5_6⟩ := J_prefix hok hk hPk inp out
+    (inp : Input) (out : ByteArray) (es : List Event) :
+    ∃ m', Reaches exec ⟨m, ((entryAddr P k : Nat) : Int), inp, out, es⟩
+        ⟨m', target P q, inp, out, es⟩ ∧ Ok P inputs m' regs := by
+  obtain ⟨m5, hr, ok5, g5_5, g5_6⟩ := J_prefix hok hk hPk inp out es
   rw [heq] at g5_6
   rw [heq, if_pos (by omega)] at hr
   have s5 := step_code (A := 5) (B := 5) (C := ((entryAddr P k + 21 : Nat) : Int))
-      ok5 (.J x y q) hk hPk 18 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out
+      ok5 (.J x y q) hk hPk 18 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out es
   rw [show m5.get 5 - m5.get 5 = 0 from by omega, if_pos (le_refl 0)] at s5
   set m6 := m5.set 5 0 with hm6
   have ok6 : Ok P inputs m6 regs := scratch5 ok5 0
   have g6_5 : m6.get 5 = 0 := get_set_self _ 5 0
   have g6_6 : m6.get 6 = 0 := by rw [hm6, get_set_other _ (by omega) 0, g5_6]; omega
   have s6 := step_code (A := 6) (B := 5) (C := target P q)
-      ok6 (.J x y q) hk hPk 21 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out
+      ok6 (.J x y q) hk hPk 21 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out es
   rw [g6_5, g6_6, show (0 : Int) - 0 = 0 from by omega, if_pos (le_refl 0)] at s6
   exact ⟨m6.set 5 0, Reaches.trans hr (Reaches.trans s5 s6), scratch5 ok6 0⟩
 
 theorem block_J_untaken (hok : Ok P inputs m regs) {k x y q : Nat} (hk : k < P.length)
     (hPk : P[k] = .J x y q) (hne : regs.read x ≠ regs.read y)
-    (inp : Input) (out : ByteArray) :
-    ∃ m', Reaches exec ⟨m, ((entryAddr P k : Nat) : Int), inp, out⟩
-        ⟨m', ((entryAddr P (k + 1) : Nat) : Int), inp, out⟩ ∧ Ok P inputs m' regs := by
+    (inp : Input) (out : ByteArray) (es : List Event) :
+    ∃ m', Reaches exec ⟨m, ((entryAddr P k : Nat) : Int), inp, out, es⟩
+        ⟨m', ((entryAddr P (k + 1) : Nat) : Int), inp, out, es⟩ ∧ Ok P inputs m' regs := by
   have hsucc : entryAddr P k + 27 = entryAddr P (k + 1) := by
     have h := entryAddr_succ P k hk
     rw [hPk] at h
     simpa [instrSize] using h
   have hxy : ((regs.read x : Nat) : Int) ≠ ((regs.read y : Nat) : Int) := by
     intro hc; exact hne (by exact_mod_cast hc)
-  obtain ⟨m5, hr, ok5, g5_5, g5_6⟩ := J_prefix hok hk hPk inp out
+  obtain ⟨m5, hr, ok5, g5_5, g5_6⟩ := J_prefix hok hk hPk inp out es
   by_cases hlt : ((regs.read x : Nat) : Int) - ((regs.read y : Nat) : Int) ≤ 0
   · -- `X < Y`: the second comparison fails and falls through
     rw [if_pos hlt] at hr
     have s5 := step_code (A := 5) (B := 5) (C := ((entryAddr P k + 21 : Nat) : Int))
-        ok5 (.J x y q) hk hPk 18 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out
+        ok5 (.J x y q) hk hPk 18 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out es
     rw [show m5.get 5 - m5.get 5 = 0 from by omega, if_pos (le_refl 0)] at s5
     set m6 := m5.set 5 0 with hm6
     have ok6 : Ok P inputs m6 regs := scratch5 ok5 0
@@ -921,20 +923,20 @@ theorem block_J_untaken (hok : Ok P inputs m regs) {k x y q : Nat} (hk : k < P.l
     have g6_6 : m6.get 6 = ((regs.read x : Nat) : Int) - ((regs.read y : Nat) : Int) := by
       rw [hm6, get_set_other _ (by omega) 0, g5_6]
     have s6 := step_code (A := 6) (B := 5) (C := target P q)
-        ok6 (.J x y q) hk hPk 21 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out
+        ok6 (.J x y q) hk hPk 21 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out es
     rw [g6_5, g6_6, if_neg (by omega),
       show entryAddr P k + (21 + 3) = entryAddr P k + 24 from by omega] at s6
     set m7 := m6.set 5 (0 - (((regs.read x : Nat) : Int) - ((regs.read y : Nat) : Int))) with hm7
     have ok7 : Ok P inputs m7 regs := scratch5 ok6 _
     have s7 := step_code (A := 3) (B := 3) (C := ((entryAddr P k + 27 : Nat) : Int))
-        ok7 (.J x y q) hk hPk 24 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out
+        ok7 (.J x y q) hk hPk 24 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out es
     rw [show m7.get 3 - m7.get 3 = 0 from by omega, if_pos (le_refl 0), hsucc] at s7
     exact ⟨m7.set 3 0, Reaches.trans hr (Reaches.trans s5 (Reaches.trans s6 s7)),
       scratch3 ok7⟩
   · -- `X > Y`: the first comparison already falls through
     rw [if_neg hlt] at hr
     have s5 := step_code (A := 3) (B := 3) (C := ((entryAddr P k + 27 : Nat) : Int))
-        ok5 (.J x y q) hk hPk 15 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out
+        ok5 (.J x y q) hk hPk 15 (by simp [instrSize]) rfl rfl rfl (by omega) (by omega) inp out es
     rw [show m5.get 3 - m5.get 3 = 0 from by omega, if_pos (le_refl 0), hsucc] at s5
     exact ⟨m5.set 3 0, Reaches.trans hr s5, scratch3 ok5⟩
 
@@ -947,29 +949,29 @@ Register 0 is printed in unary: `d` copies of the byte 49. The loop keeps the
 count negated in scratch cell 5 and adds one to it each time round, which is
 the only test subtract-and-branch offers. -/
 
-theorem epi_loop (inp : Input) : ∀ (d : Nat) (m : Mem) (regs : Regs) (out : ByteArray),
+theorem epi_loop (inp : Input) : ∀ (d : Nat) (m : Mem) (regs : Regs) (out : ByteArray) (es : List Event),
     Ok P inputs m regs → m.get 5 = -(d : Int) →
-    ∃ m' out', Reaches exec ⟨m, ((epiAddr P + 6 : Nat) : Int), inp, out⟩
-        ⟨m', ((epiAddr P + 18 : Nat) : Int), inp, out'⟩
+    ∃ m' out' es', Reaches exec ⟨m, ((epiAddr P + 6 : Nat) : Int), inp, out, es⟩
+        ⟨m', ((epiAddr P + 18 : Nat) : Int), inp, out', es'⟩
       ∧ Ok P inputs m' regs ∧ out'.size = out.size + d := by
   intro d
   induction d with
   | zero =>
-    intro m regs out hok h5
+    intro m regs out es hok h5
     have s0 := step_epi (A := 4) (B := 5) (C := ((epiAddr P + 12 : Nat) : Int))
-        hok 6 (by omega) rfl rfl rfl (by omega) (by omega) inp out
+        hok 6 (by omega) rfl rfl rfl (by omega) (by omega) inp out es
     rw [h5, hok.neg, if_neg (by omega),
       show epiAddr P + (6 + 3) = epiAddr P + 9 from by omega] at s0
     set m1 := m.set 5 (-((0 : Nat) : Int) - -1) with hm1
     have ok1 : Ok P inputs m1 regs := scratch5 hok _
     have s1 := step_epi (A := 3) (B := 3) (C := ((epiAddr P + 18 : Nat) : Int))
-        ok1 9 (by omega) rfl rfl rfl (by omega) (by omega) inp out
+        ok1 9 (by omega) rfl rfl rfl (by omega) (by omega) inp out es
     rw [show m1.get 3 - m1.get 3 = 0 from by omega, if_pos (le_refl 0)] at s1
-    exact ⟨m1.set 3 0, out, Reaches.trans s0 s1, scratch3 ok1, by simp⟩
+    exact ⟨m1.set 3 0, out, es, Reaches.trans s0 s1, scratch3 ok1, by simp⟩
   | succ d ih =>
-    intro m regs out hok h5
+    intro m regs out es hok h5
     have s0 := step_epi (A := 4) (B := 5) (C := ((epiAddr P + 12 : Nat) : Int))
-        hok 6 (by omega) rfl rfl rfl (by omega) (by omega) inp out
+        hok 6 (by omega) rfl rfl rfl (by omega) (by omega) inp out es
     rw [h5, hok.neg, if_pos (by push_cast; omega)] at s0
     set m1 := m.set 5 (-((d + 1 : Nat) : Int) - -1) with hm1
     have ok1 : Ok P inputs m1 regs := scratch5 hok _
@@ -977,47 +979,49 @@ theorem epi_loop (inp : Input) : ∀ (d : Nat) (m : Mem) (regs : Regs) (out : By
       rw [hm1, get_set_self]
       push_cast
       omega
-    have s1 := step_epi_out ok1 inp out
+    have s1 := step_epi_out ok1 inp out es
     set m2 := m1 with hm2
     have s2 := step_epi (A := 3) (B := 3) (C := ((epiAddr P + 6 : Nat) : Int))
         ok1 15 (by omega) rfl rfl rfl (by omega) (by omega) inp (out.push 49)
+        (Event.out 49 :: es)
     rw [show m1.get 3 - m1.get 3 = 0 from by omega, if_pos (le_refl 0)] at s2
     have ok3 : Ok P inputs (m1.set 3 0) regs := scratch3 ok1
     have g3_5 : (m1.set 3 0).get 5 = -(d : Int) := by
       rw [get_set_other _ (by omega) 0, g1_5]
-    obtain ⟨m', out', hr, ok', hsize⟩ := ih (m1.set 3 0) regs (out.push 49) ok3 g3_5
-    refine ⟨m', out', Reaches.trans s0 (Reaches.trans s1 (Reaches.trans s2 hr)), ok', ?_⟩
+    obtain ⟨m', out', es', hr, ok', hsize⟩ :=
+      ih (m1.set 3 0) regs (out.push 49) (Event.out 49 :: es) ok3 g3_5
+    refine ⟨m', out', es', Reaches.trans s0 (Reaches.trans s1 (Reaches.trans s2 hr)), ok', ?_⟩
     rw [hsize, ByteArray.size_push]
     omega
 
 /-- The epilogue prints register 0 in unary and halts. -/
-theorem exec_epilogue (hok : Ok P inputs m regs) (inp : Input) (out : ByteArray) :
+theorem exec_epilogue (hok : Ok P inputs m regs) (inp : Input) (out : ByteArray) (es : List Event) :
     ∃ (f : Nat) (s : Langlib.Subleq.State),
-      exec f ⟨m, ((epiAddr P : Nat) : Int), inp, out⟩ = (s, Exit.halted) ∧
+      exec f ⟨m, ((epiAddr P : Nat) : Int), inp, out, es⟩ = (s, Exit.halted) ∧
       s.output.size = out.size + regs 0 := by
   have s0 := step_epi (A := 5) (B := 5) (C := ((epiAddr P + 3 : Nat) : Int))
-      hok 0 (by omega) rfl rfl rfl (by omega) (by omega) inp out
+      hok 0 (by omega) rfl rfl rfl (by omega) (by omega) inp out es
   rw [show m.get 5 - m.get 5 = 0 from by omega, if_pos (le_refl 0), Nat.add_zero] at s0
   have ok1 : Ok P inputs (m.set 5 0) regs := scratch5 hok 0
   have g1_5 : (m.set 5 0).get 5 = 0 := get_set_self m 5 0
   have g1_0 : (m.set 5 0).get (regAddr P 0) = ((regs 0 : Nat) : Int) := by
     rw [get_set_other m (reg_ne_scratch P 0 5 (by omega)) 0]; exact hok.reg 0
   have s1 := step_epi (A := regAddr P 0) (B := 5) (C := ((epiAddr P + 6 : Nat) : Int))
-      ok1 3 (by omega) rfl rfl rfl (Int.natCast_nonneg _) (by omega) inp out
+      ok1 3 (by omega) rfl rfl rfl (Int.natCast_nonneg _) (by omega) inp out es
   rw [g1_5, g1_0, if_pos (by omega)] at s1
   set m2 := (m.set 5 0).set 5 (0 - ((regs 0 : Nat) : Int)) with hm2
   have ok2 : Ok P inputs m2 regs := scratch5 ok1 _
   have g2_5 : m2.get 5 = -((regs 0 : Nat) : Int) := by
     rw [hm2, get_set_self]; omega
-  obtain ⟨m3, out3, hr, ok3, hsize⟩ := epi_loop inp (regs 0) m2 regs out ok2 g2_5
+  obtain ⟨m3, out3, es3, hr, ok3, hsize⟩ := epi_loop inp (regs 0) m2 regs out es ok2 g2_5
   have s3 := step_epi (A := 3) (B := 3) (C := -1)
-      ok3 18 (by omega) rfl rfl rfl (by omega) (by omega) inp out3
+      ok3 18 (by omega) rfl rfl rfl (by omega) (by omega) inp out3 es3
   rw [show m3.get 3 - m3.get 3 = 0 from by omega, if_pos (le_refl 0)] at s3
   obtain ⟨c, hc⟩ :=
     Reaches.trans s0 (Reaches.trans s1 (Reaches.trans hr s3))
-  refine ⟨c + 1, ⟨m3.set 3 0, -1, inp, out3⟩, ?_, hsize⟩
+  refine ⟨c + 1, ⟨m3.set 3 0, -1, inp, out3, es3⟩, ?_, hsize⟩
   rw [hc 1]
-  exact exec_halt _ (-1) inp out3 (by omega) 0
+  exact exec_halt _ (-1) inp out3 es3 (by omega) 0
 
 
 
@@ -1047,9 +1051,9 @@ theorem ok_init (P : Program) (inputs : List Nat) :
     omega
 
 /-- The first instruction of the image jumps over the data cells. -/
-theorem reaches_start (P : Program) (inputs : List Nat) (inp : Input) (out : ByteArray) :
-    ∃ m', Reaches exec ⟨Mem.ofProg (compile P inputs), 0, inp, out⟩
-        ⟨m', ((entryAddr P 0 : Nat) : Int), inp, out⟩
+theorem reaches_start (P : Program) (inputs : List Nat) (inp : Input) (out : ByteArray) (es : List Event) :
+    ∃ m', Reaches exec ⟨Mem.ofProg (compile P inputs), 0, inp, out, es⟩
+        ⟨m', ((entryAddr P 0 : Nat) : Int), inp, out, es⟩
       ∧ Ok P inputs m' (Regs.ofInputs inputs) := by
   have hok := ok_init P inputs
   have hext : (0 : Int) < (Mem.ofProg (compile P inputs)).extent := by
@@ -1069,7 +1073,7 @@ theorem reaches_start (P : Program) (inputs : List Nat) (inp : Input) (out : Byt
       wordAt_header P inputs 2 (by omega), entryAddr_zero]
     rfl
   have s0 := reaches_word (Mem.ofProg (compile P inputs)) 0 3 3 ((entryAddr P 0 : Nat) : Int)
-    inp out (le_refl 0) hext h0 h1 h2 (by omega) (by omega)
+    inp out es (le_refl 0) hext h0 h1 h2 (by omega) (by omega)
   rw [show (Mem.ofProg (compile P inputs)).get 3 - (Mem.ofProg (compile P inputs)).get 3 = 0
       from by omega, if_pos (le_refl 0)] at s0
   exact ⟨_, s0, scratch3 hok⟩
@@ -1090,45 +1094,45 @@ private theorem getElem_of_getElem? {P : Program} {k : Nat} {i : Cslib.URM.Instr
 /-- One URM step becomes one block of subleq instructions. -/
 theorem step_sim (P : Program) (inputs : List Nat) {s s' : Cslib.URM.State}
     (hstep : Step P s s') (m : Mem) (hok : Ok P inputs m s.regs)
-    (inp : Input) (out : ByteArray) :
-    ∃ m', Reaches exec ⟨m, ((entryAddr P (min s.pc P.length) : Nat) : Int), inp, out⟩
-        ⟨m', ((entryAddr P (min s'.pc P.length) : Nat) : Int), inp, out⟩
+    (inp : Input) (out : ByteArray) (es : List Event) :
+    ∃ m', Reaches exec ⟨m, ((entryAddr P (min s.pc P.length) : Nat) : Int), inp, out, es⟩
+        ⟨m', ((entryAddr P (min s'.pc P.length) : Nat) : Int), inp, out, es⟩
       ∧ Ok P inputs m' s'.regs := by
   cases hstep
   case zero n hi =>
     have hk : s.pc < P.length := lt_len hi
     rw [Nat.min_eq_left (Nat.le_of_lt hk), Nat.min_eq_left (show s.pc + 1 ≤ P.length by omega)]
-    exact block_Z hok hk (getElem_of_getElem? hi) inp out
+    exact block_Z hok hk (getElem_of_getElem? hi) inp out es
   case succ n hi =>
     have hk : s.pc < P.length := lt_len hi
     rw [Nat.min_eq_left (Nat.le_of_lt hk), Nat.min_eq_left (show s.pc + 1 ≤ P.length by omega)]
-    exact block_S hok hk (getElem_of_getElem? hi) inp out
+    exact block_S hok hk (getElem_of_getElem? hi) inp out es
   case transfer x y hi =>
     have hk : s.pc < P.length := lt_len hi
     rw [Nat.min_eq_left (Nat.le_of_lt hk), Nat.min_eq_left (show s.pc + 1 ≤ P.length by omega)]
-    exact block_T hok hk (getElem_of_getElem? hi) inp out
+    exact block_T hok hk (getElem_of_getElem? hi) inp out es
   case jump_eq x y q hi heq =>
     have hk : s.pc < P.length := lt_len hi
     rw [Nat.min_eq_left (Nat.le_of_lt hk)]
-    obtain ⟨m', hr, ok'⟩ := block_J_taken hok hk (getElem_of_getElem? hi) heq inp out
+    obtain ⟨m', hr, ok'⟩ := block_J_taken hok hk (getElem_of_getElem? hi) heq inp out es
     exact ⟨m', by rw [target] at hr; exact hr, ok'⟩
   case jump_ne x y q hi hne =>
     have hk : s.pc < P.length := lt_len hi
     rw [Nat.min_eq_left (Nat.le_of_lt hk), Nat.min_eq_left (show s.pc + 1 ≤ P.length by omega)]
-    exact block_J_untaken hok hk (getElem_of_getElem? hi) hne inp out
+    exact block_J_untaken hok hk (getElem_of_getElem? hi) hne inp out es
 
 /-- A whole URM run becomes a whole run of the compiled program. -/
 theorem steps_sim (P : Program) (inputs : List Nat) {s₀ s : Cslib.URM.State}
     (hsteps : Steps P s₀ s) (m : Mem) (hok : Ok P inputs m s₀.regs)
-    (inp : Input) (out : ByteArray) :
-    ∃ m', Reaches exec ⟨m, ((entryAddr P (min s₀.pc P.length) : Nat) : Int), inp, out⟩
-        ⟨m', ((entryAddr P (min s.pc P.length) : Nat) : Int), inp, out⟩
+    (inp : Input) (out : ByteArray) (es : List Event) :
+    ∃ m', Reaches exec ⟨m, ((entryAddr P (min s₀.pc P.length) : Nat) : Int), inp, out, es⟩
+        ⟨m', ((entryAddr P (min s.pc P.length) : Nat) : Int), inp, out, es⟩
       ∧ Ok P inputs m' s.regs := by
   induction hsteps with
   | refl => exact ⟨m, Reaches.refl _ _, hok⟩
   | tail _ hlast ih =>
     obtain ⟨m₁, hr₁, ok₁⟩ := ih
-    obtain ⟨m₂, hr₂, ok₂⟩ := step_sim P inputs hlast m₁ ok₁ inp out
+    obtain ⟨m₂, hr₂, ok₂⟩ := step_sim P inputs hlast m₁ ok₁ inp out es
     exact ⟨m₂, Reaches.trans hr₁ hr₂, ok₂⟩
 
 /-! ## Reading the answer back
@@ -1149,20 +1153,20 @@ theorem simulation (P : Program) (inputs : List Nat) (result : Nat)
     ∃ f, (evalProg (compile P inputs) input f).exit = Exit.halted ∧
          decodeOutput (evalProg (compile P inputs) input f).output = some result := by
   obtain ⟨s, hsteps, hhalt, hres⟩ := h
-  obtain ⟨m₀, hstart, ok₀⟩ := reaches_start P inputs input ByteArray.empty
+  obtain ⟨m₀, hstart, ok₀⟩ := reaches_start P inputs input ByteArray.empty []
   have hok₀ : Ok P inputs m₀ (Cslib.URM.State.init inputs).regs := ok₀
-  obtain ⟨m₁, hsim, ok₁⟩ := steps_sim P inputs hsteps m₀ hok₀ input ByteArray.empty
+  obtain ⟨m₁, hsim, ok₁⟩ := steps_sim P inputs hsteps m₀ hok₀ input ByteArray.empty []
   simp only [Cslib.URM.State.init, Nat.zero_min,
     Nat.min_eq_right (show P.length ≤ s.pc from hhalt), entryAddr_length] at hsim
-  obtain ⟨f₁, s₁, hexec, hsize⟩ := exec_epilogue ok₁ input ByteArray.empty
+  obtain ⟨f₁, s₁, hexec, hsize⟩ := exec_epilogue ok₁ input ByteArray.empty []
   obtain ⟨c, hc⟩ := Reaches.trans hstart hsim
   refine ⟨c + f₁, ?_, ?_⟩
   · simp only [evalProg]
     rw [show ({ mem := Mem.ofProg (compile P inputs), input := input } : Langlib.Subleq.State)
-        = ⟨Mem.ofProg (compile P inputs), 0, input, ByteArray.empty⟩ from rfl, hc f₁, hexec]
+        = ⟨Mem.ofProg (compile P inputs), 0, input, ByteArray.empty, []⟩ from rfl, hc f₁, hexec]
   · simp only [evalProg]
     rw [show ({ mem := Mem.ofProg (compile P inputs), input := input } : Langlib.Subleq.State)
-        = ⟨Mem.ofProg (compile P inputs), 0, input, ByteArray.empty⟩ from rfl, hc f₁, hexec]
+        = ⟨Mem.ofProg (compile P inputs), 0, input, ByteArray.empty, []⟩ from rfl, hc f₁, hexec]
     simp only [decodeOutput, Option.some.injEq]
     rw [hsize]
     simpa [Cslib.URM.Regs.output] using hres
@@ -1180,6 +1184,19 @@ instance : ProgLang SubleqLang where
   Prog := Langlib.Subleq.Prog
   parse := Langlib.Subleq.assemble
   run := Langlib.Subleq.evalProg
+
+/-- **Subleq's trace semantics.** One instruction, two of whose forms do
+I/O, so the record is short and the laws are proved from the same invariant
+as whitespace's in `Langlib/Languages/Subleq/Trace.lean`.
+
+With this and `TraceLang WhitespaceLang` in place, both backends the library
+has proved answer-correct can now be *stated* behaviourally. Reading at end
+of input consumes nothing and so records nothing, which is the honest
+report: no byte crossed the boundary. -/
+instance : TraceLang SubleqLang where
+  trace := Langlib.Subleq.evalTrace
+  trace_outputs := Langlib.Subleq.evalTrace_outputs
+  trace_inputs := Langlib.Subleq.evalTrace_inputs
 
 /-- **Subleq is Turing complete.**
 
