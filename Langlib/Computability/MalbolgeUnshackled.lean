@@ -2614,6 +2614,295 @@ theorem branch_on_mark (t₀ t₁ : Value) (h₀ : t₀.Normalized) (h₁ : t₁
   · rw [if_pos rfl]; exact (branch_arith t₀ t₁ h₀ h₁ a).1
   · rw [if_neg (by decide)]; exact (branch_arith t₀ t₁ h₀ h₁ a).2
 
+/-! ## Mixed rows
+
+`crazy_run` executes a row of consecutive `p` cells and `nop_run` a row of
+consecutive no-ops. Neither is quite what a gadget looks like, because a
+`crazy` cell that is to be re-enterable must sit at residue 82 or 86 modulo
+94, so the working cells of a gadget are *not* adjacent: they are spaced,
+with padding between. `row_run` is the general straight-line executor, a
+row of `L` consecutive cells each of which is either a `p` or a no-op,
+selected by a Boolean. It subsumes both special cases and is what the
+gadget proofs actually use.
+
+The accumulator computes `rowFold`, a fold of the crazy operation over the
+operand cells at the working positions only; padding advances `d` past its
+operand without touching it. -/
+
+/-- The fold a mixed row computes: the crazy operation is applied at the
+working positions and skipped at the padding. -/
+def rowFold (m : Memory) (d₀ : Nat) (isC : Nat → Bool) (a : Value) : Nat → Value
+  | 0 => a
+  | j + 1 =>
+    if isC j then Value.crz (rowFold m d₀ isC a j) (m.get (Value.ofNat (d₀ + j)))
+    else rowFold m d₀ isC a j
+
+/-- **A mixed straight-line row executes in one induction.** Working cells
+consume their operand and fold it into the accumulator; padding cells leave
+their operand alone. Every executed cell is replaced by its own encryption,
+and everything outside the code row and the operand row is untouched. -/
+theorem row_run (L : Nat) {s₀ : State} {c₀ d₀ : Nat} (isC : Nat → Bool) (w : Nat → Nat)
+    (hc : s₀.c = Value.ofNat c₀) (hd : s₀.d = Value.ofNat d₀)
+    (hsep : c₀ + L ≤ d₀)
+    (hdec : ∀ i < L, decode (s₀.mem.get (Value.ofNat (c₀ + i)))
+      (Value.ofNat (c₀ + i)).modClass = if isC i then .crazy else .nop)
+    (hprint : ∀ i < L, printableCode? (s₀.mem.get (Value.ofNat (c₀ + i)))
+      = some (w i)) :
+    ∃ s', run? L s₀ = some s'
+      ∧ s'.a = rowFold s₀.mem d₀ isC s₀.a L
+      ∧ s'.c = Value.ofNat (c₀ + L)
+      ∧ s'.d = Value.ofNat (d₀ + L)
+      ∧ (∀ j, ∀ hj : j < L, isC j = true →
+          s'.mem.get (Value.ofNat (d₀ + j)) = rowFold s₀.mem d₀ isC s₀.a (j + 1))
+      ∧ (∀ j < L, isC j = false →
+          s'.mem.get (Value.ofNat (d₀ + j)) = s₀.mem.get (Value.ofNat (d₀ + j)))
+      ∧ (∀ i < L, s'.mem.get (Value.ofNat (c₀ + i)) = Value.ofNat (encrypt (w i)))
+      ∧ (∀ addr, (∀ i < L, addr ≠ Value.ofNat (c₀ + i)) →
+          (∀ j < L, addr ≠ Value.ofNat (d₀ + j)) → s'.mem.get addr = s₀.mem.get addr)
+      ∧ s'.input = s₀.input ∧ s'.output = s₀.output ∧ s'.outClosed = s₀.outClosed
+      ∧ s'.rotWidth = s₀.rotWidth ∧ s'.maxWidth = s₀.maxWidth := by
+  induction L with
+  | zero =>
+    refine ⟨s₀, rfl, rfl, by simpa using hc, by simpa using hd,
+      fun j hj _ => absurd hj (by omega), fun j hj _ => absurd hj (by omega),
+      fun i hi => absurd hi (by omega), fun addr _ _ => rfl, rfl, rfl, rfl, rfl, rfl⟩
+  | succ L ih =>
+    obtain ⟨sL, hrun, hA, hC, hD, hDc, hDn, hCs, hframe, hin, hout, hoc, hrw, hmw⟩ :=
+      ih (by omega) (fun i hi => hdec i (by omega)) (fun i hi => hprint i (by omega))
+    have hcell : sL.mem.get (Value.ofNat (c₀ + L)) = s₀.mem.get (Value.ofNat (c₀ + L)) :=
+      hframe _ (fun i hi => ofNat_ne (by omega)) (fun j hj => ofNat_ne (by omega))
+    have hoper : sL.mem.get (Value.ofNat (d₀ + L)) = s₀.mem.get (Value.ofNat (d₀ + L)) :=
+      hframe _ (fun i hi => ofNat_ne (by omega)) (fun j hj => ofNat_ne (by omega))
+    have hdecL := hdec L (by omega)
+    have hprintL := hprint L (by omega)
+    cases hsel : isC L with
+    | true =>
+      -- a working cell: one crazy step
+      have hstep := step1_crazy (s := sL) (code := w L)
+        (by rw [hC, hcell, hdecL, hsel]; rfl)
+        (by rw [hC, hD]; exact ofNat_ne (by omega))
+        (by rw [hC, hcell]; exact hprintL)
+      set res := Value.crz sL.a (sL.mem.get sL.d) with hres
+      have hresEq : res = rowFold s₀.mem d₀ isC s₀.a (L + 1) := by
+        rw [hres, hA, hD, hoper]
+        show _ = if isC L then _ else _
+        rw [hsel]
+        rfl
+      set snext : State := { sL with a := res, mem := (sL.mem.set sL.d res).set sL.c (Value.ofNat (encrypt (w L))), c := sL.c.succ, d := sL.d.succ } with hsnext
+      have hrun' : run? (L + 1) s₀ = some snext := by
+        rw [run?_add L 1, hrun, Option.bind_some, run?_one]; exact hstep
+      refine ⟨snext, hrun', hresEq, ?_, ?_, ?_, ?_, ?_, ?_, hin, hout, hoc, hrw, hmw⟩
+      · show sL.c.succ = _; rw [hC, succ_ofNat, Nat.add_assoc]
+      · show sL.d.succ = _; rw [hD, succ_ofNat, Nat.add_assoc]
+      · intro j hj hjc
+        show ((sL.mem.set sL.d res).set sL.c (Value.ofNat (encrypt (w L)))).get
+          (Value.ofNat (d₀ + j)) = _
+        rw [get_set_ne _ (by rw [hC]; exact ofNat_ne (by omega))]
+        by_cases hjL : j = L
+        · subst hjL; rw [hD, get_set_self]; exact hresEq
+        · rw [get_set_ne _ (by rw [hD]; exact ofNat_ne (by omega))]
+          exact hDc j (by omega) hjc
+      · intro j hj hjc
+        show ((sL.mem.set sL.d res).set sL.c (Value.ofNat (encrypt (w L)))).get
+          (Value.ofNat (d₀ + j)) = _
+        have hjL : j ≠ L := by intro h; subst h; rw [hsel] at hjc; exact Bool.noConfusion hjc
+        rw [get_set_ne _ (by rw [hC]; exact ofNat_ne (by omega)),
+          get_set_ne _ (by rw [hD]; exact ofNat_ne (by omega))]
+        exact hDn j (by omega) hjc
+      · intro i hi
+        show ((sL.mem.set sL.d res).set sL.c (Value.ofNat (encrypt (w L)))).get
+          (Value.ofNat (c₀ + i)) = _
+        by_cases hiL : i = L
+        · subst hiL; rw [hC, get_set_self]
+        · rw [get_set_ne _ (by rw [hC]; exact ofNat_ne (by omega)),
+            get_set_ne _ (by rw [hD]; exact ofNat_ne (by omega))]
+          exact hCs i (by omega)
+      · intro addr hac had
+        show ((sL.mem.set sL.d res).set sL.c (Value.ofNat (encrypt (w L)))).get addr = _
+        rw [get_set_ne _ (by rw [hC]; exact (hac L (by omega)).symm),
+          get_set_ne _ (by rw [hD]; exact (had L (by omega)).symm)]
+        exact hframe addr (fun i hi => hac i (by omega)) (fun j hj => had j (by omega))
+    | false =>
+      -- padding: one no-op step
+      have hstep := step1_nop (s := sL) (code := w L)
+        (by rw [hC, hcell, hdecL, hsel]; rfl)
+        (by rw [hC, hcell]; exact hprintL)
+      set snext : State := { sL with mem := sL.mem.set sL.c (Value.ofNat (encrypt (w L))), c := sL.c.succ, d := sL.d.succ } with hsnext
+      have hrun' : run? (L + 1) s₀ = some snext := by
+        rw [run?_add L 1, hrun, Option.bind_some, run?_one]; exact hstep
+      have hfoldEq : rowFold s₀.mem d₀ isC s₀.a (L + 1) = rowFold s₀.mem d₀ isC s₀.a L := by
+        show (if isC L then _ else _) = _
+        simp [hsel]
+      refine ⟨snext, hrun', by rw [hfoldEq]; exact hA, ?_, ?_, ?_, ?_, ?_, ?_,
+        hin, hout, hoc, hrw, hmw⟩
+      · show sL.c.succ = _; rw [hC, succ_ofNat, Nat.add_assoc]
+      · show sL.d.succ = _; rw [hD, succ_ofNat, Nat.add_assoc]
+      · intro j hj hjc
+        have hjL : j ≠ L := by intro h; subst h; rw [hsel] at hjc; exact Bool.noConfusion hjc
+        show (sL.mem.set sL.c (Value.ofNat (encrypt (w L)))).get (Value.ofNat (d₀ + j)) = _
+        rw [get_set_ne _ (by rw [hC]; exact ofNat_ne (by omega))]
+        exact hDc j (by omega) hjc
+      · intro j hj hjc
+        show (sL.mem.set sL.c (Value.ofNat (encrypt (w L)))).get (Value.ofNat (d₀ + j)) = _
+        rw [get_set_ne _ (by rw [hC]; exact ofNat_ne (by omega))]
+        by_cases hjL : j = L
+        · subst hjL; exact hoper
+        · exact hDn j (by omega) hjc
+      · intro i hi
+        show (sL.mem.set sL.c (Value.ofNat (encrypt (w L)))).get (Value.ofNat (c₀ + i)) = _
+        by_cases hiL : i = L
+        · subst hiL; rw [hC, get_set_self]
+        · rw [get_set_ne _ (by rw [hC]; exact ofNat_ne (by omega))]
+          exact hCs i (by omega)
+      · intro addr hac had
+        show (sL.mem.set sL.c (Value.ofNat (encrypt (w L)))).get addr = _
+        rw [get_set_ne _ (by rw [hC]; exact (hac L (by omega)).symm)]
+        exact hframe addr (fun i hi => hac i (by omega)) (fun j hj => had j (by omega))
+
+/-! ## The two-sweep gadget
+
+Putting the pieces together. A gadget is a mixed row at `b+1 … b+L`
+followed by one `jmp` cell at `b+L+1`, and it runs in `2L + 2` steps:
+
+* the **work sweep** executes the row, folding the operands into the
+  accumulator, and leaves every cell encrypted once;
+* the `jmp` reads the first table entry, `b`, so control lands back on
+  `b+1` — the jump encrypts `b`, never itself;
+* the **no-op sweep** executes the same row again, now all no-ops,
+  encrypting each cell a second time and so restoring the two-cycle words;
+* the `jmp` reads the second table entry and control leaves.
+
+`d` walks the operand row during the work sweep and walks past it during
+the no-op sweep, which is why the two table entries sit at `d₀+L` and
+`d₀+2L+1`. Because the gadget restores itself, it may be entered any
+number of times, which is what makes a compiled loop body possible. -/
+
+/-- A row of pure padding folds to nothing. -/
+theorem rowFold_false (m : Memory) (d₀ : Nat) (a : Value) : ∀ L : Nat,
+    rowFold m d₀ (fun _ => false) a L = a
+  | 0 => rfl
+  | L + 1 => by
+    show (if (false : Bool) = true then _ else rowFold m d₀ (fun _ => false) a L) = a
+    simp [rowFold_false m d₀ a L]
+
+theorem two_sweep (L : Nat) {s₀ : State} {b d₀ E : Nat} (isC : Nat → Bool)
+    (w : Nat → Nat) {wJ wb wE : Nat}
+    (hc : s₀.c = Value.ofNat (b + 1)) (hd : s₀.d = Value.ofNat d₀)
+    (hsep : b + L + 2 ≤ d₀)
+    -- the row, on entry
+    (hdec : ∀ i < L, decode (s₀.mem.get (Value.ofNat (b + 1 + i)))
+      (Value.ofNat (b + 1 + i)).modClass = if isC i then .crazy else .nop)
+    (hprint : ∀ i < L, printableCode? (s₀.mem.get (Value.ofNat (b + 1 + i)))
+      = some (w i))
+    -- the row, on the second sweep: every cell is a no-op once encrypted
+    (hdec2 : ∀ i < L, decode (Value.ofNat (encrypt (w i)))
+      (Value.ofNat (b + 1 + i)).modClass = .nop)
+    (hrange : ∀ i < L, 33 ≤ w i ∧ w i ≤ 126)
+    -- the jump cell, stable throughout
+    (hJdec : decode (s₀.mem.get (Value.ofNat (b + 1 + L)))
+      (Value.ofNat (b + 1 + L)).modClass = .jmp)
+    -- the two table entries
+    (hT0 : s₀.mem.get (Value.ofNat (d₀ + L)) = Value.ofNat b)
+    (hT1 : s₀.mem.get (Value.ofNat (d₀ + 2 * L + 1)) = Value.ofNat E)
+    -- the two jump targets are printable and outside the gadget
+    (hbw : s₀.mem.get (Value.ofNat b) = Value.ofNat wb)
+    (hbr : 33 ≤ wb ∧ wb ≤ 126)
+    (hEw : s₀.mem.get (Value.ofNat E) = Value.ofNat wE)
+    (hEr : 33 ≤ wE ∧ wE ≤ 126)
+    (hEsep : ∀ i < L, E ≠ b + 1 + i)
+    (hEsep' : E ≠ b + 1 + L) (hEb : E ≠ b)
+    (hEd : ∀ j ≤ 2 * L + 1, E ≠ d₀ + j) :
+    ∃ s', run? (2 * L + 2) s₀ = some s'
+      ∧ s'.a = rowFold s₀.mem d₀ isC s₀.a L
+      ∧ s'.c = Value.ofNat (E + 1)
+      ∧ s'.d = Value.ofNat (d₀ + 2 * L + 2)
+      ∧ (∀ i < L, s'.mem.get (Value.ofNat (b + 1 + i))
+          = Value.ofNat (encrypt (encrypt (w i))))
+      ∧ s'.input = s₀.input ∧ s'.output = s₀.output ∧ s'.outClosed = s₀.outClosed := by
+  -- sweep one
+  obtain ⟨s₁, hr1, hA1, hC1, hD1, _, _, hCs1, hfr1, hin1, hout1, hoc1, hrw1, hmw1⟩ :=
+    row_run L isC w hc hd (by omega) hdec hprint
+  -- the jump cell survived sweep one
+  have hJ1 : s₁.mem.get (Value.ofNat (b + 1 + L)) = s₀.mem.get (Value.ofNat (b + 1 + L)) :=
+    hfr1 _ (fun i hi => ofNat_ne (by omega)) (fun j hj => ofNat_ne (by omega))
+  have hT01 : s₁.mem.get (Value.ofNat (d₀ + L)) = Value.ofNat b := by
+    rw [hfr1 _ (fun i hi => ofNat_ne (by omega)) (fun j hj => ofNat_ne (by omega))]
+    exact hT0
+  have hb1 : s₁.mem.get (Value.ofNat b) = Value.ofNat wb := by
+    rw [hfr1 _ (fun i hi => ofNat_ne (by omega)) (fun j hj => ofNat_ne (by omega))]
+    exact hbw
+  -- the first jump: back to b, landing on b+1
+  have hstepJ1 := step1_jmp (s := s₁) (code := wb)
+    (by rw [hC1, hJ1]; exact hJdec)
+    (by rw [hD1, hT01, hb1]; exact printableCode?_ofNat hbr.1 hbr.2)
+  rw [hD1, hT01] at hstepJ1
+  set m₂ := s₁.mem.set (Value.ofNat b) (Value.ofNat (encrypt wb)) with hm₂
+  set s₂ : State := { s₁ with mem := m₂, c := (Value.ofNat b).succ, d := (Value.ofNat (d₀ + L)).succ } with hs₂
+  have hr2 : run? (L + 1) s₀ = some s₂ := by
+    rw [run?_add L 1, hr1, Option.bind_some, run?_one]
+    exact hstepJ1
+  have hC2 : s₂.c = Value.ofNat (b + 1) := succ_ofNat b
+  have hD2 : s₂.d = Value.ofNat (d₀ + L + 1) := succ_ofNat _
+  -- sweep two: every row cell is now a no-op
+  have hdecN : ∀ i < L, decode (s₂.mem.get (Value.ofNat (b + 1 + i)))
+      (Value.ofNat (b + 1 + i)).modClass = .nop := by
+    intro i hi
+    show decode (m₂.get (Value.ofNat (b + 1 + i))) _ = _
+    rw [hm₂, get_set_ne _ (ofNat_ne (by omega)), hCs1 i hi]
+    exact hdec2 i hi
+  have hprintN : ∀ i < L, printableCode? (s₂.mem.get (Value.ofNat (b + 1 + i)))
+      = some (encrypt (w i)) := by
+    intro i hi
+    show printableCode? (m₂.get (Value.ofNat (b + 1 + i))) = _
+    rw [hm₂, get_set_ne _ (ofNat_ne (by omega)), hCs1 i hi]
+    obtain ⟨h1, h2⟩ := encrypt_range (hrange i hi).1 (hrange i hi).2
+    exact printableCode?_ofNat h1 h2
+  obtain ⟨s₃, hr3, hA3, hC3, hD3, _, _, hCs3, hfr3, hin3, hout3, hoc3, _, _⟩ :=
+    row_run L (fun _ => false) (fun i => encrypt (w i)) hC2 hD2 (by omega)
+      (by intro i hi; simpa using hdecN i hi) hprintN
+  -- the jump cell survived sweep two
+  have hJ3 : s₃.mem.get (Value.ofNat (b + 1 + L)) = s₀.mem.get (Value.ofNat (b + 1 + L)) := by
+    rw [hfr3 _ (fun i hi => ofNat_ne (by omega)) (fun j hj => ofNat_ne (by omega))]
+    show m₂.get (Value.ofNat (b + 1 + L)) = _
+    rw [hm₂, get_set_ne _ (ofNat_ne (by omega))]
+    exact hJ1
+  have hT13 : s₃.mem.get (Value.ofNat (d₀ + 2 * L + 1)) = Value.ofNat E := by
+    rw [hfr3 _ (fun i hi => ofNat_ne (by omega)) (fun j hj => ofNat_ne (by omega))]
+    show m₂.get (Value.ofNat (d₀ + 2 * L + 1)) = _
+    rw [hm₂, get_set_ne _ (ofNat_ne (by omega))]
+    rw [hfr1 _ (fun i hi => ofNat_ne (by omega)) (fun j hj => ofNat_ne (by omega))]
+    exact hT1
+  have hE3 : s₃.mem.get (Value.ofNat E) = Value.ofNat wE := by
+    rw [hfr3 _ (fun i hi => ofNat_ne (hEsep i hi))
+      (fun j hj => ofNat_ne (by have := hEd (L + 1 + j) (by omega); omega))]
+    show m₂.get (Value.ofNat E) = _
+    rw [hm₂, get_set_ne _ (ofNat_ne (Ne.symm hEb))]
+    rw [hfr1 _ (fun i hi => ofNat_ne (hEsep i hi))
+      (fun j hj => ofNat_ne (by have := hEd j (by omega); omega))]
+    exact hEw
+  -- the second jump: out to E, landing on E+1
+  have hstepJ2 := step1_jmp (s := s₃) (code := wE)
+    (by rw [hC3, hJ3]; exact hJdec)
+    (by rw [hD3, show d₀ + L + 1 + L = d₀ + 2 * L + 1 by omega, hT13, hE3]
+        exact printableCode?_ofNat hEr.1 hEr.2)
+  rw [hD3, show d₀ + L + 1 + L = d₀ + 2 * L + 1 by omega, hT13] at hstepJ2
+  set s₄ : State := { s₃ with mem := s₃.mem.set (Value.ofNat E) (Value.ofNat (encrypt wE)), c := (Value.ofNat E).succ, d := (Value.ofNat (d₀ + 2 * L + 1)).succ } with hs₄
+  refine ⟨s₄, ?_, ?_, succ_ofNat E, ?_, ?_, ?_, ?_, ?_⟩
+  · rw [show 2 * L + 2 = (L + 1 + L) + 1 by omega, run?_add (L + 1 + L) 1,
+      run?_add (L + 1) L, hr2, Option.bind_some, hr3, Option.bind_some, run?_one]
+    exact hstepJ2
+  · show s₃.a = _
+    rw [hA3, rowFold_false, hA1]
+  · show (Value.ofNat (d₀ + 2 * L + 1)).succ = _
+    rw [succ_ofNat]
+  · intro i hi
+    show (s₃.mem.set (Value.ofNat E) (Value.ofNat (encrypt wE))).get
+      (Value.ofNat (b + 1 + i)) = _
+    rw [get_set_ne _ (ofNat_ne (hEsep i hi)), hCs3 i hi]
+  · exact hin3.trans hin1
+  · exact hout3.trans hout1
+  · exact hoc3.trans hoc1
+
 end Unshackled
 
 end Langlib.Computability

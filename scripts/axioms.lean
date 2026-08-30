@@ -611,6 +611,12 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.run_of_measure
 #print axioms Unshackled.branch_on_mark
 
+-- Mixed rows and the two-sweep gadget: a straight-line row that restores
+-- itself and so may be entered any number of times.
+#print axioms Unshackled.row_run
+#print axioms Unshackled.rowFold_false
+#print axioms Unshackled.two_sweep
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

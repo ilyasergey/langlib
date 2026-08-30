@@ -633,6 +633,42 @@ is tritwise and cannot aggregate across trit positions: a zero test on a
 wide number would need rotations and a loop, while a blank-or-mark cell
 needs nothing.
 
+## The two-sweep gadget
+
+`crazy_run` executes a row of consecutive `p` cells and `nop_run` a row of
+consecutive no-ops. Neither is the shape a gadget actually has: a `crazy`
+cell that must be re-enterable has to sit at residue 82 or 86 modulo 94, so
+the working cells are spaced, with padding between. `row_run` is the
+general straight-line executor for a mixed row, folding operands into the
+accumulator at the working positions and skipping them at the padding.
+
+On top of it, `two_sweep` is the gadget itself. A row at `b+1 … b+L`
+followed by one `jmp` at `b+L+1` runs in `2L + 2` steps:
+
+* the work sweep executes the row and leaves every cell encrypted once;
+* the `jmp` reads the first table entry, `b`, so control lands back on
+  `b+1`; the jump encrypts `b`, never itself;
+* the no-op sweep runs the same row, now all no-ops, encrypting each cell a
+  second time and restoring the two-cycle words;
+* the `jmp` reads the second table entry and control leaves at `E+1`.
+
+```lean
+theorem two_sweep (L : Nat) … :
+    ∃ s', run? (2 * L + 2) s₀ = some s'
+      ∧ s'.a = rowFold s₀.mem d₀ isC s₀.a L
+      ∧ s'.c = Value.ofNat (E + 1)
+      ∧ s'.d = Value.ofNat (d₀ + 2 * L + 2)
+      ∧ (∀ i < L, s'.mem.get (Value.ofNat (b + 1 + i))
+          = Value.ofNat (encrypt (encrypt (w i))))
+      ∧ …
+```
+
+Because the row comes back to its starting words, **the gadget may be
+entered any number of times**, which is what makes a compiled loop body
+possible: a loop whose body is a sequence of self-restoring gadgets is
+itself self-restoring after every iteration, and nesting composes. That was
+the obstacle standing between the verified primitives and a compiler.
+
 ## What is proved, what is cited, what is open
 
 **Proved, axiom-clean**: the `ProgLang` instance; the memory laws
