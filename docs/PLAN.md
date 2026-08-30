@@ -225,22 +225,83 @@ target:
 Nothing inhabits `IOCertifiedCompiler` yet, and that is deliberate: the
 prerequisite is per-language, not per-compiler.
 
-**Next, in order:**
-
-1. **`TraceLang` instances.** A language opts into behavioural reasoning by
-   reporting the events of a run, subject to two laws tying the report back
-   to the interpreter. FRACTRAN has one for free (`TraceLang.ofInputFree`,
-   since its `run` provably ignores the input stream). The rest need the
-   interpreter to record events, which is a change to the shape of a
-   small-step semantics: subleq and whitespace first, since those are the
-   backends already proved answer-correct.
-2. **Upgrade `bespokeSubleq`.** `encodeTrace` is the identity there, so it
-   is the cheapest first behavioural result in the library.
-3. **Upgrade `bespokeWhitespace`**, where `encodeTrace` has real content:
-   whitespace's I/O is line-oriented and numeric.
-
 The derived compilers are out of scope for the upgrade and always will be:
-`TurpentineHaltsWith` is I/O-free because the URM is.
+`TurpentineHaltsWith` is I/O-free because the URM is. FRACTRAN has its
+instance for free (`TraceLang.ofInputFree`, since its `run` provably
+ignores the input stream) and is the only one today. Every other language
+needs its interpreter to record events, which is a change to the shape of
+a small-step semantics rather than a proof.
+
+### Behavioural certification for whitespace `[ ]`
+
+Whitespace goes first, ahead of subleq. The reason is that
+`encodeTrace` turns out to be the **identity** there, which was not the
+expectation when this stage was written: Turpentine's `readInt` and
+whitespace's `readnum` are the same `Input.readLine?` call, and
+`print(e)` emits `Value.render e`, which is `toString n` for an `int` and
+`"true"`/`"false"` for a `bool` — exactly what the backend emits through
+`outNum` and through the `jz`/`emitStr` pair. So the theorem to aim at is
+not "the target's I/O is a re-encoding of the source's" but the much
+better *the compiled program performs the source program's I/O events,
+byte for byte, in order*.
+
+**Milestone 1 — the output-only fragment.** Today's scalar fragment plus
+`print(e)`/`println(e)` for `int` and `bool` and `print("...")` string
+literals. No `readInt` yet (that is milestone 2) and no `readByte` ever:
+Turpentine's `readByte()` yields `-1` at end of input and whitespace's
+`readchar` raises, a divergence `docs/whitespace/compiler.md` records and
+no proof can paper over.
+
+*Reporting the answer.* `decodeOutput` cannot stay whole-output decimal
+parsing once the program prints for itself. The epilogue becomes
+`println(""); print(answer);` and `decodeOutput` reads the digits after
+the **last** newline. That is sound with no extra restriction on the
+fragment, because `toString (answer : Nat)` is all digits and so contains
+no newline: the epilogue's newline is provably the last byte of its kind
+in the output. `Ans` stays `Nat`, so `toCertifiedOf` still yields a real
+answer-only corollary to check against `bespokeCompile_correct`.
+
+The steps, in order:
+
+0. **`Input.readLine?` must stop being a `partial def`.** It admits no
+   equational reasoning today, which is already why the whitespace
+   completeness witness loads its registers from compiled-in constants
+   (`Langlib/Common/Computability.lean`). This is a prerequisite even for
+   the output-only fragment, because `trace_inputs` is a law about *every*
+   whitespace program, `readnum` included. Make it structurally recursive
+   on `data.size - pos`, and split out a `readLineBytes?` so the trace and
+   the numeric-parser lemmas can talk about bytes instead of going through
+   `String.fromUTF8!`.
+1. **Traces in the whitespace interpreter.** A `trace` field on
+   `Whitespace.State`, appended at `outchar`, `outnum`, `readchar` and
+   `readnum`; `trace_outputs` and `trace_inputs` by fuel induction over
+   `exec`, generalised over the start state. `outnum` appends a whole
+   `String.toUTF8`, so the invariant is about multi-byte appends, not
+   single ones. Then `instance : TraceLang WhitespaceLang` beside
+   `ProgLang WhitespaceLang` in `Langlib/Computability/Whitespace.lean`,
+   matching where FRACTRAN's sits.
+2. **Traces in the Turpentine interpreter**, and a
+   `TurpentineBehavesWith p σ n τ result` stated over `answerProgram p` —
+   the source *with* the epilogue — which is what lets `encodeTrace` be
+   the identity.
+3. **The fragment and the emitter lemmas.** Widen `checkFragment`, and add
+   the print cases to the `Emits` algebra and to `simStmt`, each
+   discharging the trace increment as well as the state relation.
+4. **The instance**, `bespokeWhitespaceIO : IOCertifiedCompiler spec
+   WhitespaceLang`, in `Langlib/Languages/Turpentine/Certified/`, plus
+   `toCertifiedOf` back to the answer-only statement.
+5. **Tests and docs.** A golden suite over I/O-bearing sources; then
+   §1.4 of `certified-compilation.md` (whose table says "nothing, yet"),
+   `docs/whitespace/compiler.md`, and the `verification.md` scoreboard.
+
+**Milestone 2 — `readInt`.** Needs step 0's byte-level lemmas plus one
+that nobody has proved: that whitespace's `parseNumLine` and Turpentine's
+`parseIntLine` accept the same lines and agree on the value.
+`docs/whitespace/compiler.md` asserts they do; it may not survive contact
+with a proof, and finding out is worth the trip.
+
+**Then subleq**, where `encodeTrace` is the identity too and steps 0 and 2
+are already paid for.
 
 ## Stage 7: website `[ ]`
 
