@@ -585,6 +585,12 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.branch_gadget
 #print axioms Unshackled.branch_gadget_cases
 
+-- The copy algebra: a read-write hop is the trit 3-cycle, so three hops
+-- move an unknown value exactly.
+#print axioms Unshackled.trit_vmap
+#print axioms Unshackled.hop_eq_vmap
+#print axioms Unshackled.hop_hop_hop
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

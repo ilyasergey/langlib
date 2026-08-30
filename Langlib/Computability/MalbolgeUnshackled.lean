@@ -2277,6 +2277,85 @@ theorem branch_gadget_cases {t₀ t₁ : Value} (h₀ : t₀.Normalized) (h₁ :
   ⟨fun h => h ▸ (branch_arith t₀ t₁ h₀ h₁ a).1,
    fun h => h ▸ (branch_arith t₀ t₁ h₀ h₁ a).2⟩
 
+/-! ## The copy algebra: moving a value you do not know
+
+`branch_arith` writes compile-time constants; a register machine also has
+to *move* runtime values between cells. The crazy operation offers exactly
+two per-trit bijections: reading through `...222` (the row `x = 2` of the
+table is the permutation swapping 1 and 2) and writing through `...111`
+(the column `y = 1` swaps 0 and 1). One read-write hop therefore applies
+the 3-cycle `0 ↦ 1 ↦ 2 ↦ 0` to every trit; three hops are the identity,
+and a value can be copied exactly, three cells downstream, without ever
+being known. The two constants involved, `...222` and `...111`, are
+self-restoring in the read (`crz eof v` overwrites the source cell with
+the read image, but the `...222` accumulator load `crz zero eof = eof`
+restores its own cell), so the only consumed cell per hop is the source,
+which a copy is allowed to consume. -/
+
+/-- Apply a trit function to every trit of a value. -/
+def vmap (f : Trit → Trit) (v : Value) : Value :=
+  Value.mk' (f v.lead) (v.low.map f)
+
+theorem trit_vmap (f : Trit → Trit) (v : Value) (i : Nat) :
+    (vmap f v).trit i = f (v.trit i) := by
+  rw [vmap, trit_mk', Value.trit]
+  rcases Nat.lt_or_ge i v.low.length with h | h
+  · rw [getD_lt (by simpa using h), getD_lt h, List.getElem_map]
+  · rw [getD_ge (by simpa using h), getD_ge h]
+
+theorem vmap_normalized (f : Trit → Trit) (v : Value) : (vmap f v).Normalized :=
+  Value.normalized_mk' _ _
+
+/-- The 3-cycle a read-write hop applies: `0 ↦ 1 ↦ 2 ↦ 0`. -/
+def tau : Trit → Trit
+  | .t0 => .t1
+  | .t1 => .t2
+  | .t2 => .t0
+
+/-- One hop: read the source through `...222` (the accumulator becomes the
+`swap12` image, and is what the crazy operation also left in the source
+cell), then write through a cell holding `...111`. -/
+def hop (v : Value) : Value := Value.crz (Value.crz Value.eof v) (uniform .t1)
+
+/-- A hop is the 3-cycle, tritwise. -/
+theorem hop_eq_vmap (v : Value) : hop v = vmap tau v := by
+  refine ext_of_trits (crz_normalized _ _) (vmap_normalized _ _) ?_ ?_
+  · show crzTrit (crzTrit Trit.t2 v.lead) Trit.t1 = tau v.lead
+    cases v.lead <;> rfl
+  · intro i
+    rw [trit_vmap]
+    show (Value.crz (Value.crz Value.eof v) (uniform .t1)).trit i = tau (v.trit i)
+    rw [crz_trit, crz_trit]
+    show crzTrit (crzTrit ((uniform .t2).trit i) (v.trit i)) ((uniform .t1).trit i)
+      = tau (v.trit i)
+    rw [trit_uniform, trit_uniform]
+    cases v.trit i <;> rfl
+
+theorem vmap_vmap (f g : Trit → Trit) (v : Value) :
+    vmap f (vmap g v) = vmap (f ∘ g) v := by
+  refine ext_of_trits (vmap_normalized _ _) (vmap_normalized _ _) ?_ ?_
+  · show f ((vmap g v).lead) = (f ∘ g) v.lead
+    show f (g v.lead) = f (g v.lead)
+    rfl
+  · intro i
+    rw [trit_vmap, trit_vmap, trit_vmap]
+    rfl
+
+theorem vmap_id {f : Trit → Trit} (hf : ∀ t, f t = t) {v : Value}
+    (hv : v.Normalized) : vmap f v = v := by
+  refine ext_of_trits (vmap_normalized _ _) hv ?_ ?_
+  · exact hf v.lead
+  · intro i
+    rw [trit_vmap]
+    exact hf (v.trit i)
+
+/-- **Three hops copy exactly.** The 3-cycle cubed is the identity, so a
+value passed through three read-write hops arrives unchanged, without the
+program ever knowing what it was. -/
+theorem hop_hop_hop {v : Value} (hv : v.Normalized) : hop (hop (hop v)) = v := by
+  rw [hop_eq_vmap, hop_eq_vmap, hop_eq_vmap, vmap_vmap, vmap_vmap]
+  exact vmap_id (fun t => by cases t <;> rfl) hv
+
 end Unshackled
 
 end Langlib.Computability

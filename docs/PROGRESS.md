@@ -2,7 +2,24 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): the branch gadget runs on the machine
+## 2026-08-30 (latest): the copy algebra
+
+Short addition completing the value-level primitive set. The crazy
+operation has exactly two per-trit bijections: reading a cell through
+`...222` (row `x = 2` of the table swaps trits 1 and 2) and writing
+through `...111` (column `y = 1` swaps 0 and 1). One read-write hop is
+therefore the 3-cycle `0 ↦ 1 ↦ 2 ↦ 0` applied to every trit
+(`hop_eq_vmap`), so three hops are an exact copy (`hop_hop_hop`): a value
+moves three cells downstream without the program ever knowing what it
+was. The constants restore themselves; only the source cell is consumed.
+
+With the mux (`branch_arith`), straight-line rows (`crazy_run`), the
+branch gadget, the escalator, and now data movement, every value-level
+primitive a register file needs has a verified instance. What remains for
+the witness is composition: a re-enterable dispatcher, the register
+layout, the assembler, and the URM simulation induction.
+
+## 2026-08-30: the branch gadget runs on the machine
 
 `branch_arith` said seven crazy operations against computable constants
 turn any accumulator into either of two jump targets. `branch_gadget` now

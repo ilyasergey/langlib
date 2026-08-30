@@ -522,6 +522,26 @@ it every iteration needs the cells' orbits managed across passes, the
 problem `loop.mu` solves for its three-cell cycle. That, and restocking
 the spent constants, is the dispatcher design problem.
 
+## The copy algebra
+
+`branch_arith` writes compile-time constants; a register machine also
+moves values it does not know. The crazy operation offers exactly two
+per-trit bijections: reading through `...222` (row `x = 2` of the table
+swaps 1 and 2) and writing through `...111` (column `y = 1` swaps 0
+and 1). One read-write hop is therefore the 3-cycle `0 ↦ 1 ↦ 2 ↦ 0` on
+every trit (`hop_eq_vmap`), and three hops are an exact copy:
+
+```lean
+theorem hop_hop_hop {v : Value} (hv : v.Normalized) : hop (hop (hop v)) = v
+```
+
+A value can be moved three cells downstream without the program ever
+knowing what it was, and the two constants involved restore themselves
+(`crz zero eof = eof` rewrites the `...222` cell with `...222`); only the
+source cell is consumed, which a move is allowed to do. Together with the
+mux (`branch_arith`) and straight-line rows (`crazy_run`), data movement
+completes the set of value-level primitives a register file needs.
+
 ## What is proved, what is cited, what is open
 
 **Proved, axiom-clean**: the `ProgLang` instance; the memory laws
