@@ -687,6 +687,33 @@ is the answer decoder. The byte chosen is 42, `'*'`: one UTF-8 byte, not
 emits compose, and `decodeBytes_append_star` is the arithmetic that reads
 the count back.
 
+## The register encoding
+
+The counter machine wants three operations on a register cell — set, clear,
+test — and the encoding decides what each costs. Taking **blank = `...000`
+and mark = `...111`** makes all three cost exactly one crazy operation,
+which is the least the language allows, `p` being the only instruction that
+writes. Reading Olmstead's table by the accumulator trit:
+
+| accumulator | on blank `0` | on mark `1` | effect |
+|---|---|---|---|
+| `...000` | `1` | — | set: blank becomes mark |
+| `...111` | — | `0` | clear: mark becomes blank |
+| `...222` | `0` | `2` | test: blank gives `...000`, mark gives `...222` |
+
+The third row is the one that decides the architecture. `p` leaves its
+result in the accumulator as well as the cell, so testing a register cell
+against `...222` puts exactly the flag `branch_arith` wants into the
+accumulator: `Value.zero` for blank, `Value.eof` for mark. **The zero test
+costs one instruction and needs no broadcasting**, which the crazy operation
+could not do anyway, being tritwise. That is the argument for a unary
+register representation, made by the table rather than by preference.
+
+The test is destructive on a mark, which reads back as `...222`; one more
+operation against the same constant restores it, and a blank survives both
+untouched, so the pair is a non-destructive test whichever the cell held
+(`register_test_roundtrip`).
+
 ## What is proved, what is cited, what is open
 
 **Proved, axiom-clean**: the `ProgLang` instance; the memory laws

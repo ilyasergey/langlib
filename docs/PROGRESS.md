@@ -2,7 +2,31 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): the output side, which is nearly free
+## 2026-08-30 (latest): the register encoding, one operation each
+
+The counter machine wants set, clear and test on a register cell, and the
+encoding decides what each costs. Taking **blank = `...000` and mark =
+`...111`** makes all three cost exactly one crazy operation, which is the
+least the language allows, since `p` is the only instruction that writes.
+Reading Olmstead's table by the accumulator trit: against `...000` a blank
+becomes a mark; against `...111` a mark becomes a blank; against `...222` a
+blank gives `...000` and a mark gives `...222`.
+
+The third row decides the architecture. `p` leaves its result in the
+accumulator as well as in the cell, so testing a register cell against
+`...222` puts exactly the flag `branch_arith` wants into the accumulator:
+`Value.zero` for blank, `Value.eof` for mark. **The zero test costs one
+instruction and needs no broadcasting**, which the crazy operation could
+not do anyway, being tritwise. That settles the representation question in
+favour of unary registers, by the table rather than by taste, after several
+candidates that all needed a loop just to test for zero.
+
+The test is destructive on a mark, which reads back as `...222`, but one
+more operation against the same constant restores it and a blank survives
+both untouched, so the pair is a non-destructive test whichever the cell
+held (`register_test_roundtrip`).
+
+## 2026-08-30: the output side, which is nearly free
 
 A short follow-up. `Counter.CState` records only how many bytes were
 emitted, because every byte a compiled program emits is the same. So the

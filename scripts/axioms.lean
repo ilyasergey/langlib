@@ -625,6 +625,15 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.decodeBytes_append_star
 #print axioms Unshackled.outClosed_of_step1_out
 
+-- The register encoding: with blank = ...000 and mark = ...111, set, clear
+-- and test each cost one crazy operation.
+#print axioms Unshackled.crz_set_mark
+#print axioms Unshackled.crz_clear_mark
+#print axioms Unshackled.crz_test_blank
+#print axioms Unshackled.crz_test_mark
+#print axioms Unshackled.crz_restore_mark
+#print axioms Unshackled.register_test_roundtrip
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

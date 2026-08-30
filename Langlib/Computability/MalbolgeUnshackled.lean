@@ -2957,6 +2957,79 @@ theorem outClosed_of_step1_out {s : State} {code : Nat}
   refine ⟨_, step1_out hdec ha hoc hcode, hoc, ?_, rfl⟩
   exact size_append_star s.output
 
+/-! ## The register encoding: blank, mark, flag
+
+The counter machine's registers want three operations on a cell — set it,
+clear it, and test it — and the encoding decides how many instructions each
+costs. Taking **blank = `...000` and mark = `...111`** makes all three cost
+exactly *one* crazy operation, which is the least the language allows,
+since `p` is the only instruction that writes.
+
+Reading the table by the accumulator trit:
+
+| accumulator | on blank `0` | on mark `1` | effect |
+|---|---|---|---|
+| `...000` | `1` | — | **set**: blank becomes mark |
+| `...111` | — | `0` | **clear**: mark becomes blank |
+| `...222` | `0` | `2` | **test**: blank gives `...000`, mark gives `...222` |
+
+The third row is the one that matters. `p` leaves its result in the
+accumulator *and* in the cell, so testing a register cell against `...222`
+puts exactly the flag `branch_arith` wants into the accumulator: `Value.zero`
+for blank, `Value.eof` for mark. The zero test therefore costs one
+instruction and needs no broadcasting, which the crazy operation could not
+do anyway, being tritwise. That is the argument for a unary representation,
+made by the table rather than by taste.
+
+The cost is that the test is destructive: a mark reads as `...222` and has
+to be restored, which `crz_restore_mark` does with one more operation
+against the same constant. Blanks survive the round trip untouched. -/
+
+/-- Blank: the cell of a register that holds nothing. -/
+abbrev blank : Value := uniform .t0
+
+/-- Mark: one unit of a unary register. -/
+abbrev mark : Value := uniform .t1
+
+theorem blank_eq_zero : blank = Value.zero := rfl
+
+theorem flagMark_eq_eof : uniform .t2 = Value.eof := rfl
+
+/-- **Set**: one crazy operation against `...000` turns a blank into a
+mark. -/
+theorem crz_set_mark : Value.crz blank blank = mark := by decide
+
+/-- **Clear**: one crazy operation against `...111` turns a mark into a
+blank. -/
+theorem crz_clear_mark : Value.crz mark mark = blank := by decide
+
+/-- **Test, blank**: against `...222` a blank reads as `Value.zero`, the
+flag `branch_arith` takes for its first target. -/
+theorem crz_test_blank : Value.crz Value.eof blank = Value.zero := by decide
+
+/-- **Test, mark**: against `...222` a mark reads as `Value.eof`, the flag
+for the second target. -/
+theorem crz_test_mark : Value.crz Value.eof mark = Value.eof := by decide
+
+/-- The test is destructive on a mark, which now reads `...222`; one more
+operation against the same constant puts it back. A blank is unchanged by
+both, so the pair is a non-destructive test whichever the cell held. -/
+theorem crz_restore_mark : Value.crz Value.eof Value.eof = mark := by decide
+
+theorem crz_restore_blank : Value.crz Value.eof Value.zero = blank := by decide
+
+/-- **The register cell round trip.** Testing a cell against `...222` and
+then restoring it leaves the cell exactly as it was, and the intermediate
+accumulator is the branch flag: `Value.zero` for a blank, `Value.eof` for a
+mark. This is the zero test the compiled `loop` will use. -/
+theorem register_test_roundtrip {v : Value} (h : v = blank ∨ v = mark) :
+    Value.crz Value.eof (Value.crz Value.eof v) = v
+    ∧ (Value.crz Value.eof v = Value.zero ↔ v = blank)
+    ∧ (Value.crz Value.eof v = Value.eof ↔ v = mark) := by
+  rcases h with h | h <;> subst h
+  · exact ⟨by decide, by decide, by decide⟩
+  · exact ⟨by decide, by decide, by decide⟩
+
 end Unshackled
 
 end Langlib.Computability
