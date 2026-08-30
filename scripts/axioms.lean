@@ -643,6 +643,15 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.chainFold_congr
 #print axioms Unshackled.gadget_run
 
+-- The chosen register encoding: blank ...000, mark ...222, tested
+-- non-destructively by the accumulator ...111, which hands back the branch
+-- flag with no conversion.
+#print axioms Unshackled.crz_probe_blank
+#print axioms Unshackled.crz_probe_mark
+#print axioms Unshackled.crz_load_testAcc
+#print axioms Unshackled.register_probe
+#print axioms Unshackled.probe_feeds_branch
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

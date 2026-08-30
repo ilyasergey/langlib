@@ -714,6 +714,26 @@ operation against the same constant restores it, and a blank survives both
 untouched, so the pair is a non-destructive test whichever the cell held
 (`register_test_roundtrip`).
 
+### A better encoding, and the one the compiler uses
+
+Since the test is the loop condition and so runs on every iteration of
+every compiled loop, it is worth asking whether an encoding avoids the
+restore. One does. Take **blank = `...000` and mark = `...222`**. The
+accumulator `...111` then satisfies `crz ...111 b = b` for both, so testing
+leaves the cell **exactly as it was**, and the value left in the
+accumulator is the cell's own content: `Value.zero` for blank, `Value.eof`
+for mark. Those are precisely the flags `branch_arith` consumes, so the
+probe feeds the branch with no conversion at all (`probe_feeds_branch`).
+The test accumulator is itself loaded self-restoringly, from a blank
+accumulator against a cell holding `...111` (`crz_load_testAcc`), so the
+whole probe is two chain links and every cell it touches comes back
+unchanged.
+
+The price falls on `set`: no single operation takes `...000` to `...222`,
+so setting a mark costs two visits to the cell, hence two gadgets. Paying
+there to make the loop condition free is the right trade, since the
+condition runs once per iteration and `set` once per command.
+
 ## Chains, and the end of padding
 
 Laying a gadget out as one contiguous row forces padding into the gaps

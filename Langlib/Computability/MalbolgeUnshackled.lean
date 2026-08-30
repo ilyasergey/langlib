@@ -3417,6 +3417,81 @@ theorem gadget_run (n : Nat) {s : State} {M P Q A : Nat} {wm wj₀ wt₀ : Nat}
     rw [hop2 i hi]
     exact hfold' (i + 1) (by omega)
 
+/-! ## A better register encoding: the non-destructive test
+
+The encoding above (blank `...000`, mark `...111`) makes set, clear and
+test one operation each, but the test is *destructive*: a mark reads back
+as `...222` and needs a second operation to restore. Since the test is the
+loop condition, and so runs on every iteration of every compiled loop, it
+is worth asking whether an encoding avoids that. One does.
+
+Take **blank = `...000` and mark = `...222`**. Then the accumulator
+`...111` satisfies `crz ...111 b = b` for both, so testing leaves the cell
+**exactly as it was**, and the value it leaves in the accumulator is the
+cell's own content: `Value.zero` for blank, `Value.eof` for mark. Those are
+precisely the two flags `branch_arith` consumes. The test is therefore one
+operation, non-destructive, and produces the branch flag with no conversion
+at all.
+
+The accumulator `...111` is itself loaded self-restoringly: from a blank
+accumulator, one operation against a cell holding `...111` leaves the
+accumulator at `...111` and the cell at `...111`. So the whole test is two
+links of a chain, both of which restore every cell they touch.
+
+The price is on `set`: no single operation takes `...000` to `...222`, so
+setting a mark costs two visits to the cell, hence two gadgets. Clearing is
+one (`crz ...222 ...222 = ...111`, then one more to reach `...000`). Paying
+on `set` and `dec` to make the loop condition free is the right trade,
+because the condition runs once per iteration and the others once per
+command. -/
+
+/-- Blank, in the encoding the compiler uses. -/
+abbrev cellBlank : Value := Value.zero
+
+/-- Mark, in the encoding the compiler uses. -/
+abbrev cellMark : Value := Value.eof
+
+/-- The accumulator that tests a register cell. -/
+abbrev testAcc : Value := uniform .t1
+
+/-- **The test is non-destructive on a blank**, and hands back the flag
+`Value.zero`. -/
+theorem crz_probe_blank : Value.crz testAcc cellBlank = cellBlank := by decide
+
+/-- **The test is non-destructive on a mark**, and hands back the flag
+`Value.eof`. -/
+theorem crz_probe_mark : Value.crz testAcc cellMark = cellMark := by decide
+
+/-- Loading the test accumulator is itself self-restoring: from a blank
+accumulator, one operation against a cell holding `...111` leaves both at
+`...111`. -/
+theorem crz_load_testAcc : Value.crz cellBlank testAcc = testAcc := by decide
+
+/-- **The register probe.** Two links: load the test accumulator, then read
+the cell. Every cell involved comes back unchanged, and the accumulator is
+left holding exactly the branch flag for the cell's contents. -/
+theorem register_probe {v : Value} (h : v = cellBlank ∨ v = cellMark) :
+    Value.crz (Value.crz cellBlank testAcc) v = v
+    ∧ (v = cellBlank → Value.crz (Value.crz cellBlank testAcc) v = Value.zero)
+    ∧ (v = cellMark → Value.crz (Value.crz cellBlank testAcc) v = Value.eof) := by
+  rw [crz_load_testAcc]
+  rcases h with h | h <;> subst h
+  · exact ⟨crz_probe_blank, fun _ => crz_probe_blank, fun h => absurd h (by decide)⟩
+  · exact ⟨crz_probe_mark, fun h => absurd h (by decide), fun _ => crz_probe_mark⟩
+
+/-- The probe feeds `branch_arith` with no conversion: the flag it produces
+is already one of the two values the branch pipeline reads. -/
+theorem probe_feeds_branch (t₀ t₁ : Value) (h₀ : t₀.Normalized) (h₁ : t₁.Normalized)
+    (a : Value) {v : Value} (h : v = cellBlank ∨ v = cellMark) :
+    branchChain t₀ t₁ a (Value.crz (Value.crz cellBlank testAcc) v)
+      = if v = cellBlank then t₀ else t₁ := by
+  obtain ⟨hfix, hb, hm⟩ := register_probe h
+  rcases h with h | h <;> subst h
+  · rw [if_pos rfl, hb rfl]
+    exact (branch_arith t₀ t₁ h₀ h₁ a).1
+  · rw [if_neg (by decide), hm rfl]
+    exact (branch_arith t₀ t₁ h₀ h₁ a).2
+
 end Unshackled
 
 end Langlib.Computability

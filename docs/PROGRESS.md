@@ -2,7 +2,33 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-31 (latest): entering a chain, and a whole gadget
+## 2026-08-31 (latest): a better register encoding, and the probe
+
+A correction to the encoding committed earlier, and an improvement worth
+the change. Blank `...000` with mark `...111` makes set, clear and test one
+operation each, but the test is destructive: a mark reads back as `...222`
+and needs a second operation to restore. The test is the loop condition, so
+it runs on every iteration of every compiled loop, which makes it the one
+place worth optimising.
+
+Take **blank = `...000` and mark = `...222`** instead. The accumulator
+`...111` then satisfies `crz ...111 b = b` for both values, so testing
+leaves the cell exactly as it was, and the value it leaves in the
+accumulator is the cell's own content: `Value.zero` for blank, `Value.eof`
+for mark. Those are precisely the two flags `branch_arith` consumes, so the
+probe feeds the branch with no conversion (`probe_feeds_branch`). The test
+accumulator is itself loaded self-restoringly, from a blank accumulator
+against a cell holding `...111`, so the whole probe is two chain links and
+every cell it touches comes back unchanged.
+
+The price falls on `set`: no single operation takes `...000` to `...222`,
+so setting a mark costs two visits to the cell and hence two gadgets.
+Paying there to make the loop condition free is the right trade, since the
+condition runs once per iteration and `set` once per command. Both
+encodings are kept in the file, with this one marked as the one the
+compiler uses.
+
+## 2026-08-31: entering a chain, and a whole gadget
 
 Two more layers, and the compiled-command unit now exists.
 
