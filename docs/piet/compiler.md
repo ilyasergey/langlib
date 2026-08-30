@@ -2,8 +2,10 @@
 
 * **Status**: the *derived*, certified compiler
   ([`derivedPiet`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L139))
-  is wired up and reachable as `--to piet --tc`; the bespoke one is
-  planned, not started.
+  is wired up and reachable as `--to piet --tc`. The bespoke one is
+  **in progress**: its layout mechanism is prototyped and verified against
+  the interpreter (see "Planned approach" below), and the code generator is
+  not written yet.
 * **Family**: StackIR (see `docs/PLAN.md`, Stage 4), shared with
   whitespace.
 * **Tests**: [Langlib/Tests/DerivedPiet.lean](../../Langlib/Tests/DerivedPiet.lean)
@@ -137,20 +139,42 @@ trivial, which is the point for a first backend. The examples in
 target shape is known to work with our interpreter and with npiet.
 
 Control flow in a corridor needs a trick, since a corridor is a straight
-line. Two options to evaluate when the work starts:
+line. The mechanism below has been **prototyped against `evalGrid` and
+works**; the four pieces are what a backend needs, and each was checked on
+the real interpreter rather than reasoned about.
 
-* *Rows as basic blocks*: lay each basic block out as its own corridor
-  row, and join rows with `pointer` operations and turn geometry, so the
-  picture becomes a stack of corridors read boustrophedonically. Loops are
-  a backward turn.
-* *Sequential with a dispatch loop*: keep one corridor, and implement
-  jumps by an interpreter-style dispatch on a program-counter value held
-  on the stack. Simpler geometry, much slower programs, and a less
-  satisfying picture.
+**White is a free wire.** Sliding across white executes no command — the
+interpreter lands on the far side with the DP and CC it had. So white
+corridors route control anywhere without side effects, and only chromatic
+blocks compute. This is the fact the whole layout rests on.
 
-Rows as basic blocks is the plan. The termination rule (eight failed
-attempts to leave a block) gives a clean halt: end the last row with a
-white codel and a full-height wall, exactly as the hand-drawn examples do.
+**Wires turn clockwise.** When a white slide is blocked it rotates the DP
+clockwise and toggles the CC, then slides on. A wire can therefore turn
+right at a black wall for free, and a loop that runs clockwise — body
+rightwards along the top, down the right side, back leftwards along the
+bottom, up the left side — needs no commands at all for its return path.
+
+**Two-way branches are `pointer`.** With the DP pointing right, `pointer`
+pops `v` and rotates: `v = 0` continues along the row, `v = 1` turns down.
+So a conditional is `… push v; pointer`, with the taken branch laid to the
+right of the block `pointer` lands on and the other branch below it. For
+`while c { … }` the value wanted is `not c`, which for a counter is just
+`dup; not`.
+
+**Halting takes a shape, not a codel.** A block halts when all eight
+attempts to leave it fail, and a lone block reached through white does
+*not* qualify: it rotates the DP back towards the white it arrived
+through and slides out again. A bar three codels wide, with black on every
+side, does qualify, because the exit codel the CC picks for the vertical
+directions is one of the two ends, and both have black above and below.
+
+One trap worth naming, because it cost an afternoon. Consecutive runs of
+the *same* colour merge into one block, so the block a `pointer` lands on
+and the first run of the branch after it are the same block. Its size is
+therefore the sum of both, and a `push` leaving it pushes the wrong number.
+The fix is to treat the landing block as the branch's first run rather than
+emitting a separate one — the layout has one block there, so the code
+generator must too.
 
 ## Fragment
 
