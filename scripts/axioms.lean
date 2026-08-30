@@ -22,6 +22,7 @@ incompleteness instance lands.
 import Langlib.Computability.Whitespace
 import Langlib.Computability.Subleq
 import Langlib.Languages.Turpentine.Compile.Derived
+import Langlib.Languages.Turpentine.Trace
 import Langlib.Languages.Turpentine.Certified.BespokeWhitespace
 import Langlib.Computability.Brainfuck
 import Langlib.Computability.Deadfish
@@ -634,6 +635,10 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.crz_restore_mark
 #print axioms Unshackled.register_test_roundtrip
 
+-- Chains: a working cell joined to the next by a stable jmp, which removes
+-- padding from the layout entirely.
+#print axioms Unshackled.chain_link
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.
@@ -670,6 +675,17 @@ open Langlib.Turpentine.Compile
 #print axioms Langlib.Whitespace.exec_wf
 #print axioms Langlib.Whitespace.evalTrace_outputs
 #print axioms Langlib.Whitespace.evalTrace_inputs
+
+-- Turpentine reports its own events too, which is the other half a
+-- behavioural compiler statement needs: `TurpentineBehavesWith` is the
+-- I/O-aware refinement of `TurpentineHaltsWith`, and `behavesWith_wf` is
+-- what stops it from being satisfiable by an invented trace.
+#print axioms Langlib.Turpentine.exec_wf
+#print axioms Langlib.Turpentine.evalTrace_outputs
+#print axioms Langlib.Turpentine.evalTrace_inputs
+#print axioms Langlib.Turpentine.behavesWith_trace
+#print axioms Langlib.Turpentine.behavesWith_wf
+#print axioms Langlib.Turpentine.behavesWith_haltsWith
 
 -- SKI: the same counter machine in front, and nothing shared behind it.
 -- Head reduction and its bridge to the interpreter, the combinators, the

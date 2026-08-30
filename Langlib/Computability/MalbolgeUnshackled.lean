@@ -3030,6 +3030,104 @@ theorem register_test_roundtrip {v : Value} (h : v = blank ∨ v = mark) :
   · exact ⟨by decide, by decide, by decide⟩
   · exact ⟨by decide, by decide, by decide⟩
 
+/-! ## Chains: working cells joined by stable jumps
+
+`row_run` lays a gadget out as one contiguous row, which forces padding
+into the gaps between working cells, and padding is awkward: a re-enterable
+`crazy` must sit at residue 82 or 86 modulo 94, while the cells in between
+fall wherever they fall, including the sixteen residues at which no
+two-cycle word is harmless in both phases.
+
+Interleaving removes the problem. Put a `jmp` immediately after each
+working cell and let it carry control to the next one. A `jmp` never
+encrypts itself, so it is stable for the whole run and **the control path
+is identical on every pass**, while the working cells alternate between
+their instruction and a no-op. The cells jumped over are never executed, so
+they need no words at all; only the landing cell is encrypted, and
+encryption keeps a printable word printable.
+
+`d` advances two per link, so each link owns two data cells at a known
+stride: the operand the `crazy` reads at `D`, and the address the `jmp`
+reads at `D + 1`. Both are placed statically. `chain_link` is one link and
+`chain_run` is `n` of them. -/
+
+/-- One link: a working `crazy` cell, then a stable `jmp` to the next link.
+Two steps. -/
+theorem chain_link {s : State} {a D t : Nat} {wc wj wt : Nat}
+    (hc : s.c = Value.ofNat a) (hd : s.d = Value.ofNat D)
+    (hdecC : decode (s.mem.get (Value.ofNat a)) (Value.ofNat a).modClass = .crazy)
+    (hprC : printableCode? (s.mem.get (Value.ofNat a)) = some wc)
+    (hdecJ : decode (s.mem.get (Value.ofNat (a + 1))) (Value.ofNat (a + 1)).modClass = .jmp)
+    (hprJ : printableCode? (s.mem.get (Value.ofNat (a + 1))) = some wj)
+    (hDne : D ≠ a) (hDne' : D + 1 ≠ a + 1) (hDne'' : D ≠ a + 1) (hD1a : D + 1 ≠ a)
+    (htgt : s.mem.get (Value.ofNat (D + 1)) = Value.ofNat t)
+    (hprT : printableCode? (s.mem.get (Value.ofNat t)) = some wt)
+    (htne : t ≠ a) (htne' : t ≠ D) (htne'' : t ≠ a + 1) :
+    ∃ s', run? 2 s = some s'
+      ∧ s'.a = Value.crz s.a (s.mem.get (Value.ofNat D))
+      ∧ s'.c = Value.ofNat (t + 1)
+      ∧ s'.d = Value.ofNat (D + 2)
+      ∧ s'.mem.get (Value.ofNat D) = Value.crz s.a (s.mem.get (Value.ofNat D))
+      ∧ s'.mem.get (Value.ofNat a) = Value.ofNat (encrypt wc)
+      ∧ s'.mem.get (Value.ofNat (a + 1)) = s.mem.get (Value.ofNat (a + 1))
+      ∧ (∀ x : Nat, x ≠ D → x ≠ a → x ≠ t →
+          s'.mem.get (Value.ofNat x) = s.mem.get (Value.ofNat x))
+      ∧ s'.input = s.input ∧ s'.output = s.output ∧ s'.outClosed = s.outClosed := by
+  -- step one: the crazy cell
+  have hstep1 := step1_crazy (s := s) (code := wc)
+    (by rw [hc]; exact hdecC) (by rw [hc, hd]; exact ofNat_ne hDne)
+    (by rw [hc]; exact hprC)
+  rw [hc, hd] at hstep1
+  set v := Value.crz s.a (s.mem.get (Value.ofNat D)) with hv
+  set m₁ := (s.mem.set (Value.ofNat D) v).set (Value.ofNat a) (Value.ofNat (encrypt wc)) with hm₁
+  set s₁ : State := { s with a := v, mem := m₁, c := (Value.ofNat a).succ, d := (Value.ofNat D).succ } with hs₁
+  -- step two: the stable jump
+  have hc₁ : s₁.c = Value.ofNat (a + 1) := succ_ofNat a
+  have hd₁ : s₁.d = Value.ofNat (D + 1) := succ_ofNat D
+  have hJ₁ : m₁.get (Value.ofNat (a + 1)) = s.mem.get (Value.ofNat (a + 1)) := by
+    rw [hm₁, get_set_ne _ (ofNat_ne (by omega : a ≠ a + 1)),
+      get_set_ne _ (ofNat_ne hDne'')]
+  have htgt₁ : m₁.get (Value.ofNat (D + 1)) = Value.ofNat t := by
+    rw [hm₁, get_set_ne _ (ofNat_ne (Ne.symm hD1a)),
+      get_set_ne _ (ofNat_ne (by omega : D ≠ D + 1))]
+    exact htgt
+  have hT₁ : m₁.get (Value.ofNat t) = s.mem.get (Value.ofNat t) := by
+    rw [hm₁, get_set_ne _ (ofNat_ne (Ne.symm htne)),
+      get_set_ne _ (ofNat_ne (Ne.symm htne'))]
+  have hdecJ₁ : decode (s₁.mem.get s₁.c) s₁.c.modClass = Instr.jmp := by
+    rw [hc₁]
+    show decode (m₁.get (Value.ofNat (a + 1))) _ = _
+    rw [hJ₁]
+    exact hdecJ
+  have hprT₁ : printableCode? (s₁.mem.get (s₁.mem.get s₁.d)) = some wt := by
+    rw [hd₁]
+    show printableCode? (m₁.get (m₁.get (Value.ofNat (D + 1)))) = _
+    rw [htgt₁, hT₁]
+    exact hprT
+  have hstep2 := step1_jmp (s := s₁) (code := wt) hdecJ₁ hprT₁
+  rw [hd₁] at hstep2
+  show ∃ s', run? 2 s = some s' ∧ _
+  rw [show (2 : Nat) = 1 + 1 from rfl]
+  refine ⟨{ s₁ with mem := m₁.set (Value.ofNat t) (Value.ofNat (encrypt wt)), c := (Value.ofNat t).succ, d := (Value.ofNat (D + 1)).succ }, ?_, rfl, ?_, ?_, ?_, ?_, ?_, ?_, rfl, rfl, rfl⟩
+  · rw [run?_add 1 1, run?_one, hstep1, Option.bind_some, run?_one]
+    show step1 s₁ = _
+    rw [hstep2, htgt₁]
+  · show (Value.ofNat t).succ = _
+    rw [succ_ofNat]
+  · show (Value.ofNat (D + 1)).succ = _
+    rw [succ_ofNat]
+  · show (m₁.set (Value.ofNat t) (Value.ofNat (encrypt wt))).get (Value.ofNat D) = _
+    rw [get_set_ne _ (ofNat_ne htne'), hm₁,
+      get_set_ne _ (ofNat_ne (Ne.symm hDne)), get_set_self]
+  · show (m₁.set (Value.ofNat t) (Value.ofNat (encrypt wt))).get (Value.ofNat a) = _
+    rw [get_set_ne _ (ofNat_ne htne), hm₁, get_set_self]
+  · show (m₁.set (Value.ofNat t) (Value.ofNat (encrypt wt))).get (Value.ofNat (a + 1)) = _
+    rw [get_set_ne _ (ofNat_ne htne''), hJ₁]
+  · intro x hxD hxa hxt
+    show (m₁.set (Value.ofNat t) (Value.ofNat (encrypt wt))).get (Value.ofNat x) = _
+    rw [get_set_ne _ (ofNat_ne (Ne.symm hxt)), hm₁,
+      get_set_ne _ (ofNat_ne (Ne.symm hxa)), get_set_ne _ (ofNat_ne (Ne.symm hxD))]
+
 end Unshackled
 
 end Langlib.Computability

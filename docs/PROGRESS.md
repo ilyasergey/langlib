@@ -2,7 +2,67 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): the register encoding, one operation each
+## 2026-08-31 (latest): chains, and the end of padding
+
+The layout problem had a solution I had been walking past. Laying a gadget
+out as one contiguous row forces padding into the gaps between working
+cells, and padding is the awkward part: a re-enterable `crazy` must sit at
+residue 82 or 86 modulo 94, while the cells between fall wherever they
+fall, including the sixteen residues at which no two-cycle word is harmless
+in both phases.
+
+Interleaving removes the problem entirely. Put a `jmp` immediately after
+each working cell and let it carry control to the next one. A `jmp` never
+encrypts itself, so it is stable for the whole run and the control path is
+identical on every pass, while the working cells alternate between their
+instruction and a no-op. The cells jumped over are never executed and need
+no words at all; only the landing cell is encrypted, and encryption keeps a
+printable word printable.
+
+`d` advances two per link, so each link owns two data cells at a known
+stride: the operand the `crazy` reads at `D` and the address the `jmp`
+reads at `D + 1`, both placed statically. `chain_link` proves one link in
+two steps, with a frame condition naming the only three cells it touches
+and, crucially, a clause saying the jump cell comes back unchanged. That
+clause is what makes a chain re-enterable, and it is `jmp_cell_stable`
+cashed out in the form a compiler can actually use.
+
+## 2026-08-31: the source side reports its events too
+
+Turpentine now records its I/O the way whitespace does: an `events` field
+on `State`, four recorders, and the same invariant proved in
+`Langlib/Languages/Turpentine/Trace.lean` — the trace's output events *are*
+the output, and its input events *followed by what the cursor has left* are
+what the stream started with.
+
+Turpentine is not a `ProgLang`, so there is no `TraceLang` instance to
+inhabit. What it needs the trace for is to be the `τ` in a specification,
+and that is `TurpentineBehavesWith p σ n τ result`: the I/O-aware
+refinement of `TurpentineHaltsWith`, naming the input stream and the events
+the answer-only version drops. `behavesWith_wf` is the part that keeps it
+honest — whatever `τ` a program is specified to perform, its output events
+are the bytes a real run emitted and its input events are a prefix of the
+stream it was handed. A compiler proved against this is constrained by what
+the program does, not by a trace chosen to make a proof go through.
+
+Two wrinkles worth recording. The induction is on the fuel and *then* on
+the statement, because `seq` consumes no fuel: `exec (n+1) (s₁; s₂)` runs
+`s₁` at the same bound and a smaller statement. And `a[i] := readByte()`
+shared its two ends of input through a `let`, which no tactic could case
+on; it is now written out as two branches. The semantics is unchanged,
+including the part worth being explicit about: a failed store rolls the
+read back, and the trace rolls back with it. The run that reports the error
+is the run that did not keep the byte.
+
+The payoff is that `encodeTrace = id` stopped being a prediction. Fifteen
+new tests, and six of them run a program through the reference interpreter
+*and* through the hand-written whitespace backend and fail unless the two
+performed the same events in the same order — decimal rendering, boolean
+words, `readInt` consuming its line terminator, and reads and writes
+interleaved. `docs/PLAN.md` Stage 6 still has to prove it over a fragment.
+It is now being checked on every `lake test`.
+
+## 2026-08-30: the register encoding, one operation each
 
 The counter machine wants set, clear and test on a register cell, and the
 encoding decides what each costs. Taking **blank = `...000` and mark =
@@ -196,12 +256,36 @@ division correction put every variable access after a `/` one slot too low,
 which surfaced as `gcd.turp` printing 42 where the reference printed 21.
 The generator now checks that two joining lanes agree.
 
-14 of the 20 conformance programs compile and match the reference, all four
-sign pairs of Euclidean division among them. The other six use arrays,
-which the backend refuses by name: a *computed* index needs the roll depth
-itself computed at run time, and that is written up rather than attempted.
-Sizes, measured: `answer := 2` is 98,338 bytes through the certified route
-and 8,757 through this one, which also prints its answer.
+All 20 conformance programs compile and match the reference, all four sign
+pairs of Euclidean division among them, and Piet is now the suite's seventh
+compiled runner. Sizes, measured: `answer := 2` is 98,338 bytes through the
+certified route and 8,757 through this one, which also prints its answer.
+
+**Arrays, which were the last refusal.** An array lives on the stack like
+the scalars, but the roll amounts stop being literals: reaching `a[i]`
+rotates by a distance known only at run time, and `roll` *consumes* the
+distance, while the read needs it twice and the write three times.
+Recomputing `i` is out (it may be any expression) and a spare copy on the
+stack does not survive, because it sits inside the region the rotation
+disturbs. The fix is two **scratch slots below every variable**: a rotation
+that reaches an array element cannot reach something deeper than every
+element, so the scratch slot's index after the rotation is the index it had
+before.
+
+Every access is bounds-checked, and has to be — an index off the end would
+rotate the wrong distance and silently corrupt the variables below it,
+which is worse than stopping. The check fits in **one lane rather than
+two**: both halves of `0 ≤ i < n` are a `greater`, both results are 0 or 1
+so their conjunction is a product, and neither can trap so there is nothing
+to short-circuit. That is worth more than it sounds, because a lane is two
+rows and its branch is two wires, and the interpreter's per-step cost grows
+with the picture's area: folding the two checks into one took `sieve.turp`
+from `410 x 80` codels to `400 x 68`, and the twenty conformance programs
+from 73 seconds to 45.
+
+What remains is the price of having no heap: every element access is
+`O(depth)`, so a loop over an `n`-element array is quadratic, and
+`sieve.turp` is the slowest program in the suite by a factor of three.
 
 ### Whitespace takes all twenty
 

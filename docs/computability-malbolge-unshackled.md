@@ -714,6 +714,44 @@ operation against the same constant restores it, and a blank survives both
 untouched, so the pair is a non-destructive test whichever the cell held
 (`register_test_roundtrip`).
 
+## Chains, and the end of padding
+
+Laying a gadget out as one contiguous row forces padding into the gaps
+between working cells, and padding is the awkward part: a re-enterable
+`crazy` must sit at residue 82 or 86 modulo 94, while the cells in between
+fall wherever they fall, including the sixteen residues at which no
+two-cycle word is harmless in both phases.
+
+Interleaving removes the problem. Put a `jmp` immediately after each
+working cell and let it carry control to the next. A `jmp` never encrypts
+itself, so it is stable for the whole run and **the control path is
+identical on every pass**, while the working cells alternate between their
+instruction and a no-op. The cells jumped over are never executed and need
+no words at all; only the landing cell is encrypted, and encryption keeps a
+printable word printable.
+
+`d` advances two per link, so each link owns two data cells at a known
+stride: the operand the `crazy` reads at `D`, and the address the `jmp`
+reads at `D + 1`, both placed statically. `chain_link` proves one link in
+two steps, with a frame condition naming the only three cells it touches:
+
+```lean
+theorem chain_link … :
+    ∃ s', run? 2 s = some s'
+      ∧ s'.a = Value.crz s.a (s.mem.get (Value.ofNat D))
+      ∧ s'.c = Value.ofNat (t + 1)
+      ∧ s'.d = Value.ofNat (D + 2)
+      ∧ s'.mem.get (Value.ofNat D) = Value.crz s.a (s.mem.get (Value.ofNat D))
+      ∧ s'.mem.get (Value.ofNat a) = Value.ofNat (encrypt wc)
+      ∧ s'.mem.get (Value.ofNat (a + 1)) = s.mem.get (Value.ofNat (a + 1))
+      ∧ (∀ x, x ≠ D → x ≠ a → x ≠ t →
+          s'.mem.get (Value.ofNat x) = s.mem.get (Value.ofNat x)) ∧ …
+```
+
+The jump cell coming back unchanged is the clause that matters: it is what
+makes the chain re-enterable, and it is `jmp_cell_stable` cashed out in a
+form a compiler can use.
+
 ## What is proved, what is cited, what is open
 
 **Proved, axiom-clean**: the `ProgLang` instance; the memory laws
