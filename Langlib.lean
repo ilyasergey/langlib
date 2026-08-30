@@ -25,7 +25,7 @@ languages, with a human-readable front end (Turpentine) and compilers from it.
   pure reference interpreter, standalone runner).
 * `Langlib.Common`: shared infrastructure (I/O model, execution outcomes,
   parser helpers, test harness).
-* `Langlib.Turpentine`: the Well-Typed Formalism front-end language and its
+* `Langlib.Turpentine`: the front-end language and its
   compilers to the esolangs.
 * `Langlib.Tests`: the test suite (`lake test`).
 

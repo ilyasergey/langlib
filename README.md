@@ -44,16 +44,23 @@ For each language, LangLib provides:
 Currently implemented (see [docs/README.md](docs/README.md) for the full
 status matrix, including compilers):
 
-* [brainfuck](docs/brainfuck/spec.md) (Urban Müller, 1993)
-* [fractran](docs/fractran/spec.md) (John Conway, 1987)
+* [brainfuck](docs/brainfuck/spec.md) (Urban Müller, 1993), eight
+  one-character commands on a tape of bytes
+* [fractran](docs/fractran/spec.md) (John Conway, 1987), whose programs are
+  lists of fractions
 * [subleq](docs/subleq/spec.md) (folklore OISC, de-facto conventions by
-  Oleg Mazonka)
-* [whitespace](docs/whitespace/spec.md) (Edwin Brady & Chris Morris, 2003)
-* [ook](docs/ook/spec.md) (David Morgan-Mar, 2001)
-* [deadfish](docs/deadfish/spec.md) (Jonathan Todd Skinner, 2006)
-* [befunge93](docs/befunge93/spec.md) (Chris Pressey, 1993)
-* [malbolge](docs/malbolge/spec.md) (Ben Olmstead, 1998)
-* [thue](docs/thue/spec.md) (John Colagioia, 2000)
+  Oleg Mazonka), one instruction: subtract, branch if the result is ≤ 0
+* [whitespace](docs/whitespace/spec.md) (Edwin Brady & Chris Morris, 2003),
+  where only spaces, tabs and newlines are code
+* [ook](docs/ook/spec.md) (David Morgan-Mar, 2001), brainfuck for orangutans
+* [deadfish](docs/deadfish/spec.md) (Jonathan Todd Skinner, 2006), four
+  commands, one accumulator, no loops
+* [befunge93](docs/befunge93/spec.md) (Chris Pressey, 1993), a stack machine
+  whose pointer roams a wrapping grid
+* [malbolge](docs/malbolge/spec.md) (Ben Olmstead, 1998), designed to be as
+  hard to program as possible
+* [thue](docs/thue/spec.md) (John Colagioia, 2000), whose programs are
+  string-rewriting rules
 * [piet](docs/piet/spec.md) (David Morgan-Mar, 2002), whose programs are
   abstract paintings
 * [brainloller](docs/brainloller/spec.md) (Lode Vandevenne, 2005),
@@ -68,11 +75,7 @@ status matrix, including compilers):
 * [Turpentine](docs/turpentine/spec.md): the library's own human-readable
   front end, named for what dissolves a Turing tarpit
 
-The roadmap of languages still to be implemented lives in
-[docs/ROADMAP.md](docs/ROADMAP.md), and a survey of related efforts in
-[docs/RELATED.md](docs/RELATED.md).
-
-Current status: 
+## Current status
 
 | Language | Turing-complete (TC) | TC claim mechanised | Turpentine compiler |
 |----------|--------------------------|------------------------------|---------------------|
@@ -624,6 +627,10 @@ inventory.
 Contributions of new languages, examples, tests, and proofs are welcome. See
 [CONTRIBUTING.md](CONTRIBUTING.md) for how to add a language and what the
 library expects from a submission.
+
+## Miscellanea
+
+A survey of related efforts is in [docs/RELATED.md](docs/RELATED.md).
 
 ## License
 
