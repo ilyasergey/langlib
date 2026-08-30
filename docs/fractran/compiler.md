@@ -1,10 +1,12 @@
 # Compiling Turpentine to FRACTRAN
 
-* **Status**: both compilers exist. The *bespoke* one
-  ([`Compile/Fractran.lean`](../../Langlib/Languages/Turpentine/Compile/Fractran.lean))
-  is hand-written and unverified; the *certified* one
-  ([`derivedFractran`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L125))
-  is derived from FRACTRAN's Turing-completeness proof.
+* **Implementation**: the hand-written backend is
+  [`Langlib/Languages/Turpentine/Compile/Fractran.lean`](../../Langlib/Languages/Turpentine/Compile/Fractran.lean).
+* **Status**: both compilers exist. The *bespoke* one, above, is
+  hand-written and unverified; the *certified* one,
+  [`derivedFractran`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L126),
+  is derived from FRACTRAN's Turing-completeness proof and correct by
+  construction.
 * **Tests**: [Langlib/Tests/CompileFractran.lean](../../Langlib/Tests/CompileFractran.lean)
   for the bespoke route, [Langlib/Tests/DerivedFractran.lean](../../Langlib/Tests/DerivedFractran.lean)
   for the certified one.
@@ -125,6 +127,93 @@ Our interpreter uses `Nat`, so nothing overflows; it simply gets slow, and
 the slowness grows with the *values* rather than with the program. This is
 a demonstration of a beautiful construction, not a practical target, and
 the tests use small numbers with generous fuel.
+
+## The starting value, and where to get it
+
+This is the part that catches people out. A FRACTRAN program is *only* a
+list of fractions; the state it starts from is not part of it. A `.ft` file
+is therefore not runnable on its own, and `lake exe fractran` will not
+guess: it wants a starting value, and the right one is specific to the
+program the compiler just emitted.
+
+The starting value the backend chooses is **the prime of the machine's
+entry state**. It differs from program to program because it depends on how
+many registers and states the program needed, so there is nothing to
+memorise and no default that works.
+
+Three ways to get it, in the order you will want them:
+
+1. **The compiler tells you.** Every `compile --to fractran` prints the
+   exact command, on stderr, right after the "wrote" line. Copy it.
+2. **The file tells you.** The emitted `.ft` begins with a comment header
+   recording it, so a file that has outlived the terminal it was made in is
+   still self-describing:
+
+   ```
+   # Starting value: 307
+   # Run with: lake exe fractran --out pow2 --n 307 <this file>
+   ```
+
+   `#` starts a comment in FRACTRAN source, so the header costs nothing at
+   run time.
+3. **Recompile.** The compiler is deterministic, so the same source gives
+   the same starting value.
+
+Supply it with `--n N`, or on the first line of stdin if you leave the flag
+off — `echo 307 | lake exe fractran --out pow2 file.ft` does the same thing
+as `--n 307`.
+
+A *wrong* starting value is not an error. It is a different, meaningless
+computation: the state does not carry the entry state's prime, so either no
+fraction applies and the run halts at once, or some unrelated fraction
+does. Nothing warns you, because to FRACTRAN one positive integer is as
+good as another. This is the one place the format really does depend on
+getting a number right, which is why the compiler prints it twice.
+
+And if you skip the whole business, `exec --via fractran --bespoke`
+compiles and runs in one step, supplying the starting value itself.
+
+## Running a program that will not finish
+
+`primes-tc.turp` counts the primes below thirty. It compiles fine, and it
+is a good illustration of what this backend costs, so it is worth walking
+through even though the run does not end.
+
+Compile it like any other:
+
+```
+lake exe turpentine compile --to fractran --bespoke -o /tmp/primes.ft Langlib/Examples/Turpentine/primes-tc.turp
+```
+
+It prints the size it wrote and, on the next line, the command to run it.
+For this program the machine needs 514 fractions and its entry state is the
+prime 2203, so that command is
+`lake exe fractran --out pow2 --n 2203 /tmp/primes.ft`.
+
+Run it with a fuel bound you are willing to wait for. Without one the
+runner uses its default of 200 million steps, which on this program is
+several minutes of no output:
+
+```
+lake exe fractran --out pow2 --n 2203 --fuel 5000000 /tmp/primes.ft
+```
+
+It prints nothing and then reports that it ran out of fuel, in the same
+form as any other over-long run: `fractran: out of fuel after 5000000
+steps (raise with --fuel)`.
+
+Nothing is printed before the answer, by construction: `--out pow2` speaks
+only when the state is exactly a power of two, and that happens once, at
+the end. So a run that has not finished looks exactly like a run that has
+nothing to say. Use `--out trajectory` if you want to watch it think, and
+be ready for the numbers to be thousands of digits long.
+
+The reason it is hopeless is arithmetic, not the compiler. Trial division
+runs `n % d` for every candidate pair, each `%` is a counting loop in the
+Minsky machine, and each step of that loop multiplies or divides an integer
+whose size grows with the values held in the registers. `docs/fractran/spec.md`
+lists the three examples in this category and what makes each of them
+expensive.
 
 ## Trying it
 
