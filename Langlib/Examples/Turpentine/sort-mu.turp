@@ -1,0 +1,37 @@
+// Insertion sort of six numbers, printing the whole sorted sequence, with
+// no input. Ported from Velvet's InsertionSort (github.com/verse-lab/velvet)
+// by way of sort.turp.
+// Usage: lake exe turpentine run Langlib/Examples/Turpentine/sort-mu.turp
+//
+// sort.turp reads the six numbers. This twin seeds them as literals, the
+// same six that sort-tc.turp uses, so the program is input-free and the
+// Malbolge Unshackled backend can compile it. Unlike sort-tc.turp it keeps
+// the streaming output: a register machine yields one number at halt, but a
+// straight-line Unshackled image can print a whole sequence.
+// See docs/malbolge-unshackled/compiler.md.
+var a : int[6];
+var i : int := 0;
+var j : int;
+var key : int;
+a[0] := 5;
+a[1] := 2;
+a[2] := 9;
+a[3] := 1;
+a[4] := 5;
+a[5] := 6;
+i := 1;
+while i < len(a) {
+  key := a[i];
+  j := i - 1;
+  while j >= 0 && a[j] > key {
+    a[j + 1] := a[j];
+    j := j - 1;
+  }
+  a[j + 1] := key;
+  i := i + 1;
+}
+i := 0;
+while i < len(a) {
+  println(a[i]);
+  i := i + 1;
+}

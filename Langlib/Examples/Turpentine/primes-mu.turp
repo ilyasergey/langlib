@@ -1,0 +1,27 @@
+// Primes up to 30 by trial division, printed one per line, with no input.
+// Usage: lake exe turpentine run Langlib/Examples/Turpentine/primes-mu.turp
+//
+// primes.turp reads the bound. This twin fixes it at 30 so the program is
+// input-free, which is what the Malbolge Unshackled backend compiles: that
+// backend decides control flow before the target runs, so it takes any
+// program whose behaviour does not depend on the input stream. The
+// algorithm and the output are primes.turp's, unchanged.
+// See docs/malbolge-unshackled/compiler.md.
+var n : int := 30;
+var candidate : int := 2;
+var d : int;
+var isPrime : bool;
+while candidate <= n {
+  isPrime := true;
+  d := 2;
+  while d * d <= candidate {
+    if candidate % d == 0 {
+      isPrime := false;
+    }
+    d := d + 1;
+  }
+  if isPrime {
+    println(candidate);
+  }
+  candidate := candidate + 1;
+}

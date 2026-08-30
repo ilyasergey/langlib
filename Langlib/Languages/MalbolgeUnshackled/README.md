@@ -122,6 +122,18 @@ which is the Turing-completeness work.
 lake exe turpentine compile --to malbolge-unshackled -o hello.mu Langlib/Examples/Turpentine/hello.turp
 ```
 
+Two of its outputs are checked in, under
+[compiled/](../../Examples/MalbolgeUnshackled/compiled/). They are derived
+files: `scripts/gen-mu-examples.sh` is the only thing that may write them,
+and `scripts/gen-mu-examples.sh --check` fails if one is stale. Run them
+like any other program here, but not with `--strict`, which rejects the
+data cells every compiled program carries.
+
+| File | What it does | Source |
+|------|--------------|--------|
+| `compiled/primes.mu` | prints the primes up to 30 (348 cells) | `Langlib/Examples/Turpentine/primes-mu.turp` |
+| `compiled/sort.mu` | prints six numbers in order (268 cells) | `Langlib/Examples/Turpentine/sort-mu.turp` |
+
 The full account of the layout, the assembler, the fragment and what the
 input half still needs is
 [docs/malbolge-unshackled/compiler.md](../../../docs/malbolge-unshackled/compiler.md);

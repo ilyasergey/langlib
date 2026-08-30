@@ -826,6 +826,166 @@ short arithmetic one.
    the missing piece, and end of input still lands outside the loaded
    image. Both are noted above.
 
+## Generated demos
+
+Two compiled programs are checked in under
+`Langlib/Examples/MalbolgeUnshackled/compiled/`. They are the first
+Unshackled programs in the library that nobody, and no search, wrote: they
+are output.
+
+| file | cells | bytes | source | prints |
+|---|---|---|---|---|
+| `compiled/primes.mu` | 348 | 422 | `primes-mu.turp` | the primes up to 30 |
+| `compiled/sort.mu` | 268 | 304 | `sort-mu.turp` | six numbers, sorted |
+
+Run the primes:
+
+```
+lake exe malbolge-unshackled --fuel 100000 Langlib/Examples/MalbolgeUnshackled/compiled/primes.mu
+```
+
+Output:
+
+```
+2
+3
+5
+7
+11
+13
+17
+19
+23
+29
+```
+
+Run the sort:
+
+```
+lake exe malbolge-unshackled --fuel 100000 Langlib/Examples/MalbolgeUnshackled/compiled/sort.mu
+```
+
+Output:
+
+```
+1
+2
+5
+5
+6
+9
+```
+
+Neither reads its input, so neither cares what is on the stream; and neither
+emits `*`, so neither cares about the rotation width. Both facts are pinned
+by tests rather than asserted.
+
+### Why the sources have twins
+
+`primes.turp` reads its bound and `sort.turp` reads its six numbers, so this
+backend refuses both by name. `Langlib/Examples/Turpentine/primes-mu.turp`
+and `sort-mu.turp` are their input-free twins: the same algorithms, the same
+streaming output, with the bound fixed at 30 and the six numbers seeded as
+literals — the same six `sort-tc.turp` uses. The `-mu` suffix is the `-tc`
+convention applied to a different restriction: `-tc` means "written for the
+certified compiler, so no I/O at all", `-mu` means "written for the
+Unshackled backend, so no *input*". Output is exactly what these keep and
+their `-tc` twins cannot have, because a register machine yields one number
+at halt and a straight-line Unshackled image can print a whole sequence.
+
+### They are derived files
+
+`scripts/gen-mu-examples.sh` is the only thing that may write them. It
+compiles both sources, checks each compiled program against its source's own
+output, and reports the sizes:
+
+```
+scripts/gen-mu-examples.sh
+```
+
+Output:
+
+```
+primes.mu: 422 bytes, output verified
+sort.mu: 304 bytes, output verified
+```
+
+The compiler is a pure function of its source, so the script is
+byte-for-byte reproducible, and `--check` fails if a committed file is
+stale:
+
+```
+scripts/gen-mu-examples.sh --check
+```
+
+Output:
+
+```
+primes.mu: 422 bytes, output verified
+sort.mu: 304 bytes, output verified
+gen-mu-examples: committed files are up to date
+```
+
+That is the same contract `scripts/render-docs-images.sh` has for the
+graphical languages' pictures, and it divides the work the same way. The
+test suite checks two things and not the third: that the compiler produces
+the right output for both sources (recompiling them from scratch), and that
+the files in the tree really are Unshackled programs printing the right
+thing (loading them with Unshackled's own loader, at two rotation widths,
+with nothing from the compiler involved). What only `--check` catches is
+*staleness* — a backend change that was never regenerated. Run it in the
+same commit as any change to the backend or to either source.
+
+### Reading one
+
+`sort.mu` in full, in a transliteration this page states rather than
+assumes: every cell in `33..126` is printed as itself, and every cell
+outside that range — a data cell, which the loader stores unchecked — as its
+decimal code point in angle brackets.
+
+```text
+('`A@?>=<;:9876543210/.-,+*)('&%$#"!~}|{z<128>xwvutsrqponmlkjihgfedcba`_^]
+\[ZYXWVUTSRQPONMLKJIHGFEDCBA@?>=<;:9876543210/.-,+*)('&%$#"<230>>P|<<2187>
+y<2247><2267>v<2247><2187>s<2241><2267>p<2244><2187>m<2241><2267>j<2244><2
+187>g<20><2241>d<2234><20>a<26><2247>^<2240><20>[ZYXWVUTSRQPONMLKJIHGFEDCB
+A@?>=<;:9876543210/.-,+*)('&%$#"!~}|{zyxqp6nm3kj0hg-ed*ba'_^$\[!YX|VUySRvP
+Os`
+```
+
+The whole layout is visible in it once you know where to look.
+
+* `('` and a backtick open it: the three-cell prologue, `movd`, `movd`,
+  `jmp`.
+* The long descending runs `A@?>=<;:98…` are padding. A `nop` at address
+  `a` is the word `(68 - a) mod 94` lifted into `33..126`, and consecutive
+  addresses therefore take consecutive descending characters — which is why
+  padding in every program this backend emits looks like a ramp.
+* `<128>` at address 41 is the pointer cell, holding `dataBase - 2`, and
+  `<230>` at address 129 is the jump cell, holding `codeBase - 1`. Both are
+  data, both are above `~`, and that is why `--strict` will not load this
+  file.
+* From address 130 the ramp gives way to the **data row**: `<2187>`,
+  `<2247>`, `<2267>` and their neighbours are the crazy-operation constants,
+  interleaved with ramp characters wherever the code cell above is an `out`
+  and reads nothing.
+* The final ramp, from address 167, is the 64-cell gap, and the run that
+  ends ``…VUySRvPOs` `` is the **code row**: 37 cells of `crazy`, `crazy`,
+  `out`, ending in the backtick at address 267, which is the `halt` —
+  `(96 + 267) mod 94 = 81` — and the last character of the file.
+
+The arithmetic is worth doing once, because it is the whole cost model:
+three cells for a byte that differs from the one before, one for a byte that
+repeats it, one for the closing `halt`, and an image of `194 + 2n` cells for
+a code row of `n`.
+
+The six sorted numbers print as twelve bytes — `1 2 5 5 6 9`, each followed
+by a newline. The `5` appears twice, but not twice *running*: a newline
+comes between, so no byte here repeats the byte before it. Twelve new bytes
+and a `halt` give `3 × 12 + 1 = 37` cells of code row, and `194 + 74 = 268`.
+`primes.mu` is the case with a repeat: its twenty-six bytes contain exactly
+one, the second `1` of `11`, so `3 × 25 + 1 + 1 = 77` and `194 + 154 = 348`.
+The saving is small here and would not be on a program that prints runs.
+
 ## Tests
 
 [`Langlib/Tests/CompileMalbolgeUnshackled.lean`](../../Langlib/Tests/CompileMalbolgeUnshackled.lean),

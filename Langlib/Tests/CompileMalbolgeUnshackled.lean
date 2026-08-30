@@ -191,6 +191,11 @@ def suite : Suite where
         expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n31\n37\n41\n43\n47\n" }
     , { name := "sum example (no output, answer only)", source := ex "sum",
         expect := .outputs "" }
+      -- The two examples that are checked in compiled, compiled afresh here
+    , { name := "primes-mu example", source := ex "primes-mu",
+        expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n" }
+    , { name := "sort-mu example", source := ex "sort-mu",
+        expect := .outputs "1\n2\n5\n5\n6\n9\n" }
     ]
 
 def widthSuite : Suite where
@@ -200,7 +205,11 @@ def widthSuite : Suite where
     ( shared.map fun (n, src, want) =>
         { name := n, source := .inline src, expect := .outputs want : TestCase } ) ++
     [ { name := "sieve example", source := ex "sieve",
-        expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n31\n37\n41\n43\n47\n" } ]
+        expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n31\n37\n41\n43\n47\n" }
+    , { name := "primes-mu example", source := ex "primes-mu",
+        expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n" }
+    , { name := "sort-mu example", source := ex "sort-mu",
+        expect := .outputs "1\n2\n5\n5\n6\n9\n" } ]
 
 def structureSuite : Suite where
   name := "turpentine -> malbolge-unshackled (every cell loadable)"
@@ -334,8 +343,49 @@ def probeSuite : Suite where
         input := "", expect := .runtimeError "has no encryption" }
     ]
 
+/-- The compiled examples under `Langlib/Examples/MalbolgeUnshackled/compiled/`
+are derived files: `scripts/gen-mu-examples.sh` is the only thing that may
+write them, and `--check` is what catches a stale one. These cases check the
+other half — that the file in the tree really is an Unshackled program that
+runs and prints what its Turpentine source prints — by loading it with
+Unshackled's own loader and running it on Unshackled's own interpreter, with
+nothing from the compiler involved.
+
+The differential suite above compiles the same two sources afresh, so
+between the two a wrong compiler and a wrong artifact are separate
+failures. -/
+def compiledSuite : Suite where
+  name := "malbolge-unshackled compiled examples"
+  run := Langlib.MalbolgeUnshackled.run
+  cases :=
+    [ { name := "compiled/primes.mu",
+        source := .file "Langlib/Examples/MalbolgeUnshackled/compiled/primes.mu",
+        expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n" }
+    , { name := "compiled/sort.mu",
+        source := .file "Langlib/Examples/MalbolgeUnshackled/compiled/sort.mu",
+        expect := .outputs "1\n2\n5\n5\n6\n9\n" }
+      -- Both are rot-free, so a wider starting rotation changes nothing.
+    , { name := "compiled/primes.mu ignores the input stream",
+        source := .file "Langlib/Examples/MalbolgeUnshackled/compiled/primes.mu",
+        input := "99\n", expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n" }
+    ]
+
+/-- The same two artifacts at a rotation width nothing else uses, which is
+the property the backend claims and the language demands: a program is a
+correct Unshackled program only if it works at every legal width. -/
+def compiledWidthSuite : Suite where
+  name := "malbolge-unshackled compiled examples (rotation width 37)"
+  run := Langlib.MalbolgeUnshackled.runWith { rotWidth := 37 }
+  cases :=
+    [ { name := "compiled/primes.mu",
+        source := .file "Langlib/Examples/MalbolgeUnshackled/compiled/primes.mu",
+        expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n" }
+    , { name := "compiled/sort.mu",
+        source := .file "Langlib/Examples/MalbolgeUnshackled/compiled/sort.mu",
+        expect := .outputs "1\n2\n5\n5\n6\n9\n" } ]
+
 def suites : List Suite :=
   [suite, widthSuite, structureSuite, cellCountSuite, tightSuite, strictSuite,
-   refusalSuite, probeSuite]
+   refusalSuite, probeSuite, compiledSuite, compiledWidthSuite]
 
 end Langlib.Tests.CompileMalbolgeUnshackled

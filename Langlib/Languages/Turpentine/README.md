@@ -58,6 +58,8 @@ output.
 | `maxelem.turp` | largest of 8 numbers (ported from Velvet) |
 | `sort.turp` | insertion sort of 6 numbers (ported from Velvet) |
 | `sieve.turp` | primes below 50, via a bool array |
+| `primes-mu.turp` | primes up to 30, no input | compiles to malbolge-unshackled |
+| `sort-mu.turp` | sorts six literals, printing them | compiles to malbolge-unshackled |
 | `sumsq.turp` | sums the squares below 5 | compiles with `--tc` |
 | `isqrt-tc.turp` | integer square root of 17 | compiles with `--tc` |
 | `fact-tc.turp` | factorial of 5 | compiles with `--tc` |
@@ -71,6 +73,12 @@ output.
 | `sieve-tc.turp` | how many primes below 50 | compiles with `--tc` |
 | `sort-tc.turp` | sorts six numbers, reports the largest | needs `-` |
 | `cat-tc.turp` | why cat has no twin | never: streaming I/O |
+
+The two marked `-mu` are written for the Malbolge Unshackled backend, which
+takes any program that does not read input — it decides control flow before
+the target runs — and so needs the twins' bounds and data as literals. They
+keep the streaming output their `-tc` twins cannot have. See
+[docs/malbolge-unshackled/compiler.md](../../../docs/malbolge-unshackled/compiler.md).
 
 Programs marked *certified fragment* are written for `--tc`: no input or
 output, no subtraction, and the result left in a variable named `answer`.

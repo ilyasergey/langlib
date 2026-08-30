@@ -48,6 +48,42 @@ the two event lists outright. Milestone 1 of Stage 6 is done; milestone 2
 is `readInt`, and with it the first proof that a compiled program reads
 what its source reads.
 
+## 2026-08-31: two compiled Unshackled programs, checked in
+
+`Langlib/Examples/MalbolgeUnshackled/compiled/primes.mu` (348 cells) and
+`compiled/sort.mu` (268 cells) are the first Unshackled programs in the
+library that nobody wrote and no search found. They are compiler output:
+the primes up to 30, and six numbers sorted.
+
+Both sources needed twins. `primes.turp` reads its bound and `sort.turp`
+reads its six numbers, so the backend refuses them by name; `primes-mu.turp`
+and `sort-mu.turp` fix the bound at 30 and seed the same six literals
+`sort-tc.turp` uses. The `-mu` suffix is the `-tc` convention applied to a
+different restriction — `-tc` means no I/O at all, `-mu` means no *input* —
+and the difference is the point: these keep the streaming output a register
+machine cannot produce.
+
+They are derived files on the model of the graphical languages' pictures.
+`scripts/gen-mu-examples.sh` is the only thing that may write them, it
+checks each compiled program against its source's own output as it goes, and
+`--check` fails on a stale one. The division of labour is worth stating,
+because it is not the obvious one: the test suite checks that the compiler
+produces the right output for both sources (recompiling from scratch) *and*
+that the files in the tree are Unshackled programs printing the right thing
+(loaded by Unshackled's own loader, run at two rotation widths, with nothing
+from the compiler involved) — but only `--check` catches staleness, exactly
+as with the images.
+
+Nine new tests, 71 in the file. `sort.mu` is quoted in full in both
+`docs/malbolge-unshackled/spec.md` and the compiler page, in a stated
+transliteration (a cell in 33..126 as itself, a data cell as its code point
+in angle brackets) that is generated and verified to decode back to the file
+byte for byte — the first draft of it, typed by hand, was missing the final
+character. The whole layout is legible in it: the three-cell prologue, the
+descending ramps that padding always makes, the two pointer cells, the data
+row, the 64-cell gap and the code row.
+
+
 ## 2026-08-31: the compiled program says what the source says
 
 The hand-written whitespace backend's simulation used to say that a
