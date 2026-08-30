@@ -3239,6 +3239,82 @@ theorem chain_run (n : Nat) {s : State} {A D : Nat} (wc wj wt : Nat → Nat)
       exact hu x (fun i hi => hx1 i (by omega)) (fun i hi => hx2 i (by omega))
         (fun i hi => hx3 i (by omega))
 
+/-! ## Entering a chain
+
+A chain expects `c` at `A` and `d` at `D`, and a gadget has to arrange
+that. `movd` is the only instruction that moves `d`, and a re-enterable one
+must sit at residue 60 or 64 modulo 94, while a chain starts at residue 82,
+so the two cannot be adjacent. One stable `jmp` bridges them, and the
+prologue is two instructions:
+
+* `movd` at `M` reads the pointer cell under `d` and re-aims `d`;
+* `jmp` at `M + 1` reads its target and drops control at `A`.
+
+Laid out: the pointer cell holds `D - 2`, the cell at `D - 1` holds
+`A - 1`, and afterwards `c = A` and `d = D`, exactly what `chain_run`
+wants. The `movd` cell is encrypted, the `jmp` is not. -/
+
+theorem enter_chain {s : State} {M P Q A : Nat} {wm wj wt : Nat}
+    (hc : s.c = Value.ofNat M) (hd : s.d = Value.ofNat P)
+    (hdecM : decode (s.mem.get (Value.ofNat M)) (Value.ofNat M).modClass = .movd)
+    (hprM : printableCode? (s.mem.get (Value.ofNat M)) = some wm)
+    (hptr : s.mem.get (Value.ofNat P) = Value.ofNat Q)
+    (hdecJ : decode (s.mem.get (Value.ofNat (M + 1))) (Value.ofNat (M + 1)).modClass = .jmp)
+    (hprJ : printableCode? (s.mem.get (Value.ofNat (M + 1))) = some wj)
+    (htgt : s.mem.get (Value.ofNat (Q + 1)) = Value.ofNat (A - 1))
+    (hA : 1 ≤ A)
+    (hprT : printableCode? (s.mem.get (Value.ofNat (A - 1))) = some wt)
+    (hMne : A - 1 ≠ M) (hMne' : A - 1 ≠ M + 1) (hQM : Q + 1 ≠ M) :
+    ∃ s', run? 2 s = some s'
+      ∧ s'.a = s.a
+      ∧ s'.c = Value.ofNat A
+      ∧ s'.d = Value.ofNat (Q + 2)
+      ∧ s'.mem.get (Value.ofNat M) = Value.ofNat (encrypt wm)
+      ∧ s'.mem.get (Value.ofNat (A - 1)) = Value.ofNat (encrypt wt)
+      ∧ (∀ x : Nat, x ≠ M → x ≠ A - 1 →
+          s'.mem.get (Value.ofNat x) = s.mem.get (Value.ofNat x))
+      ∧ s'.input = s.input ∧ s'.output = s.output ∧ s'.outClosed = s.outClosed := by
+  -- step one: movd
+  have hstepM := step1_movd (s := s) (code := wm)
+    (by rw [hc]; exact hdecM) (by rw [hc]; exact hprM)
+  rw [hc, hd, hptr] at hstepM
+  set m₁ := s.mem.set (Value.ofNat M) (Value.ofNat (encrypt wm)) with hm₁
+  set s₁ : State := { s with mem := m₁, c := (Value.ofNat M).succ, d := (Value.ofNat Q).succ, maxWidth := if (Value.ofNat Q).width > s.maxWidth then (Value.ofNat Q).width else s.maxWidth, rotWidth := if (Value.ofNat Q).width > s.maxWidth then growRotWidth s.rotWidth (Value.ofNat Q).width else s.rotWidth } with hs₁
+  have hc₁ : s₁.c = Value.ofNat (M + 1) := succ_ofNat M
+  have hd₁ : s₁.d = Value.ofNat (Q + 1) := succ_ofNat Q
+  have hJ₁ : m₁.get (Value.ofNat (M + 1)) = s.mem.get (Value.ofNat (M + 1)) := by
+    rw [hm₁, get_set_ne _ (ofNat_ne (by omega : M ≠ M + 1))]
+  have hT₁ : m₁.get (Value.ofNat (Q + 1)) = Value.ofNat (A - 1) := by
+    rw [hm₁, get_set_ne _ (ofNat_ne (Ne.symm hQM))]
+    exact htgt
+  have hA₁ : m₁.get (Value.ofNat (A - 1)) = s.mem.get (Value.ofNat (A - 1)) := by
+    rw [hm₁, get_set_ne _ (ofNat_ne (fun h => hMne h.symm))]
+  have hdecJ₁ : decode (s₁.mem.get s₁.c) s₁.c.modClass = Instr.jmp := by
+    rw [hc₁]; show decode (m₁.get (Value.ofNat (M + 1))) _ = _; rw [hJ₁]; exact hdecJ
+  have hprT₁ : printableCode? (s₁.mem.get (s₁.mem.get s₁.d)) = some wt := by
+    rw [hd₁]
+    show printableCode? (m₁.get (m₁.get (Value.ofNat (Q + 1)))) = _
+    rw [hT₁, hA₁]; exact hprT
+  have hstepJ := step1_jmp (s := s₁) (code := wt) hdecJ₁ hprT₁
+  rw [hd₁, hT₁] at hstepJ
+  show ∃ s', run? 2 s = some s' ∧ _
+  rw [show (2 : Nat) = 1 + 1 from rfl]
+  refine ⟨{ s₁ with mem := m₁.set (Value.ofNat (A - 1)) (Value.ofNat (encrypt wt)), c := (Value.ofNat (A - 1)).succ, d := (Value.ofNat (Q + 1)).succ }, ?_, rfl, ?_, ?_, ?_, ?_, ?_, rfl, rfl, rfl⟩
+  · rw [run?_add 1 1, run?_one, hstepM, Option.bind_some, run?_one]
+    exact hstepJ
+  · show (Value.ofNat (A - 1)).succ = _
+    rw [succ_ofNat, show A - 1 + 1 = A by omega]
+  · show (Value.ofNat (Q + 1)).succ = _
+    rw [succ_ofNat]
+  · show (m₁.set (Value.ofNat (A - 1)) (Value.ofNat (encrypt wt))).get (Value.ofNat M) = _
+    rw [get_set_ne _ (ofNat_ne hMne), hm₁, get_set_self]
+  · show (m₁.set (Value.ofNat (A - 1)) (Value.ofNat (encrypt wt))).get
+      (Value.ofNat (A - 1)) = _
+    rw [get_set_self]
+  · intro x hxM hxA
+    show (m₁.set (Value.ofNat (A - 1)) (Value.ofNat (encrypt wt))).get (Value.ofNat x) = _
+    rw [get_set_ne _ (ofNat_ne (Ne.symm hxA)), hm₁, get_set_ne _ (ofNat_ne (Ne.symm hxM))]
+
 end Unshackled
 
 end Langlib.Computability

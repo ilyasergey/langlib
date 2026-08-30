@@ -775,6 +775,15 @@ theorem chain_run (n : Nat) … :
 This is the executor a compiled gadget runs on: straight-line arithmetic of
 any length, laid out mechanically, with one induction behind it.
 
+`enter_chain` is the prologue that positions `d` beforehand. `movd` is the
+only instruction that moves `d`, and a re-enterable one must sit at residue
+60 or 64 modulo 94 while a chain starts at 82, so the two cannot be
+adjacent; one stable `jmp` bridges them. Two instructions: `movd` at `M`
+reads a pointer cell holding `D - 2` and re-aims `d`, then `jmp` at `M + 1`
+reads the cell at `D - 1`, holding `A - 1`, and drops control at `A`. After
+it, `c = A` and `d = D`, exactly what `chain_run` wants, with the
+accumulator untouched.
+
 ## What is proved, what is cited, what is open
 
 **Proved, axiom-clean**: the `ProgLang` instance; the memory laws
