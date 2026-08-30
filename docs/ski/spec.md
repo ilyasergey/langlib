@@ -86,19 +86,24 @@ about.
 
 ## Computational class
 
-**Turing complete**, by bracket abstraction from the untyped lambda
-calculus. LangLib's machine-checked statement of that claim is not yet
-written; the entry in [docs/README.md](../README.md) tracks it.
+**Turing complete**, and LangLib **proves** it:
+[`Langlib/Computability/Ski.lean`](../../Langlib/Computability/Ski.lean)
+contains `skiComplete : TuringComplete SkiLang`, axiom-clean.
 
-[Unlambda](../unlambda/spec.md) *is* proved
-([computability-unlambda.md](../computability-unlambda.md)), and that proof
-does not carry over, which is worth saying plainly because the two languages
-share their combinators. Two things differ. Unlambda is call by value and
-SKI is normal order, so the compiled terms are not even the same programs.
-And Unlambda has an output instruction, so its answer is a stream of bytes,
-while an SKI run's whole observable is the normal form it prints: the answer
-has to be a *term*, which changes what the compiler has to arrange and what
-the decoder has to read.
+[Unlambda](../unlambda/spec.md) is proved too, and its witness does *not*
+carry over, which is worth saying plainly because the two languages share
+their combinators. Two things differ. Unlambda is call by value and SKI is
+normal order, so the compiled terms are not even the same programs. And
+Unlambda has an output instruction, so its answer is a stream of bytes, while
+an SKI run's whole observable is the normal form it prints: the answer has to
+be a *term*. It is a tower of `K`s ending in `I`, one `K` per unit, and the
+decoder counts them.
+
+Normal order is a licence as much as an obstacle. Nothing has to be forced
+before it is stored, so a register holds the unevaluated application that
+computes it, a loop's branches need no guard, and the ordinary fixed point
+works. See [computability-ski.md](../computability-ski.md) for the account,
+the measured costs, and what is cited rather than proved.
 
 ## Trying it
 

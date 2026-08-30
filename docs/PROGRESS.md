@@ -2,7 +2,59 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): Unlambda is Turing complete, by the functional route
+## 2026-08-30 (latest): SKI is Turing complete, and the functional route is closed
+
+`skiComplete : TuringComplete SkiLang`, axiom-clean. Both halves of the
+functional route are now proved, and the second did **not** come free from
+the first even though the two languages share their combinators. See
+[computability-ski.md](computability-ski.md).
+
+**What did not transfer, and why.** Unlambda is call by value and SKI is
+normal order, so the compiled terms are different programs, not different
+spellings of one. And Unlambda has an output instruction while SKI has
+none: a run's whole observable is the normal form it prints, so the answer
+has to be a term. It is a tower of `K`s ending in `I`, one `K` per unit,
+and `decodeOutput` counts them.
+
+**What normal order gives back.** Nothing has to be forced before it is
+stored, so an increment leaves the unevaluated application that computes
+it, a loop's branches need no guard, and the ordinary fixed point works.
+The register file needs no nil case either, since the counter semantics
+only admits indices below the bound, and that takes a binder off every
+cell: bracket abstraction triples a body per binder, so the cell a nil case
+would need costs about ten times what this one does.
+
+**The lemma the whole file rests on.** `hstep` is the spine-only fragment
+of the interpreter's leftmost-outermost step, and it commutes with
+application with **no side condition**: applying a term to an argument can
+only make a redex at the root if that term is `i`, `k x` or `s x y`, and
+all three are head normal forms, so a term a spine step applies to is none
+of them. `eval_K` is the only place the proof leaves the spine, and it is
+what builds the answer: the normal form of `k X` is `k` applied to the
+normal form of `X`.
+
+**Point-free combinators, checked by running them.** There is no bracket
+abstraction pass in the file. Every combinator is hand compiled from the
+lambda expression its docstring records, and every behavioural lemma is a
+fixed number of spine steps with the arguments left opaque, which `rfl`
+checks. That works here and did not in Unlambda, because normal order never
+inspects an argument it has not reached. A wrong hand compilation cannot
+survive: the chain then does not reduce to the term the lemma claims.
+
+**The cost, and what the tests can therefore cover.** `Langlib.Ski.step`
+rescans the whole term to find each leftmost redex, so a run costs the size
+of the term times the number of steps. The empty URM program compiles to
+1004 combinators and finishes in 50 ms; a URM program with one instruction
+compiles to 9121 and does not finish in twelve million steps, which take
+four minutes. So the tests are in two suites: the URM one covers what runs
+end to end, and a counter-machine suite covers the half that is new here,
+against an executable counter interpreter, in milliseconds.
+
+`derived skiComplete` is wired as `turpentine exec --via ski --tc`, which
+makes SKI the one target in the library that reports an answer without
+having an output instruction.
+
+## 2026-08-30: Unlambda is Turing complete, by the functional route
 
 `unlambdaComplete : TuringComplete UnlambdaLang`, axiom-clean. The first
 completeness result in the library that is not a machine simulation: the

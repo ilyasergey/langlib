@@ -1,10 +1,15 @@
 # Compiling Turpentine to SKI
 
-**Not planned**, and for a reason that is unusually clean: SKI has no I/O
-and no observable behaviour except its normal form.
+A **derived** compiler exists and is certified,
+`turpentine exec --via ski --tc`, obtained from the completeness proof in
+[`Langlib/Computability/Ski.lean`](../../Langlib/Computability/Ski.lean). A
+**bespoke** backend is not planned, for a reason that is unusually clean:
+SKI has no I/O and no observable behaviour except its normal form.
 
-* **Implementation**: none, and none planned. For a backend that exists,
-  see the [whitespace one](../../Langlib/Languages/Turpentine/Compile/Whitespace.lean).
+* **Implementation**: the derived one, in
+  [`Derived.lean`](../../Langlib/Languages/Turpentine/Compile/Derived.lean);
+  no bespoke one, and none planned. For a bespoke backend that exists, see
+  the [whitespace one](../../Langlib/Languages/Turpentine/Compile/Whitespace.lean).
 
 ## What a compiler would have to mean
 
@@ -17,10 +22,11 @@ to an observation is "the normal form is the numeral", and reading a
 numeral off a normal form is a decoding step outside the language, not an
 output instruction inside it.
 
-That is not a fatal objection: `decodeOutput` could count `S`s in the
-printed normal form, exactly as the `church.ski` example asks a reader to.
-It is, though, a strong hint that the useful target is one step further
-out.
+That is not a fatal objection, and the completeness proof took the hint:
+`decodeOutput` counts `K`s in the printed normal form, exactly as the
+`church.ski` example asks a reader to, and the compiled program is arranged
+to end in a tower of them. It is, though, still a hint that the *useful*
+target is one step further out.
 
 ## Compile to Unlambda instead
 
@@ -33,14 +39,17 @@ its completeness proof, so that route is not hypothetical:
 `Langlib.Ski.Term.toUnlambda` is already the whole
 translation of the combinator part — application becomes a backquote.
 
-So the plan of record is: no SKI backend; see
-[the Unlambda one](../unlambda/compiler.md).
+So the plan of record is: no bespoke SKI backend; see
+[the Unlambda one](../unlambda/compiler.md). The derived compiler stands as
+the certified route, and as a demonstration that a language with no output
+instruction can still report an answer.
 
 ## Turing completeness
 
 Known and classical: bracket abstraction embeds the untyped lambda
-calculus, so SKI computes every computable function. The machine-checked
-version is Stage 8 work and is tracked in [docs/README.md](../README.md).
-It is the one completeness proof in the library that is not a
-register-machine simulation, which is why it is worth having even though
-the result is not in doubt.
+calculus, so SKI computes every computable function. **Proved**, in
+[`Langlib/Computability/Ski.lean`](../../Langlib/Computability/Ski.lean);
+the account is [computability-ski.md](../computability-ski.md). It is one of
+the two completeness proofs in the library that are not register-machine
+simulations, and the compiled program's cost is the reason the derived
+compiler above is a demonstration rather than a tool.

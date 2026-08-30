@@ -10,7 +10,7 @@ at the bottom, check the license situation, and move the language into
 Fourteen languages are implemented, documented and tested: brainfuck,
 whitespace, malbolge, malbolge-unshackled, befunge93, subleq, fractran,
 thue, ook, deadfish, piet, brainloller, unlambda and ski, plus the
-Turpentine front end. Nine of them carry a machine-checked answer about
+Turpentine front end. Ten of them carry a machine-checked answer about
 their computational class; `docs/README.md` has the matrix.
 
 ## Committed (first wave, see `docs/PLAN.md`)

@@ -34,6 +34,7 @@ import Langlib.Computability.Piet
 import Langlib.Computability.Fractran
 import Langlib.Computability.BespokeSubleq
 import Langlib.Computability.Unlambda
+import Langlib.Computability.Ski
 
 open Langlib.Common
 open Langlib.Computability
@@ -503,3 +504,23 @@ open Langlib.Turpentine.Compile
 #print axioms URMUnlambda.simulation
 #print axioms URMUnlambda.compile
 #print axioms unlambdaComplete
+
+-- SKI: the same counter machine in front, and nothing shared behind it.
+-- Head reduction and its bridge to the interpreter, the combinators, the
+-- simulation, the unary answer, and the completeness witness.
+#print axioms URMSki.hstep_step
+#print axioms URMSki.hstep_app
+#print axioms URMSki.eval_K
+#print axioms URMSki.numT_spec
+#print axioms URMSki.succT_spec
+#print axioms URMSki.predT_spec
+#print axioms URMSki.getT_spec
+#print axioms URMSki.setT_spec
+#print axioms URMSki.hr_selfT_unfold
+#print axioms URMSki.loop_step
+#print axioms URMSki.codeT_sim
+#print axioms URMSki.unary_spec
+#print axioms URMSki.decodeOutput_unaryNF
+#print axioms URMSki.simulation
+#print axioms URMSki.compile
+#print axioms skiComplete

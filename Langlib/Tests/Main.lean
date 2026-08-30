@@ -30,6 +30,7 @@ import Langlib.Tests.URMBrainfuck
 import Langlib.Tests.URMPiet
 import Langlib.Tests.URMSubleq
 import Langlib.Tests.URMThue
+import Langlib.Tests.URMSki
 import Langlib.Tests.URMUnlambda
 import Langlib.Tests.DerivedThue
 import Langlib.Tests.Thue
@@ -78,6 +79,7 @@ def main : IO UInt32 :=
     , Langlib.Tests.URMFractran.suites
     , Langlib.Tests.URMPiet.suites
     , Langlib.Tests.URMThue.suites
+    , Langlib.Tests.URMSki.suites
     , Langlib.Tests.URMUnlambda.suites
     , Langlib.Tests.URMSubleq.suites
     , Langlib.Tests.Thue.suites

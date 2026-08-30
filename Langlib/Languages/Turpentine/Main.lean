@@ -15,6 +15,7 @@ import Langlib.Languages.Fractran.Semantics
 import Langlib.Languages.Piet.Semantics
 import Langlib.Languages.Thue.Semantics
 import Langlib.Languages.Unlambda.Semantics
+import Langlib.Languages.Ski.Semantics
 import Langlib.Languages.Turpentine.Compile.Derived
 
 /-!
@@ -214,7 +215,16 @@ def backends : List Backend :=
     , certified := some (compilerOfCertified
         Langlib.Turpentine.Compile.derivedUnlambda.compileSource
         Langlib.Unlambda.Term.render
-        Langlib.Unlambda.run) } ]
+        Langlib.Unlambda.run) }
+  , { name := "ski"
+      -- SKI has no output instruction, so a run's answer is the normal form
+      -- it prints: a tower of `K`s, one per unit, ending in `I`. It is the
+      -- slowest target here, because `Langlib.Ski.step` rescans the whole
+      -- term to find each leftmost redex.
+    , certified := some (compilerOfCertified
+        Langlib.Turpentine.Compile.derivedSki.compileSource
+        Langlib.Ski.Term.render
+        (fun src _ fuel => Langlib.Ski.run src Langlib.Common.Input.empty fuel)) } ]
 
 /-- Which compilers a target has, for the help text and for the message a
 refused `--bespoke` or `--tc` prints. -/

@@ -7,6 +7,7 @@ import Langlib.Computability.Piet
 import Langlib.Computability.Ook
 import Langlib.Computability.Brainloller
 import Langlib.Computability.Unlambda
+import Langlib.Computability.Ski
 import Langlib.Languages.Turpentine.Compile.URM
 
 /-!
@@ -153,6 +154,13 @@ shared URM pass with the combinator completeness witness. The emitted program
 is a single application of the compiled counter machine to a register file of
 Scott numerals, and the answer comes back in unary, one `*` per unit. -/
 def derivedUnlambda : TurpentineCompiler UnlambdaLang := derived unlambdaComplete
+
+/-- The certified Turpentine-to-SKI compiler. The SKI calculus has no output
+instruction, so the compiled program reports its answer as the normal form it
+prints: a tower of `K`s, one per unit, ending in `I`. It is the slowest target
+in the library by a wide margin, because the reference interpreter rescans the
+whole term to find each leftmost redex. -/
+def derivedSki : TurpentineCompiler SkiLang := derived skiComplete
 
 /-- **Two verified Turpentine compilers for one target agree**:
 `Langlib.Common.CertifiedCompiler.agree` at Turpentine's specification. On a

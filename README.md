@@ -93,7 +93,7 @@ status matrix, including compilers):
 | [deadfish](docs/deadfish/spec.md) | no, every program halts | **[yes](Langlib/Computability/Deadfish.lean#L89)** | [planned, output only](docs/deadfish/compiler.md) |
 | [malbolge-unshackled](docs/malbolge-unshackled/spec.md) | yes | open | [planned](docs/malbolge-unshackled/compiler.md) |
 | [unlambda](docs/unlambda/spec.md) | yes | **[yes](Langlib/Computability/Unlambda.lean#L1720)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L155) (certified); [bespoke planned](docs/unlambda/compiler.md) |
-| [ski](docs/ski/spec.md) | yes | open | [none: compile to unlambda](docs/ski/compiler.md) |
+| [ski](docs/ski/spec.md) | yes | **[yes](Langlib/Computability/Ski.lean#L1012)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L163) (certified); [bespoke: compile to unlambda instead](docs/ski/compiler.md) |
 | [Turpentine](docs/turpentine/spec.md) | yes | open | [(it is the source)](docs/turpentine/spec.md) |
 
 
