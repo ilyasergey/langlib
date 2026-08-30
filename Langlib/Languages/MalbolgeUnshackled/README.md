@@ -54,20 +54,46 @@ instruction — so attribution lives here.
 | `cat.mu` | copies stdin to stdout, then never halts | provenance not recorded |
 | `rotcrash.mu` | `'bO`: rotates a word, then dies because the rotated word has no encryption | LangLib original |
 | `loop.mu` | runs for ever in a three-step cycle, printing nothing; the loop LangLib's completeness work proves non-halting | LangLib original |
+| `halt.mu` | `QC`: halts in one step, at any rotation width | LangLib original; the same two-character program as Malbolge's `nop.mal` |
+| `echo.mu` | `ubO`: reads one character, prints it, halts — `cat.mu` with a bound | LangLib original |
+| `star.mu` | prints `*` without reading anything; the value comes from a rotation whose low trit is zero, so it is the same at every width | LangLib original |
+| `answer.mu` | prints `42`; the counterpart of Malbolge's `answer.mal`, which does *not* run here | LangLib original |
+| `banner.mu` | prints `MALBOLGE`; built from crazy operations only, so no rotation width appears in it | LangLib original |
 
-Usage, since the files cannot carry their own:
+Usage, since the files cannot carry their own. The two that read input:
 
 ```
 echo -n 0 | lake exe malbolge-unshackled Langlib/Examples/MalbolgeUnshackled/truth.mu
 ```
 
-Nobody writes Unshackled by hand: these programs are search or compiler
-output, as every Malbolge program is. The three here arrived with an
-earlier, unfinished branch of this implementation and their authorship was
-never recorded, which is a gap this table should not have — Malbolge's own
-examples credit Cooke and Scheffer by name. They run correctly under this
-interpreter, and the likely source is Johansen's own distribution; if you
-know, put the credit here.
+```
+echo -n Z | lake exe malbolge-unshackled Langlib/Examples/MalbolgeUnshackled/echo.mu
+```
+
+The rest take no input and no flags, so `lake exe malbolge-unshackled
+<file>` is the whole command — except `cat.mu` and `loop.mu`, which never
+halt and want a `--fuel` bound. `--rot-width N` runs any of them at a width
+the default never uses, which is how a program is checked for the
+width-independence Unshackled demands;
+[`docs/malbolge-unshackled/spec.md`](../../../docs/malbolge-unshackled/spec.md)
+walks through each example with its expected output.
+
+Almost nobody writes Unshackled by hand, and the large ones here are search
+or compiler output, as every interesting Malbolge program is. The small
+ones are the exception and are worth reading for it: `halt.mu` and
+`echo.mu` are pure address arithmetic, since an instruction at address `i`
+is `(mem[i] + i) mod 94` and the printable range is exactly 94 wide, so
+every address has exactly one character meaning a given instruction there.
+`star.mu` is nine of those plus one rotation chosen so its result stays
+printable. Only `answer.mu` and `banner.mu` needed a search, and a small
+one.
+
+`hello.mu`, `truth.mu` and `cat.mu` arrived with an earlier, unfinished
+branch of this implementation and their authorship was never recorded,
+which is a gap this table should not have — Malbolge's own examples credit
+Cooke and Scheffer by name. They run correctly under this interpreter, and
+the likely source is Johansen's own distribution; if you know, put the
+credit here.
 
 ## Tests
 
