@@ -287,14 +287,29 @@ The steps, in order:
    cursor facts — the stream is not swapped out, the cursor only advances,
    and it stays inside the data — are proved for `read?`, for the worker,
    and for both readers.
-1. **Traces in the whitespace interpreter.** A `trace` field on
-   `Whitespace.State`, appended at `outchar`, `outnum`, `readchar` and
-   `readnum`; `trace_outputs` and `trace_inputs` by fuel induction over
-   `exec`, generalised over the start state. `outnum` appends a whole
-   `String.toUTF8`, so the invariant is about multi-byte appends, not
-   single ones. Then `instance : TraceLang WhitespaceLang` beside
-   `ProgLang WhitespaceLang` in `Langlib/Computability/Whitespace.lean`,
-   matching where FRACTRAN's sits.
+1. **Traces in the whitespace interpreter** `[x]`. `Whitespace.State` now
+   carries an `events` list, most recent first so recording a byte is O(1),
+   and the four I/O instructions push to it through `State.emit`,
+   `emitBytes`, `consumeByte` and `consume`. `evalTrace` is the run's
+   trace. `Langlib/Languages/Whitespace/Trace.lean` proves both laws from one
+   invariant, `Wf`: the trace's output events *are* the output, and its
+   input events *followed by what the cursor has left* are what the stream
+   started with. The second is an equation rather than the prefix claim it
+   implies, which is what makes it survive a second read. Only the four I/O
+   instructions move it, so the other twenty-odd cases of the induction are
+   the hypothesis itself. `instance : TraceLang WhitespaceLang` sits beside
+   `ProgLang WhitespaceLang` in `Langlib/Computability/Whitespace.lean`, where
+   FRACTRAN's is, and is the library's first for a language that reads.
+
+   Two things this cost that were not in the estimate. `ByteArray.toList`
+   is defined in core by a private loop with **no** lemmas — not even that
+   it is `Array.toList` of the array inside — and both trace laws are
+   stated about it, so `Langlib/Common/Io.lean` now proves that bridge and
+   the three facts (`length`, `push`, `append`) that follow. And the
+   whitespace completeness proof in `Langlib/Computability/Whitespace.lean`
+   builds states with positional `⟨…⟩` literals, so a seventh field meant
+   threading an `es` parameter through every block lemma; the payoff is
+   that those lemmas are now stated for an arbitrary prior trace.
 2. **Traces in the Turpentine interpreter**, and a
    `TurpentineBehavesWith p σ n τ result` stated over `answerProgram p` —
    the source *with* the epilogue — which is what lets `encodeTrace` be

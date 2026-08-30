@@ -31,7 +31,8 @@ namespace Langlib.Whitespace
 open Langlib.Common
 
 /-- The machine state: value stack, call stack (return addresses), heap,
-input cursor, accumulated output, and the program counter. -/
+input cursor, accumulated output, the program counter, and the I/O events
+so far. -/
 structure State where
   stack : List Int := []
   calls : List Nat := []
@@ -39,6 +40,33 @@ structure State where
   input : Input
   output : ByteArray := .empty
   pc : Nat := 0
+  /-- The run's I/O events, **most recent first**. A `Trace` is the other
+  way round, and `State.trace` turns it over; keeping it reversed is what
+  makes recording a byte O(1) rather than O(what has been emitted). Only
+  the four I/O instructions touch it. -/
+  events : List Event := []
+
+/-- The observable behaviour of the run so far: the bytes it consumed and
+emitted, in the order they happened. This is what `Langlib.Common.TraceLang`
+asks a language for. -/
+def State.trace (s : State) : Trace := s.events.reverse
+
+/-- Emit one byte: to the output, and to the trace. -/
+def State.emit (s : State) (b : UInt8) : State :=
+  { s with output := s.output.push b, events := .out b :: s.events }
+
+/-- Emit a run of bytes (`outnum` writes a whole decimal numeral). -/
+def State.emitBytes (s : State) (bs : ByteArray) : State :=
+  { s with output := s.output ++ bs, events := Trace.recOut s.events bs.toList }
+
+/-- Consume the bytes between two cursors, recording each one. `input'` is
+where the read left the cursor; the bytes it passed over are the events. -/
+def State.consume (s : State) (input' : Input) : State :=
+  { s with input := input', events := Trace.recInp s.events (Input.between s.input input') }
+
+/-- Consume one byte, recording it. -/
+def State.consumeByte (s : State) (b : UInt8) (input' : Input) : State :=
+  { s with input := input', events := .inp b :: s.events }
 
 /-- Pre-pass: map each label to the index just past its `label` instruction.
 When a label is defined more than once the first definition wins, matching
@@ -167,16 +195,14 @@ def exec (prog : Prog) (labels : Std.HashMap Label Nat) :
         match s.stack with
         | n :: st =>
           if 0 ≤ n && n ≤ 255 then
-            exec prog labels fuel
-              { s with stack := st, output := s.output.push n.toNat.toUInt8 }
+            exec prog labels fuel ({ s with stack := st }.emit n.toNat.toUInt8)
           else
             (s, .error s!"output char {n} is outside the byte range 0..255")
         | [] => underflow "output char"
       | .outNum =>
         match s.stack with
         | n :: st =>
-          exec prog labels fuel
-            { s with stack := st, output := s.output ++ (toString n).toUTF8 }
+          exec prog labels fuel ({ s with stack := st }.emitBytes (toString n).toUTF8)
         | [] => underflow "output number"
       | .readChar =>
         match s.stack with
@@ -186,8 +212,8 @@ def exec (prog : Prog) (labels : Std.HashMap Label Nat) :
             match s.input.read? with
             | some (b, input') =>
               exec prog labels fuel
-                { s with stack := st, heap := s.heap.insert a (Int.ofNat b.toNat),
-                         input := input' }
+                ({ s with stack := st,
+                          heap := s.heap.insert a (Int.ofNat b.toNat) }.consumeByte b input')
             | none => (s, .error "read char at end of input")
         | [] => underflow "read char"
       | .readNum =>
@@ -200,7 +226,7 @@ def exec (prog : Prog) (labels : Std.HashMap Label Nat) :
               match parseNumLine line with
               | some v =>
                 exec prog labels fuel
-                  { s with stack := st, heap := s.heap.insert a v, input := input' }
+                  ({ s with stack := st, heap := s.heap.insert a v }.consume input')
               | none => (s, .error s!"cannot parse '{line}' as a number")
             | none => (s, .error "read number at end of input")
         | [] => underflow "read number"
@@ -209,6 +235,12 @@ def exec (prog : Prog) (labels : Std.HashMap Label Nat) :
 def evalProg (p : Prog) (input : Input) (fuel : Nat) : RunResult :=
   let (s, exit) := exec p (labelMap p) fuel { input }
   { output := s.output, exit }
+
+/-- The observable behaviour of a run: the same run as `evalProg`, reporting
+its I/O events rather than its output bytes. `Langlib/Languages/Whitespace/Trace.lean`
+proves the two agree, which is what makes this a lawful `TraceLang.trace`. -/
+def evalTrace (p : Prog) (input : Input) (fuel : Nat) : Trace :=
+  (exec p (labelMap p) fuel { input }).1.trace
 
 /-- Parse and run: the entry point used by the runner and the tests. -/
 def run (src : String) (input : Input) (fuel : Nat) : Except String RunResult := do

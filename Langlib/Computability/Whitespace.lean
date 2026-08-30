@@ -502,7 +502,7 @@ theorem reaches_jz_untaken (s : Whitespace.State) (st : List Int) (l : Label) (v
 theorem reaches_outNum (s : Whitespace.State) (n : Int) (st : List Int)
     (hst : s.stack = n :: st) (h : prog[s.pc]? = some Instr.outNum) :
     Reaches (exec prog labels) s
-      { s with pc := s.pc + 1, stack := st, output := s.output ++ (toString n).toUTF8 } :=
+      ({ s with pc := s.pc + 1, stack := st }.emitBytes (toString n).toUTF8) :=
   Reaches.one fun f => by simp only [exec, h, hst]
 
 theorem exec_halt (s : Whitespace.State) (h : prog[s.pc]? = some Instr.halt) (f : Nat) :
@@ -530,7 +530,7 @@ theorem heapMatches_write {heap : Std.HashMap Int Int} {regs : Regs}
 
 A URM configuration `s` corresponds to
 the Whitespace state `⟨[], calls, heap, inp, out, entry P inputs (min s.pc
-P.length)⟩` with `HeapMatches heap s.regs`: both stacks empty, the heap in
+P.length), es⟩` with `HeapMatches heap s.regs`: both stacks empty, the heap in
 step with the registers, and the counter at the entry of the current block.
 It is spelled out in the lemmas below rather than named, so that the states
 appear as explicit records and the fuel arithmetic stays visible. -/
@@ -626,10 +626,10 @@ abbrev Ex (P : Program) (inputs : List Nat) :
 
 theorem block_Z (P : Program) (inputs : List Nat) (k r : Nat) (hk : k < P.length)
     (hPk : P[k] = .Z r) (calls : List Nat) (heap : Std.HashMap Int Int)
-    (inp : Input) (out : ByteArray) :
+    (inp : Input) (out : ByteArray) (es : List Event) :
     Reaches (Ex P inputs)
-      ⟨[], calls, heap, inp, out, entry P inputs k⟩
-      ⟨[], calls, heap.insert (r : Int) 0, inp, out, entry P inputs (k + 1)⟩ := by
+      ⟨[], calls, heap, inp, out, entry P inputs k, es⟩
+      ⟨[], calls, heap.insert (r : Int) 0, inp, out, entry P inputs (k + 1), es⟩ := by
   have hcode := codeAt_block P inputs k hk
   rw [hPk] at hcode
   simp only [instrCode, List.cons_append, List.nil_append] at hcode
@@ -651,11 +651,11 @@ theorem block_Z (P : Program) (inputs : List Nat) (k r : Nat) (hk : k < P.length
 
 theorem block_S (P : Program) (inputs : List Nat) (k r : Nat) (hk : k < P.length)
     (hPk : P[k] = .S r) (calls : List Nat) (heap : Std.HashMap Int Int)
-    (inp : Input) (out : ByteArray) :
+    (inp : Input) (out : ByteArray) (es : List Event) :
     Reaches (Ex P inputs)
-      ⟨[], calls, heap, inp, out, entry P inputs k⟩
+      ⟨[], calls, heap, inp, out, entry P inputs k, es⟩
       ⟨[], calls, heap.insert (r : Int) (heap.getD (r : Int) 0 + 1), inp, out,
-        entry P inputs (k + 1)⟩ := by
+        entry P inputs (k + 1), es⟩ := by
   have hcode := codeAt_block P inputs k hk
   rw [hPk] at hcode
   simp only [instrCode, List.cons_append, List.nil_append] at hcode
@@ -686,11 +686,11 @@ theorem block_S (P : Program) (inputs : List Nat) (k r : Nat) (hk : k < P.length
 
 theorem block_T (P : Program) (inputs : List Nat) (k m r : Nat) (hk : k < P.length)
     (hPk : P[k] = .T m r) (calls : List Nat) (heap : Std.HashMap Int Int)
-    (inp : Input) (out : ByteArray) :
+    (inp : Input) (out : ByteArray) (es : List Event) :
     Reaches (Ex P inputs)
-      ⟨[], calls, heap, inp, out, entry P inputs k⟩
+      ⟨[], calls, heap, inp, out, entry P inputs k, es⟩
       ⟨[], calls, heap.insert (r : Int) (heap.getD (m : Int) 0), inp, out,
-        entry P inputs (k + 1)⟩ := by
+        entry P inputs (k + 1), es⟩ := by
   have hcode := codeAt_block P inputs k hk
   rw [hPk] at hcode
   simp only [instrCode, List.cons_append, List.nil_append] at hcode
@@ -716,11 +716,11 @@ theorem block_T (P : Program) (inputs : List Nat) (k m r : Nat) (hk : k < P.leng
 
 theorem block_J_taken (P : Program) (inputs : List Nat) (k m r q : Nat) (hk : k < P.length)
     (hPk : P[k] = .J m r q) (calls : List Nat) (heap : Std.HashMap Int Int)
-    (inp : Input) (out : ByteArray)
+    (inp : Input) (out : ByteArray) (es : List Event)
     (heq : heap.getD (m : Int) 0 = heap.getD (r : Int) 0) :
     Reaches (Ex P inputs)
-      ⟨[], calls, heap, inp, out, entry P inputs k⟩
-      ⟨[], calls, heap, inp, out, entry P inputs (min q P.length)⟩ := by
+      ⟨[], calls, heap, inp, out, entry P inputs k, es⟩
+      ⟨[], calls, heap, inp, out, entry P inputs (min q P.length), es⟩ := by
   have hcode := codeAt_block P inputs k hk
   rw [hPk] at hcode
   simp only [instrCode, List.cons_append, List.nil_append] at hcode
@@ -743,11 +743,11 @@ theorem block_J_taken (P : Program) (inputs : List Nat) (k m r q : Nat) (hk : k 
 
 theorem block_J_untaken (P : Program) (inputs : List Nat) (k m r q : Nat) (hk : k < P.length)
     (hPk : P[k] = .J m r q) (calls : List Nat) (heap : Std.HashMap Int Int)
-    (inp : Input) (out : ByteArray)
+    (inp : Input) (out : ByteArray) (es : List Event)
     (hne : heap.getD (m : Int) 0 ≠ heap.getD (r : Int) 0) :
     Reaches (Ex P inputs)
-      ⟨[], calls, heap, inp, out, entry P inputs k⟩
-      ⟨[], calls, heap, inp, out, entry P inputs (k + 1)⟩ := by
+      ⟨[], calls, heap, inp, out, entry P inputs k, es⟩
+      ⟨[], calls, heap, inp, out, entry P inputs (k + 1), es⟩ := by
   have hcode := codeAt_block P inputs k hk
   rw [hPk] at hcode
   simp only [instrCode, List.cons_append, List.nil_append] at hcode
@@ -881,20 +881,20 @@ theorem loadFrom_zero (inputs : List Nat) :
 
 theorem reaches_prologue (P : Program) (inputs : List Nat) (vs : List Nat) :
     ∀ (a p : Nat) (calls : List Nat) (heap : Std.HashMap Int Int) (inp : Input)
-      (out : ByteArray) (regs : Regs),
+      (out : ByteArray) (es : List Event) (regs : Regs),
       CodeAt (compile P inputs) p (prologue a vs) → HeapMatches heap regs →
       ∃ heap', Reaches (Ex P inputs)
-          ⟨[], calls, heap, inp, out, p⟩
-          ⟨[], calls, heap', inp, out, p + 3 * vs.length⟩
+          ⟨[], calls, heap, inp, out, p, es⟩
+          ⟨[], calls, heap', inp, out, p + 3 * vs.length, es⟩
         ∧ HeapMatches heap' (loadFrom a vs regs) := by
   induction vs with
   | nil =>
-    intro a p calls heap inp out regs _ hh
+    intro a p calls heap inp out es regs _ hh
     refine ⟨heap, ?_, hh⟩
     simp only [List.length_nil, Nat.mul_zero, Nat.add_zero]
     exact Reaches.refl _ _
   | cons v vs ih =>
-    intro a p calls heap inp out regs hcode hh
+    intro a p calls heap inp out es regs hcode hh
     have h0 := hcode.get 0 (by simp [prologue])
     have h1 := hcode.get 1 (by simp [prologue])
     have h2 := hcode.get 2 (by simp [prologue])
@@ -910,12 +910,12 @@ theorem reaches_prologue (P : Program) (inputs : List Nat) (vs : List Nat) :
       rw [show p + (j + 3) = p + 3 + j from by omega] at this
       rw [this]
       simp [prologue]
-    cases ih (a + 1) (p + 3) calls (heap.insert (a : Int) (v : Int)) inp out
+    cases ih (a + 1) (p + 3) calls (heap.insert (a : Int) (v : Int)) inp out es
         (regs.write a v) hcode' (heapMatches_write hh a v) with
     | intro heap' hres =>
       refine ⟨heap', ?_, hres.2⟩
-      have chain : Reaches (Ex P inputs) ⟨[], calls, heap, inp, out, p⟩
-          ⟨[], calls, heap.insert (a : Int) (v : Int), inp, out, p + 3⟩ := by
+      have chain : Reaches (Ex P inputs) ⟨[], calls, heap, inp, out, p, es⟩
+          ⟨[], calls, heap.insert (a : Int) (v : Int), inp, out, p + 3, es⟩ := by
         rw [show p + 3 = p + 1 + 1 + 1 from by omega]
         refine Reaches.trans (reaches_push _ _ (by simpa using h0)) ?_
         refine Reaches.trans (reaches_push _ _ (by simpa using h1)) ?_
@@ -927,10 +927,12 @@ theorem reaches_prologue (P : Program) (inputs : List Nat) (vs : List Nat) :
 /-! ## The epilogue -/
 
 theorem exec_epilogue (P : Program) (inputs : List Nat) (calls : List Nat)
-    (heap : Std.HashMap Int Int) (inp : Input) (out : ByteArray) :
-    ∃ m, Ex P inputs m ⟨[], calls, heap, inp, out, entry P inputs P.length⟩
+    (heap : Std.HashMap Int Int) (inp : Input) (out : ByteArray) (es : List Event) :
+    ∃ m, Ex P inputs m ⟨[], calls, heap, inp, out, entry P inputs P.length, es⟩
       = (⟨[], calls, heap, inp, out ++ (toString (heap.getD (0 : Int) 0)).toUTF8,
-          entry P inputs P.length + 1 + 1 + 1 + 1⟩, Exit.halted) := by
+          entry P inputs P.length + 1 + 1 + 1 + 1,
+          Trace.recOut es ((toString (heap.getD (0 : Int) 0)).toUTF8).toList⟩,
+        Exit.halted) := by
   have hcode := codeAt_epilogue P inputs
   have h0 := hcode.get 0 (by simp)
   have h1 := hcode.get 1 (by simp)
@@ -938,9 +940,10 @@ theorem exec_epilogue (P : Program) (inputs : List Nat) (calls : List Nat)
   have h3 := hcode.get 3 (by simp)
   simp only [List.getElem_cons_zero, List.getElem_cons_succ] at h0 h1 h2 h3
   have chain : Reaches (Ex P inputs)
-      ⟨[], calls, heap, inp, out, entry P inputs P.length⟩
+      ⟨[], calls, heap, inp, out, entry P inputs P.length, es⟩
       ⟨[], calls, heap, inp, out ++ (toString (heap.getD (0 : Int) 0)).toUTF8,
-        entry P inputs P.length + 1 + 1 + 1⟩ := by
+        entry P inputs P.length + 1 + 1 + 1,
+        Trace.recOut es ((toString (heap.getD (0 : Int) 0)).toUTF8).toList⟩ := by
     refine Reaches.trans (reaches_push _ _ (by simpa using h0)) ?_
     refine Reaches.trans (reaches_retrieve _ (0 : Int) [] rfl (by omega)
       (by simpa using h1)) ?_
@@ -967,23 +970,23 @@ private theorem getElem_of_getElem? {P : Program} {k : Nat} {i : Cslib.URM.Instr
 /-- One URM step becomes one labelled block. -/
 theorem step_sim (P : Program) (inputs : List Nat) {s s' : Cslib.URM.State}
     (hstep : Step P s s') (calls : List Nat) (heap : Std.HashMap Int Int)
-    (inp : Input) (out : ByteArray) (hh : HeapMatches heap s.regs) :
+    (inp : Input) (out : ByteArray) (es : List Event) (hh : HeapMatches heap s.regs) :
     ∃ heap', Reaches (Ex P inputs)
-        ⟨[], calls, heap, inp, out, entry P inputs (min s.pc P.length)⟩
-        ⟨[], calls, heap', inp, out, entry P inputs (min s'.pc P.length)⟩
+        ⟨[], calls, heap, inp, out, entry P inputs (min s.pc P.length), es⟩
+        ⟨[], calls, heap', inp, out, entry P inputs (min s'.pc P.length), es⟩
       ∧ HeapMatches heap' s'.regs := by
   cases hstep
   case zero n hi =>
     have hk : s.pc < P.length := lt_len hi
     rw [Nat.min_eq_left (Nat.le_of_lt hk), Nat.min_eq_left (show s.pc + 1 ≤ P.length by omega)]
     refine ⟨heap.insert (n : Int) 0,
-      block_Z P inputs s.pc n hk (getElem_of_getElem? hi) calls heap inp out, ?_⟩
+      block_Z P inputs s.pc n hk (getElem_of_getElem? hi) calls heap inp out es, ?_⟩
     simpa using heapMatches_write hh n 0
   case succ n hi =>
     have hk : s.pc < P.length := lt_len hi
     rw [Nat.min_eq_left (Nat.le_of_lt hk), Nat.min_eq_left (show s.pc + 1 ≤ P.length by omega)]
     refine ⟨heap.insert (n : Int) (heap.getD (n : Int) 0 + 1),
-      block_S P inputs s.pc n hk (getElem_of_getElem? hi) calls heap inp out, ?_⟩
+      block_S P inputs s.pc n hk (getElem_of_getElem? hi) calls heap inp out es, ?_⟩
     have hval : heap.getD (n : Int) 0 + 1 = ((s.regs.read n + 1 : Nat) : Int) := by
       rw [hh n]; simp [Cslib.URM.Regs.read]
     rw [hval]
@@ -992,21 +995,21 @@ theorem step_sim (P : Program) (inputs : List Nat) {s s' : Cslib.URM.State}
     have hk : s.pc < P.length := lt_len hi
     rw [Nat.min_eq_left (Nat.le_of_lt hk), Nat.min_eq_left (show s.pc + 1 ≤ P.length by omega)]
     refine ⟨heap.insert (n : Int) (heap.getD (m : Int) 0),
-      block_T P inputs s.pc m n hk (getElem_of_getElem? hi) calls heap inp out, ?_⟩
+      block_T P inputs s.pc m n hk (getElem_of_getElem? hi) calls heap inp out es, ?_⟩
     rw [show heap.getD (m : Int) 0 = ((s.regs.read m : Nat) : Int) from hh m]
     exact heapMatches_write hh n (s.regs.read m)
   case jump_eq m n q hi heq =>
     have hk : s.pc < P.length := lt_len hi
     rw [Nat.min_eq_left (Nat.le_of_lt hk)]
     refine ⟨heap, block_J_taken P inputs s.pc m n q hk (getElem_of_getElem? hi)
-      calls heap inp out ?_, hh⟩
+      calls heap inp out es ?_, hh⟩
     rw [hh m, hh n]
     exact congrArg _ heq
   case jump_ne m n q hi hne =>
     have hk : s.pc < P.length := lt_len hi
     rw [Nat.min_eq_left (Nat.le_of_lt hk), Nat.min_eq_left (show s.pc + 1 ≤ P.length by omega)]
     refine ⟨heap, block_J_untaken P inputs s.pc m n q hk (getElem_of_getElem? hi)
-      calls heap inp out ?_, hh⟩
+      calls heap inp out es ?_, hh⟩
     rw [hh m, hh n]
     intro hc
     exact hne (by simp only [Cslib.URM.Regs.read]; exact_mod_cast hc)
@@ -1014,17 +1017,17 @@ theorem step_sim (P : Program) (inputs : List Nat) {s s' : Cslib.URM.State}
 /-- A whole URM run becomes a whole run of the compiled program. -/
 theorem steps_sim (P : Program) (inputs : List Nat) {s₀ s : Cslib.URM.State}
     (hsteps : Steps P s₀ s) (calls : List Nat) (heap : Std.HashMap Int Int)
-    (inp : Input) (out : ByteArray) (hh : HeapMatches heap s₀.regs) :
+    (inp : Input) (out : ByteArray) (es : List Event) (hh : HeapMatches heap s₀.regs) :
     ∃ heap', Reaches (Ex P inputs)
-        ⟨[], calls, heap, inp, out, entry P inputs (min s₀.pc P.length)⟩
-        ⟨[], calls, heap', inp, out, entry P inputs (min s.pc P.length)⟩
+        ⟨[], calls, heap, inp, out, entry P inputs (min s₀.pc P.length), es⟩
+        ⟨[], calls, heap', inp, out, entry P inputs (min s.pc P.length), es⟩
       ∧ HeapMatches heap' s.regs := by
   induction hsteps with
   | refl => exact ⟨heap, Reaches.refl _ _, hh⟩
   | tail _ hlast ih =>
     cases ih with
     | intro h₁ hr₁ =>
-      cases step_sim P inputs hlast calls h₁ inp out hr₁.2 with
+      cases step_sim P inputs hlast calls h₁ inp out es hr₁.2 with
       | intro h₂ hr₂ => exact ⟨h₂, Reaches.trans hr₁.1 hr₂.1, hr₂.2⟩
 
 theorem getElem?_block0_label (P : Program) (inputs : List Nat) :
@@ -1053,26 +1056,26 @@ theorem simulation (P : Program) (inputs : List Nat) (result : Nat)
   | intro s hs =>
     have hinit : HeapMatches (∅ : Std.HashMap Int Int) (fun _ => 0) := by
       intro r; simp
-    cases reaches_prologue P inputs inputs 0 0 [] ∅ input ByteArray.empty (fun _ => 0)
+    cases reaches_prologue P inputs inputs 0 0 [] ∅ input ByteArray.empty [] (fun _ => 0)
         (codeAt_prologue P inputs) hinit with
     | intro heap0 hpro =>
       have hheap0 : HeapMatches heap0 (Cslib.URM.Regs.ofInputs inputs) := by
         rw [← loadFrom_zero inputs]; exact hpro.2
       have hlab : Reaches (Ex P inputs)
-          ⟨[], [], heap0, input, ByteArray.empty, 0 + 3 * inputs.length⟩
-          ⟨[], [], heap0, input, ByteArray.empty, entry P inputs 0⟩ := by
+          ⟨[], [], heap0, input, ByteArray.empty, 0 + 3 * inputs.length, []⟩
+          ⟨[], [], heap0, input, ByteArray.empty, entry P inputs 0, []⟩ := by
         rw [show (0 : Nat) + 3 * inputs.length = blockPos P inputs 0 by
           simp [blockPos, base, codeSize]]
         exact reaches_label _ _ (getElem?_block0_label P inputs)
-      cases steps_sim P inputs hs.1 [] heap0 input ByteArray.empty hheap0 with
+      cases steps_sim P inputs hs.1 [] heap0 input ByteArray.empty [] hheap0 with
       | intro heapF hsim =>
         simp only [Cslib.URM.State.init, Nat.zero_min,
           Nat.min_eq_right hs.2.1] at hsim
-        cases exec_epilogue P inputs [] heapF input ByteArray.empty with
+        cases exec_epilogue P inputs [] heapF input ByteArray.empty [] with
         | intro m₀ hep =>
           have htot : Reaches (Ex P inputs)
-              ⟨[], [], ∅, input, ByteArray.empty, 0⟩
-              ⟨[], [], heapF, input, ByteArray.empty, entry P inputs P.length⟩ :=
+              ⟨[], [], ∅, input, ByteArray.empty, 0, []⟩
+              ⟨[], [], heapF, input, ByteArray.empty, entry P inputs P.length, []⟩ :=
             Reaches.trans hpro.1 (Reaches.trans hlab hsim.1)
           cases htot with
           | intro c hc =>
@@ -1081,7 +1084,7 @@ theorem simulation (P : Program) (inputs : List Nat) (result : Nat)
               simpa using hsim.2 0
             simp only [evalProg]
             rw [show ({ input := input } : Whitespace.State)
-                  = ⟨[], [], ∅, input, ByteArray.empty, 0⟩ from rfl,
+                  = ⟨[], [], ∅, input, ByteArray.empty, 0, []⟩ from rfl,
               show exec (compile P inputs) (labelMap (compile P inputs)) (c + m₀)
                   = Ex P inputs (c + m₀) from rfl,
               hc m₀, hep]
@@ -1103,6 +1106,19 @@ instance : ProgLang WhitespaceLang where
   Prog := Langlib.Whitespace.Prog
   parse := Langlib.Whitespace.parse
   run := Langlib.Whitespace.evalProg
+
+/-- **Whitespace's trace semantics.** Unlike FRACTRAN, whitespace reads, so
+its instance cannot come from `TraceLang.ofInputFree`: the interpreter has
+to record its own events, and `Langlib/Languages/Whitespace/Trace.lean` proves
+the two laws about the record it keeps.
+
+This is the library's first `TraceLang` instance for a language that
+consumes input, and it is what makes an `IOCertifiedCompiler` into
+whitespace expressible at all. -/
+instance : TraceLang WhitespaceLang where
+  trace := Langlib.Whitespace.evalTrace
+  trace_outputs := Langlib.Whitespace.evalTrace_outputs
+  trace_inputs := Langlib.Whitespace.evalTrace_inputs
 
 /-- **Whitespace is Turing complete.**
 

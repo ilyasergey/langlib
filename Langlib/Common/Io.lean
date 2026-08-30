@@ -21,6 +21,57 @@ trace made only of output events, and a program that does no I/O at all has
 the empty trace.
 -/
 
+/-! ## `ByteArray` as a list of bytes
+
+Every `RunResult` carries its output as a `ByteArray`, and both halves of a
+language's trace obligation (`Langlib/Common/Compilation.lean`) are stated
+about `ByteArray.toList`. Core defines that by a private loop and proves
+nothing whatever about it — not even that it is `Array.toList` of the
+underlying array — so the four facts below are the bridge, and everything
+downstream reasons on lists. -/
+
+namespace ByteArray
+
+theorem toList_loop_eq (bs : ByteArray) (i : Nat) (r : List UInt8) :
+    ByteArray.toList.loop bs i r = r.reverse ++ bs.data.toList.drop i := by
+  induction i, r using ByteArray.toList.loop.induct bs with
+  | case1 i r h ih =>
+    rw [ByteArray.toList.loop, if_pos h, ih]
+    have hi : i < bs.data.toList.length := by simpa using h
+    rw [List.drop_eq_getElem_cons hi]
+    have hb : bs.get! i = bs.data.toList[i] := by
+      cases bs with
+      | mk arr =>
+        simp only [ByteArray.get!, Array.getElem_toList]
+        exact getElem!_pos arr i h
+    simp [hb]
+  | case2 i r h =>
+    rw [ByteArray.toList.loop, if_neg h]
+    rw [List.drop_eq_nil_of_le (by simpa using Nat.le_of_not_lt h), List.append_nil]
+
+/-- The list of a `ByteArray` is the list of the array inside it. -/
+theorem toList_eq (bs : ByteArray) : bs.toList = bs.data.toList := by
+  show ByteArray.toList.loop bs 0 [] = _
+  rw [toList_loop_eq]
+  simp
+
+@[simp] theorem length_toList (bs : ByteArray) : bs.toList.length = bs.size := by
+  simp [toList_eq]
+
+@[simp] theorem toList_push (bs : ByteArray) (b : UInt8) :
+    (bs.push b).toList = bs.toList ++ [b] := by
+  simp [toList_eq, ByteArray.push]
+
+@[simp] theorem toList_append (bs cs : ByteArray) :
+    (bs ++ cs).toList = bs.toList ++ cs.toList := by
+  simp [toList_eq]
+
+@[simp] theorem toList_getElem (bs : ByteArray) (i : Nat) (h : i < bs.toList.length) :
+    bs.toList[i]'h = bs[i]'(by simpa using h) := by
+  simp [toList_eq, ByteArray.getElem_eq_getElem_data]
+
+end ByteArray
+
 namespace Langlib.Common
 
 /-- An input byte stream with a read cursor. Interpreters consume bytes via
@@ -316,5 +367,110 @@ end Trace
 events may draw on. -/
 def Input.remaining (i : Input) : List UInt8 :=
   i.data.toList.drop i.pos
+
+/-! ### Recording events as a run goes
+
+An interpreter that reports its trace accumulates it, and appending at the
+end costs the length of what it has already. Every one of them therefore
+keeps its events **most recent first** and reverses once at the end, which
+makes recording O(1) per byte; `recOut` and `recInp` are that push, and
+`reverse_recOut`/`reverse_recInp` are what a proof uses to forget the
+representation. -/
+
+namespace Trace
+
+/-- The trace of a run that only reads. -/
+def ofInput (bs : List UInt8) : Trace := bs.map Event.inp
+
+@[simp] theorem outputs_append (t₁ t₂ : Trace) :
+    outputs (t₁ ++ t₂) = outputs t₁ ++ outputs t₂ := by
+  simp [outputs]
+
+@[simp] theorem inputs_append (t₁ t₂ : Trace) :
+    inputs (t₁ ++ t₂) = inputs t₁ ++ inputs t₂ := by
+  simp [inputs]
+
+@[simp] theorem outputs_ofInput (bs : List UInt8) : outputs (ofInput bs) = [] := by
+  induction bs with
+  | nil => rfl
+  | cons b bs ih => simp [ofInput, outputs] at ih ⊢
+
+@[simp] theorem inputs_ofInput (bs : List UInt8) : inputs (ofInput bs) = bs := by
+  induction bs with
+  | nil => rfl
+  | cons b bs ih => simp [ofInput, inputs] at ih ⊢; exact ih
+
+/-- Push emitted bytes onto a reversed event list. -/
+def recOut (es : List Event) (bs : List UInt8) : List Event :=
+  bs.foldl (fun es b => .out b :: es) es
+
+/-- Push consumed bytes onto a reversed event list. -/
+def recInp (es : List Event) (bs : List UInt8) : List Event :=
+  bs.foldl (fun es b => .inp b :: es) es
+
+@[simp] theorem reverse_recOut (es : List Event) (bs : List UInt8) :
+    (recOut es bs).reverse = es.reverse ++ ofOutput bs := by
+  induction bs generalizing es with
+  | nil => simp [recOut, ofOutput]
+  | cons b bs ih => simp only [recOut, ofOutput, List.foldl_cons, List.map_cons] at ih ⊢
+                    rw [ih]; simp
+
+@[simp] theorem reverse_recInp (es : List Event) (bs : List UInt8) :
+    (recInp es bs).reverse = es.reverse ++ ofInput bs := by
+  induction bs generalizing es with
+  | nil => simp [recInp, ofInput]
+  | cons b bs ih => simp only [recInp, ofInput, List.foldl_cons, List.map_cons] at ih ⊢
+                    rw [ih]; simp
+
+end Trace
+
+/-! ### What a read consumed
+
+The input half of a trace has to say which bytes the cursor passed over.
+`between` names them, and the two lemmas below are the only facts an
+interpreter's trace obligation needs: what a read consumed, followed by
+what is left, is what there was. -/
+
+namespace Input
+
+/-- The bytes the cursor passed over on the way from `i` to `i'`, two
+cursors into the same stream. -/
+def between (i i' : Input) : List UInt8 := i.remaining.take (i'.pos - i.pos)
+
+/-- Consumed, then remaining, is remaining. -/
+theorem between_append_remaining {i i' : Input}
+    (hd : i'.data = i.data) (hp : i.pos ≤ i'.pos) :
+    between i i' ++ i'.remaining = i.remaining := by
+  have hdrop : i'.remaining = i.remaining.drop (i'.pos - i.pos) := by
+    simp only [remaining, hd, List.drop_drop]
+    congr 1
+    omega
+  rw [between, hdrop, List.take_append_drop]
+
+/-- The byte a successful read produced is the one under the cursor. -/
+theorem read?_byte {i : Input} {b : UInt8} {i' : Input} (h : i.read? = some (b, i')) :
+    b = i.data[i.pos]! := by
+  have h2 := h
+  unfold read? at h2
+  split at h2
+  · next hlt =>
+    simp only [Option.some.injEq, Prod.mk.injEq] at h2
+    rw [← h2.1]
+    exact (getElem!_pos i.data i.pos hlt).symm
+  · exact absurd h2 (by simp)
+
+/-- The same as `between_append_remaining`, for the single byte a `read?`
+consumes. -/
+theorem read?_remaining {i : Input} {b : UInt8} {i' : Input} (h : i.read? = some (b, i')) :
+    b :: i'.remaining = i.remaining := by
+  have hlt := lt_of_read? h
+  have hi : i.pos < i.data.toList.length := by simpa using hlt
+  simp only [remaining, read?_data h, read?_pos h, read?_byte h]
+  rw [List.drop_eq_getElem_cons hi]
+  congr 1
+  rw [getElem!_pos i.data i.pos hlt]
+  simp
+
+end Input
 
 end Langlib.Common

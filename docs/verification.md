@@ -329,6 +329,14 @@ but a `TraceLang` instance: the interpreter has to record its events.
 FRACTRAN has one already, for free, because its `run` provably ignores the
 input stream — which is also why its cell says `n/a` rather than `-`.
 
+**Whitespace has one too, and it is the real kind.** Whitespace reads, so
+nothing was free: `Whitespace.State` records the run's events and
+[`Langlib/Languages/Whitespace/Trace.lean`](../Langlib/Languages/Whitespace/Trace.lean)
+proves the two laws from one invariant — the trace's output events *are*
+the output, and its input events *followed by what the cursor has left* are
+what the stream started with. The remaining work on that row is on the
+Turpentine side and in the simulation, not in the interpreter.
+
 Fuel monotonicity dropped out of the scoreboard: both proofs use the
 exact-cost `Langlib.Common.Reaches` and never needed it.
 

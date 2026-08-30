@@ -630,6 +630,24 @@ open Langlib.Turpentine.Compile
 #print axioms URMUnlambda.compile
 #print axioms unlambdaComplete
 
+-- Whitespace reports its own I/O events, which is what a behavioural
+-- statement about a compiler into whitespace has to rest on. `exec_wf` is
+-- the invariant carried through the interpreter; the two `evalTrace`
+-- lemmas are the `TraceLang` laws. The `Input` and `ByteArray` lemmas
+-- under them are shared infrastructure: `readLine?` used to be a `partial
+-- def` and `ByteArray.toList` has no lemmas in core, so both had to be
+-- given equations before anything could be said about a read.
+#print axioms ByteArray.toList_eq
+#print axioms Langlib.Common.Input.read?_remaining
+#print axioms Langlib.Common.Input.readLineGo_data
+#print axioms Langlib.Common.Input.readLineGo_pos_le
+#print axioms Langlib.Common.Input.readLine?_data
+#print axioms Langlib.Common.Input.readLine?_pos_le
+#print axioms Langlib.Common.Input.between_append_remaining
+#print axioms Langlib.Whitespace.exec_wf
+#print axioms Langlib.Whitespace.evalTrace_outputs
+#print axioms Langlib.Whitespace.evalTrace_inputs
+
 -- SKI: the same counter machine in front, and nothing shared behind it.
 -- Head reduction and its bridge to the interpreter, the combinators, the
 -- simulation, the unary answer, and the completeness witness.

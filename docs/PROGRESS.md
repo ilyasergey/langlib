@@ -2,7 +2,47 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): terminating runs, and a free zero test
+## 2026-08-30 (latest): whitespace reports what it read
+
+`cat.ws` copies its input. Nothing the library could say about it
+distinguished that from a program that reads everything and then writes
+everything, because a `RunResult` records the bytes that came out and
+nothing whatever about the bytes that went in. It does now:
+
+    cat.ws on "hi"  ->  <104 >104 <105 >105
+
+`Whitespace.State` carries the run's I/O events, most recent first so
+recording a byte stays O(1), and the four I/O instructions push to them.
+`Langlib/Languages/Whitespace/Trace.lean` proves the two `TraceLang` laws
+from a single invariant on a reachable state: what the trace says was
+emitted *is* the output, and what it says was consumed, *followed by what
+the cursor has left*, is what the stream started with. The second half is
+stronger than the prefix law it implies, and being an equation is exactly
+what makes it survive a second read — the residue is what the next read
+draws on. Only the four I/O instructions disturb it, so the other twenty-odd
+cases of the induction over `exec` are the hypothesis itself, discharged by
+`exact`.
+
+`instance : TraceLang WhitespaceLang` now sits beside `ProgLang
+WhitespaceLang`, where FRACTRAN's does. FRACTRAN's came free from
+`ofInputFree`, since it provably never reads; whitespace's is the library's
+first for a language that does.
+
+Two costs that were not in the plan. `ByteArray.toList` is defined in core
+by a private loop with no lemmas at all — not even that it is `Array.toList`
+of the array inside — and both trace laws are stated about it, so
+`Langlib/Common/Io.lean` proves that bridge and the three consequences.
+And the whitespace completeness proof builds machine states with positional
+`⟨…⟩` literals, so a seventh field meant threading an events parameter
+through every block lemma; they are now stated for an arbitrary prior
+trace, which is the more useful form anyway.
+
+Eight golden tests pin the interleaving, which is the one thing the two
+laws deliberately do not determine: both are satisfied by a trace that
+reports every read before every write. The suite re-checks both laws on
+each run before comparing, so the tests and the theorems cannot drift.
+
+## 2026-08-30: terminating runs, and a free zero test
 
 `neverHalts_of_invariant` covers loops that must not stop. A simulation
 needs the opposite: `TuringComplete` demands the compiled program halt with

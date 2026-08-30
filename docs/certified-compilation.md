@@ -166,8 +166,26 @@ The one sound shortcut is a language that provably never reads.
 [`TraceLang.ofInputFree`](../Langlib/Common/Compilation.lean#L182) builds
 the instance from a proof that `run` gives the same answer on every input
 stream, and FRACTRAN — whose `run` takes an `Input` and never looks at it —
-discharges that by `rfl`. It is the library's first and, today, only
-instance.
+discharges that by `rfl`. It was the library's first instance, and it is
+the cheap case.
+
+**Whitespace is the other kind**, and now has an instance too. Whitespace
+reads, so the interpreter has to record what it did:
+`Langlib.Whitespace.State` carries the run's events, the four I/O
+instructions append to them, and
+[`Langlib/Languages/Whitespace/Trace.lean`](../Langlib/Languages/Whitespace/Trace.lean)
+proves the two laws. Both follow from one invariant on a reachable state —
+what the trace says was emitted *is* the output, and what it says was
+consumed *followed by what the cursor has left* is what the stream started
+with. The second half is stronger than the prefix law it implies, and being
+an equation is exactly what lets it survive a second read: the residue is
+what the next read draws on.
+
+That invariant is also why [PLAN.md](PLAN.md) had to make
+`Input.readLine?` well-founded first. It was a `partial def`, an opaque
+constant with no equations, so nothing at all could be said about where a
+`readnum` leaves the cursor, and the invariant could not be carried past
+one.
 
 **The compiler obligation.**
 
@@ -257,14 +275,26 @@ bespoke backends of section 3, which do compile Turpentine's `read` and
 
 | Backend | Proved today | What the upgrade needs |
 |---|---|---|
-| [Whitespace](../Langlib/Languages/Turpentine/Compile/Whitespace.lean) | `CertifiedCompiler`, scalar fragment | a `TraceLang` instance; `encodeTrace` for line-oriented numeric I/O |
+| [Whitespace](../Langlib/Languages/Turpentine/Compile/Whitespace.lean) | `CertifiedCompiler`, scalar fragment | **`TraceLang` done**; a Turpentine-side trace semantics, and the print cases of the simulation |
 | [Subleq](../Langlib/Languages/Turpentine/Compile/Subleq.lean) | `CertifiedCompiler`, two shapes | a `TraceLang` instance; `encodeTrace` is the identity |
 | [Brainfuck](../Langlib/Languages/Turpentine/Compile/Brainfuck.lean) | tested, not proved | the correctness proof first |
 | [Ook!](../Langlib/Languages/Turpentine/Compile/Ook.lean), [Brainloller](../Langlib/Languages/Turpentine/Compile/Brainloller.lean) | tested, not proved | Brainfuck's, then re-encoding |
 
 Every row starts with the same piece of work: the interpreter has to record
 its events. That is a change to the shape of a small-step semantics, not a
-proof, and it is scheduled in [PLAN.md](PLAN.md) Stage 6.
+proof, and it is scheduled in [PLAN.md](PLAN.md) Stage 6. Whitespace's row
+has had it done; the rest have not.
+
+One expectation from when this section was written has since been
+corrected. `encodeTrace` for whitespace was going to have "real content",
+because whitespace's I/O is line-oriented and numeric. It does not:
+Turpentine's `readInt` and whitespace's `readnum` are the *same*
+`Input.readLine?` call, and `print(e)` emits `Value.render e`, which is
+`toString n` for an `int` and `"true"`/`"false"` for a `bool` — exactly
+what the backend emits through `outnum` and through its `jz`/`emitStr`
+pair. Barring `readByte` at end of input, which diverges for reasons
+`docs/whitespace/compiler.md` records, `encodeTrace` is the identity and
+the theorem to aim at is byte-for-byte event equality.
 
 ## 2. Route one: derived, via the URM
 

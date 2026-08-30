@@ -3171,7 +3171,7 @@ theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
   have hlabW : LabelsOk labels 0 W := labelsOk_of_nodup W hclean.labels_nodup
   -- the initial state
   set s₀ : Whitespace.State :=
-    ⟨[], [], ∅, Input.ofString "", ByteArray.empty, 0⟩ with hs₀
+    ⟨[], [], ∅, Input.ofString "", ByteArray.empty, 0, []⟩ with hs₀
   -- the prologue
   obtain ⟨heap₁, r₁, hz₁⟩ := hdsim W.toArray labels s₀ hcodeW.left zeroHeap_empty
   -- the environment the declarations leave behind
@@ -3213,7 +3213,9 @@ theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
               stack := [heap₂.getD aA 0] } (heap₂.getD aA 0) [] rfl (by simpa using hp2)
   have chain : Reaches (Whitespace.exec W.toArray labels) s₀
       { s₀ with pc := 0 + dcode.length + bcode.length + 3, heap := heap₂,
-                output := ByteArray.empty ++ (toString ((result : Nat) : Int)).toUTF8 } := by
+                output := ByteArray.empty ++ (toString ((result : Nat) : Int)).toUTF8,
+                events := Trace.recOut []
+                  ((toString ((result : Nat) : Int)).toUTF8).toList } := by
     have h := Reaches.trans r₁ (Reaches.trans r₂
       (Reaches.trans step1 (Reaches.trans step2 step3)))
     rw [hval] at h

@@ -27,6 +27,7 @@ import Langlib.Tests.Piet
 import Langlib.Tests.Ski
 import Langlib.Tests.Subleq
 import Langlib.Tests.URMFractran
+import Langlib.Tests.WhitespaceTrace
 import Langlib.Tests.URMBrainfuck
 import Langlib.Tests.URMPiet
 import Langlib.Tests.URMSubleq
@@ -77,6 +78,7 @@ def main : IO UInt32 :=
     , Langlib.Tests.Piet.suites
     , Langlib.Tests.Ski.suites
     , Langlib.Tests.Subleq.suites
+    , Langlib.Tests.WhitespaceTrace.suites
     , Langlib.Tests.URMBrainfuck.suites
     , Langlib.Tests.URMFractran.suites
     , Langlib.Tests.URMPiet.suites
