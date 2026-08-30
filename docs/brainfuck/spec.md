@@ -132,3 +132,63 @@ in `Langlib/Tests/Brainfuck.lean`.
 Planned (see `docs/PLAN.md`, Stage 4): variables mapped to fixed tape cells,
 `while` mapped to `[ ]`, arithmetic on byte cells. The compiler will document
 its supported Turpentine fragment in `docs/brainfuck/compiler.md`.
+
+## Example programs
+
+Four programs in full, shortest first. All of them live in
+`Langlib/Examples/Brainfuck/`, where they carry their comment headers; the
+texts below are the code proper.
+
+**cat** (`cat.b`) — read a byte, print it, repeat. Nine characters, and the
+whole language in miniature: `,` fills the cell, `[` tests it, `.` prints it,
+`,` refills it, `]` goes round again. Under `--eof zero` the refill at end of
+input writes `0` and the loop stops.
+
+```
+,[.,]
+```
+
+`echo -n hello | lake exe brainfuck --eof zero …` prints `hello`.
+
+**Reverse the input** (`rev.b`) — the same read loop, but each byte is left
+on its own cell instead of being consumed, so the tape ends up holding the
+input in order with a zero at the far end. The second loop walks back down
+printing as it goes, and stops when it reaches the zero cell it started from.
+
+```
+>,[>,]<[.<]
+```
+
+`echo -n stressed | lake exe brainfuck --eof zero …` prints `desserts`.
+
+**Random number** (`xkcd-random.b`) — arithmetic without input. `++++` makes
+4, the first loop multiplies it by 3 into the next cell, `+` makes that 13,
+the second loop multiplies by 4 into the cell after that, and `.` prints the
+resulting byte 52, which is ASCII `4`. Chosen by fair dice roll (xkcd 221).
+
+```
+++++[->+++<]>+[->++++<]>.
+```
+
+**Hello World** (`hello.b`) — the canonical nested-loop version. The outer
+loop runs eight times, seeding four neighbouring cells with roughly the
+right multiples of 8, 4 and 2; everything after `>>.` is small corrections
+(`---`, `+++`, `------`) that nudge each cell to the exact letter before
+printing it. Nobody writes these by hand any more, which is why we have a
+compiler.
+
+```
+++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.
+```
+
+It prints `Hello World!` and a newline.
+
+**Truth-machine** (`truth.b`) — the esolang shibboleth: on input `0` print
+`0` once and stop, on input `1` print `1` for ever. The `,` reads the ASCII
+digit, the two loops subtract 48 to turn it into 0 or 1 and build a `1`
+byte to print, `[>>.<<]` is the eternal loop taken only when the digit was
+1, and the final `-.` prints the `0` case.
+
+```
++++++++++>>,<<[->+++++<]>+++[>-<-]>>+++++[>++++++++++<-]>-<<[>>.<<]>>-.
+```

@@ -690,12 +690,12 @@ route has arrays, division and modulo, which the bespoke proof leaves out. So
 neither compiler is a superset of the other, and `agree` fires on the
 overlap.
 
-### Why both routes stay
+### 3.1 Why both routes stay
 
 The obvious wrong conclusion is that a verified derived compiler makes the
 hand-written backends redundant. It does not.
 
-* **Size and speed.** Section 4 has the numbers: roughly one order of
+* **Size and speed.** Section 4.3 has the numbers: roughly one order of
   magnitude on code size, far worse on running time, and getting worse with
   the operand values, because the URM's only arithmetic is increment and
   copy. Nobody would ship that.
@@ -726,7 +726,7 @@ nobody will hand-write a backend for.
 
 ## 4. Statistics
 
-### What compiles
+### 4.1 What compiles
 
 Every `-tc` example in `Langlib/Examples/Turpentine/` compiles with `--tc`
 except `sort-tc.turp`, which indexes with `a[j - 1]`. Recompiling them all
@@ -758,7 +758,7 @@ source computes:
 `cat-tc.turp` is the twelfth, compiles, and is deliberately trivial: it
 records that a streaming echo cannot be expressed at all in this model.
 
-### What an array access costs
+### 4.2 What an array access costs
 
 `4n + 2` instructions for an array of `n` elements, independent of the index,
 plus whatever the index expression compiles to; `len(a)` is `n + 1`, since it
@@ -777,7 +777,7 @@ Each does two accesses, so the `4n + 2` shows up as the 64-instruction gap
 between the `int[8]` and `int[16]` rows, and the index has no effect on size
 at all.
 
-### Derived against bespoke
+### 4.3 Derived against bespoke
 
 Both columns are the same Turpentine source compiled to whitespace and run on
 the same interpreter; the bespoke version has `print(answer);` appended,
@@ -809,7 +809,22 @@ At the other end of the scale, `sieve-tc.turp`, whose array is `bool[50]`,
 compiles to **890 URM instructions**, which is 612972 bytes of whitespace and
 45478 bytes of subleq.
 
-### Checking the results are real
+### 4.4 The tests
+
+Proof covers a fragment; tests cover the rest, and both routes are exercised
+end to end against the Turpentine reference interpreter.
+
+| suite | cases | what it runs |
+|---|---|---|
+| [DerivedWhitespace](../Langlib/Tests/DerivedWhitespace.lean) | 76 | the derived whitespace pipeline, every answer compared against the reference interpreter, every rejection pinned, and the same exercise repeated through `derivedSubleq` |
+| [DerivedSubleq](../Langlib/Tests/DerivedSubleq.lean) | 10 | the derived subleq compiler on its own |
+| [DerivedFractran](../Langlib/Tests/DerivedFractran.lean) | 5 | the bundled fraction list and starting integer, run directly |
+| [DerivedThue](../Langlib/Tests/DerivedThue.lean) | 5 | the rulebase and initial string, answer read from the halted state |
+| [DerivedPiet](../Langlib/Tests/DerivedPiet.lean) | 3 | the emitted codel grid |
+| [BespokeWhitespace](../Langlib/Tests/BespokeWhitespace.lean) | 53 | the hand-written backend, including agreement with the derived one |
+| [BespokeSubleq](../Langlib/Tests/BespokeSubleq.lean) | 13 | the same, for subleq |
+
+### 4.5 Checking the results are real
 
 A theorem resting on `sorry` type-checks exactly like a real one, so
 [`scripts/axioms.lean`](../scripts/axioms.lean) prints the axiom
