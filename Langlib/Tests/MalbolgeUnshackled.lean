@@ -67,6 +67,12 @@ def suite : Suite where
         expect := .outputs "42" }
     , { name := "banner example", source := ex "banner.mu",
         expect := .outputs "MALBOLGE" }
+      -- The same greeting as `hello.mu` in 172 characters rather than
+      -- 24365, because its data cells are code points above 126. The
+      -- loader stores those unchecked, and only such a cell carries a 2 at
+      -- trit 4 -- which is what the printable-only construction lacks.
+    , { name := "hello-small example", source := ex "hello-small.mu",
+        expect := .outputs "Hello, world!\n" }
       -- Micro-programs.
     , { name := "halt at address 0", source := .inline "Q'",
         expect := .outputs "" }
@@ -103,7 +109,9 @@ def suiteWidth : Suite where
     , { name := "answer example at rotation width 37", source := ex "answer.mu",
         expect := .outputs "42" }
     , { name := "banner example at rotation width 37", source := ex "banner.mu",
-        expect := .outputs "MALBOLGE" } ]
+        expect := .outputs "MALBOLGE" }
+    , { name := "hello-small example at rotation width 37",
+        source := ex "hello-small.mu", expect := .outputs "Hello, world!\n" } ]
 
 /-- Johansen's `-n`: source characters outside 33..126 are a load error
 rather than being loaded unchecked. -/
@@ -114,7 +122,12 @@ def suiteStrict : Suite where
     [ { name := "a non-instruction character is rejected",
         source := .inline "Q½", expect := .parseError "--strict rejects those" }
     , { name := "printable programs still load", source := .inline "Q'",
-        expect := .outputs "" } ]
+        expect := .outputs "" }
+      -- The price of the unchecked data channel: `hello-small.mu` runs
+      -- under the default loader and is refused by Johansen's `-n`.
+    , { name := "hello-small is refused by strict loading",
+        source := ex "hello-small.mu",
+        expect := .parseError "--strict rejects those" } ]
 
 /-- The cat echoes its input before diverging; compare the echoed prefix. -/
 def suiteEcho : Suite where

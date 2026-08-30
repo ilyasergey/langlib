@@ -268,7 +268,22 @@ Output:
 MALBOLGE
 ```
 
-Every one of those three works at any legal rotation width, which is the
+`hello-small.mu` prints the same greeting as `hello.mu` in 172 characters
+rather than 24365, by putting words the loader does not check into its data
+cells. The "Example programs" section explains what that buys and what it
+costs.
+
+```
+lake exe malbolge-unshackled Langlib/Examples/MalbolgeUnshackled/hello-small.mu
+```
+
+Output:
+
+```
+Hello, world!
+```
+
+Every one of those works at any legal rotation width, which is the
 property that matters and the one a hand-written program usually fails.
 Check it the same way `hello.mu` was checked:
 
@@ -373,13 +388,49 @@ load-`d` first walks `d` away — its own character decides where it lands,
 which is `(7 - k) mod 94 + 33` for a load-`d` at address `k` — and after
 that the crazy operations eat a run of cells nowhere near the code.
 
-Searching those chains breadth-first, the alphabet this construction
-reaches is exactly **space through `P`**, 49 of the 95 printable
-characters, and letting the chains run longer does not extend it. So
-`MALBOLGE` is constructible and `Hello, world!` is not: the first lowercase
-letter is out of reach, and so is anything from `Q` upward. That is a limit
-of this particular construction rather than of the language — `hello.mu`
-below prints a lowercase greeting, in two hundred times the space.
+Searching those chains breadth-first, the values this construction reaches
+are exactly **0 through 80** — as characters, space through `P`, 49 of the
+95 printable ones. Letting the chains run longer does not extend it by one
+value, and neither does dropping the rule that a data cell must be a legal
+instruction: with all 94 printable words available at every step the
+closure is still 0..80, and length two already reaches all of it. So
+`MALBOLGE` is constructible and `Hello, world!` is not.
+
+**Why 81.** Look at the crazy table's first two rows: `crz 0 0 = crz 0 1`
+and `crz 1 0 = crz 1 1`. Both send the two columns to the same trit. A
+printable word is at most `126 = 11200₃`, so its trit 4 is 0 or 1 and never
+2 — and a printable word's repeating trit is 0. So at every step the
+accumulator's trit 4 is computed from the same row and an indistinguishable
+column as its repeating trit, and the two evolve identically. (The rows do
+part company at `crz 2 0 = 0` against `crz 2 1 = 2`, but the accumulator's
+repeating trit starts at 0 and thereafter alternates 0, 1, 0, 1 against
+`...0` operands, so row 2 is never the one in play.) Output demands a
+repeating trit of 0, since that is what makes a value a natural at all —
+so trit 4 is 0 too, and the value is below `3^4 = 81`.
+
+**The way out is one data cell.** What the construction lacks is an operand
+whose trit 4 is 2, and no printable character has one: the smallest word
+that does is 162. It does not have to be printable, because it is never
+executed — the loader checks a character against the instruction table only
+when its code is in 33..126 and stores anything else unchecked (decision 5
+above). Add a single such word to the operands and every byte below 128
+becomes reachable. `hello-small.mu` is what that buys: the same greeting as
+`hello.mu` in **172 characters instead of 24365**, printed at every
+rotation width, with no rotation in it anywhere. The price is exactly one
+thing, and it is the reason `hello.mu` is still the flagship example —
+`--strict`, Johansen's `-n`, refuses to load it:
+
+```
+lake exe malbolge-unshackled --strict Langlib/Examples/MalbolgeUnshackled/hello-small.mu
+```
+
+Output, in which the character between the quotes is U+0099 itself and so
+shows as nothing at all; it is written `<U+0099>` here because a page
+cannot render it:
+
+```
+malbolge-unshackled: character '<U+0099>' (code 153) at 1:129 is not a printable instruction, and --strict rejects those
+```
 
 **cat** and the **truth-machine** (`cat.mu`, `truth.mu`) — byte-for-byte the
 same files as `cat.mal` and `truth.mal` in the Malbolge examples.

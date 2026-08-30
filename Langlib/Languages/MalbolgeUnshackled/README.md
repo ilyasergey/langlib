@@ -59,6 +59,7 @@ instruction — so attribution lives here.
 | `star.mu` | prints `*` without reading anything; the value comes from a rotation whose low trit is zero, so it is the same at every width | LangLib original |
 | `answer.mu` | prints `42`; the counterpart of Malbolge's `answer.mal`, which does *not* run here | LangLib original |
 | `banner.mu` | prints `MALBOLGE`; built from crazy operations only, so no rotation width appears in it | LangLib original |
+| `hello-small.mu` | prints `Hello, world!` in 172 characters rather than `hello.mu`'s 24365, using data cells the loader does not check; `--strict` refuses it | LangLib original |
 
 Usage, since the files cannot carry their own. The two that read input:
 
