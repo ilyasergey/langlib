@@ -11,50 +11,162 @@
 
 ## History
 
-Conway presented FRACTRAN as a joke with a theorem inside. A program is
-nothing but a finite list of positive fractions; the whole machine state is
-one positive integer; and yet the language is universal. The paper's
-centrepiece is PRIMEGAME, fourteen fractions that enumerate the primes:
+Conway invented FRACTRAN to see how little a programming language could get
+away with. A program is a list of fractions. The state is a single positive
+integer. There are no variables, no statements, no loops, no input and no
+output — and the language is still universal.
+
+The showpiece of his paper is PRIMEGAME, fourteen fractions:
 
 ```
 17/91 78/85 19/51 23/38 29/33 77/29 95/23
 77/19 1/17 11/13 13/11 15/2 1/7 55/1
 ```
 
-Started from n = 2, the powers of 2 that occur in the trajectory are exactly
-2^2, 2^3, 2^5, 2^7, 2^11, ...: the primes appear, in increasing order, as
-exponents. Nothing about the fractions looks like a sieve; the sieve is
-smeared across the prime factorisations of the intermediate values, of which
-there are many (the trajectory needs 19 steps to produce 2^2 and 11361 steps
-to produce 2^19). The same paper exhibits PIGAME, which computes the decimal
-digits of pi, and POLYGAME, a single fixed game that is universal: every
-computable function is obtained from it by choosing a suitable "catalogue
-number" as part of the starting value.
+Start it at n = 2 and let it run. Most of the numbers that stream past mean
+nothing. But every so often the state lands on an exact power of two, and
+those powers are 2², 2³, 2⁵, 2⁷, 2¹¹, … — the primes, in order, sitting in
+the exponent. Nowhere in the fourteen fractions is there anything that looks
+like a primality test; the work happens in the prime factorisations of all
+the numbers in between, and there are many of them: 19 steps to reach 2², and
+11361 steps to reach 2¹⁹.
+
+Conway then does it twice more in the same paper. PIGAME grinds out the
+decimal digits of pi. POLYGAME is a single fixed list of fractions that can
+compute *any* computable function: you pick which function you want by
+encoding its number into the starting value.
 
 ## The machine
 
-A FRACTRAN program is a finite ordered list of positive rationals
-f1, ..., fk. The state is a positive integer n. One step:
+A program is a finite, ordered list of positive fractions f1, …, fk. The
+state is one positive integer n. A step is:
 
-* find the **first** fi in the list such that n * fi is an integer;
-* replace n by n * fi.
+* scan the list from left to right for the first fi such that n · fi is a
+  whole number;
+* if there is one, replace n by n · fi and scan again;
+* if there is none, halt.
 
-If no fraction applies, the program **halts**. That is the entire language:
-no I/O, no memory besides n, no control flow besides "first match wins".
+That is the whole language.
 
-The power comes from prime factorisation. Read n = 2^r1 * 3^r2 * 5^r3 * ...
-as a bank of registers, one per prime, holding the exponents. Multiplying by
-a fraction whose denominator is p and whose numerator is q decrements
-register p and increments register q, and it *can only fire when register p
-is nonzero*: divisibility is the zero-test. Reserving a few primes as state
-markers (present with exponent 1, at most one at a time) gives a program
-counter, and the first-match rule dispatches on it. This is exactly how a
-Minsky register machine embeds, which is Conway's universality proof; it is
-also why FRACTRAN programs read like assembly written by a number theorist.
+### Why a list of fractions is a computer
 
-The one-fraction program `3/2` is the classic first example: from
-n = 2^a * 3^b it moves one unit at a time from register 2 to register 3 and
-halts at 3^(a+b). An adder, in one fraction.
+Stop reading n as a number and start reading it as a row of counters — call
+them registers, as the textbooks do — one per prime. If n = 2³ · 3⁵, then
+register 2 holds 3 and register 3 holds 5; every other register is empty.
+Multiplying by a fraction now means moving tokens between registers: `3/2`
+says *take one token out of register 2 and put one into register 3*.
+
+The catch — and the whole trick — is that a fraction only applies when the
+result stays a whole number. `3/2` cannot fire unless n is even, that is,
+unless register 2 is nonempty. So a fraction is not merely an instruction but
+a *guarded* one: its denominator names the registers that must be nonempty
+(and takes those tokens away), its numerator names what to put back.
+
+That is enough to program with:
+
+* **Decrement-if-nonzero** is a denominator, and **increment** is a
+  numerator.
+* **Testing for zero** comes free: if the guard fails, the fraction is
+  skipped and the scan moves on to the next one.
+* **Branching** is the first-match rule — put the more specific fraction
+  earlier and it wins.
+* **Looping** takes no instruction at all: the scan restarts at the top of
+  the list after every step, so a fraction repeats for as long as its guard
+  keeps holding.
+* **A program counter** is a prime you agree to use as a marker rather than
+  as a number, held at exponent 1, at most one marker present at a time. Each
+  fraction consumes the marker of the step it belongs to and produces the
+  marker of the next.
+
+A counter machine with guarded decrement, increment and zero-test is exactly
+a Minsky register machine, which is universal — and that is Conway's proof.
+It is also why FRACTRAN programs read like assembly written by a number
+theorist: the opcodes are primes, and you have to factorise to see them.
+
+### A run, step by step
+
+The one-fraction program `3/2` is an adder. Start it at n = 12 = 2² · 3,
+which is to say register 2 holds 2 and register 3 holds 1:
+
+| n | factored | registers (2, 3) | what happens |
+|---|---|---|---|
+| 12 | 2² · 3 | (2, 1) | 12 is even, so `3/2` fires: 12 · 3/2 = 18 |
+| 18 | 2 · 3² | (1, 2) | still even, `3/2` fires again: 18 · 3/2 = 27 |
+| 27 | 3³ | (0, 3) | odd, so `3/2` is blocked; nothing else to try — **halt** |
+
+Each step moved one token from register 2 to register 3, and the machine
+stopped precisely when register 2 ran out. It halted at 3³, having computed
+2 + 1 = 3.
+
+Now three fractions, `5/6 1/2 1/3`, which compute a minimum — and where the
+order of the list starts doing real work. Only `5/6` needs *both* registers
+nonempty, and being first it gets first refusal; `1/2` and `1/3` are the
+cleanup crew that only get a turn once one register has run dry. From the
+same n = 12:
+
+| n | registers (2, 3, 5) | first fraction that fits | new n |
+|---|---|---|---|
+| 12 | (2, 1, 0) | `5/6`: 6 divides 12, both registers nonempty | 12 / 6 · 5 = 10 |
+| 10 | (1, 0, 1) | `5/6` blocked (register 3 empty), so `1/2` | 10 / 2 = 5 |
+| 5 | (0, 0, 1) | none: 5 is not divisible by 6, 2 or 3 — **halt** | |
+
+It halts at 5 = 5¹, and min(2, 1) = 1. The first line paired off one token
+from each input register into the answer; the second threw away the leftover
+2 that had no 3 to pair with. Swap the list to `1/2 5/6 1/3` and the program
+is wrong — `1/2` would happily eat register 2 on the very first step. In
+FRACTRAN, order *is* the control flow.
+
+### Loops, and why a program ever stops
+
+Neither run above contains a jump, and neither could: FRACTRAN has no way to
+say "go back". It does not need one. After every step the scan restarts at
+the top of the list, so a program is a loop before you write anything in it;
+the only thing that differs between passes is n.
+
+That is what makes `3/2` a loop. In an ordinary language it reads
+
+```
+while register 2 is nonempty:
+    take one token out of register 2
+    put one token into register 3
+```
+
+and the fraction is that whole program: the denominator is the test, the
+numerator is the body, and the register being drained is the loop counter.
+Every FRACTRAN loop is ultimately this shape — something counts down one
+token per pass, and the loop runs exactly as many passes as there were
+tokens.
+
+When the body needs more than one step, marker primes sequence them, and a
+*cycle* of markers is the backward jump. In the multiplier
+`455/33 11/13 1/11 3/7 11/2 1/3`, the inner loop is two fractions passing a
+marker back and forth: `455/33` consumes marker 11 (and one token of b, which
+is its guard) and hands out marker 13; `11/13` hands 13 straight back as 11.
+Round and round, one token of b per lap. The exit is `1/11`, the one fraction
+that consumes a marker without producing one — it is unreachable while
+`455/33` still fits, and becomes the first match the moment register 3 runs
+out. Control then falls through to `3/7` and the outer loop, driven the same
+way by register 2, starts another lap.
+
+Halting, meanwhile, is not an instruction but the absence of one: the machine
+stops exactly when *no* denominator in the list divides n. So writing a
+terminating program means arranging for the final answer to sit in registers
+whose primes appear in no denominator, with every marker spent. Read off the
+denominators and you can see the halt condition of each example at a glance:
+
+* **adder** `3/2` — one denominator, 2. It halts exactly at odd n, which is
+  to say as soon as register 2 is empty: 3^(a+b).
+* **minimum** `5/6 1/2 1/3` — denominators 6, 2, 3. It halts when n is
+  divisible by neither 2 nor 3: both inputs drained, a bare power of 5 left.
+* **multiplier** `455/33 11/13 1/11 3/7 11/2 1/3` — denominators 33, 13, 11,
+  7, 2, 3. Halting needs n free of 2, 3, 7, 11 and 13: every register but the
+  product empty and every marker gone, so the only state it can stop in is
+  5^(a·b).
+
+The converse is just as easy to read off. A fraction whose denominator is 1
+divides every n, so a list containing one can never halt — and PRIMEGAME's
+last fraction is `55/1`. It runs forever by construction, which is what you
+want from something that enumerates the primes.
 
 ## Concrete syntax in LangLib
 
