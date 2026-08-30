@@ -79,13 +79,37 @@ because both were built from the same understanding of the target.
 So each conformance program is also written **by hand** in the target
 languages, against the language as its specification documents it, and run
 on the same interpreter against the same expected output. Those live in
-`Langlib/Examples/<Langname>/suite/` and are registered separately. Where
-both exist for a target, they are two independent implementations of one
-specification, and the suite is a differential test between them rather
-than a golden file.
+`Langlib/Examples/<Langname>/suite/` and are registered in
+`Langlib/Tests/ConformanceHand.lean`. Where both exist for a target, they
+are two independent implementations of one written-down answer, so a
+disagreement is a real finding rather than a golden file drifting.
 
-Hand-written coverage is being filled in language by language; the table
-above is the specification each one is written against.
+### Coverage
+
+| Program | brainfuck |
+|---|---|
+| `hello` | [yes](../Langlib/Examples/Brainfuck/suite/hello.b) |
+| `triangle` | [yes](../Langlib/Examples/Brainfuck/suite/triangle.b) |
+| `count` | [yes](../Langlib/Examples/Brainfuck/suite/count.b) |
+| the other seventeen | — |
+
+Coverage is filled in language by language, and the gaps have reasons
+worth recording rather than hiding.
+
+**Brainfuck cells hold one byte.** `fact` reaches 5040 and `power` reaches
+16384, so both need multi-byte arithmetic that the conformance programs
+were never written to require; a hand-written brainfuck implementation of
+those two would be a program about bignums rather than about factorials.
+They are the two rows that will stay empty for this target.
+
+**Decimal output is a subroutine, not an instruction.** Brainfuck can
+print a byte; printing a *number* takes a divide-by-ten loop, a carry test,
+and leading-zero suppression. The suite's brainfuck programs share one such
+printer, written once and checked against every value from 0 to 255 before
+being used, and it is reproduced with its commentary in each program that
+needs it. That is why `hello` and `triangle`, which only ever emit a fixed
+byte, are much shorter than `count`, which prints the same ten numbers a
+Turpentine `println` would.
 
 ## Adding a program
 

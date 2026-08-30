@@ -11,6 +11,7 @@ import Langlib.Tests.CompileOok
 import Langlib.Tests.CompileSubleq
 import Langlib.Tests.CompileWhitespace
 import Langlib.Tests.Conformance
+import Langlib.Tests.ConformanceHand
 import Langlib.Tests.DerivedFractran
 import Langlib.Tests.DerivedPiet
 import Langlib.Tests.DerivedSubleq
@@ -56,6 +57,7 @@ def main : IO UInt32 :=
     , Langlib.Tests.CompileSubleq.suites
     , Langlib.Tests.CompileWhitespace.suites
     , Langlib.Tests.Conformance.suites
+    , Langlib.Tests.ConformanceHand.suites
     , Langlib.Tests.DerivedFractran.suites
     , Langlib.Tests.DerivedPiet.suites
     , Langlib.Tests.DerivedSubleq.suites
