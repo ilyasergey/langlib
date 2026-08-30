@@ -10,7 +10,8 @@
   licence modelled on the Haskell 98 Report's (copy and modify at will, just
   do not claim to *be* the definition of Befunge-93), and `bef.c` is under a
   BSD-style licence. Independent implementations are welcome, of which this
-  is one. Community reference: https://esolangs.org/wiki/Befunge (CC0).
+  is one. Community reference: https://esolangs.org/wiki/Befunge (CC0);
+  Wikipedia: https://en.wikipedia.org/wiki/Befunge.
 * **In LangLib**: `Langlib/Languages/Befunge93/`, runner `lake exe befunge93`,
   examples in `Langlib/Examples/Befunge93/`
 

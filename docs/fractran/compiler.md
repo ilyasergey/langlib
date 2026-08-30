@@ -4,7 +4,7 @@
   [`Langlib/Languages/Turpentine/Compile/Fractran.lean`](../../Langlib/Languages/Turpentine/Compile/Fractran.lean).
 * **Status**: both compilers exist. The *bespoke* one, above, is
   hand-written and unverified; the *certified* one,
-  [`derivedFractran`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L126),
+  [`derivedFractran`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L127),
   is derived from FRACTRAN's Turing-completeness proof and correct by
   construction.
 * **Tests**: [Langlib/Tests/CompileFractran.lean](../../Langlib/Tests/CompileFractran.lean)

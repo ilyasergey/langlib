@@ -1,7 +1,7 @@
 # Compiling Turpentine to Piet
 
 * **Status**: the *derived*, certified compiler
-  ([`derivedPiet`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L137))
+  ([`derivedPiet`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L139))
   is wired up and reachable as `--to piet --tc`; the bespoke one is
   planned, not started.
 * **Family**: StackIR (see `docs/PLAN.md`, Stage 4), shared with

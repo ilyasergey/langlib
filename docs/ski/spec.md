@@ -7,7 +7,8 @@
   kombinatorischen Logik*, American Journal of Mathematics 52 (1930),
   pp. 509-536, https://doi.org/10.2307/2370619. Both are the mathematics,
   not an implementation; the language below is the mathematics with a file
-  extension. Community page: https://esolangs.org/wiki/Combinatory_logic (CC0).
+  extension. Community page: https://esolangs.org/wiki/Combinatory_logic
+  (CC0); Wikipedia: https://en.wikipedia.org/wiki/SKI_combinator_calculus.
 * **Implementation**: [`Langlib/Languages/Ski/`](../../Langlib/Languages/Ski/).
 * **Examples**: [`Langlib/Examples/Ski/`](../../Langlib/Examples/Ski/).
 

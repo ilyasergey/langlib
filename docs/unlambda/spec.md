@@ -7,7 +7,8 @@
   interpreters (C, reference-counting C, Java, Scheme) and a specification
   section. Where they disagree, and they do, this page says which one
   LangLib follows and why. Community page:
-  https://esolangs.org/wiki/Unlambda (CC0).
+  https://esolangs.org/wiki/Unlambda (CC0); Wikipedia:
+  https://en.wikipedia.org/wiki/Unlambda.
 * **Implementation**: [`Langlib/Languages/Unlambda/`](../../Langlib/Languages/Unlambda/).
 * **Examples**: [`Langlib/Examples/Unlambda/`](../../Langlib/Examples/Unlambda/).
 

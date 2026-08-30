@@ -70,7 +70,7 @@ that do read.
 
 Turpentine's compilers are this type at Turpentine's own specification, one
 line in
-[`Derived.lean`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L80):
+[`Derived.lean`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L82):
 
 ```lean
 abbrev TurpentineCompiler (L : Type) [ProgLang L] :=
@@ -308,7 +308,7 @@ Whitespace's, for instance, is
 [`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L1117).
 
 **The composition** is
-[`derived`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L94), one
+[`derived`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L96), one
 function quantifying over an arbitrary `L` and an arbitrary witness:
 
 ```lean
@@ -318,14 +318,14 @@ def derived [ProgLang L] (tc : TuringComplete L) : TurpentineCompiler L
 so it is proved once and every completeness proof landing afterwards yields a
 verified Turpentine compiler by applying it. Eight exist today, each one line
 and no new proof:
-[whitespace](../Langlib/Languages/Turpentine/Compile/Derived.lean#L112),
-[subleq](../Langlib/Languages/Turpentine/Compile/Derived.lean#L116),
-[brainfuck](../Langlib/Languages/Turpentine/Compile/Derived.lean#L120),
-[FRACTRAN](../Langlib/Languages/Turpentine/Compile/Derived.lean#L125),
-[Thue](../Langlib/Languages/Turpentine/Compile/Derived.lean#L131),
-[Piet](../Langlib/Languages/Turpentine/Compile/Derived.lean#L137),
-[Ook!](../Langlib/Languages/Turpentine/Compile/Derived.lean#L143) and
-[Brainloller](../Langlib/Languages/Turpentine/Compile/Derived.lean#L148).
+[whitespace](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114),
+[subleq](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118),
+[brainfuck](../Langlib/Languages/Turpentine/Compile/Derived.lean#L122),
+[FRACTRAN](../Langlib/Languages/Turpentine/Compile/Derived.lean#L127),
+[Thue](../Langlib/Languages/Turpentine/Compile/Derived.lean#L133),
+[Piet](../Langlib/Languages/Turpentine/Compile/Derived.lean#L139),
+[Ook!](../Langlib/Languages/Turpentine/Compile/Derived.lean#L145) and
+[Brainloller](../Langlib/Languages/Turpentine/Compile/Derived.lean#L150).
 
 ### 2.1 The first hop, in detail
 
@@ -658,7 +658,7 @@ proof work, and two have been done.
 
 Both are second inhabitants of `TurpentineCompiler` beside the derived one,
 which is the whole point: with two inhabitants,
-[`agree`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L159) applies,
+[`agree`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L174) applies,
 and "the derived compiler is an oracle for the hand-written one" stops being
 a testing practice and becomes a corollary
 ([`bespokeSubleq_agrees_derived`](../Langlib/Computability/BespokeSubleq.lean#L672),
@@ -713,9 +713,9 @@ hand-written backends redundant. It does not.
 | | bespoke | derived |
 |---|---|---|
 | written by | hand, per language | composition, once |
-| verified | whitespace and subleq, on fragments | by construction, all eight |
+| verified | whitespace and subleq, on fragments | by construction, all ten |
 | fragment | the whole language | I/O-free, non-negative, no `-` |
-| output size | small | 13× to 16× larger, and much slower |
+| output size | small | 13× to 16× larger, and much slower; for the two combinator targets, larger and slower again by orders of magnitude |
 | purpose | running programs | proving, and testing the other one |
 
 So the derived compiler's uses are: **a verified compiler exists at all** for

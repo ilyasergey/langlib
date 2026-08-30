@@ -8,7 +8,8 @@
   https://web.archive.org/web/20000815230017/http://www.mines.edu/students/b/bolmstea/malbolge/
   and mirrored, with the standard corrections and analysis, on Lou
   Scheffer's page https://www.lscheffer.com/malbolge.shtml; community
-  reference today: https://esolangs.org/wiki/Malbolge
+  reference today: https://esolangs.org/wiki/Malbolge; Wikipedia:
+  https://en.wikipedia.org/wiki/Malbolge
 * **License**: public domain. The spec states "I hereby relinquish any and
   all copyright on this language, documentation, and interpreter; Malbolge
   is officially public domain", and the interpreter's header repeats it

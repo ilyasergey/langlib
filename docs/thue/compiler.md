@@ -1,7 +1,7 @@
 # Compiling Turpentine to Thue
 
 * **Status**: a *derived*, certified compiler exists
-  ([`derivedThue`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L131)); the
+  ([`derivedThue`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L133)); the
   bespoke one is still planned, and is the least like the others.
 * **Family**: would need its own IR (a "rewriting" IR; see
   `docs/PLAN.md`, Stage 4).
@@ -11,7 +11,7 @@
 
 ## What already exists
 
-[`thueComplete`](../../Langlib/Computability/Thue.lean#L4024) compiles an
+[`thueComplete`](../../Langlib/Computability/Thue.lean#L4026) compiles an
 arbitrary register machine into Thue and proves the simulation, so composing
 it with the shared Turpentine-to-URM pass gives a verified Turpentine-to-Thue
 compiler today. It has the limits every derived compiler has: no I/O, because

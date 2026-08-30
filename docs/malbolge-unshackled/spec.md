@@ -10,7 +10,9 @@
   implementation follows step for step, together with the prose description
   of the deviations from Malbolge on the community page
   https://esolangs.org/wiki/Malbolge_Unshackled (CC0), which links that
-  interpreter as the reference implementation.
+  interpreter as the reference implementation. Wikipedia has no article
+  of its own for the variant; it is covered in a section of the Malbolge
+  article, https://en.wikipedia.org/wiki/Malbolge#Variants.
 * **Implementation**: [`Langlib/Languages/MalbolgeUnshackled/`](../../Langlib/Languages/MalbolgeUnshackled/).
 * **Examples**: [`Langlib/Examples/MalbolgeUnshackled/`](../../Langlib/Examples/MalbolgeUnshackled/).
 * **See also**: [Malbolge](../malbolge/spec.md), the bounded original, and

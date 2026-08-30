@@ -5,7 +5,8 @@
 * **Canonical sources**: the original tutorial and the `wspace` interpreter
   (Haskell, GPL), written at the University of Durham; preserved at
   https://github.com/wspace/whitespace-haskell. Community reference point:
-  https://esolangs.org/wiki/Whitespace
+  https://esolangs.org/wiki/Whitespace; Wikipedia:
+  https://en.wikipedia.org/wiki/Whitespace_(programming_language)
 * **In LangLib**: `Langlib/Languages/Whitespace/`, runner `lake exe whitespace`,
   examples in `Langlib/Examples/Whitespace/`
 

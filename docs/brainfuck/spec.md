@@ -6,7 +6,8 @@
   Aminet in June 1993 as `brainfuck-2.lha` and still there
   (http://aminet.net/package/dev/lang/brainfuck-2), including the 240-byte
   Amiga compiler; the community reference point today is
-  https://esolangs.org/wiki/Brainfuck (CC0)
+  https://esolangs.org/wiki/Brainfuck (CC0); Wikipedia:
+  https://en.wikipedia.org/wiki/Brainfuck
 * **In LangLib**: `Langlib/Languages/Brainfuck/`, runner `lake exe brainfuck`,
   examples in `Langlib/Examples/Brainfuck/`
 

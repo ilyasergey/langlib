@@ -6,7 +6,10 @@
   https://www.dangermouse.net/esoteric/piet.html; the community page is
   https://esolangs.org/wiki/Piet (CC0). The de-facto reference
   implementation is Erik Schoenfelder's npiet
-  (https://www.bertnase.de/npiet/).
+  (https://www.bertnase.de/npiet/). Wikipedia has no article of its own
+  for Piet; it is covered in a section of the esoteric-languages
+  article,
+  https://en.wikipedia.org/wiki/Esoteric_programming_language#Piet
 * **In LangLib**: `Langlib/Languages/Piet/`, runner `lake exe piet`,
   examples in `Langlib/Examples/Piet/`
 
