@@ -283,3 +283,73 @@ loops and conditionals are possible, but within 59049 words and with every
 executed instruction encrypting itself, a general code generator remains
 future work for somebody with more sins to atone for than we have. See
 `docs/PLAN.md`, Stage 4.
+
+## Example programs
+
+Malbolge has no comments — every byte of the file is loaded into memory, and
+memory beyond the file is generated from the last two words — so a program
+text is exactly the characters below, and nothing about it can be annotated,
+shortened or tidied. Note also that a character's meaning depends on *where
+it lands*: the same letter is a different instruction at a different address.
+
+**Halt** (two characters) — the smallest program that runs and stops.
+
+```
+QC
+```
+
+`Q` is code 81, and at address 0 the dispatch is `(81 + 0) mod 94 = 81`,
+which is `v`, halt. The `C` at address 1 is never executed; it is there
+because the memory fill needs two words to work from, and a one-character
+file is rejected. Change the `Q` to a `v` and the file will not load at all:
+
+```
+malbolge: invalid character 'v' at 1:1: (code 118 + address 0) mod 94 = 24 is not a Malbolge instruction
+```
+
+**Hello, world** (`hello.mal`) — Andrew Cooke's, found by a search program in
+2000 because nobody could write one by hand.
+
+```
+(=<`$9]7<5YXz7wT.3,+O/o'K%$H"'~D|#z@b=`{^Lx8%$Xmrkpohm-kNi;gsedcba`_^]\[ZYXWVUTSRQPONMLKJIHGFEDCBA@?>=<;:9876543s+O<oLm
+```
+
+It prints `HEllO WORld`. The capitalisation is not a typo and not a choice:
+it is what the search found, and demanding `Hello, world!` instead would
+have meant running the search again. The long descending run of ASCII in the
+middle is the tell-tale shape of every found Malbolge program — a stretch of
+characters whose *encrypted successors* happen to be the instructions the
+author needed next.
+
+**cat** (`cat.mal`) — echo the input; the first Malbolge program in the
+library with a loop.
+
+```
+(=BA#9"=<;:3y7x54-21q/p-,+*)"!h%B0/.
+~P<
+<:(8&
+66#"!~}|{zyxwvu
+gJ%
+```
+
+The line breaks are whitespace and are skipped at load time, so the program
+is one 60-character word; they are in the file only because that is how it
+was published. Once input runs out it prints byte 168 for ever, so
+`--fuel` is how you stop it. Reusable control flow is possible at all only
+because of the encryption's one weakness: the jump instruction `i` sets `c`
+to its target *before* the encryption step, so the jump itself is never
+rewritten.
+
+**Truth-machine** (`truth.mal`) — a conditional, which in Malbolge means a
+program four lines long.
+
+```
+(aONMLKJIHGFEDCBA@?>=<;:98765FD21dd!-,O*)y'&v5#"!DC|Qzf,*vutsrqpF!Clk|ih
+gfed9(T&6KoOHZYXWVUTSRQPONM]KJIHGFEDCBA@?>=<;:9876"'~g|edybav_zyxwvotsrq
+pSnPlOjibKfedcba`_XA??ZYRW:UTSLQ3ONMLK.IHGFE>CBA@?"=<;:38765432s0/.n,+*)
+j!&%f{"!~}|_zyxZvYnsrqpRnmlkjML:f_^GF!
+```
+
+On input `0` it prints `0` and halts; on input `1` it prints `1` until you
+take the fuel away. Compare its size with `truth.b` (70 characters of
+brainfuck) or `truth.t` (six lines of Thue) for a sense of the exchange rate.

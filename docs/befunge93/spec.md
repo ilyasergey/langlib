@@ -259,3 +259,83 @@ which Befunge-93 they mean.
 * `bef.c` v2.25, the reference interpreter:
   https://github.com/catseye/Befunge-93/blob/master/src/bef.c
 * esolangs wiki (CC0): https://esolangs.org/wiki/Befunge
+
+## Example programs
+
+Befunge programs are pictures, so read them as pictures: the PC is a cursor
+walking the page, and the arrows are the control flow.
+
+**Hello, World!** (`hello.b93`) — one line, three phases.
+
+```
+025*"!dlroW ,olleH">:#,_@
+```
+
+`025*` pushes 0 and then 10 (the newline). The stringmode section pushes the
+greeting *backwards*, so `H` ends up on top of the stack and the letters
+come off in the right order. `>:#,_@` is the standard print-until-zero
+loop: `:` duplicates the top, `#` bridges over the `,`, and `_` sends the
+PC back leftwards — over the `,`, which now prints — for as long as the
+value is nonzero. The 0 pushed first is the sentinel that finally steers
+the PC right, into `@`.
+
+**cat** (`cat.b93`) — nine characters that fill the playfield by wrapping.
+
+```
+~:1+!#@_,
+```
+
+`~` reads a character, or pushes -1 at end of input. `:1+!` duplicates it
+and asks "was that -1?". `#` bridges the `@`, so the test lands on `_`: at
+end of input the PC turns left into the `@` and halts; otherwise it turns
+right onto `,`, prints the character, and runs off the end of the line —
+the playfield is padded to 80 columns and is a torus, so it reappears at
+`~` for the next byte.
+
+**A coin flip** (`random.b93`) — the only example that needs two dimensions
+to make sense at all.
+
+```
+ v
+>?1.@
+ >2.@
+```
+
+The PC enters at the top-left space, is turned down by `v`, and lands on
+`?`, which picks a direction uniformly. Right prints `1`, down prints `2`,
+and the other two outcomes bounce off `v` and `>` straight back into the
+`?` for another roll — a fair coin built from a four-sided die, with the
+rejection sampling drawn on the page. `lake exe befunge93 --seed 42` makes
+it reproducible.
+
+**Factorial** (`factorial.b93`) — two rows, two loops, and an empty stack
+used as a data value.
+
+```
+&>:1-:v v *_$.@
+ ^    _$>\:^
+```
+
+`&` reads n. The first loop (out along the top row, down the `v`, and back
+along the bottom row through `^`) pushes n, n-1, n-2, … until it pushes 0,
+building the whole list of factors on the stack. The second loop
+(`>\:^` on the bottom row into `*_` on the top) swaps, duplicates and
+multiplies its way back down. It stops when the value it tests is zero —
+which happens once the factors are used up, because popping an empty
+Befunge stack yields 0 rather than underflowing. `$` throws that sentinel
+away and `.` prints the product: `echo 6 | …` gives `720`.
+
+**A quine** (`quine.b93`) — 45 characters that print themselves.
+
+```
+01->1# +# :# 0# g# ,# :# 5# 8# *# 4# +# -# _@
+```
+
+Every `#` skips one cell, and that is the trick: travelling *rightwards*
+the PC executes `1 + : 0 g , : 5 8 * 4 + -` and skips the spaces, while
+travelling *leftwards* the bridges land on the spaces and skip every
+operator, so the return trip is free. Each rightward pass increments a
+counter (starting at -1), reads its own cell at that column with `g`,
+prints it with `,`, and compares the counter against 5·8+4 = 44, the index
+of the final `@`. When they match, `_` steers right into the `@` — after
+that last character has already been printed.

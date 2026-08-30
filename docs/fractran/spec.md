@@ -188,3 +188,74 @@ Not planned (see `docs/PLAN.md`, Stage 4): compiling to FRACTRAN means
 arithmetising a register machine, which is possible in principle and
 recorded on the roadmap, but the result would be a slow number rather than
 an instructive one.
+
+## Example programs
+
+A FRACTRAN program is a list of fractions and nothing else, so all four
+programs below fit on one line each. Read them with the registers in mind:
+n = 2^a · 3^b · 5^c … holds a in register 2, b in register 3, and so on, and
+each fraction is one guarded instruction.
+
+**The adder** (`adder.ft`) — one fraction.
+
+```
+3/2
+```
+
+`3/2` applies exactly when n is even: it takes one factor of 2 out and puts
+one factor of 3 in. It fires again for as long as that stays true, which is
+the loop; 2 is the program's only denominator, so the machine stops the first
+time n is odd, and n is odd exactly when register 2 has been emptied. From
+1944 = 2³·3⁵ it halts at 3⁸ = 6561.
+
+**Minimum** (`min.ft`) — three fractions, and the first taste of order
+mattering.
+
+```
+5/6 1/2 1/3
+```
+
+`5/6` fires whenever *both* registers are nonempty, decrementing 2 and 3
+together and incrementing register 5. Since the scan applies the first
+applicable fraction, `1/2` and `1/3` cannot get a turn until one register
+has run dry — and all they then do is drain whatever is left. Reorder the
+three and the program computes something else entirely. Nothing here has a
+denominator beyond 6, 2 and 3, so the run ends once both input registers are
+empty and only 5s remain: from 2³·3⁵ the result is 5³ = 125.
+
+**Multiplication** (`multiply.ft`) — six fractions, three of them
+bookkeeping.
+
+```
+455/33 11/13 1/11 3/7 11/2 1/3
+```
+
+Registers 2 and 3 hold the factors and 5 accumulates the product; 7, 11 and
+13 are not numbers but *state*, the FRACTRAN equivalent of a program
+counter. `11/2` starts an outer pass by consuming one unit of a; `455/33`
+= 5·7·13/(3·11) is the body of the inner loop, moving b out one unit at a
+time while
+depositing one unit each into the product (5) and into a scratch copy (7);
+`11/13` recycles the marker to go round again, so that the pair 11 → 13 → 11
+spins once per unit of b; and `1/11` clears the marker once b has run out,
+which is how the loop exits; `3/7` then restores b from the scratch copy, ready for the
+next outer pass. Every denominator in the list mentions 2, 3, 7, 11 or 13, so
+the machine can only stop once the inputs are consumed and no marker is left
+standing: from 108 = 2²·3³ it halts at 5⁶ = 15625.
+
+**PRIMEGAME** (`primegame.ft`) — Conway's own, and the reason anyone
+remembers the language.
+
+```
+17/91 78/85 19/51 23/38 29/33 77/29 95/23
+77/19 1/17 11/13 13/11 15/2 1/7 55/1
+```
+
+Fourteen fractions, no comments possible, no structure visible. Start it at
+n = 2 and let it run: the values that happen to be exact powers of two are
+2², 2³, 2⁵, 2⁷, 2¹¹, …, the primes in order, as exponents. It never halts,
+and cannot: the denominator of the last fraction is 1, which divides every n,
+so the scan always finds a match. `--fuel` is how you stop it, and
+`--out pow2` is how you read it. The line break above is only whitespace;
+Conway's own listing writes the last fraction as the bare integer `55`, which
+our parser accepts as `55/1`.

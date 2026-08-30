@@ -162,3 +162,69 @@ ski: out of fuel after 10000 steps (raise with --fuel)
 ## Compilation from Turpentine
 
 Not planned: see [compiler.md](compiler.md).
+
+## Example programs
+
+An SKI program is one term, and its output is that term's normal form.
+There is nothing else to a program — no statements, no state — so the
+examples are chosen to show what can be *encoded* rather than what can be
+written.
+
+**The identity** (`identity.ski`) — the first thing anyone checks.
+
+```
+SKKI
+```
+
+`S K K I` reduces by the S rule to `K I (K I)`, and then by the K rule to
+`I`. So `SKK` behaves as the identity everywhere, which is why `I` is a
+convenience and not a primitive.
+
+**No normal form** (`omega.ski`) — divergence, in six characters.
+
+```
+SII(SII)
+```
+
+`S I I x` reduces to `I x (I x)`, that is `x x`. Take x to be `SII` itself
+and the term reduces to exactly itself, for ever. The interpreter runs out
+of fuel and prints nothing, which is how our tests observe non-termination.
+
+**Booleans** (`booleans.ski`) — a conditional with no conditional.
+
+```
+SK S I
+```
+
+`K` is true and `SK` is false, because choosing a branch is just choosing an
+argument: `K t e` reduces to `t`, and `S K t e` reduces to `K e (t e)`,
+which is `e`. The term above is the false choice applied to the two branches
+`S` and `I`, so it normalises to `I`. Replace the leading `SK` with `K` and
+it normalises to `S` instead.
+
+**Church arithmetic** (`church.ski`) — two plus three, with the answer made
+legible.
+
+```
+S(S(KS)K)I  (S(S(KS)K))  (S(S(KS)K)(S(S(KS)K)I))  S K
+```
+
+The numeral n is the function applying f n times to x; `I` is 1 and
+`S(S(KS)K)` is the successor, so the first group is 2 and the third is 3.
+Addition is iteration: `m succ n` is m + n, which is what the juxtaposition
+of the three groups says. The trailing `S K` applies the resulting numeral
+to S and K, so the normal form is an n-fold application of S to K — count
+the `S`s in the output and you have counted the numeral.
+
+**Bracket abstraction** (`flip.ski`) — what a lambda term looks like after
+the variables are eliminated.
+
+```
+S(S(KS)(S(K(S(KS)))(S(S(KS)(S(K(S(KS)))(S(K(S(KK)))K)))(K(KI)))))(KK)KSI
+```
+
+Everything before `KSI` is the combinator for `\f.\x.\y. f y x`, produced
+mechanically from that lambda term by the standard translation. Applied to
+`K`, `S` and `I` it swaps the last two arguments, so the whole term computes
+`K I S`, and the normal form is `I`. This is the joke and the point at once:
+the translation is completely routine, and completely unreadable.

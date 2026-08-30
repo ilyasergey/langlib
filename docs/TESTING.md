@@ -13,6 +13,17 @@ Two layers of tests keep the interpreters honest:
    byte for byte. Each section skips gracefully when its reference binary
    is not installed, so the script is always safe to run.
 
+A third check is not a test of the interpreters but of the documentation:
+
+3. **Documentation images** (`./scripts/render-docs-images.sh --check`):
+   the pictures on the Piet and Brainloller spec pages are derived from the
+   example programs, and this regenerates them into a scratch directory and
+   compares. It fails, naming the file, if a committed image no longer
+   matches the example it came from. Drop `--check` to rewrite them in
+   place. Piet renders through `lake exe piet --svg`, so that check needs
+   `lake build` first; Brainloller renders through
+   `scripts/ppm-to-png.py`, which needs only the Python standard library.
+
 This file documents, per language, whether a reference exists and what to
 install to enable its differential section.
 

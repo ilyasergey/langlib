@@ -150,3 +150,65 @@ Output:
 Planned as a documented joke (see `docs/PLAN.md`, Stage 4): the supported
 Turpentine fragment is straight-line, output-only arithmetic, which is all the
 target permits.
+
+## Example programs
+
+Deadfish programs are strings over `i`, `d`, `s`, `o`, so a program text is
+also a trace: read it left to right and you know the accumulator.
+
+**The xkcd constant** (`xkcd-random.df`) — the shortest interesting program
+in the library. `ii` makes 2, `s` squares it to 4, `o` prints it.
+
+```
+iiso
+```
+
+It prints `4`.
+
+**Powers of two, until they aren't** (`powers.df`) — print, square, print,
+square. 2, 4, 16, then 16² = 256 hits the reset exactly and the accumulator
+is 0 for ever after; squaring 0 keeps it there. The language's whole
+personality in eleven characters.
+
+```
+iiososososo
+```
+
+It prints `2`, `4`, `16`, `0`, `0`, one per line.
+
+**The reset, dodged** (the wiki's mandatory test cases) — two programs that
+differ only in where they start. The first climbs to 16 and squares into the
+256 trap:
+
+```
+iissso
+```
+
+It prints `0`. The second opens with `d`, which takes 0 to -1 and resets it
+to 0 — a decrement that costs nothing — then builds 17 and squares to 289,
+which sails past the check because the check is `== 256` and not `>= 256`.
+One `d` brings it down to 288, safely above the trap.
+
+```
+diissisdo
+```
+
+It prints `288`.
+
+**Hello, world** (`hello.df`) — Deadfish cannot print letters, so it prints
+their ASCII codes and lets you do the decoding. Each `o` emits one code
+point; the long `d` runs are the walk from one letter down to the next, and
+the `s` in the third line is a shortcut down through squaring rather than
+several dozen more decrements. The line breaks in the file are commands
+too: every non-command character prints a bare newline, so the output has
+a blank line wherever the source has one.
+
+```
+iiisdsiiiiiiiioiiiiiiiiiiiiiiiiiiiiiiiiiiiiioiiiiiiiooiiio
+dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddoddddddddddddo
+dddddddddddddddddddddsddoddddddddoiiioddddddoddddddddo
+dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddo
+```
+
+The codes it prints are 72, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108,
+100, 33 — "Hello, world!".

@@ -176,3 +176,65 @@ Ook-ook
 
 Planned (see `docs/PLAN.md`, Stage 4): Turpentine compiles to brainfuck, and
 `Langlib.Ook.render` turns the result into Ook! for free.
+
+## Example programs
+
+Ook! is brainfuck with a two-word vocabulary, so a program text is a
+transcript: read it two words at a time and translate with the table above.
+Every example below is exactly the brainfuck program named beside it.
+
+**cat** (`cat.ook`) — `,[.,]`, one line.
+
+```
+Ook. Ook! Ook! Ook? Ook! Ook. Ook. Ook! Ook? Ook!
+```
+
+`Ook. Ook!` reads a byte, `Ook! Ook?` opens the loop, `Ook! Ook.` prints,
+`Ook. Ook!` reads again, `Ook? Ook!` closes it. Run it with `--eof zero`,
+for the same reason its brainfuck original needs it.
+
+**Reverse the input** — `>,[>,]<[.<]`, the read-onto-the-tape trick,
+twenty-two words:
+
+```
+Ook. Ook? Ook. Ook! Ook! Ook? Ook. Ook? Ook. Ook! Ook? Ook! Ook? Ook. Ook! Ook?
+Ook! Ook. Ook? Ook. Ook? Ook!
+```
+
+`echo -n stressed | lake exe ook --eof zero …` prints `desserts`. Line
+breaks are pure whitespace: the pairing is positional over the whole file,
+so where a line ends says nothing about where a command begins.
+
+**Random number** — `++++[->+++<]>+[->++++<]>.`, which prints `4`:
+
+```
+Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook! Ook? Ook! Ook! Ook. Ook? Ook. Ook.
+Ook. Ook. Ook. Ook. Ook? Ook. Ook? Ook! Ook. Ook? Ook. Ook. Ook! Ook? Ook! Ook!
+Ook. Ook? Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook? Ook. Ook? Ook! Ook. Ook?
+Ook! Ook.
+```
+
+Note how badly the language scales: fifty words for twenty-five characters
+of brainfuck, and no comments are permitted to explain any of it.
+
+**Hello World** (`hello.ook`) — 1060 bytes, of which the first two lines are
+
+```
+Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook.
+Ook! Ook? Ook. Ook? Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook. Ook! Ook? Ook. Ook?
+```
+
+— sixteen `+`, then `[`, `>`, eight more `+`, `[`, `>`, and on for another
+twelve lines. The full file is in `Langlib/Examples/Ook/`; `alphabet.ook` is
+the same idea at 660 bytes for twenty-six letters.
+
+**A banana** — the ninth pair, which the language page gives no machine
+behaviour and we reject rather than quietly ignore:
+
+```
+Ook? Ook?
+```
+
+```
+ook: 'Ook? Ook?' at 1:1 (token 1): giving the Memory Pointer a banana has no defined effect; see docs/ook/spec.md
+```

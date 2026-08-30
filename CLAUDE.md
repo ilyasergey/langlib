@@ -61,14 +61,32 @@ human-readable front-end language (Turpentine) and verified compilers from it.
   example programs. Only implement languages that are freely implementable.
 * Documentation should be precise and entertaining to read. These languages
   are jokes with formal content; keep both.
-* Every spec page ends with a "Trying it" section: one command per code
+* Every spec page has a "Trying it" section: one command per code
   block, each preceded by a sentence saying what to expect. Never collate
   several commands into one block.
+* Every spec page **ends** with an "Example programs" section: at least
+  three or four complete program texts in the language, each quoted in full
+  (or, where a program is too large or is an image, rendered in a stated
+  transliteration) with a paragraph saying how to read it and what it does.
+  Prefer programs that already live in `Langlib/Examples/<Langname>/`, and
+  verify every claimed output by running it.
 * Keep the command and its output in **separate** blocks, so a reader can
   copy the command without picking the output out of it. Write the command
   block with no `$` prefix, then `Output:`, then a second block with the
   output the command actually produced (verified by running it, never
   guessed). Omit the output block when the command prints nothing.
+* **Graphical languages** (Piet, Brainloller: languages whose programs are
+  images) additionally show every example as a rendered picture, and their
+  spec page ends its "Example programs" section with a "Rendering these
+  pictures" subsection giving the commands that produce them. Images live
+  in `docs/<langname>/img/` and are **derived files**: never hand-edit one,
+  and never check in a picture that no example produces. The single source
+  of truth is `scripts/render-docs-images.sh`, which regenerates every
+  image byte-for-byte; `scripts/render-docs-images.sh --check` fails if a
+  committed image is stale. Add new examples to that script, and run it in
+  the same commit as any change to a graphical example. Render through the
+  language's own runner where it has one (`lake exe piet --svg`), so a
+  picture cannot drift from what the interpreter reads.
 
 ## Dependencies
 

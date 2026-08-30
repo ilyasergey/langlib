@@ -253,3 +253,98 @@ Planned (see `docs/PLAN.md`, Stage 4): Whitespace is the most direct target,
 with Turpentine variables in the heap, expressions on the stack, `while` via
 labels and conditional jumps. The compiler will document its supported Turpentine
 fragment in `docs/whitespace/compiler.md`.
+
+## Example programs
+
+A Whitespace program text is invisible, which makes quoting one awkward.
+Below, each program is transliterated with **`S`** for `[Space]`, **`T`** for
+`[Tab]` and **`L`** for `[LF]`, one instruction per line, with the
+disassembly beside it. The transliterations are for reading only — the
+actual files contain nothing but the three whitespace bytes, and the letters
+`S`, `T` and `L` would be comments.
+
+**cat** (`cat.ws`, 31 bytes) — the whole language in seven instructions.
+
+```
+L S S S L      label S        top of the loop
+S S S S L      push 0         heap address 0
+T L T S        readchar       read one byte, store it at address 0
+S S S S L      push 0
+T T T          retrieve       push mem[0]
+T L S S        outchar        print it
+L S L S L      jmp S          round again
+```
+
+Note what the loop does *not* have: an exit. Whitespace offers no way to ask
+whether input remains, so `cat` ends by reading past the end and failing —
+`whitespace: runtime error: read char at end of input` — which is by design,
+not by accident.
+
+**Adding two numbers** (`add.ws`) — `readnum` reads a whole line.
+
+```
+S S S S L      push 0
+T L T T        readnum        read a line, parse it, store at address 0
+S S S T L      push 1
+T L T T        readnum        and the second at address 1
+S S S S L      push 0
+T T T          retrieve
+S S S T L      push 1
+T T T          retrieve
+T S S S        add
+T L S T        outnum         print the sum in decimal
+S S S T S T S L  push 10
+T L S S        outchar        and a newline
+L L L          end
+```
+
+Both read commands pop the *address* first and write to the heap, never to
+the stack, which is why every read is preceded by a push. `printf '2\n40\n'`
+gives `42`.
+
+**Truth-machine** (`truth.ws`) — the only branch in the set.
+
+```
+S S S S L      push 0
+T L T T        readnum
+S S S S L      push 0
+T T T          retrieve
+L T S T L      jz T           zero? jump to label T
+L S S S L      label S
+S S S T L      push 1
+T L S T        outnum         print 1 ...
+L S L S L      jmp S          ... for ever
+L S S T L      label T
+S S S S L      push 0
+T L S T        outnum         print a single 0
+L L L          end
+```
+
+Labels are token strings, not numbers: `S` and `T` here are two distinct
+one-token labels, and the empty label is legal too.
+
+**Counting to ten** (`count.ws`) — a loop with a counter, and the `dup`/`sub`
+idiom for a comparison the language does not provide.
+
+```
+S S S T L      push 1
+L S S S L      label S
+S L S          dup
+T L S T        outnum         print the counter
+S S S T S T S L  push 10
+T L S S        outchar        newline
+S S S T L      push 1
+T S S S        add            counter := counter + 1
+S L S          dup
+S S S T S T T L  push 11
+T S S T        sub            counter - 11
+L T S T L      jz T           equal? we are done
+L S L S L      jmp S
+L S S T L      label T
+S L L          drop           tidy the counter away
+L L L          end
+```
+
+There is no comparison instruction, so equality is subtraction plus `jz`,
+and the value has to be duplicated first because `jz` pops what it tests.
+It prints 1 to 10, one per line.

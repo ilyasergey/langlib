@@ -252,8 +252,9 @@ Output:
 Hi
 ```
 
-Any program can be rendered instead of run, which is how the pictures
-below were made.
+Any program can be rendered instead of run, which is how the pictures in
+the next section were made; `scripts/render-docs-images.sh` regenerates
+all of them at once.
 
 ```
 lake exe piet --svg /tmp/add.svg --grid --scale 16 Langlib/Examples/Piet/add.ppm
@@ -265,60 +266,193 @@ Output:
 piet: wrote 8x3 codels to /tmp/add.svg
 ```
 
-## The examples, in colour
+## Example programs
 
-Our examples are LangLib originals. The first three are drawn in the least
+A Piet program is a picture, but the picture is a file, and the file is
+readable. Our runner takes ASCII PPM (P3), so each program below is given
+three ways: as the rendered picture, as the literal file text where it is
+short enough to quote, and as a **codel map** writing every codel as its
+lightness (`l`, `n`, `d`) plus its hue initial, with `..` for white and
+`##` for black.
+
+All five are LangLib originals, and the first three are drawn in the least
 painterly Piet style there is: a straight corridor of blocks between black
 walls, ending in a white codel and a full-height bar that no (DP, CC)
 attempt can leave. Mondrian may keep his royalties.
 
-**`add.ppm`**, eight codels by three. Read left to right: the pointer
-starts in the red column, and each colour change along the middle row is
-one command, ending in the white codel and the red bar that halts it.
+### `add.ppm`: read two numbers, print their sum
 
 ![add.ppm, eight codels by three](img/add.svg)
 
-**`square.ppm`** is the same skeleton with two codels changed, which is
-the whole difference between `a + b` and `a * a`.
+Eight codels by three, which is small enough to print in full:
+
+```
+P3
+8 3
+255
+255 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 255 0 0
+255 0 0 255 0 0 192 192 255 0 192 0 0 192 192 192 255 192 255 255 255 255 0 0
+255 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 255 0 0
+```
+
+The same twenty-four codels as a map:
+
+```
+nR ## ## ## ## ## ## nR
+nR nR lB dG dC lG .. nR
+nR ## ## ## ## ## ## nR
+```
+
+The pointer starts in the red block on the left — an L of four codels, since
+the column and the corridor's first codel are one block — and walks right
+between black walls. Each colour change is one command, read off the table
+above as (hue steps, lightness steps):
+
+| Transition | Steps | Command |
+|---|---|---|
+| normal red → light blue | 4 hue, 2 lightness | `in(number)` |
+| light blue → dark green | 4 hue, 2 lightness | `in(number)` |
+| dark green → dark cyan | 1 hue, 0 lightness | `add` |
+| dark cyan → light green | 5 hue, 1 lightness | `out(number)` |
+
+The white codel at the end is not a command; it is a slide into the red bar
+on the right, which is where the program dies of eight failed exit attempts.
+`echo -n '3 4' | lake exe piet …` prints `7`.
+
+### `square.ppm`: the same skeleton, one codel later
 
 ![square.ppm, eight codels by three](img/square.svg)
 
-**`hi.ppm`** shows what pushing a literal costs when the literal *is* the
-block. `push` pushes the size of the block it leaves, so 72 and 105 are a
-72-codel bar and a 105-codel bar, and the program is 180 codels wide and
-one codel tall in the middle. This is the honest picture of a Piet
-constant.
+```
+P3
+8 3
+255
+255 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 255 0 0
+255 0 0 255 0 0 192 192 255 192 255 192 0 192 192 192 255 192 255 255 255 255 0 0
+255 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 255 0 0
+```
+
+```
+nR ## ## ## ## ## ## nR
+nR nR lB lG dC lG .. nR
+nR ## ## ## ## ## ## nR
+```
+
+`0 192 0` became `192 255 192` — dark green became light green — and the
+four commands are now `in(number)`, `duplicate`, `multiply`, `out(number)`.
+One codel is the whole difference between `a + b` and `a * a`; nothing else
+about the program moved.
+
+### `hi.ppm`: what a Piet literal costs
 
 ![hi.ppm, 180 codels by three](img/hi.svg)
 
-**`hi-stacked.ppm`** computes the same two numbers instead of pushing
-them: `8 dup * 8 +` is 72 and `10 dup * 5 +` is 105, so the widest block
-is ten codels and the program fits in twelve by thirteen. The pointer
-starts on the white codel at the top left, slides right into the first
-bar, and then walks straight down: each bar's width is its value, and each
-colour change into the bar below is one command. The three-codel bar at
-the bottom is the terminator, entered at its middle so that its outer
-codels face black upwards and all eight exits fail.
+`push` pushes the size of the block it leaves, so writing the constant 72
+means painting a bar 72 codels long, and 105 means a bar of 105. That is
+the whole program: two bars, two pushes, two `out(char)`s, and 180 codels
+of width to print two characters. There is no text to quote here — the file
+is a kilobyte of `255 0 0` — but the picture says it better than the text
+would.
+
+### `hi-stacked.ppm`: computing the constants instead
 
 ![hi-stacked.ppm, twelve codels by thirteen](img/hi-stacked.svg)
 
-**`hello.ppm`** is the customary program, and the point it makes is the
-one `hi.ppm` sets up. Printing thirteen characters the naive way, pushing
-each code point as a block of that many codels, would cost well over a
-thousand codels. Instead it prints `H`, keeps that 72 on the stack, and
-walks to each next character by adding or subtracting the difference:
-`+29` to `e`, `+7` to `l`, nothing at all for the second `l`, `-67` for
-the comma, and so on. `outChar` pops, so every character is duplicated
-before it is printed, and a final `pop` clears the stack.
+Twelve by thirteen, printing the same `Hi`. The codel map is the readable
+form:
+
+```
+.. nR nR nR nR nR nR nR nR ## ## ##
+## dR ## ## ## ## ## ## ## ## ## ##
+## dB ## ## ## ## ## ## ## ## ## ##
+## nM nM nM nM nM nM nM nM ## ## ##
+## dM ## ## ## ## ## ## ## ## ## ##
+## dR ## ## ## ## ## ## ## ## ## ##
+## nM nM nM nM nM nM nM nM nM nM ##
+## dM ## ## ## ## ## ## ## ## ## ##
+## dC ## ## ## ## ## ## ## ## ## ##
+## nB nB nB nB nB ## ## ## ## ## ##
+## dB ## ## ## ## ## ## ## ## ## ##
+## dM ## ## ## ## ## ## ## ## ## ##
+nB nB nB ## ## ## ## ## ## ## ## ##
+```
+
+Read it downwards. The pointer starts on the white codel at the top left,
+slides right into the first bar, and then walks straight down. The wide bars
+are the numbers — the 8-codel bars are 8s, the 10-codel bar is a 10, the
+5-codel bar is a 5 — and the single codels between them carry the
+arithmetic: `8 dup * 8 +` makes 72 (`H`) and `10 dup * 5 +` makes 105 (`i`).
+The three-codel bar at the bottom is the terminator, entered at its middle
+codel so that its outer codels face black upwards and all eight exits fail.
+
+### `hello.ppm`: thirteen characters, narrower than two
 
 ![hello.ppm, 166 codels by three](img/hello.svg)
 
+The customary program, and the point `hi.ppm` sets up. Printing thirteen
+characters the naive way, pushing each code point as a block of that many
+codels, would cost well over a thousand codels. Instead it prints `H`, keeps
+that 72 on the stack, and walks to each next character by adding or
+subtracting the difference: `+29` to `e`, `+7` to `l`, nothing at all for
+the second `l`, `-67` for the comma, and so on. `out(char)` pops, so every
+character is duplicated before it is printed, and a final `pop` clears the
+stack.
+
 The result is 166 codels wide, which makes a whole Hello, world! program
-*narrower than `hi.ppm`*, a program that prints two characters. That is
-the cost of a Piet literal stated as plainly as it can be: arithmetic on a
-value you already have is nearly free, and pushing a constant is not.
+*narrower than `hi.ppm`*, a program that prints two characters. That is the
+cost of a Piet literal stated as plainly as it can be: arithmetic on a value
+you already have is nearly free, and pushing a constant is not.
 
-The pictures are SVG, regenerated from the programs themselves with
-`lake exe piet --svg`, so they cannot drift from what the interpreter
-reads.
+### Rendering these pictures
 
+Piet is one of the two graphical languages in the library, so its pictures
+are derived files: everything under `docs/piet/img/` is generated from the
+programs in `Langlib/Examples/Piet/` and must never be edited by hand.
+Regenerate the whole set — this page's and Brainloller's — with one command:
+
+```
+scripts/render-docs-images.sh
+```
+
+To check that the committed images match the examples without touching the
+tree, which is what to run after changing an example:
+
+```
+scripts/render-docs-images.sh --check
+```
+
+Output:
+
+```
+docs images are up to date
+```
+
+The rendering goes through the interpreter itself, so a picture cannot drift
+from what the interpreter reads. Each of the four corridor programs is drawn
+at sixteen SVG pixels per codel with codel boundaries marked:
+
+```
+lake exe piet --svg docs/piet/img/add.svg --grid --scale 16 Langlib/Examples/Piet/add.ppm
+```
+
+Output:
+
+```
+piet: wrote 8x3 codels to docs/piet/img/add.svg
+```
+
+`hello.ppm` is 166 codels wide, so it gets half the scale and no grid — at
+that width the grid lines are all a reader would see:
+
+```
+lake exe piet --svg docs/piet/img/hello.svg --scale 8 Langlib/Examples/Piet/hello.ppm
+```
+
+Output:
+
+```
+piet: wrote 166x3 codels to docs/piet/img/hello.svg
+```
+
+Any Piet program can be rendered this way, not just the examples, and
+`--codel-size N` samples a program drawn at more than one pixel per codel.

@@ -203,3 +203,83 @@ For the rest of the examples see `Langlib/Examples/Thue/` and the tests in
 Not planned (see `docs/PLAN.md`, Stage 4): compiling an imperative language
 to string rewriting is possible in principle, and stays on the roadmap as
 exactly that, a principle.
+
+## Example programs
+
+Every Thue program has the same shape: rules, a lone `::=`, then the initial
+state. Reading one means asking, at each step, which left-hand side still
+occurs in the string.
+
+**Hello World** (`hello.t`) — the smallest program that does anything.
+
+```
+a::=~Hello World!
+::=
+a
+```
+
+The state is `a`; the only rule matches it, prints `Hello World!` and a
+newline (that is what a `~` right-hand side does), and replaces `a` with
+nothing. No lhs occurs in the empty string, so the program halts.
+
+**Truth-machine** (`truth.t`) — input, branching and non-termination in six
+lines.
+
+```
+i::=:::
+0::=~0
+o::=~1
+1::=o1
+::=
+i
+```
+
+The state `i` is replaced by a line of input (`:::` on the right means "read
+a line"). If that line is `0`, the second rule prints `0` and erases it, and
+nothing is left to rewrite. If it is `1`, the last rule rewrites `1` to `o1`,
+the third prints `1` and erases the `o`, leaving `1` again — a loop that
+prints `1` for ever, with the `o` doing the work of a print statement.
+
+**Parity** (`parity.t`) — a computation, then an answer.
+
+```
+11::=
+A1B::=~odd
+AB::=~even
+x::=:::
+::=
+AxB
+```
+
+`AxB` reads a line of input in place of the `x`, giving something like
+`A111B`; the fences `A` and `B` mark the ends so the answer rules cannot
+fire early. Then `11::=` deletes pairs of ones for as long as any pair
+remains, and what is left between the fences is one `1` or nothing. The two
+answer rules cannot fire until then, whichever order the rewrites happen
+in, which is what makes this a well-behaved Thue program rather than a
+strategy-dependent one. Note the shape this forces: Thue can only print strings that
+appear literally in the program, so a program *decides* and picks a canned
+answer; it never echoes.
+
+**Binary increment** (`increment.t`) — no output at all, just a string that
+becomes its own successor.
+
+```
+1_::=1++
+0_::=1
+01++::=10
+11++::=1++0
+_0::=_
+_1++::=10
+::=
+_1111111111_
+```
+
+The underscores fence the number and `++` is a carry travelling leftwards.
+The first two rules consume the right-hand fence: a final `0` just becomes
+`1` and we are done, a final `1` becomes `1` with a carry to place. `01++`
+absorbs the carry into a zero, `11++` propagates it past a one (leaving the
+zero behind), and `_1++` is the overflow case, where the carry runs off the
+top and grows the number by a digit. Starting from ten ones — 1023 — it
+halts at `10000000000`, and `--final-state` is how you read a program whose
+whole answer is its terminal string.

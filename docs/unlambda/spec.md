@@ -239,3 +239,78 @@ abc
 
 Planned, and unlike every other backend it would not be a machine
 simulation: see [compiler.md](compiler.md).
+
+## Example programs
+
+Everything below is one expression, because that is all a program can be.
+The backquotes are applications written in prefix, so read `` `FG `` as
+"apply F to G" and count backquotes when you lose your place.
+
+**Hello, world!** (`hello.unl`) — a chain, not a string.
+
+~~~
+``````````````.H.e.l.l.o.,. .w.o.r.l.d.!ri
+~~~
+
+`.H` is a function: applied to anything, it prints `H` and returns its
+argument. So `` `.H.e `` prints `H` and returns `.e`, which is then applied
+to `.l`, and so on down the line. `r` prints the newline and returns `i`,
+which is applied to nothing further and ends the program. The fourteen
+leading backquotes are the fourteen applications, all nested to the left.
+
+**Promises** (`delay.unl`) — the program prints `now`, then `later`, even
+though `later` is written first.
+
+```
+``d``````.l.a.t.e.rri````.n.o.wri
+```
+
+`d` is the language's one special form: in `` `dX ``, X is *not* evaluated,
+and the result is a promise. So the `later` chain sits untouched while the
+`now` chain — the operand of the outer application — is evaluated and
+prints. Applying the promise to that result is what finally forces `later`.
+Replace the `d` with an `i` and the output swaps round, because then the
+argument is evaluated in the ordinary way.
+
+**Counting without numbers** (`stars.unl`) — five rows of stars, one longer
+each time.
+
+~~~
+````s`k`s``s`kr``si`ki``s``s`ksk`k``s``s`ksk`k.*```s`k`s``s`kr``si`ki``s``s`ksk`k``s``s`ksk`k.*```s`k`s``s`kr``si`ki``s``s`ksk`k``s``s`ksk`k.*```s`k`s``s`kr``si`ki``s``s`ksk`k``s``s`ksk`k.*```s`k`s``s`kr``si`ki``s``s`ksk`k``s``s`ksk`k.*`ki.*
+~~~
+
+Unlambda has no numbers, so the loop counter is the program's own shape:
+five identical copies of a step function, applied to one another, with `ki`
+at the end to throw away the argument and stop. The state passed along is a
+function that prints this row; each step prints it, adds a newline with `r`,
+and wraps it in one more `.*` before handing it on. The step was written as
+a lambda term and put through abstraction elimination, which is why it looks
+like that.
+
+**cat** (`cat.unl`) — input, a conditional, and recursion, none of which the
+language has.
+
+~~~
+````s`k`s`k@``s``s`ks``s`k`s`ks``s`k`s`k`si``s`k`s`k`s`kd``s`k`s`k`s``s`k|`k``si`ki``s``s`ks``s`k`s`ks``s``s`ks``s`k`s`ks``s`k`s`kkk``s`k`s`kkk`k`k`ki`k`k`ki``s`k`s`k@``s``s`ks``s`k`s`ks``s`k`s`k`si``s`k`s`k`s`kd``s`k`s`k`s``s`k|`k``si`ki``s``s`ks``s`k`s`ks``s``s`ks``s`k`s`ks``s`k`s`kkk``s`k`s`kkk`k`k`ki`k`k`kii
+~~~
+
+`@` reads a byte and applies its argument to `i` if it got one and to `v` if
+input has run out; `|` hands the byte back as a printing function. The
+conditional is the fact that `v` swallows whatever it is applied to: put the
+"then" branch behind a `d` promise, and applying `i` to it forces the loop
+round again while applying `v` to it does nothing at all. There is no `else`
+branch because there is no way to write one. Recursion is the same trick as
+`SII(SII)` in the SKI calculus — the function is written twice and applied
+to itself, which is why the text is two near-identical halves.
+
+**Escaping** (`until.unl`, abridged) — echo input until the first `q`.
+
+```
+`c``s``s``s`k`s`k`s`k@`` … ``s`k`s`kkk`k`k`k`ki`ki
+```
+
+The `v`-swallows-everything conditional can select a branch but can never
+*stop*, so this program wraps the whole loop in `` `c `` — call/cc — and the
+`q` case applies the captured continuation, abandoning the rest of the
+computation and ending the run. `echo -n abcqdef | …` prints `abc`. The
+full 1372-byte text is in `Langlib/Examples/Unlambda/`.

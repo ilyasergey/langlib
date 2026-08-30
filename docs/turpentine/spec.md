@@ -396,3 +396,148 @@ Output:
 ```
 21
 ```
+
+## Example programs
+
+Turpentine is the one language in the library you can read without a
+decoder ring, so these are quoted whole, comments and all. They live in
+`Langlib/Examples/Turpentine/`.
+
+**Hello, Turpentine** (`hello.turp`) — two lines, because the point of a
+front-end language is that the greeting is boring.
+
+```
+// The obligatory greeting.
+println("Hello, Turpentine!");
+```
+
+**Euclid's algorithm** (`gcd.turp`) — input, a loop, and the precondition
+written as an `assert`, which is the whole specification vocabulary the
+language has.
+
+```
+// Euclid's algorithm: reads a and b (one per line), prints gcd(a, b).
+var a : int;
+var b : int;
+var t : int;
+a := readInt();
+b := readInt();
+assert a >= 0 && b >= 0;
+while b != 0 {
+  t := a % b;
+  a := b;
+  b := t;
+}
+println(a);
+```
+
+`printf '252\n105\n' | lake exe turpentine run …` prints `21`. Note the flat
+scope: every variable is declared before the first statement, including the
+temporary `t`.
+
+**Collatz** (`collatz.turp`) — a loop nobody can prove terminates, which is
+exactly why the interpreter is fuel-bounded.
+
+```
+// Collatz: reads n >= 1, prints the number of steps to reach 1.
+var n : int;
+var steps : int := 0;
+n := readInt();
+assert n >= 1;
+while n != 1 {
+  if n % 2 == 0 {
+    n := n / 2;
+  } else {
+    n := 3 * n + 1;
+  }
+  steps := steps + 1;
+}
+println(steps);
+```
+
+`echo 27 | …` prints `111`.
+
+**Sieve of Eratosthenes** (`sieve.turp`) — the program arrays exist for.
+
+```
+// Sieve of Eratosthenes over a bool array: prints every prime below 50.
+var composite : bool[50];
+var p : int := 2;
+var m : int;
+while p * p < len(composite) {
+  if !composite[p] {
+    m := p * p;
+    while m < len(composite) {
+      composite[m] := true;
+      m := m + p;
+    }
+  }
+  p := p + 1;
+}
+p := 2;
+while p < len(composite) {
+  if !composite[p] {
+    println(p);
+  }
+  p := p + 1;
+}
+```
+
+The array length is a literal and `len(a)` is a compile-time constant, which
+is what lets a target with no dynamic allocation — subleq, say — turn
+`composite[m] := true` into a patched address rather than a pointer.
+It prints the fifteen primes below 50.
+
+**Insertion sort** (`sort.turp`) — nested loops and array element
+assignment, the largest shape the language is meant to carry.
+
+```
+var a : int[6];
+var i : int := 0;
+var j : int;
+var key : int;
+while i < len(a) {
+  a[i] := readInt();
+  i := i + 1;
+}
+i := 1;
+while i < len(a) {
+  key := a[i];
+  j := i - 1;
+  while j >= 0 && a[j] > key {
+    a[j + 1] := a[j];
+    j := j - 1;
+  }
+  a[j + 1] := key;
+  i := i + 1;
+}
+i := 0;
+while i < len(a) {
+  println(a[i]);
+  i := i + 1;
+}
+```
+
+`printf '5\n2\n9\n1\n5\n6\n' | …` prints `1 2 5 5 6 9`, one per line. The
+`&&` in the inner loop short-circuits, which is what keeps `a[j]` from being
+read at `j = -1`.
+
+**Written for the certified compiler** (`sumsq.turp`) — the same language,
+restricted to the fragment the completeness-witness compiler accepts.
+
+```
+// Sum of the squares below 5: 0 + 1 + 4 + 9 + 16 = 30.
+var answer : int;
+var i : int;
+while i < 5 {
+  answer := answer + i * i;
+  i := i + 1;
+}
+```
+
+No input, no output, no subtraction, division or modulo, no arrays, and the
+result left in a variable called `answer` — because the target is a register
+machine, which has no output, and the correctness theorem talks about
+register 0. Every example in the directory with a `-tc` suffix is another
+program cut to that shape. Run it with
+`lake exe turpentine exec --via whitespace --tc …`.

@@ -216,3 +216,71 @@ malbolge-unshackled: runtime error: the word 13 at c has no encryption; Johansen
 Planned, and the reason this variant is implemented at all: unbounded
 memory means a total compiler can exist, where for Malbolge it provably
 cannot. See [compiler.md](compiler.md).
+
+## Example programs
+
+Unshackled inherits Malbolge's syntax exactly — no comments, every byte
+loaded into memory, a character's meaning depending on the address it lands
+at — so these texts are as literal as texts get. What is new is that a
+program must work at *every* rotation width, which is why the interesting
+examples are so much larger than their Malbolge counterparts.
+
+**Halt** (two characters) — the same minimal program as in Malbolge.
+
+```
+QC
+```
+
+`Q` is code 81 and lands at address 0, so the dispatch is
+`(81 + 0) mod 94 = 81`, which is halt. It runs and stops in one step, at
+any rotation width, which makes it the only program here anyone would call
+portable.
+
+**The rotation crash** (`rotcrash.mu`) — three characters, and the failure
+you should expect from anything written by hand.
+
+```
+'bO
+```
+
+The rotate instruction produces a word that is no longer a printable
+natural, and the encryption step immediately afterwards has nothing to look
+up. Johansen's interpreter crashes here and so do we:
+
+```
+malbolge-unshackled: runtime error: the word 13 at c has no encryption; Johansen's interpreter crashes here (Malbolge would leave it unchanged)
+```
+
+Malbolge, whose words are bounded, simply leaves such a word alone. This is
+the sharpest single difference between the two languages.
+
+**cat** and the **truth-machine** (`cat.mu`, `truth.mu`) — byte-for-byte the
+same files as `cat.mal` and `truth.mal` in the Malbolge examples.
+
+```
+(=BA#9"=<;:3y7x54-21q/p-,+*)"!h%B0/.
+~P<
+<:(8&
+66#"!~}|{zyxwvu
+gJ%
+```
+
+They happen to survive the move: nothing they do depends on the width being
+exactly ten. That is the exception rather than the rule — a Malbolge program
+written against the fixed width generally stops working the moment the width
+is free to change, and `rotcrash.mu` above is what that looks like.
+
+**Hello, world** (`hello.mu`) — 24365 characters, of which the first two
+lines' worth are
+
+```
+bCBA@?>=<;:9876543210/.-,I*)(E~%$#"RQ}|{zyxwvutsrD0|nQl,+*)(f%dF"a3_^]\[ZYX
+WVUTSRQJmNMLKJIHGFEDCBA@?>=<;:9876543210/.-,+*)('&%$#dc~}|_^yrwZutsrqpinPlO
+```
+
+Compare that with Cooke's 120-character Malbolge hello world. The two
+hundredfold difference is the price of width-independence: nothing in the
+program may assume ten trits, so its constants have to be built to fit
+whatever width it finds itself running at. Checking that it really is
+width-independent is what `--rot-width 37` is for — the greeting comes out
+the same.

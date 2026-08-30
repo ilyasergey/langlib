@@ -184,3 +184,104 @@ Planned (see `docs/PLAN.md`, Stage 4): variables mapped to fixed memory
 cells, arithmetic by subtraction chains, `while` by subtract-and-branch.
 The compiler will document its supported Turpentine fragment in
 `docs/subleq/compiler.md`.
+
+## Example programs
+
+Every subleq instruction is three words, `A B C`: subtract `mem[A]` from
+`mem[B]`, and jump to `C` if the result is at most zero. Everything below is
+built from that one instruction. The texts are the example files with their
+comment headers trimmed.
+
+**Addition** (`add.sq`) — the machine can only subtract, so adding takes two
+subtractions and a scratch cell.
+
+```
+x     t       ?+1     # t := t - x   (t starts at 0, becomes negative)
+y     t       ?+1     # t := t - y   (t = -(x + y))
+t     z       ?+1     # z := z - t = x + y
+z     -1      ?+1     # output z
+Z     Z       -1      # halt
+
+x: 72
+y: 33
+t: 0
+z: 0
+Z: 0
+```
+
+`t` accumulates the negation of the sum, and subtracting `t` from a zero
+cell negates it back. `?+1` is "the next instruction", the idiom for a
+branch you do not want to take; `z -1 ?+1` is an output instruction, because
+`B == -1` means write; and `Z Z -1` subtracts zero from zero, which is at
+most zero, and jumps to a negative address, which halts. It prints `i`,
+ASCII 105 = 72 + 33.
+
+**A loop** (`countdown.sq`) — printing the digits 9 down to 0.
+
+```
+loop: d       -1      ?+1     # output the current digit
+      one     d       ?+1     # d := d - 1 (next digit down)
+      one     n       done    # n := n - 1; after the tenth digit, exit
+      Z       Z       loop    # unconditional jump back
+
+done: nl      -1      ?+1     # output the newline
+      Z       Z       -1      # halt
+
+one: 1
+Z:   0
+nl:  10
+d:   57                       # ASCII '9'
+n:   10
+```
+
+A loop is exactly one conditional subtraction plus one `Z Z target`, the
+unconditional jump. The counter `n` and the payload `d` are decremented by
+separate instructions because a subleq instruction can only touch one cell.
+It prints `9876543210` and a newline.
+
+**cat** (`cat.sq`) — input, and an end-of-input test built out of arithmetic.
+
+```
+loop: -1      c       ?+1     # c := next input byte, or -1 at end of input
+      minus1  c       done    # c := c + 1; zero here means EOF: jump out
+      one     c       ?+1     # c := c - 1, restoring the byte
+      c       -1      ?+1     # output the byte in cell c
+      Z       Z       loop    # unconditional jump back
+
+done: Z       Z       -1      # halt
+
+minus1: -1
+one:    1
+Z:      0
+c:      0
+```
+
+`A == -1` means read. Since end of input stores -1 and a real byte is 0..255,
+subtracting the cell holding -1 (that is, adding 1) turns a byte into 1..256
+and EOF into 0 — and "at most zero" is exactly the branch condition, so the
+EOF test costs one instruction. The third instruction undoes the +1 before
+printing.
+
+**Self-modifying code** (`hello.sq`) — subleq has no indirect addressing, so
+walking a string means rewriting an instruction's own operand.
+
+```
+loop:
+p:    msg     -1      ?+1     # output the byte at the address held in p
+      minus1  p       ?+1     # p := p + 1 (result is positive: no branch)
+      one     n       done    # n := n - 1; when n reaches 0, jump to done
+      Z       Z       loop    # 0 - 0 <= 0: unconditional jump back
+
+done: Z       Z       -1      # jump to a negative address: halt
+
+minus1: -1
+one:    1
+Z:      0
+n:      14                    # length of the message
+msg:    72 101 108 108 111 44 32 87 111 114 108 100 33 10
+```
+
+The label `p` names the *first word of the first instruction* — its `A`
+operand — so the second instruction incrementing `p` is the program editing
+itself between passes. Code and data are the same array, and this is what
+that buys you. It prints `Hello, World!`.
