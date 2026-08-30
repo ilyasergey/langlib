@@ -3635,6 +3635,11 @@ def inc (x : TapePair) : TapePair := ⟨x.p + 1, x.q⟩
 /-- `dec` extends the second. -/
 def dec (x : TapePair) : TapePair := ⟨x.p, x.q + 1⟩
 
+@[simp] theorem inc_p (x : TapePair) : x.inc.p = x.p + 1 := rfl
+@[simp] theorem inc_q (x : TapePair) : x.inc.q = x.q := rfl
+@[simp] theorem dec_p (x : TapePair) : x.dec.p = x.p := rfl
+@[simp] theorem dec_q (x : TapePair) : x.dec.q = x.q + 1 := rfl
+
 theorem inc_wf {x : TapePair} (h : x.Wf) : x.inc.Wf := by
   show x.q ≤ x.p + 1
   unfold Wf at h
@@ -3790,6 +3795,144 @@ theorem refines_zero_iff {f : RegFile} {out : Nat} {s : Counter.CState}
   exact TapePair.value_eq_zero_iff (hwf r)
 
 end RegFile
+
+/-! ## Where the tapes live
+
+The layout. Data begins at `DB`; index `i` of every tape occupies one slot
+of `SI` addresses starting at `DB + i * SI`; inside a slot, register `r`
+keeps its `p` cell at offset `2r` and its `q` cell at offset `2r + 1`. With
+`2R ≤ SI` the slots hold all `R` registers and the addresses are distinct.
+
+Interleaving the two tapes of a register, and all the registers, into one
+slot is what makes a walk work: `d` advances a fixed amount per gadget, so
+choosing `SI` to be the gadget's length makes one iteration of the walk
+step from slot `i` to slot `i + 1` with no address arithmetic at all. Every
+cell a gadget needs at index `i` is inside slot `i`, reachable as `d`
+sweeps across it.
+
+`RegMem` is the invariant: every cell of every tape holds a mark exactly
+while its index is below that tape's length. -/
+
+/-- The address of cell `i` of one tape of register `r`. `q` selects the
+second tape. -/
+def regAddr (DB SI r : Nat) (q : Bool) (i : Nat) : Nat :=
+  DB + (i * SI + (2 * r + (if q then 1 else 0)))
+
+/-- Two slot decompositions with remainders below the stride agree. -/
+theorem slot_inj {SI : Nat} (hSI : 0 < SI) {i x i' x' : Nat}
+    (hx : x < SI) (hx' : x' < SI) (h : i * SI + x = i' * SI + x') :
+    i = i' ∧ x = x' := by
+  rcases Nat.lt_trichotomy i i' with hlt | heq | hgt
+  · exfalso
+    have hle : (i + 1) * SI ≤ i' * SI := Nat.mul_le_mul_right SI hlt
+    rw [Nat.succ_mul] at hle
+    omega
+  · exact ⟨heq, by rw [heq] at h; omega⟩
+  · exfalso
+    have hle : (i' + 1) * SI ≤ i * SI := Nat.mul_le_mul_right SI hgt
+    rw [Nat.succ_mul] at hle
+    omega
+
+theorem regAddr_inj {DB SI R : Nat} (hSI : 2 * R ≤ SI)
+    {r r' : Nat} (hr : r < R) (hr' : r' < R) {q q' : Bool} {i i' : Nat}
+    (h : regAddr DB SI r q i = regAddr DB SI r' q' i') :
+    r = r' ∧ q = q' ∧ i = i' := by
+  have hSI0 : 0 < SI := by omega
+  have hb : (if q then 1 else 0) < 2 := by cases q <;> decide
+  have hb' : (if q' then 1 else 0) < 2 := by cases q' <;> decide
+  have h' : i * SI + (2 * r + (if q then 1 else 0))
+      = i' * SI + (2 * r' + (if q' then 1 else 0)) := Nat.add_left_cancel h
+  obtain ⟨hi, hx⟩ := slot_inj hSI0 (by omega) (by omega) h'
+  refine ⟨by omega, ?_, hi⟩
+  cases q <;> cases q' <;> revert hx <;> simp <;> omega
+
+/-- **The layout invariant.** Cell `i` of a tape holds a mark exactly while
+`i` is below that tape's length. -/
+def RegMem (DB SI R : Nat) (f : RegFile) (m : Memory) : Prop :=
+  ∀ r, r < R → ∀ i,
+    (m.get (Value.ofNat (regAddr DB SI r false i))
+      = if i < (f r).p then cellMark else cellBlank)
+    ∧ (m.get (Value.ofNat (regAddr DB SI r true i))
+      = if i < (f r).q then cellMark else cellBlank)
+
+/-- The cell a walk halts on is the first blank of its tape, and `inc`
+writes exactly there. -/
+theorem regMem_first_blank {DB SI R : Nat} {f : RegFile} {m : Memory}
+    (h : RegMem DB SI R f m) {r : Nat} (hr : r < R) :
+    m.get (Value.ofNat (regAddr DB SI r false (f r).p)) = cellBlank := by
+  rw [(h r hr (f r).p).1, if_neg (by omega)]
+
+theorem regMem_first_blank_q {DB SI R : Nat} {f : RegFile} {m : Memory}
+    (h : RegMem DB SI R f m) {r : Nat} (hr : r < R) :
+    m.get (Value.ofNat (regAddr DB SI r true (f r).q)) = cellBlank := by
+  rw [(h r hr (f r).q).2, if_neg (by omega)]
+
+/-- Everything before it is a mark, which is what the walk steps over. -/
+theorem regMem_mark_below {DB SI R : Nat} {f : RegFile} {m : Memory}
+    (h : RegMem DB SI R f m) {r : Nat} (hr : r < R) {i : Nat} (hi : i < (f r).p) :
+    m.get (Value.ofNat (regAddr DB SI r false i)) = cellMark := by
+  rw [(h r hr i).1, if_pos hi]
+
+/-- **`inc` updates the layout.** Writing a mark at the first blank of `p`
+turns a memory representing `f` into one representing `f.up r`. -/
+theorem regMem_up {DB SI R : Nat} (hSI : 2 * R ≤ SI) {f : RegFile} {m : Memory}
+    (h : RegMem DB SI R f m) {r : Nat} (hr : r < R) :
+    RegMem DB SI R (f.up r)
+      (m.set (Value.ofNat (regAddr DB SI r false (f r).p)) cellMark) := by
+  intro r' hr' i
+  refine ⟨?_, ?_⟩
+  · by_cases hrr : r' = r
+    · subst hrr
+      by_cases hip : i = (f r').p
+      · subst hip
+        rw [get_set_self, RegFile.up_self, TapePair.inc_p]
+        exact (if_pos (Nat.lt_succ_self _)).symm
+      · rw [get_set_ne _ (ofNat_ne (fun hh =>
+          hip (regAddr_inj hSI hr hr' hh).2.2.symm)), (h r' hr' i).1, RegFile.up_self]
+        simp only [TapePair.inc_p]
+        by_cases hlt : i < (f r').p
+        · rw [if_pos hlt]
+          exact (if_pos (show i < (f r').p + 1 by omega)).symm
+        · rw [if_neg hlt]
+          exact (if_neg (show ¬ (i < (f r').p + 1) by omega)).symm
+    · rw [get_set_ne _ (ofNat_ne (fun hh =>
+        hrr (regAddr_inj hSI hr hr' hh).1.symm)), (h r' hr' i).1,
+        RegFile.up_of_ne f hrr]
+  · rw [get_set_ne _ (ofNat_ne (fun hh =>
+      Bool.noConfusion (regAddr_inj hSI hr hr' hh).2.1))]
+    by_cases hrr : r' = r
+    · subst hrr; rw [(h r' hr' i).2, RegFile.up_self, TapePair.inc_q]
+    · rw [(h r' hr' i).2, RegFile.up_of_ne f hrr]
+
+/-- **`dec` updates the layout**, symmetrically, on the second tape. -/
+theorem regMem_down {DB SI R : Nat} (hSI : 2 * R ≤ SI) {f : RegFile} {m : Memory}
+    (h : RegMem DB SI R f m) {r : Nat} (hr : r < R) :
+    RegMem DB SI R (f.down r)
+      (m.set (Value.ofNat (regAddr DB SI r true (f r).q)) cellMark) := by
+  intro r' hr' i
+  refine ⟨?_, ?_⟩
+  · rw [get_set_ne _ (ofNat_ne (fun hh =>
+      Bool.noConfusion (regAddr_inj hSI hr hr' hh).2.1.symm))]
+    by_cases hrr : r' = r
+    · subst hrr; rw [(h r' hr' i).1, RegFile.down_self, TapePair.dec_p]
+    · rw [(h r' hr' i).1, RegFile.down_of_ne f hrr]
+  · by_cases hrr : r' = r
+    · subst hrr
+      by_cases hiq : i = (f r').q
+      · subst hiq
+        rw [get_set_self, RegFile.down_self, TapePair.dec_q]
+        exact (if_pos (Nat.lt_succ_self _)).symm
+      · rw [get_set_ne _ (ofNat_ne (fun hh =>
+          hiq (regAddr_inj hSI hr hr' hh).2.2.symm)), (h r' hr' i).2, RegFile.down_self]
+        simp only [TapePair.dec_q]
+        by_cases hlt : i < (f r').q
+        · rw [if_pos hlt]
+          exact (if_pos (show i < (f r').q + 1 by omega)).symm
+        · rw [if_neg hlt]
+          exact (if_neg (show ¬ (i < (f r').q + 1) by omega)).symm
+    · rw [get_set_ne _ (ofNat_ne (fun hh =>
+        hrr (regAddr_inj hSI hr hr' hh).1.symm)), (h r' hr' i).2,
+        RegFile.down_of_ne f hrr]
 
 end Unshackled
 

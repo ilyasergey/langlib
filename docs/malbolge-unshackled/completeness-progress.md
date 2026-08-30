@@ -78,6 +78,7 @@ than by taste:
 | Register writes | `register_set`, `register_clear` (two visits each) |
 | Two-tape registers | `TapePair` — `inc`, `dec` and the zero test all forward |
 | Register file | `RegFile.Refines` and `refines_up/down/emit/zero_iff` |
+| Tape memory layout | `regAddr`, `RegMem`, `regMem_up`, `regMem_down` |
 
 ## Remaining
 

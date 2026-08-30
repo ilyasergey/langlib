@@ -678,6 +678,14 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.RegFile.refines_emit
 #print axioms Unshackled.RegFile.refines_zero_iff
 
+-- Where the tapes live: the interleaved slot layout and its update lemmas.
+#print axioms Unshackled.slot_inj
+#print axioms Unshackled.regAddr_inj
+#print axioms Unshackled.regMem_first_blank
+#print axioms Unshackled.regMem_mark_below
+#print axioms Unshackled.regMem_up
+#print axioms Unshackled.regMem_down
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.
