@@ -122,14 +122,38 @@ arithmetic, and `sim_*` closes the step.
 Nothing left lacks a verified precedent in the file, so what remains is
 construction rather than discovery. It is still a lot of construction.
 
-One negative result from the compiler side is worth having here, because it
-says the branch pipeline cannot be short-circuited. `crz` is tritwise and
-its table has **no constant column** (`k = 0` sends `0,1,2` to `1,0,0`;
-`k = 1` to `1,0,2`; `k = 2` to `2,2,1`), so no chain of crazy operations
-against compiled-in constants can turn an unknown value into a *uniform*
-one — which is what `branch_arith`'s flag must be. Collapsing a comparison
-therefore needs `*`, and `*` needs the rotation width: the unary-register
-route above is not one design among several, it is forced.
+A correction to a result recorded here earlier, because the conclusion it
+drew was wrong and would misdirect the gadget design. It is true that `crz`
+has **no constant column**: `k = 0` sends `0,1,2` to `1,0,0`, `k = 1` to
+`1,0,2`, `k = 2` to `2,2,1`, and none of the three is constant. But a
+*composition* of two non-constant columns can be constant, and here two of
+them are. Applying `k = 2` then `k = 0` sends every trit to `0`; applying
+`k = 0` then `k = 2` sends every trit to `2`.
+
+That is exactly `crz_absorb`, which is proved:
+
+```lean
+theorem crz_absorb (a : Value) :
+    Value.crz (Value.crz a Value.eof) Value.zero = Value.zero
+```
+
+Both constants, `Value.eof` and `Value.zero`, are fixed at compile time and
+mention the accumulator nowhere. So **two crazy operations against
+compiled-in constants do turn an unknown value into a uniform one**, and
+collapsing a comparison does not need `*` on these grounds.
+
+Rotation is still required, but for a different and independently proved
+reason: `widthBounded_step1` says a rot-free run keeps every storable value
+inside a finite alphabet, so every `j` and `i` teleports into a fixed
+finite set of addresses. That is what forces `*`, and with it the unary
+register route — the argument is about *addressing*, not about collapsing
+flags.
+
+The distinction matters for a gadget author. `crz_two_steps` reaches any
+target and needs constants computed from the accumulator, so it applies
+only where the accumulator is known, which is why the gadgets keep it known
+at every boundary. `crz_absorb` needs no such knowledge and is the tool for
+an unknown accumulator.
 
 One positive one, checked by running rather than proved. `crz (crz a k) k`
 with `k` all ones below the width of `a` is the **identity** — the
