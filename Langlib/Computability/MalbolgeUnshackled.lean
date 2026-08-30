@@ -4103,6 +4103,67 @@ theorem flags_differ_everywhere (j : Nat) :
   show Trit.t0 ≠ Trit.t2
   decide
 
+/-! ## Two printability conditions that look alike
+
+A `jmp` involves two cells, and only one of them needs a printability side
+condition. The distinction is easy to get backwards, so it is worth a
+theorem rather than a convention.
+
+**The jumping cell needs none.** `decode` returns `outOfBounds` exactly when
+its word is unprintable, so any hypothesis of the form
+`decode (mem.get c) … = .jmp` already carries printability with it. That is
+why `chain_link`, `chain_run`, `enter_chain` and `gadget_run` ask nothing
+about the word at the jumping cell beyond how it decodes.
+
+**The landing cell needs one.** The postal stage reads at `c` *after* the
+instruction has run, and a `jmp` has already moved `c` to its target, so it
+is the target's word that gets encrypted and the target's word that must be
+printable. This is `jmp_cell_stable` seen from the other side: the same
+fact that spares the jumping cell puts the burden on the target. Every
+`hprT` hypothesis in the gadget lemmas is this one, and none of them is
+removable.
+
+Reported by langlib-c9, from the Turpentine backend, where the same pair
+shows up as "`wordFor` produces printable words by construction" against
+"the cell a jump lands on must be printable". -/
+
+/-- `outOfBounds` is not an opcode: it is how the interpreter reports an
+unprintable word, never something `ofOpcode?` produces. -/
+theorem ofOpcode?_ne_outOfBounds (q : Nat) : Instr.ofOpcode? q ≠ some .outOfBounds := by
+  unfold Instr.ofOpcode?
+  split <;> simp
+
+/-- `decode` is `outOfBounds` exactly on unprintable words. -/
+theorem decode_outOfBounds_iff {w : Value} {m : Nat} :
+    decode w m = .outOfBounds ↔ printableCode? w = none := by
+  unfold decode
+  cases h : printableCode? w with
+  | none => simp
+  | some n =>
+    simp only [reduceCtorEq, iff_false]
+    cases hq : Instr.ofOpcode? ((n + m) % 94) with
+    | none => simp
+    | some i =>
+      have hne := ofOpcode?_ne_outOfBounds ((n + m) % 94)
+      rw [hq] at hne
+      simp only [Option.getD_some]
+      intro hcon
+      exact hne (by rw [hcon])
+
+/-- **A cell that decodes to anything but `outOfBounds` is printable.** So a
+jumping cell's printability never needs stating: its decode hypothesis
+implies it. -/
+theorem printable_of_decode {w : Value} {m : Nat} (h : decode w m ≠ .outOfBounds) :
+    ∃ code, printableCode? w = some code := by
+  cases hp : printableCode? w with
+  | none => exact absurd (decode_outOfBounds_iff.mpr hp) h
+  | some code => exact ⟨code, rfl⟩
+
+/-- In particular for a `jmp`. -/
+theorem printable_of_decode_jmp {w : Value} {m : Nat} (h : decode w m = .jmp) :
+    ∃ code, printableCode? w = some code :=
+  printable_of_decode (by rw [h]; simp)
+
 end Unshackled
 
 end Langlib.Computability

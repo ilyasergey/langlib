@@ -81,6 +81,7 @@ than by taste:
 | Tape memory layout | `regAddr`, `RegMem`, `regMem_up`, `regMem_down` |
 | Simulation invariant | `Sim`, `sim_inc`, `sim_dec`, `sim_emit`, `sim_frame`, `sim_loop_test` |
 | Flags must be read, not computed | `crzChain_agree`, `no_accumulator_flag` |
+| Which cell a jump must keep printable | `decode_outOfBounds_iff`, `printable_of_decode` |
 
 ## Remaining
 

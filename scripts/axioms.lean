@@ -700,6 +700,13 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.crzChain_agree
 #print axioms Unshackled.no_accumulator_flag
 
+-- The two printability conditions a jmp involves, and why only one is a
+-- side condition.
+#print axioms Unshackled.ofOpcode?_ne_outOfBounds
+#print axioms Unshackled.decode_outOfBounds_iff
+#print axioms Unshackled.printable_of_decode
+#print axioms Unshackled.printable_of_decode_jmp
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.
