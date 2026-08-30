@@ -5,6 +5,7 @@ import Langlib.Languages.Turpentine.Compile.Subleq
 import Langlib.Languages.Turpentine.Compile.Whitespace
 import Langlib.Languages.Turpentine.Compile.Ook
 import Langlib.Languages.Turpentine.Compile.Brainloller
+import Langlib.Languages.Turpentine.Compile.Fractran
 import Langlib.Languages.Brainfuck.Semantics
 import Langlib.Languages.Subleq.Semantics
 import Langlib.Languages.Whitespace.Semantics
@@ -106,6 +107,24 @@ def fractranCertified : Compiler := fun src => do
          , runNote := some s!"lake exe fractran --out final --n {cp.start} <file>"
          , run := Langlib.Fractran.run { out := .final, n? := some cp.start } text }
 
+/-- FRACTRAN's hand-written backend. Like the certified one it needs its
+own entry, because a `.ft` file holds only the fractions. Unlike it, the
+answer needs no decoding: the compiler arranges for the run to end on
+`2 ^ answer` and for no earlier value to be a power of two, so
+`--out pow2` prints the answer as a decimal number and nothing else. -/
+def fractranBespoke : Compiler := fun src => do
+  let (prog, start) ← Compile.Fractran.compileProgram src
+  let text :=
+    s!"# Compiled by turpentine, bespoke route: Turpentine to a Minsky\n\
+       # machine to fractions. FRACTRAN has no I/O; the run ends on two to\n\
+       # the power of the answer, which --out pow2 prints on its own.\n\
+       # Starting value: {start}\n\
+       # Run with: lake exe fractran --out pow2 --n {start} <this file>\n"
+      ++ Langlib.Fractran.Prog.render prog ++ "\n"
+  return { text
+         , runNote := some s!"lake exe fractran --out pow2 --n {start} <file>"
+         , run := Langlib.Fractran.run { out := .pow2, n? := some start } text }
+
 /-- A compilation target: the name accepted after `--to` and `--via`, and
 the compilers that reach it. Adding a target is one entry here.
 
@@ -177,6 +196,7 @@ def backends : List Backend :=
         (fun grid => grid.toImage.toPpm3)
         (Langlib.Piet.run {})) }
   , { name := "fractran"
+    , bespoke := some fractranBespoke
     , certified := some fractranCertified }
   , { name := "thue"
       -- `finalState` is what makes the answer visible: Thue's only output

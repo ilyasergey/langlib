@@ -125,3 +125,72 @@ Our interpreter uses `Nat`, so nothing overflows; it simply gets slow, and
 the slowness grows with the *values* rather than with the program. This is
 a demonstration of a beautiful construction, not a practical target, and
 the tests use small numbers with generous fuel.
+
+## Trying it
+
+Compile and run in one step. The answer comes out as a decimal number,
+with nothing to decode:
+
+```
+lake exe turpentine exec --via fractran --bespoke Langlib/Examples/Turpentine/sumsq.turp
+```
+
+Output:
+
+```
+30
+```
+
+The same program through the certified route, for contrast. It prints the
+final *state*, and the caller is left to notice that this is two to the
+thirtieth:
+
+```
+lake exe turpentine exec --via fractran --tc Langlib/Examples/Turpentine/sumsq.turp
+```
+
+Output:
+
+```
+1073741824
+```
+
+Emit the fractions to a file. The starting value is not part of the file,
+so the compiler prints the command that supplies it:
+
+```
+lake exe turpentine compile --to fractran --bespoke -o /tmp/sumsq.ft Langlib/Examples/Turpentine/sumsq.turp
+```
+
+Output, on stderr:
+
+```
+turpentine: wrote 2125 bytes to /tmp/sumsq.ft [bespoke, hand-written and unverified]
+turpentine: run it with: lake exe fractran --out pow2 --n 307 /tmp/sumsq.ft
+```
+
+Then run it exactly as the note says:
+
+```
+lake exe fractran --out pow2 --n 307 /tmp/sumsq.ft
+```
+
+Output:
+
+```
+30
+```
+
+A program outside the fragment is refused by name, and says what it did
+not do:
+
+```
+lake exe turpentine compile --to fractran --bespoke Langlib/Examples/Turpentine/hello.turp
+```
+
+Output:
+
+```
+turpentine compile: the fractran backend needs a variable named 'answer' to hold the result: fractran has no output, so the final value is all there is
+turpentine: nothing emitted
+```

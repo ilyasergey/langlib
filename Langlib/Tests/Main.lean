@@ -7,6 +7,7 @@ import Langlib.Tests.BespokeSubleq
 import Langlib.Tests.BespokeWhitespace
 import Langlib.Tests.CompileBrainfuck
 import Langlib.Tests.CompileBrainloller
+import Langlib.Tests.CompileFractran
 import Langlib.Tests.CompileOok
 import Langlib.Tests.CompileSubleq
 import Langlib.Tests.CompileWhitespace
@@ -29,6 +30,7 @@ import Langlib.Tests.URMBrainfuck
 import Langlib.Tests.URMPiet
 import Langlib.Tests.URMSubleq
 import Langlib.Tests.URMThue
+import Langlib.Tests.URMUnlambda
 import Langlib.Tests.DerivedThue
 import Langlib.Tests.Thue
 import Langlib.Tests.Whitespace
@@ -53,6 +55,7 @@ def main : IO UInt32 :=
     , Langlib.Tests.BespokeWhitespace.suites
     , Langlib.Tests.CompileBrainfuck.suites
     , Langlib.Tests.CompileBrainloller.suites
+    , Langlib.Tests.CompileFractran.suites
     , Langlib.Tests.CompileOok.suites
     , Langlib.Tests.CompileSubleq.suites
     , Langlib.Tests.CompileWhitespace.suites
@@ -75,6 +78,7 @@ def main : IO UInt32 :=
     , Langlib.Tests.URMFractran.suites
     , Langlib.Tests.URMPiet.suites
     , Langlib.Tests.URMThue.suites
+    , Langlib.Tests.URMUnlambda.suites
     , Langlib.Tests.URMSubleq.suites
     , Langlib.Tests.Thue.suites
     , Langlib.Tests.Whitespace.suites
