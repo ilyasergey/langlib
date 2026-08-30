@@ -669,6 +669,24 @@ possible: a loop whose body is a sequence of self-restoring gadgets is
 itself self-restoring after every iteration, and nesting composes. That was
 the obstacle standing between the verified primitives and a compiler.
 
+## The output side, which is nearly free
+
+`Counter.CState` records only *how many* bytes were emitted, because every
+byte a compiled program emits is the same. So the output half of a
+completeness witness costs almost nothing: the gadget for `emit` sets the
+accumulator to a fixed printable natural and executes one `<`, and
+
+```lean
+def decodeBytes (bs : ByteArray) : Option Nat := some bs.size
+```
+
+is the answer decoder. The byte chosen is 42, `'*'`: one UTF-8 byte, not
+`...22` (which would close the stream) and not `...21` (a newline), so
+`doOutput` takes its ordinary branch (`doOutput_star`, `step1_out`).
+`outClosed_of_step1_out` records that emitting leaves the stream open, so
+emits compose, and `decodeBytes_append_star` is the arithmetic that reads
+the count back.
+
 ## What is proved, what is cited, what is open
 
 **Proved, axiom-clean**: the `ProgLang` instance; the memory laws

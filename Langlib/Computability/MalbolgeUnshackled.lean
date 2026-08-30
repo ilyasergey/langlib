@@ -2903,6 +2903,60 @@ theorem two_sweep (L : Nat) {s₀ : State} {b d₀ E : Nat} (isC : Nat → Bool)
   · exact hout3.trans hout1
   · exact hoc3.trans hoc1
 
+/-! ## Emitting, and reading the answer back
+
+The counter machine's `emit` appends one byte, and its `CState` records
+only *how many*, because every byte a compiled program emits is the same.
+That makes the output side of a completeness witness nearly free: the
+gadget for `emit` sets the accumulator to a fixed printable natural and
+executes one `<`, and the answer decoder is the byte count.
+
+`42` is the byte chosen, which is `'*'`: a one-byte UTF-8 character, not
+`...22` (which would close the stream) and not `...21` (a newline), so
+`doOutput` takes its ordinary branch. -/
+
+theorem doOutput_star {s : State} (ha : s.a = Value.ofNat 42)
+    (hc : s.outClosed = false) :
+    doOutput s = .ok { s with output := s.output ++ "*".toUTF8 } := by
+  unfold doOutput
+  rw [ha, hc]
+  simp only [beq_iff_eq, Bool.false_eq_true, if_false]
+  rw [if_neg (by decide : ¬ (Value.ofNat 42 = Value.eof)),
+    if_neg (by decide : ¬ (Value.ofNat 42 = Value.eol)), toNat?_ofNat]
+  rfl
+
+/-- An output step at the `step1` level. -/
+theorem step1_out {s : State} {code : Nat}
+    (hdec : decode (s.mem.get s.c) s.c.modClass = .out)
+    (ha : s.a = Value.ofNat 42) (hoc : s.outClosed = false)
+    (hcode : printableCode? (s.mem.get s.c) = some code) :
+    step1 s = some { s with output := s.output ++ "*".toUTF8,
+                            mem := s.mem.set s.c (Value.ofNat (encrypt code)),
+                            c := s.c.succ, d := s.d.succ } :=
+  step1_eq hdec (by simp) (by simp) (doOutput_star ha hoc) hcode
+
+/-- One `emit` adds exactly one byte. -/
+theorem size_append_star (bs : ByteArray) : (bs ++ "*".toUTF8).size = bs.size + 1 := by
+  simp [show "*".utf8ByteSize = 1 from rfl]
+
+/-- **The answer decoder.** Every byte the compiled program emits is the
+same, so the machine's answer is the number of bytes. -/
+def decodeBytes (bs : ByteArray) : Option Nat := some bs.size
+
+theorem decodeBytes_append_star (bs : ByteArray) :
+    decodeBytes (bs ++ "*".toUTF8) = some (bs.size + 1) := by
+  rw [decodeBytes, size_append_star]
+
+/-- Emitting leaves the stream open, so emits compose. -/
+theorem outClosed_of_step1_out {s : State} {code : Nat}
+    (hdec : decode (s.mem.get s.c) s.c.modClass = .out)
+    (ha : s.a = Value.ofNat 42) (hoc : s.outClosed = false)
+    (hcode : printableCode? (s.mem.get s.c) = some code) :
+    ∃ s', step1 s = some s' ∧ s'.outClosed = false
+      ∧ s'.output.size = s.output.size + 1 ∧ s'.a = s.a := by
+  refine ⟨_, step1_out hdec ha hoc hcode, hoc, ?_, rfl⟩
+  exact size_append_star s.output
+
 end Unshackled
 
 end Langlib.Computability

@@ -2,7 +2,26 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): the two-sweep gadget, and the route to a witness
+## 2026-08-30 (latest): the output side, which is nearly free
+
+A short follow-up. `Counter.CState` records only how many bytes were
+emitted, because every byte a compiled program emits is the same. So the
+output half of the witness costs almost nothing: `emit` becomes a gadget
+that sets the accumulator to a fixed printable natural and executes one
+`<`, and the answer decoder is `decodeBytes bs = some bs.size`.
+
+The byte is 42, `'*'`: one UTF-8 byte, not `...22` (which would close the
+output stream) and not `...21` (a newline), so `doOutput` takes its
+ordinary branch. `doOutput_star` and `step1_out` prove the step,
+`outClosed_of_step1_out` records that emitting leaves the stream open so
+emits compose, and `decodeBytes_append_star` reads the count back.
+
+That settles `emit` and `decodeOutput`, two of the pieces a
+`TuringComplete` witness needs. What is left is the register
+representation and the gadgets for `inc`, `dec` and `loop`, the assembler
+that places them, and the induction on `Ev`.
+
+## 2026-08-30: the two-sweep gadget, and the route to a witness
 
 Two things this batch: the target for the compiler is now fixed, and the
 composition obstacle is cleared.

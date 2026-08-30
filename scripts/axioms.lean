@@ -617,6 +617,14 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.rowFold_false
 #print axioms Unshackled.two_sweep
 
+-- Emitting, and reading the answer back: the counter machine counts bytes,
+-- so the decoder is the byte count.
+#print axioms Unshackled.doOutput_star
+#print axioms Unshackled.step1_out
+#print axioms Unshackled.size_append_star
+#print axioms Unshackled.decodeBytes_append_star
+#print axioms Unshackled.outClosed_of_step1_out
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.
