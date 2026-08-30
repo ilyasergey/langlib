@@ -2,7 +2,37 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): the branch arithmetic, in seven crazy operations
+## 2026-08-30 (latest): the branch gadget runs on the machine
+
+`branch_arith` said seven crazy operations against computable constants
+turn any accumulator into either of two jump targets. `branch_gadget` now
+runs it: eight instructions, seven `p` cells executing the pipeline while
+`d` walks the seven constants, then a `movd` through a pointer cell that
+re-aims `d` at the written target. After exactly eight steps the cell
+under `d` holds `t₀` or `t₁` by the flag, the accumulator holds the same,
+and a frame condition says nothing else changed. The final `jmp` is
+generic (`step1_jmp`) and belongs to the caller. Everything is verified
+against `step1`, whose only bridge to the reference interpreter is
+`step1_sound`, so none of it can drift from `exec`.
+
+The lemma worth keeping is `crazy_run`: a row of `k` consecutive `p`
+cells computes a fold of the crazy operation over the operand row, proved
+by one induction, with the operand cells holding their intermediates and
+the code cells their encryptions afterwards. Straight-line arithmetic of
+any length is now one lemma application, not a proof per instruction.
+`step1_eq` and per-instruction corollaries (`step1_crazy`, `step1_movd`,
+`step1_jmp`, `step1_nop`), plus `run?_add`/`run?_one` for composing runs,
+are the step-level kit it runs on.
+
+Not yet done: re-enterability. A gadget executed once leaves its cells
+encrypted; inside a dispatcher its orbits must cycle, the problem
+`loop.mu` solves for three cells. That, plus restocking the spent
+constants, is the dispatcher design problem, and it is the next layer.
+Remaining after that, toward `TuringComplete`: the register
+representation, the dispatcher itself, an assembler for the mod-94
+layout, and the URM simulation induction.
+
+## 2026-08-30: the branch arithmetic, in seven crazy operations
 
 A branch in Malbolge Unshackled is a `jmp` whose target cell holds a
 computed address, so the whole difficulty of branching is arithmetic: turn

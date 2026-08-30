@@ -1971,6 +1971,312 @@ theorem branch_arith (t₀ t₁ : Value) (h₀ : t₀.Normalized) (h₁ : t₁.N
   · rw [branchChain, crz_absorb, crz_zero_eof]
     exact shape_uniform₂ t₀ h₁
 
+/-! ## Step lemmas for `step1`
+
+The `exec_*` lemmas above read the interpreter one dispatch at a time; the
+gadget proofs below work over `run?`, so they need the same readings at the
+`step1` level. `step1_eq` is the generic form, one lemma per instruction
+follows, and `ofNat_ne` supplies the address inequalities every frame
+argument runs on. -/
+
+theorem ofNat_inj {m n : Nat} (h : Value.ofNat m = Value.ofNat n) : m = n := by
+  have hm := toNat?_ofNat m
+  rw [h, toNat?_ofNat] at hm
+  exact (Option.some.inj hm).symm
+
+theorem ofNat_ne {m n : Nat} (h : m ≠ n) : Value.ofNat m ≠ Value.ofNat n :=
+  fun he => h (ofNat_inj he)
+
+theorem step1_eq {s s₁ : State} {instr : Instr} {code : Nat}
+    (hdec : decode (s.mem.get s.c) s.c.modClass = instr)
+    (h₁ : instr ≠ .outOfBounds) (h₂ : instr ≠ .halt)
+    (hstep : step instr s = .ok s₁)
+    (hcode : printableCode? (s₁.mem.get s₁.c) = some code) :
+    step1 s = some { s₁ with mem := s₁.mem.set s₁.c (Value.ofNat (encrypt code)),
+                             c := s₁.c.succ, d := s₁.d.succ } := by
+  unfold step1
+  rw [hdec]
+  cases instr with
+  | outOfBounds => exact absurd rfl h₁
+  | halt => exact absurd rfl h₂
+  | jmp => dsimp only; rw [hstep]; dsimp only; rw [hcode]
+  | out => dsimp only; rw [hstep]; dsimp only; rw [hcode]
+  | inp => dsimp only; rw [hstep]; dsimp only; rw [hcode]
+  | rotr => dsimp only; rw [hstep]; dsimp only; rw [hcode]
+  | movd => dsimp only; rw [hstep]; dsimp only; rw [hcode]
+  | crazy => dsimp only; rw [hstep]; dsimp only; rw [hcode]
+  | nop => dsimp only; rw [hstep]; dsimp only; rw [hcode]
+
+/-- A crazy step at the `step1` level, with both writes spelled out. The
+inequality keeps the postal encryption off the cell the operation just
+wrote, which would crash the reference interpreter. -/
+theorem step1_crazy {s : State} {code : Nat}
+    (hdec : decode (s.mem.get s.c) s.c.modClass = .crazy)
+    (hne : s.d ≠ s.c)
+    (hcode : printableCode? (s.mem.get s.c) = some code) :
+    step1 s = some { s with
+      a := Value.crz s.a (s.mem.get s.d),
+      mem := (s.mem.set s.d (Value.crz s.a (s.mem.get s.d))).set s.c
+               (Value.ofNat (encrypt code)),
+      c := s.c.succ, d := s.d.succ } := by
+  refine step1_eq hdec (by simp) (by simp) rfl ?_
+  show printableCode? ((s.mem.set s.d (Value.crz s.a (s.mem.get s.d))).get s.c)
+    = some code
+  rw [get_set_ne _ hne]
+  exact hcode
+
+/-- A movd step at the `step1` level. Both width registers are carried
+along as conditionals; a caller who never rotates can ignore them. -/
+theorem step1_movd {s : State} {code : Nat}
+    (hdec : decode (s.mem.get s.c) s.c.modClass = .movd)
+    (hcode : printableCode? (s.mem.get s.c) = some code) :
+    step1 s = some { s with
+      mem := s.mem.set s.c (Value.ofNat (encrypt code)),
+      c := s.c.succ, d := (s.mem.get s.d).succ,
+      maxWidth := if (s.mem.get s.d).width > s.maxWidth
+                  then (s.mem.get s.d).width else s.maxWidth,
+      rotWidth := if (s.mem.get s.d).width > s.maxWidth
+                  then growRotWidth s.rotWidth (s.mem.get s.d).width
+                  else s.rotWidth } := by
+  have hstep : step .movd s = .ok { s with
+      d := s.mem.get s.d,
+      maxWidth := if (s.mem.get s.d).width > s.maxWidth
+                  then (s.mem.get s.d).width else s.maxWidth,
+      rotWidth := if (s.mem.get s.d).width > s.maxWidth
+                  then growRotWidth s.rotWidth (s.mem.get s.d).width
+                  else s.rotWidth } := by
+    show (if (s.mem.get s.d).width > s.maxWidth then _ else _) = _
+    split <;> rfl
+  exact step1_eq hdec (by simp) (by simp) hstep hcode
+
+/-- A jmp step at the `step1` level: the encryption lands on the target,
+never on the jumping cell (`jmp_cell_stable` is this fact in isolation). -/
+theorem step1_jmp {s : State} {code : Nat}
+    (hdec : decode (s.mem.get s.c) s.c.modClass = .jmp)
+    (hcode : printableCode? (s.mem.get (s.mem.get s.d)) = some code) :
+    step1 s = some { s with
+      mem := s.mem.set (s.mem.get s.d) (Value.ofNat (encrypt code)),
+      c := (s.mem.get s.d).succ, d := s.d.succ } :=
+  step1_eq hdec (by simp) (by simp) rfl hcode
+
+/-- A nop step at the `step1` level: even doing nothing encrypts the cell
+that did it. -/
+theorem step1_nop {s : State} {code : Nat}
+    (hdec : decode (s.mem.get s.c) s.c.modClass = .nop)
+    (hcode : printableCode? (s.mem.get s.c) = some code) :
+    step1 s = some { s with
+      mem := s.mem.set s.c (Value.ofNat (encrypt code)),
+      c := s.c.succ, d := s.d.succ } :=
+  step1_eq hdec (by simp) (by simp) rfl hcode
+
+/-! ## Straight-line runs of the crazy operation
+
+The crazy operation is the only arithmetic a rot-free region has, so
+straight-line arithmetic code is a row of consecutive `p` cells with `d`
+walking a row of operands alongside. `crazy_run` executes any such row in
+one induction: the accumulator computes a fold of `crz` over the operand
+cells, the operand cells hold the intermediate results, the code cells
+hold their own encryptions, and nothing else changes. The branch gadget is
+this lemma at `k = 7`. -/
+
+theorem run?_add (m n : Nat) (s : State) :
+    run? (m + n) s = (run? m s).bind (run? n) := by
+  induction m generalizing s with
+  | zero => simp [run?]
+  | succ m ih =>
+    rw [show m + 1 + n = (m + n) + 1 by omega]
+    show (step1 s).bind (run? (m + n)) = ((step1 s).bind (run? m)).bind (run? n)
+    rw [Option.bind_assoc]
+    cases step1 s with
+    | none => rfl
+    | some s' => simp only [Option.bind_some]; exact ih s'
+
+theorem run?_one (s : State) : run? 1 s = step1 s := by
+  show (step1 s).bind (run? 0) = step1 s
+  cases step1 s <;> rfl
+
+/-- The fold a row of `k` crazy operations computes: each step combines the
+accumulator with the *original* contents of the next operand cell (the run
+never revisits an operand, so the initial memory is the right thing to
+fold over). -/
+def crzFold (m : Memory) (d₀ : Nat) (a : Value) : Nat → Value
+  | 0 => a
+  | j + 1 => Value.crz (crzFold m d₀ a j) (m.get (Value.ofNat (d₀ + j)))
+
+/-- **A row of crazy cells is a fold.** From `c = c₀, d = d₀`, if the `k`
+cells at `c₀, …, c₀+k-1` decode to `p` and are printable, and the code row
+is disjoint from the operand row (`c₀ + k ≤ d₀`), then the run survives
+`k` steps and ends with: the folded accumulator; each operand cell holding
+its intermediate; each code cell encrypted once; everything else
+untouched. -/
+theorem crazy_run (k : Nat) {s₀ : State} {c₀ d₀ : Nat} (w : Nat → Nat)
+    (hc : s₀.c = Value.ofNat c₀) (hd : s₀.d = Value.ofNat d₀)
+    (hsep : c₀ + k ≤ d₀)
+    (hdec : ∀ i < k, decode (s₀.mem.get (Value.ofNat (c₀ + i)))
+      (Value.ofNat (c₀ + i)).modClass = .crazy)
+    (hprint : ∀ i < k, printableCode? (s₀.mem.get (Value.ofNat (c₀ + i)))
+      = some (w i)) :
+    ∃ s', run? k s₀ = some s'
+      ∧ s'.a = crzFold s₀.mem d₀ s₀.a k
+      ∧ s'.c = Value.ofNat (c₀ + k)
+      ∧ s'.d = Value.ofNat (d₀ + k)
+      ∧ (∀ j < k, s'.mem.get (Value.ofNat (d₀ + j)) = crzFold s₀.mem d₀ s₀.a (j + 1))
+      ∧ (∀ i < k, s'.mem.get (Value.ofNat (c₀ + i)) = Value.ofNat (encrypt (w i)))
+      ∧ (∀ addr, (∀ i < k, addr ≠ Value.ofNat (c₀ + i)) →
+          (∀ j < k, addr ≠ Value.ofNat (d₀ + j)) → s'.mem.get addr = s₀.mem.get addr)
+      ∧ s'.input = s₀.input ∧ s'.output = s₀.output ∧ s'.outClosed = s₀.outClosed
+      ∧ s'.rotWidth = s₀.rotWidth ∧ s'.maxWidth = s₀.maxWidth := by
+  induction k with
+  | zero =>
+    refine ⟨s₀, rfl, rfl, by simpa using hc, by simpa using hd,
+      fun j hj => absurd hj (by omega), fun i hi => absurd hi (by omega),
+      fun addr _ _ => rfl, rfl, rfl, rfl, rfl, rfl⟩
+  | succ k ih =>
+    obtain ⟨sk, hrun, hA, hC, hD, hDs, hCs, hframe, hin, hout, hoc, hrw, hmw⟩ :=
+      ih (by omega) (fun i hi => hdec i (by omega)) (fun i hi => hprint i (by omega))
+    -- the cell about to execute is untouched: it is not among the first k
+    -- code cells nor among the first k operand cells
+    have hcell : sk.mem.get (Value.ofNat (c₀ + k)) = s₀.mem.get (Value.ofNat (c₀ + k)) :=
+      hframe _ (fun i hi => ofNat_ne (by omega)) (fun j hj => ofNat_ne (by omega))
+    have hoper : sk.mem.get (Value.ofNat (d₀ + k)) = s₀.mem.get (Value.ofNat (d₀ + k)) :=
+      hframe _ (fun i hi => ofNat_ne (by omega)) (fun j hj => ofNat_ne (by omega))
+    have hstep := step1_crazy (s := sk) (code := w k)
+      (by rw [hC, hcell]; exact hdec k (by omega))
+      (by rw [hC, hD]; exact ofNat_ne (by omega))
+      (by rw [hC, hcell]; exact hprint k (by omega))
+    -- name the two writes
+    set res := Value.crz sk.a (sk.mem.get sk.d) with hres
+    have hresEq : res = crzFold s₀.mem d₀ s₀.a (k + 1) := by
+      rw [hres, hA, hD, hoper]
+      rfl
+    set snext : State := { sk with a := res, mem := (sk.mem.set sk.d res).set sk.c (Value.ofNat (encrypt (w k))), c := sk.c.succ, d := sk.d.succ } with hsnext
+    have hrun' : run? (k + 1) s₀ = some snext := by
+      rw [run?_add k 1, hrun, Option.bind_some, run?_one]
+      exact hstep
+    refine ⟨snext, hrun', hresEq, ?_, ?_, ?_, ?_, ?_, hin, hout, hoc, hrw, hmw⟩
+    · show sk.c.succ = _
+      rw [hC, succ_ofNat, Nat.add_assoc]
+    · show sk.d.succ = _
+      rw [hD, succ_ofNat, Nat.add_assoc]
+    · -- operand cells: the new write at d₀+k, older ones framed
+      intro j hj
+      show ((sk.mem.set sk.d res).set sk.c (Value.ofNat (encrypt (w k)))).get
+        (Value.ofNat (d₀ + j)) = _
+      rw [get_set_ne _ (by rw [hC]; exact ofNat_ne (by omega))]
+      by_cases hjk : j = k
+      · subst hjk
+        rw [hD, get_set_self]
+        exact hresEq
+      · rw [get_set_ne _ (by rw [hD]; exact ofNat_ne (by omega))]
+        exact hDs j (by omega)
+    · -- code cells: the new encryption at c₀+k, older ones framed
+      intro i hi
+      show ((sk.mem.set sk.d res).set sk.c (Value.ofNat (encrypt (w k)))).get
+        (Value.ofNat (c₀ + i)) = _
+      by_cases hik : i = k
+      · subst hik
+        rw [hC, get_set_self]
+      · rw [get_set_ne _ (by rw [hC]; exact ofNat_ne (by omega)),
+          get_set_ne _ (by rw [hD]; exact ofNat_ne (by omega))]
+        exact hCs i (by omega)
+    · -- frame
+      intro addr hac had
+      show ((sk.mem.set sk.d res).set sk.c (Value.ofNat (encrypt (w k)))).get addr = _
+      rw [get_set_ne _ (by rw [hC]; exact (hac k (by omega)).symm),
+        get_set_ne _ (by rw [hD]; exact (had k (by omega)).symm)]
+      exact hframe addr (fun i hi => hac i (by omega)) (fun j hj => had j (by omega))
+
+/-! ## The branch gadget
+
+The machine half of `branch_arith`: eight instructions that leave a
+computed jump target under `d`. Seven `p` cells run the branch pipeline
+while `d` walks the seven constants; the constants end spent (each holds
+an intermediate of the chain), the result lands in the cell that held
+`k₄`; then one `j`-style `movd` cell reads a pointer laid at `d₀+7` and
+re-aims `d` back at that result. A subsequent `jmp` (`step1_jmp`) reads
+the target and completes the branch; that step is generic and left to the
+caller, because the caller owns the landing sites. -/
+
+theorem branch_gadget (t₀ t₁ : Value) {s₀ : State} {c₀ d₀ : Nat}
+    (w : Nat → Nat) {flag : Value}
+    (hc : s₀.c = Value.ofNat c₀) (hd : s₀.d = Value.ofNat d₀)
+    (hsep : c₀ + 8 ≤ d₀)
+    (hdec : ∀ i < 7, decode (s₀.mem.get (Value.ofNat (c₀ + i)))
+      (Value.ofNat (c₀ + i)).modClass = .crazy)
+    (hmovd : decode (s₀.mem.get (Value.ofNat (c₀ + 7)))
+      (Value.ofNat (c₀ + 7)).modClass = .movd)
+    (hprint : ∀ i < 8, printableCode? (s₀.mem.get (Value.ofNat (c₀ + i)))
+      = some (w i))
+    (hK0 : s₀.mem.get (Value.ofNat d₀) = Value.eof)
+    (hK1 : s₀.mem.get (Value.ofNat (d₀ + 1)) = Value.zero)
+    (hKf : s₀.mem.get (Value.ofNat (d₀ + 2)) = flag)
+    (hKk1 : s₀.mem.get (Value.ofNat (d₀ + 3)) = k1Of t₀ t₁)
+    (hKk2 : s₀.mem.get (Value.ofNat (d₀ + 4)) = k2Of t₀ t₁)
+    (hKk3 : s₀.mem.get (Value.ofNat (d₀ + 5)) = k3Of t₀ t₁)
+    (hKk4 : s₀.mem.get (Value.ofNat (d₀ + 6)) = k4Of t₀ t₁)
+    (hKp : s₀.mem.get (Value.ofNat (d₀ + 7)) = Value.ofNat (d₀ + 5)) :
+    ∃ s', run? 8 s₀ = some s'
+      ∧ s'.a = branchChain t₀ t₁ s₀.a flag
+      ∧ s'.c = Value.ofNat (c₀ + 8)
+      ∧ s'.d = Value.ofNat (d₀ + 6)
+      ∧ s'.mem.get (Value.ofNat (d₀ + 6)) = branchChain t₀ t₁ s₀.a flag
+      ∧ (∀ addr, (∀ i < 8, addr ≠ Value.ofNat (c₀ + i)) →
+          (∀ j < 7, addr ≠ Value.ofNat (d₀ + j)) →
+          s'.mem.get addr = s₀.mem.get addr)
+      ∧ s'.input = s₀.input ∧ s'.output = s₀.output ∧ s'.outClosed = s₀.outClosed := by
+  obtain ⟨s₇, hrun7, hA, hC, hD, hDs, hCs, hframe, hin, hout, hoc, hrw, hmw⟩ :=
+    crazy_run 7 w hc hd (by omega) (fun i hi => hdec i hi)
+      (fun i hi => hprint i (by omega))
+  -- what the fold computed is exactly the branch pipeline
+  have hfold : crzFold s₀.mem d₀ s₀.a 7 = branchChain t₀ t₁ s₀.a flag := by
+    show Value.crz (Value.crz (Value.crz (Value.crz (Value.crz (Value.crz
+      (Value.crz s₀.a (s₀.mem.get (Value.ofNat (d₀ + 0))))
+      (s₀.mem.get (Value.ofNat (d₀ + 1)))) (s₀.mem.get (Value.ofNat (d₀ + 2))))
+      (s₀.mem.get (Value.ofNat (d₀ + 3)))) (s₀.mem.get (Value.ofNat (d₀ + 4))))
+      (s₀.mem.get (Value.ofNat (d₀ + 5)))) (s₀.mem.get (Value.ofNat (d₀ + 6)))
+      = branchChain t₀ t₁ s₀.a flag
+    rw [show d₀ + 0 = d₀ from rfl, hK0, hK1, hKf, hKk1, hKk2, hKk3, hKk4]
+    rfl
+  -- the movd cell and its pointer operand are untouched by the seven steps
+  have hcell7 : s₇.mem.get (Value.ofNat (c₀ + 7)) = s₀.mem.get (Value.ofNat (c₀ + 7)) :=
+    hframe _ (fun i hi => ofNat_ne (by omega)) (fun j hj => ofNat_ne (by omega))
+  have hop7 : s₇.mem.get (Value.ofNat (d₀ + 7)) = Value.ofNat (d₀ + 5) := by
+    rw [hframe _ (fun i hi => ofNat_ne (by omega)) (fun j hj => ofNat_ne (by omega))]
+    exact hKp
+  have hstep := step1_movd (s := s₇) (code := w 7)
+    (by rw [hC, hcell7]; exact hmovd)
+    (by rw [hC, hcell7]; exact hprint 7 (by omega))
+  rw [hD, hop7, hC] at hstep
+  rw [succ_ofNat, succ_ofNat, show c₀ + 7 + 1 = c₀ + 8 by omega,
+    show d₀ + 5 + 1 = d₀ + 6 by omega] at hstep
+  set s₈ : State := { s₇ with mem := s₇.mem.set (Value.ofNat (c₀ + 7)) (Value.ofNat (encrypt (w 7))), c := Value.ofNat (c₀ + 8), d := Value.ofNat (d₀ + 6), maxWidth := if (Value.ofNat (d₀ + 5)).width > s₇.maxWidth then (Value.ofNat (d₀ + 5)).width else s₇.maxWidth, rotWidth := if (Value.ofNat (d₀ + 5)).width > s₇.maxWidth then growRotWidth s₇.rotWidth (Value.ofNat (d₀ + 5)).width else s₇.rotWidth } with hs₈
+  have hrun8 : run? 8 s₀ = some s₈ := by
+    rw [show (8 : Nat) = 7 + 1 from rfl, run?_add 7 1, hrun7, Option.bind_some,
+      run?_one]
+    exact hstep
+  refine ⟨s₈, hrun8, ?_, rfl, rfl, ?_, ?_, hin, hout, hoc⟩
+  · show s₇.a = _
+    rw [hA]
+    exact hfold
+  · show (s₇.mem.set (Value.ofNat (c₀ + 7)) (Value.ofNat (encrypt (w 7)))).get
+      (Value.ofNat (d₀ + 6)) = _
+    rw [get_set_ne _ (ofNat_ne (by omega)), show d₀ + 6 = d₀ + 6 from rfl,
+      hDs 6 (by omega)]
+    exact hfold
+  · intro addr hac had
+    show (s₇.mem.set (Value.ofNat (c₀ + 7)) (Value.ofNat (encrypt (w 7)))).get addr = _
+    rw [get_set_ne _ (Ne.symm (hac 7 (by omega)))]
+    exact hframe addr (fun i hi => hac i (by omega)) had
+
+/-- The two cases of the gadget, read through `branch_arith`: the flag cell
+decides which of the two targets is under `d` afterwards. -/
+theorem branch_gadget_cases {t₀ t₁ : Value} (h₀ : t₀.Normalized) (h₁ : t₁.Normalized)
+    {a : Value} {flag : Value} :
+    (flag = Value.zero → branchChain t₀ t₁ a flag = t₀)
+    ∧ (flag = Value.eof → branchChain t₀ t₁ a flag = t₁) :=
+  ⟨fun h => h ▸ (branch_arith t₀ t₁ h₀ h₁ a).1,
+   fun h => h ▸ (branch_arith t₀ t₁ h₀ h₁ a).2⟩
+
 end Unshackled
 
 end Langlib.Computability

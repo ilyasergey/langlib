@@ -312,9 +312,18 @@ normal form.
    three provably do not suffice, the pair `(1,0)` of trit images needs
    four). Both cases execute the same instructions, which is what this
    language requires, since code cannot be chosen per-case at runtime.
-   What remains is the machine half: lay the seven constants along `d`'s
-   walk, execute seven `p` cells, write the result into a jump table, and
-   `jmp` through it — sequencing, in the style of the verified loop.
+   The **machine half is also done**: `branch_gadget` executes seven `p`
+   cells while `d` walks the seven constants, then one `movd` through a
+   pointer cell re-aims `d` at the written target. Eight instructions,
+   verified against `step1` (hence against `exec` via `step1_sound`),
+   with a frame condition saying nothing else changed. The supporting
+   lemma is `crazy_run`: any row of `k` consecutive `p` cells computes a
+   fold of `crz` over the operand row, in one induction, so straight-line
+   arithmetic of any length costs one lemma application rather than a
+   proof per instruction. What remains is the final `jmp` (generic,
+   `step1_jmp`, the caller owns the landing sites) and making the gadget
+   *re-enterable* for use inside a dispatcher, where its cells' encryption
+   phases must cycle.
 2. ~~The value algebra.~~ **Done**: `crz_two_steps` says any value reaches
    any other in two operations, and `crzTrit_zero_ne_zero` says one will
    not do. What remains is the *sequencing*: `p` writes to `mem[d]`, so the

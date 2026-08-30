@@ -22,7 +22,7 @@ incompleteness instance lands.
 import Langlib.Computability.Whitespace
 import Langlib.Computability.Subleq
 import Langlib.Languages.Turpentine.Compile.Derived
-import Langlib.Computability.BespokeWhitespace
+import Langlib.Languages.Turpentine.Certified.BespokeWhitespace
 import Langlib.Computability.Brainfuck
 import Langlib.Computability.Deadfish
 import Langlib.Computability.Malbolge
@@ -32,13 +32,14 @@ import Langlib.Computability.Ook
 import Langlib.Computability.Brainloller
 import Langlib.Computability.Piet
 import Langlib.Computability.Fractran
-import Langlib.Computability.BespokeSubleq
+import Langlib.Languages.Turpentine.Certified.BespokeSubleq
 import Langlib.Computability.MalbolgeUnshackled
 import Langlib.Computability.Unlambda
 import Langlib.Computability.Ski
 
 open Langlib.Common
 open Langlib.Computability
+open Langlib.Turpentine.Certified
 open Langlib.Turpentine.Compile
 
 -- Whitespace: Turing complete, via cslib's unlimited register machine.
@@ -572,6 +573,17 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.shape_uniform₁
 #print axioms Unshackled.shape_uniform₂
 #print axioms Unshackled.branch_arith
+
+-- The machine half: step lemmas over step1, straight-line crazy rows as a
+-- fold, and the eight-instruction branch gadget.
+#print axioms Unshackled.step1_eq
+#print axioms Unshackled.step1_crazy
+#print axioms Unshackled.step1_movd
+#print axioms Unshackled.step1_jmp
+#print axioms Unshackled.run?_add
+#print axioms Unshackled.crazy_run
+#print axioms Unshackled.branch_gadget
+#print axioms Unshackled.branch_gadget_cases
 
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine

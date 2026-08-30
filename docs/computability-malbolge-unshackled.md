@@ -486,6 +486,42 @@ the seven constants and jumping through the written target, is the
 remaining step, and it is sequencing of the kind the verified loop already
 demonstrates.
 
+## The branch gadget: the machine half
+
+`branch_arith` is arithmetic; `branch_gadget` runs it on the machine.
+Eight instructions: seven `p` cells at `c₀ … c₀+6` execute the pipeline
+while `d` walks the constants laid at `d₀ … d₀+6`, then a `movd` at
+`c₀+7` reads a pointer laid at `d₀+7` and re-aims `d` at the written
+target. Conclusion: after exactly eight steps, `d` sits on a cell holding
+`branchChain t₀ t₁ a flag`, which `branch_arith` evaluates to `t₀` or
+`t₁` by the flag, and a frame condition says every cell outside the two
+rows is untouched. A subsequent `jmp` (`step1_jmp`) completes the branch;
+that step is generic and belongs to the caller, who owns the landing
+sites.
+
+The supporting lemma is the one worth keeping: `crazy_run` proves that
+any row of `k` consecutive `p` cells computes a fold of the crazy
+operation over the operand row,
+
+```lean
+theorem crazy_run (k : Nat) … :
+    ∃ s', run? k s₀ = some s'
+      ∧ s'.a = crzFold s₀.mem d₀ s₀.a k
+      ∧ …
+```
+
+by one induction, with the operand cells holding their intermediates and
+the code cells their encryptions afterwards. Straight-line arithmetic of
+any length is one application of this lemma, not a proof per instruction;
+`step1_eq`, `step1_crazy`, `step1_movd`, `step1_jmp` and `run?_add` are
+the step-level readings it runs on.
+
+What the gadget is not, yet: re-enterable. Executed once, its seven `p`
+cells and one `movd` cell are left encrypted, so a dispatcher that runs
+it every iteration needs the cells' orbits managed across passes, the
+problem `loop.mu` solves for its three-cell cycle. That, and restocking
+the spent constants, is the dispatcher design problem.
+
 ## What is proved, what is cited, what is open
 
 **Proved, axiom-clean**: the `ProgLang` instance; the memory laws
