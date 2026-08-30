@@ -151,6 +151,25 @@ which is what `alternatingCell` pins down, and why only 14 of the 94
 residues are usable there. A cell that runs **once** has no such
 obligation, and every cell here runs once.
 
+Two facts about the orbits, computed from `xlat2` rather than assumed, that a
+re-executing backend will want. **`70 ↔ 74` is the only two-element orbit**
+(the lengths are 68, 9, 6, 5, 4 and 2, one orbit each, and their lcm is the
+3060-step period measured in `cat.mu`), so the two-sweep discipline's residue
+pinning is unavoidable and not a convention: one residue per instruction per
+word, `74` at the lower and `70` at the upper — crazy at 82 or 86, movd at 60
+or 64, jmp at 24 or 28, out at 25 or 29, inp at 43 or 47, rotr at 59 or 63,
+halt at 7 or 11.
+
+But **the four-element orbit `42 → 114 → 125 → 105` buys extra residues to a
+row that runs four times instead of twice.** A cell holding one of those
+words decodes to its instruction on the first pass and to a no-op on the
+other three, at three more residues for `crazy` (31, 42, 51), three more for
+`movd` (9, 29, 92), four more for `jmp`, `out`, `inp`, `rotr` and `halt`, and
+three more for `nop`. Two-cycle cells return after four passes as well as
+after two, so a four-sweep row may mix both. Whether that is worth the
+doubled sweep depends on whether density is ever the binding constraint —
+with jumps over the gaps and a stride of 94 it is not.
+
 ### The data channel
 
 The loader checks a source character in `33..126` against its address and
