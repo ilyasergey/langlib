@@ -603,6 +603,14 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.nop_run
 #print axioms Unshackled.row_restored
 
+-- Terminating runs: splitting a run, the halting ending a simulation needs,
+-- and the well-founded loop rule.
+#print axioms Unshackled.exec_run?_add
+#print axioms Unshackled.exec_halts_of_run?
+#print axioms Unshackled.image_halts_of_run?
+#print axioms Unshackled.run_of_measure
+#print axioms Unshackled.branch_on_mark
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

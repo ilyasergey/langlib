@@ -2,7 +2,31 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): reading a line is no longer opaque
+## 2026-08-30 (latest): terminating runs, and a free zero test
+
+`neverHalts_of_invariant` covers loops that must not stop. A simulation
+needs the opposite: `TuringComplete` demands the compiled program halt with
+the right output whenever the machine it simulates does. Three lemmas give
+that shape. `exec_run?_add` splits a run anywhere, so a proof can reason
+gadget by gadget and stitch the pieces. `exec_halts_of_run?` is the ending:
+a run that arrives at a cell decoding to `halt` reports `Exit.halted` with
+the output it accumulated, restated at the language interface as
+`image_halts_of_run?`. And `run_of_measure` is the loop rule: an invariant,
+a measure that strictly decreases each pass, an exit at zero. In a
+simulation the measure is the simulated machine's remaining step count, so
+this is what turns "the URM halts" into "the compiled program halts".
+
+An encoding note that saves a whole gadget. `branch_arith` decides on a
+cell holding `...000` or `...222`, which are `Value.zero` and `Value.eof`.
+A register cell storing a unary digit as blank-or-mark in exactly that
+encoding **is** a branch flag, so the zero test costs no instructions
+(`branch_on_mark`). That is worth having because the crazy operation is
+tritwise and cannot aggregate across trit positions: a zero test on a wide
+number would need rotations and a loop, while blank-or-mark needs nothing.
+It is an argument for the unary register representation, made by the
+arithmetic rather than by taste.
+
+## 2026-08-30: reading a line is no longer opaque
 
 `Input.readLine?` was a `partial def`, which Lean compiles to a constant
 with no equations, so nothing whatever could be proved about the bytes a

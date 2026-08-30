@@ -2514,6 +2514,106 @@ theorem row_restored {m : Memory} {c₀ k : Nat} {v : Nat → Nat}
   intro i hi
   rw [hafter i hi, hbefore i hi, encrypt_encrypt_two_cycle (hcycle i hi)]
 
+/-! ## Terminating runs
+
+`neverHalts_of_invariant` covers loops that must not stop. A simulation
+needs the opposite: the compiled program has to *halt*, with the right
+output, whenever the machine it simulates does. Three pieces.
+
+`exec_run?_add` splits a run at any point, so a proof can reason gadget by
+gadget and stitch the pieces together. `exec_halts_of_run?` is the ending:
+a run that reaches a cell decoding to `halt` reports `Exit.halted`, which is
+what `TuringComplete` demands. And `run_of_measure` is the loop rule: an
+invariant, a measure that strictly decreases each time round, and an exit
+condition at zero. Together they are the shape a simulation proof takes,
+with `run_of_measure` carrying the simulated machine's remaining step count
+as the measure. -/
+
+/-- A run splits anywhere: `n` steps of `run?` followed by `m` of `exec`. -/
+theorem exec_run?_add : ∀ {n : Nat} {s t : State}, run? n s = some t →
+    ∀ m, exec (n + m) s = exec m t
+  | 0, s, t, h, m => by
+    simp only [run?, Option.some.injEq] at h
+    subst h
+    simp
+  | n + 1, s, t, h, m => by
+    simp only [run?] at h
+    cases hs : step1 s with
+    | none => rw [hs] at h; simp at h
+    | some s' =>
+      rw [hs] at h
+      simp only [Option.bind_some] at h
+      rw [show n + 1 + m = (n + m) + 1 by omega, step1_sound hs (n + m)]
+      exact exec_run?_add h m
+
+/-- **The ending a simulation needs.** A run that survives `n` steps and
+arrives at a cell decoding to `halt` reports `Exit.halted`, with the output
+the run accumulated. -/
+theorem exec_halts_of_run? {n : Nat} {s t : State} (h : run? n s = some t)
+    (hhalt : decode (t.mem.get t.c) t.c.modClass = .halt) :
+    exec (n + 1) s = (t, Exit.halted) := by
+  rw [exec_run?_add h 1]
+  exact exec_halt 0 hhalt
+
+/-- The same at the language interface: the image halts, and the output is
+the one the run produced. -/
+theorem image_halts_of_run? {img : Image} {input : Input} {n : Nat} {t : State}
+    (h : run? n (initialState img input) = some t)
+    (hhalt : decode (t.mem.get t.c) t.c.modClass = .halt) :
+    evalImage {} img input (n + 1) = { output := t.output, exit := Exit.halted } := by
+  show (fun (r : State × Exit) => ({ output := r.1.output, exit := r.2 } : RunResult))
+      (exec (n + 1) (initialState img input)) = _
+  rw [exec_halts_of_run? h hhalt]
+
+/-- **The loop rule.** An invariant `P`, a measure `μ` that strictly
+decreases on each pass, and an exit predicate `Q` that holds when the
+measure runs out: then the run reaches a state satisfying `Q` in finitely
+many steps. This is how a simulation discharges a bounded loop, with `μ`
+the number of steps the simulated machine has left. -/
+theorem run_of_measure {P Q : State → Prop} {μ : State → Nat}
+    (hstep : ∀ s, P s → μ s ≠ 0 →
+      ∃ k s', run? k s = some s' ∧ P s' ∧ μ s' < μ s)
+    (hexit : ∀ s, P s → μ s = 0 → Q s) :
+    ∀ s, P s → ∃ n t, run? n s = some t ∧ Q t := by
+  intro s hs
+  -- strong induction on the measure
+  suffices h : ∀ b s, P s → μ s ≤ b → ∃ n t, run? n s = some t ∧ Q t from
+    h (μ s) s hs (Nat.le_refl _)
+  intro b
+  induction b with
+  | zero =>
+    intro s hs hb
+    exact ⟨0, s, rfl, hexit s hs (by omega)⟩
+  | succ b ih =>
+    intro s hs hb
+    by_cases hz : μ s = 0
+    · exact ⟨0, s, rfl, hexit s hs hz⟩
+    · obtain ⟨k, s', hrun, hP', hlt⟩ := hstep s hs hz
+      obtain ⟨n, t, hrun', hQ⟩ := ih s' hP' (by omega)
+      exact ⟨k + n, t, by rw [run?_add, hrun, Option.bind_some]; exact hrun', hQ⟩
+
+/-! ### The flag a branch reads
+
+`branch_arith` takes its decision from a cell holding `...000` or `...222`.
+Those are `Value.zero` and `Value.eof`, so a register cell that stores a
+unary digit as "blank or mark" with exactly that encoding **is** a branch
+flag: testing it costs no instructions at all. This matters because the
+crazy operation is tritwise and cannot aggregate information across trit
+positions, so a zero test on a wide value would need rotations and a loop,
+while a zero test on a blank-or-mark cell needs nothing. -/
+
+theorem flag_zero_is_blank : Value.zero = uniform .t0 := rfl
+
+theorem flag_eof_is_mark : Value.eof = uniform .t2 := rfl
+
+/-- Reading a blank-or-mark cell decides a branch outright. -/
+theorem branch_on_mark (t₀ t₁ : Value) (h₀ : t₀.Normalized) (h₁ : t₁.Normalized)
+    (a : Value) {flag : Value} (hflag : flag = Value.zero ∨ flag = Value.eof) :
+    branchChain t₀ t₁ a flag = if flag = Value.zero then t₀ else t₁ := by
+  rcases hflag with h | h <;> subst h
+  · rw [if_pos rfl]; exact (branch_arith t₀ t₁ h₀ h₁ a).1
+  · rw [if_neg (by decide)]; exact (branch_arith t₀ t₁ h₀ h₁ a).2
+
 end Unshackled
 
 end Langlib.Computability

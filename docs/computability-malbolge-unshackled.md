@@ -596,6 +596,43 @@ Every one of the 94 residues admits a code whose whole orbit is harmless,
 so padding is free, and each instruction has exactly two 2-cycle residues
 four apart (`crazy` at 82 or 86, `movd` at 60 or 64, `jmp` at 24 or 28).
 
+## Terminating runs
+
+`neverHalts_of_invariant` handles loops that must not stop. A simulation
+needs the opposite, since `TuringComplete` demands the compiled program
+*halt* with the right output whenever the machine it simulates does. Three
+lemmas give that shape.
+
+```lean
+theorem exec_run?_add : run? n s = some t → ∀ m, exec (n + m) s = exec m t
+
+theorem exec_halts_of_run? (h : run? n s = some t)
+    (hhalt : decode (t.mem.get t.c) t.c.modClass = .halt) :
+    exec (n + 1) s = (t, Exit.halted)
+
+theorem run_of_measure {P Q : State → Prop} {μ : State → Nat}
+    (hstep : ∀ s, P s → μ s ≠ 0 → ∃ k s', run? k s = some s' ∧ P s' ∧ μ s' < μ s)
+    (hexit : ∀ s, P s → μ s = 0 → Q s) :
+    ∀ s, P s → ∃ n t, run? n s = some t ∧ Q t
+```
+
+The first splits a run anywhere, so a proof can reason gadget by gadget and
+stitch; the second is the ending, giving `Exit.halted` and the accumulated
+output (`image_halts_of_run?` states it at the language interface); the
+third is the loop rule, an invariant plus a measure that strictly decreases
+each pass. In a simulation the measure is the number of steps the simulated
+machine has left, so `run_of_measure` is what turns "the URM halts" into
+"the compiled program halts".
+
+One encoding note that saves a gadget. `branch_arith` reads its decision
+from a cell holding `...000` or `...222`, which are `Value.zero` and
+`Value.eof`. A register cell that stores a unary digit as *blank or mark*
+in exactly that encoding **is** a branch flag, so testing it costs no
+instructions (`branch_on_mark`). This matters because the crazy operation
+is tritwise and cannot aggregate across trit positions: a zero test on a
+wide number would need rotations and a loop, while a blank-or-mark cell
+needs nothing.
+
 ## What is proved, what is cited, what is open
 
 **Proved, axiom-clean**: the `ProgLang` instance; the memory laws
