@@ -2,7 +2,69 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-31 (latest): subleq reports its events, and printint is honest
+## 2026-08-31 (latest): Turpentine compiles to Malbolge Unshackled
+
+The library's hardest target has a backend:
+`Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean`, over the
+programs that do not read input. Written up in
+`docs/malbolge-unshackled/compiler.md`.
+
+The surprise was how *small* the assembler is. Unshackled's reputation rests
+on the instruction at `c` being `(mem[c] + c) mod 94`, so that code is not
+relocatable; but a compiler that only needs a cell to run once can solve that
+in one line — `(opcode - addr) mod 94` lands in `0..93`, and adding 94 when
+it is below 33 lands in `94..126`, so *every* instruction is printable at
+*every* address. The residue arithmetic that dominates hand-written Malbolge
+costs nothing here. What is expensive by hand is a cell that has to run
+twice, which is a different problem, and not this backend's.
+
+The layout follows from one observation: `c` and `d` both advance by one
+after every instruction, so they keep a fixed distance. That gives a **code
+row** and a **data row** running in parallel, each crazy cell reading the
+data cell directly below it. Three cells of prologue set the distance up, and
+the first two of them decide their own contents: `movd` at address 0 *is* the
+word 40, so `d` lands on 40 and the pointer cell is address 41 whatever else
+the compiler does.
+
+Two things had to be discovered rather than looked up.
+
+*The proof's constants cannot be loaded.* `crz_two_steps` says two crazy
+operations take any accumulator to any target and computes the constants, but
+`toTwoConst` picks a value whose repeating trit is `2`, and a source
+character is a code point, whose repeating trit is `0`. Loadable constants
+exist because the crazy operation is tritwise and, *above* both operands,
+five of the nine trit pairs work rather than only `(0,0)` — so a constant can
+be padded upwards until it lands on a code point the loader accepts.
+`twoStep` enumerates those paddings most-significant-first, and a sweep over
+all 16384 accumulator/target pairs below 128 at eight address residues finds
+one every time, never larger than 6641.
+
+*Data cells are the loader's bug.* A character outside `33..126` is stored
+unchecked — Malbolge's accident, Johansen's default, spec decision 5 — and
+that is the whole data channel: jump targets and crazy constants ride in as
+characters above `~`. The emitted file therefore needs the loader's default
+setting; `--strict` rejects it, and a test asserts that it does.
+
+Tests are in six suites, `Langlib/Tests/CompileMalbolgeUnshackled.lean`:
+differential against Turpentine's own interpreter (including every byte from
+1 to 127 through `printByte`), the same programs at seven starting rotation
+widths from 10 to 300 (the backend emits no `*`, so the width must not
+matter, and it does not), an audit of every emitted cell read back the way
+the loader reads it, pinned cell counts, a straight-line check at a fuel
+bound of `n + 4`, and ten refusals.
+
+The gap is input, and it is not more code generation. `crz` is tritwise and
+its table has no constant column, so no chain of crazy operations against
+compiled-in constants can turn an unknown value into a *uniform* one — and
+uniform is exactly what the verified branch pipeline's flag has to be. So a
+comparison cannot be collapsed into a flag without `*`, `*` drags in the
+rotation width, and that is Stage 8's unary-register route. One consolation
+prize, checked: `crz (crz a k) k` with `k` all ones is the identity, so two
+crazy operations copy the accumulator into memory unchanged and a `movd`
+after them is a computed jump indexed by an input character, with no
+rotation anywhere. Nobody has built the dispatch on it yet.
+
+## 2026-08-31: subleq reports its events, and printint is honest
 
 The third and last of the trace semantics, and the shortest: subleq has one
 instruction, two of whose forms do I/O. `Subleq.State` records the run's

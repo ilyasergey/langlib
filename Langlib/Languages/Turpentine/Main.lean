@@ -7,6 +7,7 @@ import Langlib.Languages.Turpentine.Compile.Ook
 import Langlib.Languages.Turpentine.Compile.Brainloller
 import Langlib.Languages.Turpentine.Compile.Fractran
 import Langlib.Languages.Turpentine.Compile.Piet
+import Langlib.Languages.Turpentine.Compile.MalbolgeUnshackled
 import Langlib.Languages.Brainfuck.Semantics
 import Langlib.Languages.Subleq.Semantics
 import Langlib.Languages.Whitespace.Semantics
@@ -131,11 +132,13 @@ def fractranBespoke : Compiler := fun src => do
 /-- A compilation target: the name accepted after `--to` and `--via`, and
 the compilers that reach it. Adding a target is one entry here.
 
-Neither compiler is guaranteed to exist. `bespoke` is hand-written, accepts
-the whole language and is unverified; FRACTRAN and Thue have none, because
-neither is a language anybody would hand-write a backend for. `certified`
-is derived from the target's Turing-completeness proof and accepts only the
-I/O-free fragment; a language whose completeness is still open has none. -/
+Neither compiler is guaranteed to exist. `bespoke` is hand-written and
+unverified, and accepts the whole language except where the target cannot
+host it: Thue has no hand-written backend at all, and Malbolge Unshackled's
+takes only the programs that do not read input, for reasons
+`docs/malbolge-unshackled/compiler.md` gives. `certified` is derived from
+the target's Turing-completeness proof and accepts only the I/O-free
+fragment; a language whose completeness is still open has none. -/
 structure Backend where
   /-- Name accepted after `--to` and `--via`. -/
   name : String
@@ -200,6 +203,13 @@ def backends : List Backend :=
         Langlib.Turpentine.Compile.derivedPiet.compileSource
         (fun grid => grid.toImage.toPpm3)
         (Langlib.Piet.run {})) }
+  , { name := "malbolge-unshackled"
+      -- The emitted file carries data cells outside 33..126, which the
+      -- loader stores unchecked; `--strict` rejects them, so the note says
+      -- to run it without. Fuel is small because the compiled program is
+      -- straight-line: one instruction per cell, once each.
+    , bespoke := some (compilerOfSource Compile.MalbolgeUnshackled.compileSource
+        Langlib.MalbolgeUnshackled.run) }
   , { name := "fractran"
     , bespoke := some fractranBespoke
     , certified := some fractranCertified }
@@ -306,7 +316,9 @@ def helpText : String :=
     , "choosing a compiler (compile and exec):"
     , "  --bespoke  hand-written for that target. Accepts the whole language,"
     , "             emits compact code, and is not verified. This is the"
-    , "             default when neither flag is given."
+    , "             default when neither flag is given. One exception:"
+    , "             malbolge-unshackled takes only programs that do not"
+    , "             read input, and says so when it refuses one."
     , "  --tc       derived from the target's Turing-completeness proof, by"
     , "             composing it with the shared Turpentine-to-URM pass."
     , "             Correct by construction. Accepts only the I/O-free"

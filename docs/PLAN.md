@@ -94,15 +94,36 @@ state first-order, I/O explicit.
   demonstration rather than a tool. Their compiler pages record the
   reasoning. The effort goes to their unbounded relatives instead:
   malbolge-unshackled, and befunge98 when it lands.
-* Turpentine -> malbolge-unshackled `[ ]`: planned, hard, and worth it.
-  Unbounded values and addresses mean a full compiler is possible. The
-  route is a VM whose bytecode lives in data cells, which are never
-  executed and so never self-encrypt. Stage 8 has started on the
-  foundations, and two of its findings constrain this backend: the VM's
-  own interpreter loop is still code, so it still has to be a cycle
-  through `xlat2`'s orbits (`decode_encrypt_ne`), and it cannot escape
-  that by running forward into untouched memory (`restTable_not_printable`).
-  See `docs/computability-malbolge-unshackled.md`.
+* Turpentine -> malbolge-unshackled `[~]`: **the input-free half is
+  written** (`Compile/MalbolgeUnshackled.lean`, tests in
+  `Tests/CompileMalbolgeUnshackled.lean`, notes in
+  `docs/malbolge-unshackled/compiler.md`). An assembler solves the
+  placement problem in general — `wordFor` puts any of the eight
+  instructions at any address, `legalCell` says what the loader will take,
+  and characters outside `33..126` are the data channel — and the code
+  generator emits two parallel rows, one walked by `c` and one by `d`, after
+  a three-cell prologue that separates the two pointers. Every Turpentine
+  program that does not read input compiles, loops and arrays included,
+  because the backend decides control flow by running the source on
+  Turpentine's own interpreter; the emitted program is straight-line, so no
+  cell ever runs twice and self-encryption never bites.
+
+  What is left is exactly the input half, and it is the completeness work
+  rather than more code generation. A comparison cannot be turned into a
+  flag by crazy operations alone: `crz` is tritwise and its table has no
+  constant column, so no chain of crazy operations against compiled-in
+  constants can make an unknown value uniform, which is what
+  `branch_arith`'s flag has to be. Collapsing needs `*`, `*` needs the
+  rotation width, and that is the unary-register route of Stage 8. Two
+  findings of that stage still bind: the VM's own loop is code, so it has
+  to be a cycle through `xlat2`'s orbits (`decode_encrypt_ne`), and it
+  cannot escape by running forward into untouched memory
+  (`restTable_not_printable`). One finding of this stage helps: two crazy
+  operations against an all-ones constant copy the accumulator into memory
+  unchanged, so a `movd` after them is a computed jump on an input
+  character with no rotation anywhere. See
+  `docs/malbolge-unshackled/compiler.md` and
+  `docs/computability-malbolge-unshackled.md`.
 * Turpentine -> fractran `[x]` and -> piet `[x]` (bespoke): **done**, and
   neither went through the shared register machine in the end. FRACTRAN
   compiles to a Minsky machine and lowers that to fractions

@@ -8,6 +8,7 @@ import Langlib.Tests.BespokeWhitespace
 import Langlib.Tests.CompileBrainfuck
 import Langlib.Tests.CompileBrainloller
 import Langlib.Tests.CompileFractran
+import Langlib.Tests.CompileMalbolgeUnshackled
 import Langlib.Tests.CompilePiet
 import Langlib.Tests.CompileOok
 import Langlib.Tests.CompileSubleq
@@ -61,6 +62,7 @@ def main : IO UInt32 :=
     , Langlib.Tests.CompileBrainfuck.suites
     , Langlib.Tests.CompileBrainloller.suites
     , Langlib.Tests.CompileFractran.suites
+    , Langlib.Tests.CompileMalbolgeUnshackled.suites
     , Langlib.Tests.CompilePiet.suites
     , Langlib.Tests.CompileOok.suites
     , Langlib.Tests.CompileSubleq.suites

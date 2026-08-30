@@ -78,3 +78,31 @@ micro-programs for halt, output and input, the two Unshackled-specific
 behaviours (end of input closes the output stream; a rotated or
 crazy-operated word has no encryption), `hello.mu` at a second rotation
 width, strict loading, and the loader's errors.
+
+## Compiling to Unshackled
+
+Nobody writes Unshackled by hand, so LangLib has a compiler:
+`Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean` translates
+Turpentine, the library's front end, into Unshackled source. It handles
+every Turpentine program that does not read input — loops, arrays and
+arithmetic included, since it resolves those before the target ever runs —
+and emits a straight-line image of two parallel rows, one that the code
+pointer walks and one that the data pointer walks beneath it. Reading input
+needs a machine that loops, which needs cells that survive re-execution,
+which is the Turing-completeness work.
+
+```
+lake exe turpentine compile --to malbolge-unshackled -o hello.mu Langlib/Examples/Turpentine/hello.turp
+```
+
+The full account of the layout, the assembler, the fragment and what the
+input half still needs is
+[docs/malbolge-unshackled/compiler.md](../../../docs/malbolge-unshackled/compiler.md);
+how far the completeness effort has got is
+[docs/malbolge-unshackled/completeness-progress.md](../../../docs/malbolge-unshackled/completeness-progress.md).
+
+Compiler tests are in
+[Langlib/Tests/CompileMalbolgeUnshackled.lean](../../Tests/CompileMalbolgeUnshackled.lean):
+differential runs against Turpentine's own interpreter, a sweep over seven
+starting rotation widths, an audit of every emitted cell against the
+loader's rule, and the fragment boundary.

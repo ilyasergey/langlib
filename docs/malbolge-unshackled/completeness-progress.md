@@ -99,7 +99,15 @@ than by taste:
 4. **`loop`** — the probe feeding a branch, wrapped so the body is
    re-enterable. Every ingredient exists.
 5. **The assembler** — `compile : Program → List Nat → Image`, total and
-   runnable, laying gadgets out at stride 94 with data after the code.
+   runnable, laying gadgets out at stride 94 with data after the code. The
+   *placement* half now exists and is runnable, in the straight-line
+   backend `Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean`:
+   `wordFor` puts any instruction at any address, `legalCell` decides what
+   the loader will take, `Asm` builds and renders the image, and a
+   three-cell prologue separates `c` from `d`. What that backend does not
+   exercise, because none of its cells runs twice, is the two-cycle
+   residues and the spacing law — the part a gadget row needs. See
+   [compiler.md](compiler.md).
 6. **The induction on `Ev`** — the largest piece by volume, standing on
    `run_of_measure` at the top and `exec_halts_of_run?` at the bottom. Its
    invariant is already proved: `Sim` ties a Malbolge Unshackled state to a
@@ -113,6 +121,25 @@ arithmetic, and `sim_*` closes the step.
 
 Nothing left lacks a verified precedent in the file, so what remains is
 construction rather than discovery. It is still a lot of construction.
+
+One negative result from the compiler side is worth having here, because it
+says the branch pipeline cannot be short-circuited. `crz` is tritwise and
+its table has **no constant column** (`k = 0` sends `0,1,2` to `1,0,0`;
+`k = 1` to `1,0,2`; `k = 2` to `2,2,1`), so no chain of crazy operations
+against compiled-in constants can turn an unknown value into a *uniform*
+one — which is what `branch_arith`'s flag must be. Collapsing a comparison
+therefore needs `*`, and `*` needs the rotation width: the unary-register
+route above is not one design among several, it is forced.
+
+One positive one, checked by running rather than proved. `crz (crz a k) k`
+with `k` all ones below the width of `a` is the **identity** — the
+transposition `0 ↔ 1` applied twice — so two crazy operations against a
+single *loadable* constant copy the accumulator into a memory cell, and a
+`movd` through that cell turns the copy into an address. That is a computed
+jump indexed by an input character with no rotation anywhere, which is a
+cheaper `inp` dispatch than the branch pipeline. It is not in any gadget
+yet; `hop`/`hop_hop_hop` is the proved copy, at three operations and with
+constants no source file can hold.
 
 ## Verifying
 

@@ -1,12 +1,17 @@
 # Compiling Turpentine to Malbolge Unshackled
 
-* **Status**: planned, hard, and the reason the library implements
-  Unshackled at all. Not started as a backend; the groundwork now exists
-  as theorems, and this page records what they say a backend must do.
-* **Family**: would need its own lowering; none of StackIR, TapeIR or
-  RegIR survives contact with self-encrypting code.
-* **Implementation**: none yet; it would go in
-  `Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean`.
+* **Status**: **written, over the input-free fragment.** The assembler is
+  real and general; the code generator handles every Turpentine program
+  that does not read input, which is every program whose control flow can
+  be decided before the target ever runs. Reading input needs a machine
+  rather than a straight line, and that machine is the completeness work;
+  the two are the same piece of work and neither is finished.
+* **Family**: its own lowering; none of StackIR, TapeIR or RegIR survives
+  contact with self-encrypting code.
+* **Implementation**:
+  [`Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean`](../../Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean),
+  tests in
+  [`Langlib/Tests/CompileMalbolgeUnshackled.lean`](../../Langlib/Tests/CompileMalbolgeUnshackled.lean).
 * **Progress tracker**: [completeness-progress.md](completeness-progress.md),
   which says how far the completeness effort has got and what is next.
 * **Machine-checked groundwork**:
@@ -24,11 +29,286 @@ through the reasoning. Unshackled lifts exactly that bound — values are
 registers are unbounded — and with it the objection. A full compiler is
 possible here.
 
+## The backend as written
+
+Two rows and a five-cell prologue. That is the whole architecture, and it is
+worth stating before the obstacles below explain why anything more ambitious
+is hard: `c` and `d` both advance by one after every instruction, so a
+compiler that never disturbs them gets a **code row** that `c` walks and a
+**data row** that `d` walks under it, at a fixed distance, for free. Every
+crazy operation in the code row then reads the data cell directly below it.
+
+### Compile and run one
+
+Compile the greeting to Unshackled source:
+
+```
+lake exe turpentine compile --to malbolge-unshackled -o hello.mu Langlib/Examples/Turpentine/hello.turp
+```
+
+Output:
+
+```
+turpentine: wrote 306 bytes to hello.mu [bespoke, hand-written and unverified]
+```
+
+That count is cells, not bytes: 52 of the 306 are data cells above code
+point 126, so the file is 358 bytes of UTF-8. Run it on Unshackled's own
+interpreter:
+
+```
+lake exe malbolge-unshackled --fuel 100000 hello.mu
+```
+
+Output:
+
+```
+Hello, Turpentine!
+```
+
+Or do both at once, which is the differential test the suite runs:
+
+```
+lake exe turpentine exec --via malbolge-unshackled Langlib/Examples/Turpentine/sieve.turp
+```
+
+Output:
+
+```
+2
+3
+5
+7
+11
+13
+17
+19
+23
+29
+31
+37
+41
+43
+47
+```
+
+### The layout
+
+For a code row of `n` cells the image is `194 + 2n` cells:
+
+| addresses | what |
+|---|---|
+| 0, 1, 2 | the prologue: `movd`, `movd`, `jmp` |
+| 3 … 40 | padding |
+| 41 | the pointer cell, holding `dataBase - 2` |
+| 42 … 128 | padding |
+| 129 | the jump cell, holding `codeBase - 1` |
+| 130 … 129+n | the data row: constants under the crazy cells, padding elsewhere |
+| 130+n … codeBase-1 | a 64-cell gap, padding, and the jump's landing cell |
+| codeBase … codeBase+n-1 | the code row |
+
+### The prologue
+
+`c` and `d` both start at 0, and the crazy operation crashes when they
+coincide: it writes its result at `d`, and the encryption that follows reads
+at `c`, where the result of a crazy operation is essentially never a
+printable word. (`rotcrash.mu` in the examples is that mistake in three
+characters.) So the first job of any Unshackled program is to separate the
+two pointers, and the first two addresses decide their own contents:
+
+| address | word | instruction | effect |
+|---|---|---|---|
+| 0 | 40 | `movd` | `movd` at address 0 *is* the word 40, so `d := mem[0] = 40` |
+| 1 | 39 | `movd` | both pointers advanced, so `d` is 41: `d := mem[41]` |
+| 2 | 96 | `jmp` | `c := mem[d]`, the jump cell one below the data row |
+
+Address 41 is therefore not a choice; it is where the first `movd` puts `d`,
+and every program this backend emits has its pointer cell there. A jump
+encrypts its *target* rather than itself (`jmp_cell_stable`), so the jump
+cell holds `codeBase - 1`, the target cell is ordinary padding, and
+execution resumes at `codeBase` with `d` at `dataBase`.
+
+### Every instruction at every address
+
+The assembler's core is one line:
+
+```lean
+def wordFor (opcode addr : Nat) : Nat :=
+  let w := (opcode + 94 - addr % 94) % 94
+  if 33 ≤ w then w else w + 94
+```
+
+`(opcode - addr) mod 94` lands in `0..93`; adding 94 when it is below 33
+lands in `94..126`; one of the two is always printable. So instruction
+choice is free at *every* address, the code row needs no padding at all, and
+the residue arithmetic that dominates hand-written Malbolge costs this
+compiler nothing.
+
+That is not a contradiction of "placement is not free" below. A
+hand-written cell has to survive re-execution, so it must come from
+`xlat2`'s two-element orbit `70 ↔ 74` and its address residue is forced —
+which is what `alternatingCell` pins down, and why only 14 of the 94
+residues are usable there. A cell that runs **once** has no such
+obligation, and every cell here runs once.
+
+### The data channel
+
+The loader checks a source character in `33..126` against its address and
+rejects it if `(code + addr) mod 94` is not one of the eight opcodes.
+Characters outside that range it stores unchecked — this is spec decision 5,
+and it is Johansen's default as it was Malbolge's accident. That is the
+compiler's data channel: a cell holding a code point of 127 or more (or
+14 … 31) is arbitrary data, and `legalCell` is the predicate the code
+generator checks every cell against before rendering it, so a bug in the
+generator is a compile error rather than a load error.
+
+The price is one line in the manual: **an emitted program needs the loader's
+default setting.** `--strict` (Johansen's `-n`) rejects it, by design, and a
+test asserts that it does.
+
+### Two crazy operations, with constants a source file can hold
+
+Setting the accumulator is where the target's hostility actually bites.
+There is no load instruction; the only way to change `a` is the crazy
+operation against whatever is under `d`. `crz_two_steps` says two of them
+suffice from any value to any other, and computes the constants — but
+`toTwoConst` picks a value whose repeating trit is `2`, and a source
+character is a code point, so its repeating trit is always `0`. The proof's
+constants cannot be loaded.
+
+Loadable ones exist, and there are many. The crazy operation is tritwise
+(`crz_trit`), so the two constants are chosen position by position and the
+positions do not interact; reading the table by rows, every pair of trits is
+joined by at least one two-step path. The useful part is what happens
+*above* both operands: the accumulator trit and the target trit are both
+`0` there, and five of the nine `(k₁, k₂)` pairs work, not just `(0, 0)`. So
+a constant can be padded with high trits until it lands on a code point the
+loader will accept, and `twoStep` enumerates those paddings with the most
+significant position varying fastest, so its first candidates are already
+large enough to need no permission at all.
+
+Checked by a sweep rather than argued: for all 16384 pairs of accumulator
+and target below 128, at eight different address residues, `twoStep` finds a
+pair, the pair is legal at both addresses, and the arithmetic is exactly
+right. The largest constant it ever needed was 6641, comfortably below the
+surrogate range where code points run out.
+
+### The cost model
+
+Three cells per output byte — two crazy, one `out` — and one cell for a byte
+that repeats the one before it, because the accumulator already holds it and
+nothing else in this fragment writes to `a`. Plus the closing `halt`, the
+data row of the same length, and 194 fixed cells. A program that prints `n`
+bytes with `r` immediate repeats is `194 + 2(3(n - r) + r + 1)` cells, and
+runs in `4 + 3(n - r) + r` instructions.
+
+### A worked example
+
+`print("Hi");` compiles to 208 cells. Traced against the interpreter, the
+whole run is ten steps:
+
+```text
+c=0   d=0    mem[c]=40  movd   a=0          mem[d]=40
+c=1   d=41   mem[c]=39  movd   a=0          mem[d]=128
+c=2   d=129  mem[c]=96  jmp    a=0          mem[d]=200
+c=201 d=130  mem[c]=49  crazy  a=0          mem[d]=2187
+c=202 d=131  mem[c]=48  crazy  a=...11      mem[d]=2259
+c=203 d=132  mem[c]=84  out    a=72         mem[d]=124
+c=204 d=133  mem[c]=46  crazy  a=72         mem[d]=189
+c=205 d=134  mem[c]=45  crazy  a=...122011  mem[d]=186
+c=206 d=135  mem[c]=81  out    a=105        mem[d]=121
+c=207 d=136  mem[c]=62  halt   a=105        mem[d]=120
+```
+
+Three things to read out of it. The accumulator after one crazy operation is
+`...11`, not a natural number at all — the crazy operation of two naturals
+never is, because `crz 0 0 = 1` in every trit position above both operands —
+and the second operation brings it back down to `72`, which is `H`. The
+jump at address 2 sends `c` to 200 and execution resumes at 201, one cell
+further on, because the jump's target is what gets encrypted. And `mem[d]`
+under the two `out` cells is `124` and `121`: padding, read by nobody, since
+`out` does not touch memory.
+
+### The fragment, exactly
+
+**Every Turpentine program that does not read input.** That is not a
+restriction on the syntax: loops, arrays, `int` and `bool`, Euclidean `/`
+and `%`, short-circuit `&&` and `||`, `assert`, `print`, `println`,
+`printByte` and string literals are all in, and the sieve of Eratosthenes
+over a `bool[50]` compiles. It is a restriction on where the control flow
+can be decided, and this backend decides it at compile time, by running the
+source on Turpentine's own reference interpreter with an empty input stream
+and compiling the byte string that comes out.
+
+Refused, each with a message that says which of these it is:
+
+* `readInt`, `readByte` and their array forms, anywhere in the program;
+* a program that does not halt within `evalFuel` (500 000) statements —
+  the backend compiles the output of a terminating run, and cannot know
+  the output of any other kind;
+* a program that traps (a failed `assert`, an out-of-bounds index): the
+  emitted program would have to reproduce a Turpentine error message, and
+  Unshackled has no way to;
+* an output byte above 127, because Unshackled's `out` writes a *character*
+  and a byte above 127 would go out as two bytes of UTF-8.
+
+The last one is the only place the two languages' I/O models disagree, and
+it is one-sided: for a byte below 128 the code point and the byte are the
+same number, and `...21` and `...22` — Unshackled's newline and
+end-of-output — are never reached, because a plain `10` already writes a
+newline.
+
+### Why input is the hard half, and not just the next half
+
+It would be nice to say that reading input is more of the same. It is not,
+and the reason is a fact about the crazy operation worth stating on its own.
+
+`crz` is tritwise, so every trit of its result depends only on the trits of
+its operands at the *same* position. A chain of crazy operations against
+compiled-in constants therefore computes a **tritwise** function of the
+accumulator, and no tritwise function can broadcast: there is no constant
+column in the table (`k = 0` sends `0,1,2` to `1,0,0`; `k = 1` to `1,0,2`;
+`k = 2` to `2,2,1`; none is constant), so no chain can turn an unknown value
+into a *uniform* one. And uniform is exactly what the verified branch
+pipeline consumes: `branch_arith` needs a flag holding `...000` or `...222`.
+
+So a comparison cannot be collapsed into a flag by crazy operations alone.
+Collapsing needs to move a trit from one position to another, the only
+instruction that does is `*`, and `*` is where the rotation width lives —
+which is why the completeness route goes through unary registers and the
+escalator rather than through arithmetic, and why the input half of this
+backend is the counter machine rather than a bigger code generator. See
+[completeness-progress.md](completeness-progress.md).
+
+There is one thing the straight-line world can do with an unknown value,
+and it is worth recording because it is cheaper than the branch pipeline.
+The tritwise map `crz (crz a k) k` with `k` all ones below the width of `a`
+is the **identity** — the transposition `0 ↔ 1` applied twice — so two crazy
+operations against a single loadable constant *copy the accumulator into a
+memory cell*, and a `movd` through that cell then sets `d` to the value
+read. That is a computed jump indexed by an input character, with no
+rotation anywhere: `inp`, two crazy cells, two `movd`s and a `jmp` land `c`
+wherever a table at addresses `v+1` says, where `v` is the character read.
+The copy is checked (every scalar below 1114112 at width 13, and every value
+exhaustively at widths 5, 7 and 8); the dispatch built on it is not, and is
+not in the compiler. Two things to know before building it: the entries for
+characters 0, 1 and 40 are pinned by the prologue, which occupies addresses
+1, 2 and 41; and end of input, `...22`, copies to `...1222…2`, whose leading
+trit is 1, so it lands in memory no loader ever touched and its target is
+whichever of the six fill values the residue selects.
+
 ## The three obstacles, and what is now proved about each
 
 The obstacles are Olmstead's, inherited unchanged. Each is now a theorem
 rather than folklore, and each turns out to have a sharper form than the
 prose version.
+
+The straight-line backend above steps around all three: a cell that runs
+once cannot encrypt itself into anything that matters, an address whose
+residue is known can hold any instruction, and an accumulator whose value
+the compiler knows needs no arithmetic it cannot precompute. What follows is
+why anything that *loops* cannot step around them, and it is the
+specification of the input half.
 
 ### 1. Executed code encrypts itself
 
@@ -401,7 +681,7 @@ at 82 with word 74 or 86 with word 70, `movd` at 60 or 64, `jmp` at 24 or
 94-block and pads the rest, and the assembler's placement problem is a
 short arithmetic one.
 
-## What a backend still has to solve
+## What the input half still has to solve
 
 1. ~~A data-driven branch.~~ The **arithmetic half is done**:
    `branch_arith` proves that seven crazy operations against constants
@@ -430,12 +710,94 @@ short arithmetic one.
    not do. What remains is the *sequencing*: `p` writes to `mem[d]`, so the
    two constants have to be reachable by `d` at the right moments, which is
    a layout problem rather than an arithmetic one.
-3. **A layout pass.** Solving the residue constraints of obstacle 2
-   automatically, with the spacing law as a side condition, is an
-   assembler and should be written and tested as one.
-4. **The prologue.** Reaching the dispatcher from `c = 0` is a real piece
-   of code, and proving it symbolically is what the worked example above
-   leaves out.
+3. ~~A layout pass.~~ **Written**, in
+   `Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean`:
+   `wordFor` for placement, `legalCell` for what the loader will take, and
+   `Asm` for the image, all of them independent of what the code row says
+   and reusable by a backend that loops. What the straight-line generator
+   does *not* exercise is the harder half of the constraint set: cells at
+   `xlat2` two-cycle residues, and the spacing law for a jump table with two
+   entries at the same word.
+4. ~~The prologue.~~ **Written**, three cells, and traced against the
+   interpreter in the worked example above. Proving it symbolically is
+   still open; `enter_chain` is the shape the proof should take.
+5. **The accumulator, when its value is unknown.** The finding above —
+   `crz (crz a k) k` is the identity for `k` all ones, so two crazy
+   operations copy `a` into memory and a `movd` turns it into an address —
+   gives a computed jump on an input character without rotating. Building
+   the dispatch table on it, and deciding what to do about end of input
+   landing outside the loaded image, is the cheapest next experiment on
+   this page.
+
+## Tests
+
+[`Langlib/Tests/CompileMalbolgeUnshackled.lean`](../../Langlib/Tests/CompileMalbolgeUnshackled.lean),
+run by `lake test`, in six suites. Four of them exist because a backend whose
+target checks its own program at load time can fail in four different ways.
+
+* **Differential**, 20 cases. Compile, load with Unshackled's loader, run on
+  Unshackled's interpreter, compare with what Turpentine's own interpreter
+  produces. Every expected string is Turpentine's. The cases cover string
+  literals and escapes, decimal printing across digit boundaries and on
+  negatives, booleans, Euclidean `/` and `%`, short-circuit `||`, `assert`,
+  `int` and `bool` arrays with computed indices, **every byte from 1 to
+  127** through `printByte`, byte 0 and byte 127, `printByte`'s reduction
+  mod 256, and the `hello`, `sieve` and `sum` examples.
+* **Rotation width**, 6 cases. The language leaves the starting rotation
+  width to the implementation, and Johansen's interpreter randomises it
+  precisely so that a program depending on it fails on some runs. This
+  backend emits no `*`, so each case is run at seven widths from 10 to 300
+  and passes only if all seven agree, exit code included.
+* **Every cell loadable**, 7 cases. Read the emitted text back the way the
+  loader does and check each character at its own address against
+  `Instr.ofOpcode?` — independently of the compiler's own bookkeeping — and
+  check that none of them is whitespace, which the loader would silently
+  skip.
+* **Cell counts**, 3 cases. `194 + 2n` pinned, so a change to the layout or
+  to the accumulator accounting shows up as a diff.
+* **Straight-line**, 6 cases. Run at a fuel bound of `n + 4` for an
+  `n`-cell image. A program that looped, spun on an unprintable word, or
+  re-entered a cell would report out-of-fuel instead of halting.
+* **The fragment boundary**, 10 cases, one per reason to refuse: each of the
+  four reading statements, non-termination, a byte above 127, a trap, a
+  failed assertion, a type error and a parse error.
+
+Two checks are run by hand rather than by `lake test`, because they are
+sweeps rather than cases: `twoStep` over all 16384 accumulator/target pairs
+below 128 at eight address residues (0 failures, largest constant 6641), and
+the copy identity `crz (crz a k) k = a` over every value at widths 5, 7 and
+8 and a sample of every scalar at width 13 (0 failures).
+
+## Correctness
+
+**Nothing is proved.** This backend has no entry in
+`Langlib/Languages/Turpentine/Certified/`, and the `docs/README.md` matrix
+says so.
+
+The statement it should be proved against is unusual, and worth writing down
+while the code is fresh, because it is *easier* than the statement the other
+bespoke backends carry. The compiler's own front end is Turpentine's
+reference interpreter, so there is no code generator to relate to the source
+semantics — the obligation is entirely on the back end:
+
+> for every byte string `bs` all of whose bytes are below 128,
+> `MalbolgeUnshackled.run (build bs) input fuel` halts with output `bs`, for
+> a large enough `fuel` and *every* legal starting rotation width.
+
+`CertifiedCompiler` in `Langlib/Common/Compilation.lean` then follows by
+composing that with `evalProgram`'s own definition, and the I/O-aware
+`IOCertifiedCompiler` follows too, since a program with no input has a trace
+that is exactly its output events.
+
+The proof would be an induction over the plan, and the machinery is already
+in `Langlib/Computability/MalbolgeUnshackled.lean`: `crazy_run` folds a row
+of crazy cells in one lemma, `step1_out` is the output step, `nop_run`
+handles the padding, `exec_halts_of_run?` gets from the step relation to
+`exec`, and `decode_at_ofNat` is what makes `wordFor` correct. The one piece
+that does not exist is a lemma saying the loader reads back the image the
+assembler built — `load (Asm.render m) = m` on the addresses that matter —
+which is the Unshackled analogue of the assembler round-trip the subleq
+backend tests but does not prove.
 
 ## Credit
 
