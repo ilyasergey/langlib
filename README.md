@@ -72,31 +72,7 @@ The roadmap of languages still to be implemented lives in
 [docs/ROADMAP.md](docs/ROADMAP.md), and a survey of related efforts in
 [docs/RELATED.md](docs/RELATED.md).
 
-Where each one stands. The two middle columns answer different questions.
-**Turing-complete (TC)** is the answer itself, as the literature or our own
-spec page gives it. **TC claim mechanised** is whether that answer is backed
-by a machine-checked theorem in this repository, and links it.
-
-So `yes` in the second column means settled, whichever way the first column
-came out: brainfuck is proved complete, malbolge is proved *not* complete
-by way of a decided halting problem, and both are equally results. The
-column never reads `no`, because no question here has been attempted and
-lost; the unsettled ones say `open`, or `in progress` where the foundations
-have landed and one step remains.
-
-The last column names the Turpentine compilers a target has and links each
-to its source. A **derived** one comes out of that language's completeness
-proof, so it is *(certified)* already, but it does not support I/O: it
-routes everything through a register machine, which has no way to read or
-write, so the program takes no input and leaves its result in `answer`.
-Its output is also enormous. A **bespoke** one is hand-written for that
-target: it emits compact, readable code and supports the whole language.
-*(trusted)* means tested rather than proved; *(certified on a fragment)*
-means a correctness theorem covers part of what the compiler accepts, and
-links it. Whitespace and subleq have one, over fragments the compiler
-states as data by refusing everything outside them.
-[Verified compilers](#verified-compilers) below explains why the library
-keeps both kinds.
+Current status: 
 
 | Language | Turing-complete (TC) | TC claim mechanised | Turpentine compiler |
 |----------|--------------------------|------------------------------|---------------------|
@@ -115,6 +91,26 @@ keeps both kinds.
 | [unlambda](docs/unlambda/spec.md) | yes | open | [planned](docs/unlambda/compiler.md) |
 | [ski](docs/ski/spec.md) | yes | open | [none: compile to unlambda](docs/ski/compiler.md) |
 | [Turpentine](docs/turpentine/spec.md) | yes | open | [(it is the source)](docs/turpentine/spec.md) |
+
+
+The two middle columns answer different questions.
+**Turing-complete (TC)** is the answer itself, as the literature or our own spec page gives it. **TC claim mechanised** is whether that answer is backed
+by a machine-checked theorem in this repository, and links it.
+
+The last column names the Turpentine compilers a target has and links each
+to its source. A **derived** one comes out of that language's completeness
+proof, so it is *(certified)* already, but it does not support I/O: it
+routes everything through a register machine, which has no way to read or
+write, so the program takes no input and leaves its result in `answer`.
+Its output is also enormous. A **bespoke** one is hand-written for that
+target: it emits compact, readable code and supports the whole language.
+*(trusted)* means tested rather than proved; *(certified on a fragment)*
+means a correctness theorem covers part of what the compiler accepts, and
+links it. Whitespace and subleq have one, over fragments the compiler
+states as data by refusing everything outside them.
+[Verified compilers](#verified-compilers) below explains why the library
+keeps both kinds.
+
 
 The full matrix, with per-stage columns and links to every theorem, is in
 [docs/README.md](docs/README.md).

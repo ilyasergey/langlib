@@ -144,8 +144,8 @@ compiler *through* the URM inherits the URM's poverty: it can prove a
 program computes the right number, and it cannot say anything about a
 program that talks to a user. Reaching a target people actually run, with
 input and output that arrive in order, needs a hand-written backend and the
-stronger theorem sketched in
-[certified-compilation.md](certified-compilation.md) section 3b.
+stronger theorem of
+[certified-compilation.md](certified-compilation.md) section 1.2.
 
 ### Completeness: the claim, and the verdict
 
@@ -252,7 +252,7 @@ Neither replaces the other, and three facts keep it that way.
   harder than planned: the recommended `Nat`-valued reference semantics
   bridges the wrong way, since `answer := (2 - 5) + 10` halts with `7` in
   the reference and has no `Nat` run at all. See
-  [certified-compilation.md](certified-compilation.md) section 4b.
+  [certified-compilation.md](certified-compilation.md) section 2.4.
 
 The honest summary is that a proof buys certainty about a fragment, and a
 hand-written compiler buys a program you can actually run. The library
@@ -272,7 +272,7 @@ The three columns follow from that, in the order the table puts them.
   `answer`. Division, modulo, `&&`, `||`, initialisers and now arrays
   (declarations, `a[i]` on both sides, and `len`) are in, and the fragment
   is still being widened (see
-  [certified-compilation.md](certified-compilation.md) sections 4 and 4b);
+  [certified-compilation.md](certified-compilation.md) sections 2.3 and 2.4);
   the `-tc` examples in `Langlib/Examples/Turpentine/` are written against
   it, and eleven of the twelve compile today, `sort-tc` being the one that
   still needs subtraction. A `yes` links to that language's compiler, and *the correctness
@@ -312,7 +312,7 @@ The three columns follow from that, in the order the table puts them.
   correctness theorem. Real per-language proof work, and the eventual
   statement is harder than the derived route's, because a bespoke backend
   compiles the I/O-bearing language (see
-  [certified-compilation.md](certified-compilation.md) section 3b).
+  [certified-compilation.md](certified-compilation.md) section 1.2).
 
   The first one has landed:
   [`bespokeSubleq`](../Langlib/Computability/BespokeSubleq.lean#L630) is a
