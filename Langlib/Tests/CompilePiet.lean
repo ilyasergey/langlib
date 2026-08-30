@@ -108,6 +108,28 @@ def compiled : Suite where
         fuel := pFuel, expect := .outputs "3\n" }
     , { name := "count example", source := .file "Langlib/Examples/Turpentine/suite/count.turp",
         fuel := pFuel, expect := .outputs "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n" }
+      -- Arrays live on the stack, addressed by `roll`, with the computed
+      -- index parked in a scratch slot below every variable.
+    , { name := "an array at literal indices", source := .inline
+          "var a : int[3]; a[0] := 7; a[1] := 8; a[2] := 9; println(a[0]); println(a[1]); println(a[2]);",
+        fuel := pFuel, expect := .outputs "7\n8\n9\n" }
+    , { name := "len is a literal", source := .inline
+          "var a : bool[5]; println(len(a));",
+        fuel := pFuel, expect := .outputs "5\n" }
+    , { name := "arrays start at zero", source := .inline
+          "var a : int[3]; var b : bool[2]; println(a[1]); println(b[0]);",
+        fuel := pFuel, expect := .outputs "0\nfalse\n" }
+    , { name := "a computed index on both sides", source := .inline
+          "var a : int[5]; var i : int; while i < 5 { a[i] := i * i; i := i + 1; } i := 0; while i < 5 { println(a[i]); i := i + 1; }",
+        fuel := pFuel, expect := .outputs "0\n1\n4\n9\n16\n" }
+    , { name := "an index that is itself an array read", source := .inline
+          "var a : int[3]; var b : int[3]; a[0] := 2; b[2] := 41; println(b[a[0]] + 1);",
+        fuel := pFuel, expect := .outputs "42\n" }
+    , { name := "two arrays and a scalar keep their slots", source := .inline
+          "var a : int[2]; var x : int := 5; var b : int[2]; a[1] := 1; b[0] := 2; println(a[1]); println(x); println(b[0]);",
+        fuel := pFuel, expect := .outputs "1\n5\n2\n" }
+    , { name := "sort example", source := .file "Langlib/Examples/Turpentine/suite/sort.turp",
+        fuel := pFuel, expect := .outputs "0\n1\n2\n5\n5\n6\n7\n9\n" }
     ]
 
 /-- A failed `assert`, and a division by zero, become the trap lane: a
@@ -130,25 +152,34 @@ def traps : Suite where
     , { name := "division by zero never halts", source := .inline
           "var z : int; println(5 / z);",
         fuel := 30_000, expect := .diverges }
+      -- Every array access is bounds-checked, and it has to be: without the
+      -- check an index off the end would rotate the wrong distance and
+      -- silently corrupt the variables below it.
+    , { name := "an index past the end never halts", source := .inline
+          "var a : int[3]; var i : int := 5; println(a[i]);",
+        fuel := 60_000, expect := .diverges }
+    , { name := "a negative index never halts", source := .inline
+          "var a : int[3]; var i : int := 0 - 1; a[i] := 1;",
+        fuel := 60_000, expect := .diverges }
     ]
 
-/-- Arrays are the whole of what the backend refuses, and it says so by
-name. -/
-def rejected : Suite where
-  name := "turpentine -> piet (rejected constructs)"
+/-- Nothing is outside the fragment any more, so what this pins is that the
+whole language really does compile: one program using every statement form
+the backend has to lay out. -/
+def wholeLanguage : Suite where
+  name := "turpentine -> piet (every construct)"
   run := Langlib.Turpentine.Compile.Piet.runCompiled
   cases :=
-    [ { name := "an array declaration", source := .inline
-          "var a : int[3]; println(1);",
-        expect := .parseError "outside the piet backend" }
-    , { name := "an array read", source := .inline
-          "var a : int[3]; println(a[0]);",
-        expect := .parseError "outside the piet backend" }
-    , { name := "an array write", source := .inline
-          "var a : int[3]; a[0] := 1;",
-        expect := .parseError "outside the piet backend" }
+    [ { name := "every statement form at once", source := .inline
+          "var a : int[3]; var i : int; var b : bool := true; \
+           a[0] := 3; a[1] := 1; a[2] := 2; \
+           while i < len(a) { if a[i] > 2 { print(\"big \"); } else { print(\"small \"); } println(a[i]); i := i + 1; } \
+           assert i == 3; \
+           if b && !(i == 3) { println(0); } else { printByte(111); printByte(107); printByte(10); }",
+        fuel := pFuel,
+        expect := .outputs "big 3\nsmall 1\nsmall 2\nok\n" }
     ]
 
-def suites : List Suite := [compiled, traps, rejected]
+def suites : List Suite := [compiled, traps, wholeLanguage]
 
 end Langlib.Tests.CompilePiet

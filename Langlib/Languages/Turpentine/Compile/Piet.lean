@@ -108,23 +108,50 @@ tabulates the cheapest plan for every value up to `planBound` by dynamic
 programming; larger values are split against a base and the quotient
 recurs. Zero is `push 1; not`, and a negative constant is `0 - |n|`.
 
+## Arrays
+
+An array lives on the stack like everything else: `n` consecutive slots
+with element zero at the variable's own slot. The hard part is that the
+roll amounts stop being literals — reaching `a[i]` means rotating by a
+distance known only at run time, and `roll` *consumes* the distance, while
+the read needs it twice and the write three times.
+
+Recomputing `i` is not on, since it may be any expression, and keeping a
+spare copy on the stack does not work either: the copy would sit inside the
+region the rotation disturbs. So there are two **scratch slots** below every
+variable. Being below is the whole point — a rotation that reaches an array
+element cannot reach something deeper than every element, so the scratch
+slot's index after the rotation is the index it had before.
+
+Every access is bounds-checked, in one lane rather than two: both halves of
+`0 ≤ i < n` are a `greater`, both results are 0 or 1 so their conjunction
+is a product, and neither can trap so there is nothing to short-circuit.
+That matters more than it looks, because a lane is two rows and its branch
+is two wires, so the picture grows in both directions and the interpreter's
+per-step cost grows with its area.
+
 ## The fragment
 
-Everything except arrays. Piet has no heap, and while an array could live
-on the stack like a scalar, a *computed* index needs the roll depth itself
-computed at run time; that is written up in `docs/piet/compiler.md` as the
-next thing to do rather than attempted here.
+The whole language. What arrays cost is speed rather than expressiveness:
+every element access is `O(depth)`, so a loop over an `n`-element array is
+quadratic, and `docs/piet/compiler.md` records that as the price of Piet
+having no heap.
 
-Two behaviours differ from the reference interpreter and cannot be
-repaired:
+Three behaviours differ from the reference interpreter.
 
-* `readByte()` at end of input. Turpentine yields `-1`; Piet's `inChar`
-  **ignores** a command it cannot perform, so the stack is left as it was
-  and the compiled program reads a stale value. A program that reads a
-  known number of bytes is unaffected.
-* A failed `assert` becomes an infinite loop, as in every other backend:
-  the reference reports a runtime error and the compiled program runs out
-  of fuel.
+* `readByte()` at end of input, which cannot be repaired. Turpentine
+  yields `-1`; Piet's `inChar` **ignores** a command it cannot perform, so
+  the stack is left as it was and the compiled program reads a stale value.
+  A program that reads a known number of bytes is unaffected.
+* A failed `assert`, a **division by zero** and an **index out of range**
+  all become an infinite loop, as in every other backend: the reference
+  reports a runtime error at that point and the compiled program runs out
+  of fuel, having produced the same output up to there.
+* Division by zero is the one of those three that is forced rather than
+  chosen. Because Piet ignores a command it cannot perform, a `divide` by
+  zero would leave *both* operands on the stack and put every later
+  variable access one slot off — silently wrong output instead of a
+  stopped program.
 
 `/` and `%` are Euclidean in Turpentine and *flooring* in Piet, which
 differ only when the divisor is negative. The correction is branch-free
@@ -368,38 +395,72 @@ private def swapTop : M Unit := do
 private def negTop : M Unit := do
   pushK 0; swapTop; op .subtract (d := -1)
 
-/-- Copy variable `k` to the top of the stack, leaving it where it was.
+/-- Copy the entry `j` places down to the top, leaving it where it was.
 Bring it up with a rotation, duplicate it, and rotate the original back
-under the copy. -/
-private def readVar (k : Nat) : M Unit := do
-  let j := (← get).depth + k
+under the copy. `j` is an index into the stack as it stands. -/
+private def readAt (j : Nat) : M Unit := do
   pushK (j + 1); pushK j; op .roll (d := -2)
   op .dup (d := 1)
   pushK (j + 2); pushK 1; op .roll (d := -2)
 
-/-- Store the top of the stack into variable `k`, consuming it. Rotate the
-value down past the variable, bring the old value up, and drop it. -/
-private def writeVar (k : Nat) : M Unit := do
-  -- `depth` counts the value being stored, which sits at index 0, so the
-  -- variables start at index `depth` and variable `k` is at `depth + k`.
-  let j := (← get).depth + k
+/-- Store the top of the stack into the entry `j` places down, consuming
+it. Rotate the value down past the target, bring the old value up, and drop
+it. `j` counts from the value itself, which sits at index 0. -/
+private def writeAt (j : Nat) : M Unit := do
   pushK (j + 1); pushK 1; op .roll (d := -2)
   pushK j; pushK (j - 1); op .roll (d := -2)
   op .pop (d := -1)
 
+/-- Copy slot `k` of the variable region to the top. The region begins at
+`depth`, since `depth` counts exactly the temporaries above it. -/
+private def readVar (k : Nat) : M Unit := do
+  readAt ((← get).depth + k)
+
+/-- Store the top of the stack into slot `k`. `depth` counts the value
+being stored, which sits at index 0, so the region begins at `depth`. -/
+private def writeVar (k : Nat) : M Unit := do
+  writeAt ((← get).depth + k)
+
 /-! ## Expressions and statements -/
 
-/-- Names to stack slots: variable `x` is `slot x` entries above the bottom
-of the stack when no temporaries are live. -/
+/-- Names to stack slots. A scalar takes one slot and an array of length
+`n` takes `n` consecutive ones, `slot x` being element zero; variable `x`
+therefore sits `slot x` entries below the top of the variable region.
+
+Two **scratch slots** sit below every variable, at `nvarSlots` and
+`nvarSlots + 1`. Being below everything is the whole point: an array access
+rotates the region above the element it is reaching for, and a slot deeper
+than every element is untouched by that rotation, so its index is still
+known afterwards. `indexScratch` parks a computed index across the rolls
+that consume it, and `valueScratch` parks a freshly read number or byte
+while the index of an indexed read is evaluated. -/
 structure Frame where
   slot : Std.HashMap String Nat
   types : Std.HashMap String Ty
-  /-- A lane that halts, for a division by zero. -/
+  /-- Total slots taken by the declared variables. -/
+  nvarSlots : Nat
+  /-- A lane that never leaves, for a division by zero or a failed assert. -/
   trap : Nat
+
+namespace Frame
+
+def indexScratch (f : Frame) : Nat := f.nvarSlots
+def valueScratch (f : Frame) : Nat := f.nvarSlots + 1
+/-- Slots on the stack altogether: the variables and the two scratch cells. -/
+def totalSlots (f : Frame) : Nat := f.nvarSlots + 2
+
+end Frame
 
 private def slotOf (f : Frame) (x : String) : M Nat :=
   match f.slot[x]? with
   | some k => pure k
+  | none => fail s!"unknown variable '{x}' (was the program type-checked?)"
+
+/-- The declared length of an array variable. -/
+private def arrayLen (f : Frame) (x : String) : M Nat :=
+  match f.types[x]? with
+  | some (.array _ n) => pure n
+  | some _ => fail s!"'{x}' is not an array (was the program type-checked?)"
   | none => fail s!"unknown variable '{x}' (was the program type-checked?)"
 
 /-- Euclidean division or modulo, from Piet's flooring pair. They agree
@@ -443,6 +504,93 @@ private def emitEuclid (f : Frame) (isDiv : Bool) : M Unit := do
   closeLane (.goto lJoin) lJoin
   setDepth dJoin
 
+/-- Stack slots a declaration occupies. -/
+def slotSize : Ty → Nat
+  | .array _ n => n
+  | _ => 1
+
+/-! ## Arrays
+
+An array lives on the stack like everything else, `n` consecutive slots
+with element zero at `slot x`. What makes it harder than a scalar is that
+the roll amounts are no longer literals: reaching `a[i]` means rotating the
+stack by a distance only known at run time, and `roll` consumes the
+distance it is given, so a single computed index is not enough — the read
+needs it twice and the write needs it three times.
+
+Recomputing `i` is not an option (it may be an arbitrary expression), and
+keeping a spare copy on the stack does not work either, because the copy
+would sit inside the region the rotation disturbs and would not be where it
+was left. The scratch slot solves it: it is deeper than every array
+element, so no rotation that reaches an element can reach it, and its index
+after the rotation is the index it had before.
+
+The cost is `O(depth)` per access, in codels and in run time both, and it
+is quadratic in an array's length across a whole loop. `docs/piet/compiler.md`
+records that as the price of having no heap.
+
+`arrayIndex` leaves the checked index parked in the scratch slot, and
+returns the index the scratch slot then has in the stack it was called
+with. -/
+
+/-- Evaluate `e`, check it against `0 ≤ e < n`, and park it in the index
+scratch slot. Returns the scratch slot's index in the stack as it stood on
+entry, which is what the callers' arithmetic is stated against. -/
+private def arrayIndex (f : Frame) (n : Nat) (e : Expr)
+    (compile : Expr → M Unit) : M Nat := do
+  let d ← getDepth
+  let scrAbs := d + f.indexScratch
+  compile e
+  -- Both halves of `0 ≤ i < n` in one test, and so in one lane. Each is a
+  -- `greater`, which pops the right-hand side first; both results are 0 or
+  -- 1, so their conjunction is a product, and neither can trap, so there is
+  -- nothing to short-circuit. One lane per access rather than two matters
+  -- more than it looks: a lane is two rows and a branch is two wires, the
+  -- picture grows in both directions, and the interpreter's per-step cost
+  -- grows with its area.
+  op .dup (d := 1)
+  op .dup (d := 1)
+  pushK (-1)
+  op .greater (d := -1)          -- i > -1
+  swapTop
+  pushK (n : Int)
+  swapTop
+  op .greater (d := -1)          -- n > i
+  op .multiply (d := -1)
+  let lOk ← freshLane
+  closeLane (.branch lOk f.trap) lOk
+  -- park it: the scratch slot is one deeper now that the index is on top
+  writeAt (scrAbs + 1)
+  return scrAbs
+
+/-- Store the value on top of the stack into `x[i]`, consuming it. The
+value is already there when this is called, because the reference
+semantics evaluates the right-hand side before the index. -/
+private def arrayStore (f : Frame) (x : String) (i : Expr)
+    (compile : Expr → M Unit) : M Unit := do
+  let n ← arrayLen f x
+  let base ← slotOf f x
+  -- `depth` counts the value being stored, so the region begins one lower.
+  let d := (← getDepth) - 1
+  let scrAbs ← arrayIndex f n i compile
+  -- K is the target slot's index in the stack with the value on top.
+  -- Move the value down onto the target: rotate the top K+1 by one.
+  readAt scrAbs
+  pushK ((d + base + 2 : Nat) : Int)
+  op .add (d := -1)
+  pushK 1
+  op .roll (d := -2)
+  -- the old value now sits one above where the new one landed; lift it out
+  readAt scrAbs
+  pushK ((d + base : Nat) : Int)
+  op .add (d := -1)
+  op .dup (d := 1)
+  pushK 1
+  op .add (d := -1)
+  swapTop
+  op .roll (d := -2)
+  op .pop (d := -1)
+
 mutual
 
 /-- Compile `e`, leaving exactly one value on the stack. -/
@@ -450,8 +598,32 @@ private partial def compileExpr (f : Frame) : Expr → M Unit
   | .intLit n => pushK n
   | .boolLit b => pushK (if b then 1 else 0)
   | .var x => do readVar (← slotOf f x)
-  | .len x => fail s!"len({x}) needs an array, which the piet backend does not lay out"
-  | .index x _ => fail s!"the array access {x}[..] is outside the piet backend"
+  | .len x => do
+    -- fixed at declaration, so this is a literal
+    pushK ((← arrayLen f x : Nat) : Int)
+  | .index x i => do
+    let n ← arrayLen f x
+    let base ← slotOf f x
+    let d ← getDepth
+    let scrAbs ← arrayIndex f n i (compileExpr f)
+    -- J is the element's index in the stack the first roll will rotate.
+    readAt scrAbs
+    pushK ((d + base : Nat) : Int)
+    op .add (d := -1)
+    -- operands for `roll`: rotate the top J+1 by J, bringing J to the top
+    op .dup (d := 1)
+    pushK 1
+    op .add (d := -1)
+    swapTop
+    op .roll (d := -2)
+    op .dup (d := 1)
+    -- the scratch slot did not move: it is deeper than the element, so the
+    -- rotation could not reach it.  Only the `dup` above it counts.
+    readAt (scrAbs + 1)
+    pushK ((d + base + 2 : Nat) : Int)
+    op .add (d := -1)
+    pushK 1
+    op .roll (d := -2)
   | .un .neg e => do compileExpr f e; negTop
   | .un .not e => do compileExpr f e; op .not
   | .bin .and a b => do
@@ -565,9 +737,23 @@ private partial def compileStmt (f : Frame) : Stmt → M Unit
       setDepth dJoin
       if nl then emitStr "\n"
     | .ok (.array _ _) => fail "internal: printing a whole array"
-  | .readIntIndex x _ => fail s!"reading into the array {x}[..] is outside the piet backend"
-  | .readByteIndex x _ => fail s!"reading into the array {x}[..] is outside the piet backend"
-  | .assignIndex x _ _ => fail s!"the array write {x}[..] := .. is outside the piet backend"
+  | .assignIndex x i e => do
+    -- The reference evaluates the right-hand side first, so a failing `e`
+    -- reports its own error even when `i` is out of range.
+    compileExpr f e
+    arrayStore f x i (compileExpr f)
+  | .readIntIndex x i => do
+    -- The reference consumes and parses the line before it looks at the
+    -- index, so the read happens first and is parked while `i` runs.
+    op .inNum (d := 1)
+    writeVar f.valueScratch
+    readVar f.valueScratch
+    arrayStore f x i (compileExpr f)
+  | .readByteIndex x i => do
+    op .inChar (d := 1)
+    writeVar f.valueScratch
+    readVar f.valueScratch
+    arrayStore f x i (compileExpr f)
 
 /-- One push/`out(char)` pair per UTF-8 byte. -/
 private partial def emitStr (str : String) : M Unit :=
@@ -673,36 +859,39 @@ the stack, then the initialisers run as ordinary assignments, which is what
 `Turpentine.initEnv` computes. -/
 def buildChecked (p : Program) (types : Std.HashMap String Ty) :
     Except String (Array Lane) := do
-  for (x, t, _) in p.decls do
-    match t with
-    | .array _ n =>
-      throw s!"the array '{x}' (of {n} elements) is outside the piet backend: piet has no heap, and a computed index would need the roll depth itself computed at run time"
-    | _ => pure ()
+  -- A scalar takes one slot, an array of length n takes n, and the
+  -- recorded slot is element zero.
   let mut slot : Std.HashMap String Nat := {}
-  for (d, k) in p.decls.zipIdx do
-    slot := slot.insert d.1 k
+  let mut next : Nat := 0
+  for (x, t, _) in p.decls do
+    slot := slot.insert x next
+    next := next + slotSize t
+  let nvarSlots := next
   let gen : M Unit := do
     -- Lane 0 is where execution starts, so it has to be the program's.
     let entry ← freshLane
     let trap ← freshLane
     let _ := entry
     -- The trap is a wire straight back into itself: the non-termination a
-    -- failed `assert` and a division by zero compile to, as in every other
-    -- backend.
+    -- failed `assert`, a division by zero and an index out of range all
+    -- compile to, as in every other backend.
     setLane trap { code := #[], term := .goto trap }
-    let f : Frame := { slot, types, trap }
-    modify fun s => { s with nvars := p.decls.length, depth := 0 }
-    -- one stack slot per variable, deepest first
-    for (x, t, _) in p.decls.reverse do
-      match t with
-      | .bool => pushK 0
-      | _ => pushK 0
-      let _ := x; let _ := t
-    modify fun s => { s with depth := 0 }
-    for (x, _, init) in p.decls do
-      match init with
-      | some e => compileStmt f (.assign x e)
-      | none => pure ()
+    let f : Frame := { slot, types, nvarSlots, trap }
+    -- One stack entry per slot, all zero: that is `0` for an `int`, `false`
+    -- for a `bool`, and the whole of an array, which Turpentine starts at
+    -- zero however it was declared.  The two scratch cells come first, so
+    -- they end up below every variable.
+    for _ in [0:f.totalSlots] do
+      pushK 0
+    modify fun s => { s with nvars := nvarSlots, depth := 0 }
+    -- Declarations with initialisers become assignments at the head of the
+    -- body, in declaration order, which is what `Turpentine.initEnv`
+    -- computes.  An array has no initialiser to run.
+    for (x, t, init) in p.decls do
+      match t, init with
+      | .array _ _, _ => pure ()
+      | _, some e => compileStmt f (.assign x e)
+      | _, none => pure ()
     compileStmt f p.body
     let fin ← freshLane
     closeLane (.goto fin) fin

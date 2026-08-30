@@ -5,6 +5,7 @@ import Langlib.Languages.Turpentine.Compile.Whitespace
 import Langlib.Languages.Turpentine.Compile.Subleq
 import Langlib.Languages.Turpentine.Compile.Ook
 import Langlib.Languages.Turpentine.Compile.Brainloller
+import Langlib.Languages.Turpentine.Compile.Piet
 import Langlib.Languages.Whitespace.Semantics
 import Langlib.Languages.Subleq.Semantics
 
@@ -139,6 +140,13 @@ private def viaBrainloller (src : String) (i : Input) (n : Nat) :
     Except String RunResult :=
   Langlib.Turpentine.Compile.Brainloller.runCompiled src i n
 
+/-- Piet compiles to a picture, so this one goes out through
+`Grid.toImage` and comes back through Piet's own PPM parser rather than
+running the grid the code generator built. -/
+private def viaPiet (src : String) (i : Input) (n : Nat) :
+    Except String RunResult :=
+  Langlib.Turpentine.Compile.Piet.runCompiled src i n
+
 def compiledBrainfuck : Suite where
   name := "conformance: compiled to brainfuck"
   run := viaBrainfuck
@@ -164,12 +172,24 @@ def compiledBrainloller : Suite where
   run := viaBrainloller
   cases := cases "Turpentine" "turp"
 
+/-- Piet is the slowest of these by a wide margin, and the reason is the
+interpreter rather than the backend: finding the colour block under the
+pointer is a flood fill and it happens at every step, so one instruction
+costs the area of the picture. The twenty run in about 45 seconds, most of
+it the four programs with arrays, which pay `O(depth)` per element access
+because Piet has no heap. -/
+def compiledPiet : Suite where
+  name := "conformance: compiled to piet"
+  run := viaPiet
+  cases := cases "Turpentine" "turp"
+
 def suites : List Suite :=
   [ reference
   , compiledBrainfuck
   , compiledWhitespace
   , compiledSubleq
   , compiledOok
-  , compiledBrainloller ]
+  , compiledBrainloller
+  , compiledPiet ]
 
 end Langlib.Tests.Conformance

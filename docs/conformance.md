@@ -66,9 +66,17 @@ names it.
 | compiled to subleq | likewise, on one instruction |
 | compiled to Ook! | likewise, through brainfuck's tokens |
 | compiled to Brainloller | likewise, through an image |
+| compiled to Piet | likewise, through a picture with no heap at all |
 
-That is 20 programs times 6 runners: 120 cases, all in `lake test`, no
+That is 20 programs times 7 runners: 140 cases, all in `lake test`, no
 subprocesses.
+
+Piet is the slow one, and the reason is its interpreter rather than its
+backend: finding the colour block under the pointer is a flood fill and it
+happens at every step, so one instruction costs the area of the picture.
+The twenty take about 45 seconds, most of it the four programs with arrays
+— Piet has no heap, so an array lives on the stack and every element access
+costs `O(depth)`.
 
 ## Hand-written implementations
 

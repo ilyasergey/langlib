@@ -54,17 +54,32 @@ Output:
 42
 ```
 
-A program outside the fragment is refused by name:
+The fragment is the whole language, arrays included, so there is nothing to
+refuse. The sieve of Eratosthenes writes a 50-element array at a computed
+index, and compiles:
 
 ```
-lake exe turpentine compile --to piet --bespoke Langlib/Examples/Turpentine/suite/sieve.turp
+lake exe turpentine exec --via piet --bespoke Langlib/Examples/Turpentine/suite/sieve.turp
 ```
 
 Output:
 
 ```
-turpentine compile: the array 'composite' (of 50 elements) is outside the piet backend: piet has no heap, and a computed index would need the roll depth itself computed at run time
-turpentine: nothing emitted
+2
+3
+5
+7
+11
+13
+17
+19
+23
+29
+31
+37
+41
+43
+47
 ```
 
 ## The other compiler, and why this one exists
@@ -293,17 +308,44 @@ carried by test. The tests compile, paint to PPM, parse the PPM back, and
 run the result, so a case exercises the whole path rather than only the
 grid in memory.
 
+## Arrays, and what they cost
+
+An array lives on the stack like everything else: `n` consecutive slots,
+with element zero at the variable's own slot. What makes it harder than a
+scalar is that the roll amounts stop being literals. Reaching `a[i]` means
+rotating the stack by a distance known only at run time, and `roll`
+**consumes** the distance it is given — while the read needs it twice and
+the write three times.
+
+Recomputing `i` is not an option, since it may be any expression. Keeping a
+spare copy on the stack does not work either: the copy would sit inside the
+region the rotation disturbs, and would not be where it was left. The
+answer is two **scratch slots placed below every variable**. Being below is
+the whole point — a rotation that reaches an array element cannot reach
+something deeper than every element, so the scratch slot's index after the
+rotation is the index it had before. One scratch cell parks the computed
+index across the rolls that consume it; the other parks a freshly read
+number or byte while the index of `a[i] := readInt()` is evaluated.
+
+Every access is bounds-checked, and it has to be: an index off the end
+would rotate the wrong distance and silently corrupt the variables below
+it, which is far worse than stopping. The check is **one lane, not two** —
+both halves of `0 ≤ i < n` are a `greater`, both results are 0 or 1 so
+their conjunction is a product, and neither can trap so there is nothing to
+short-circuit. That is worth more than it looks: a lane is two rows and its
+branch is two wires, so halving them shrinks the picture in both
+directions, and the interpreter's per-step cost grows with the area.
+Folding the two checks into one took `sieve.turp` from `410 x 80` codels to
+`400 x 68`, and the twenty conformance programs from 73 seconds to 45.
+
+The cost that remains is real and is the price of Piet having no heap:
+**every element access is `O(depth)`**, so a loop over an `n`-element array
+is quadratic. `sieve.turp`, with its 50-element array, is the slowest
+program in the suite by a factor of three.
+
 ## Fragment
 
-Everything except **arrays**. Piet has no heap, and while an array could
-live on the stack beside the scalars, a *computed* index needs the roll
-depth itself computed at run time — the constants in the read and write
-sequences above become stack expressions. That is the next thing to do
-here, and it is not done, so the six conformance programs that use arrays
-(`sieve`, `sort`, `maxelem`, `binary`, `sumdigits`, `isqrt`) are refused
-by name rather than mis-compiled.
-
-Three behaviours differ from the reference interpreter.
+The whole language. Three behaviours differ from the reference interpreter.
 
 **`readByte()` at end of input** (a real divergence). Turpentine yields
 `-1`, so a `cat` loop terminates. Piet *ignores* a command it cannot
@@ -311,17 +353,17 @@ perform, so `inChar` at end of input leaves the stack exactly as it was and
 the compiled program reads a stale value. Programs that read a known number
 of bytes are unaffected.
 
-**A failed `assert`** becomes an infinite loop, as in every other backend:
-the reference reports a runtime error and the compiled program runs out of
-fuel. The loop is a lane whose wire runs straight back into itself.
+**A failed `assert`, a division by zero, and an index out of range** all
+become an infinite loop, as in every other backend: the reference reports a
+runtime error at that point and the compiled program runs out of fuel,
+having produced the same output up to there. The loop is a lane whose wire
+runs straight back into itself.
 
-**Division by zero** goes to that same trap. This one is not a choice.
+**Division by zero** is the one of those that is forced rather than chosen.
 Because Piet ignores a command it cannot perform, a `divide` by zero would
 leave *both* operands on the stack and put every later variable access one
 slot off — silently wrong output rather than a stopped program. So the
-generated code tests the divisor and diverges instead. The reference calls
-it a runtime error, so the two runs agree on the output produced up to that
-point and disagree only on how they stop.
+generated code tests the divisor and diverges instead.
 
 `/` and `%` are Euclidean in Turpentine and **flooring** in Piet, which
 differ exactly when the divisor is negative. The generated code tests the
