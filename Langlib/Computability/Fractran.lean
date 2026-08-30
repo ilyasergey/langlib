@@ -4349,7 +4349,7 @@ theorem exec_final_of_steps {p : Prog} {start final : Nat}
   induction hsteps using Relation.ReflTransGen.head_induction_on with
   | refl =>
     refine ⟨1, ?_⟩
-    simp only [Langlib.Fractran.exec, hnone, beq_self_eq_true, if_true]
+    simp only [Langlib.Fractran.exec, hnone]
     rfl
   | head hstep _hrest ih =>
     obtain ⟨fuel, hfuel⟩ := ih
@@ -4382,7 +4382,7 @@ theorem decodeLine_encode (n : Nat) :
   rw [show toString n = Nat.repr n by exact Nat.toString_eq_repr]
   unfold decodeLine
   rw [fromUTF8?_toUTF8]
-  simpa [← Nat.repr_eq_ofList_toDigits] using Nat.toNat?_repr n
+  simp [← Nat.repr_eq_ofList_toDigits]
 
 theorem pow2?_two_pow (n : Nat) :
     Langlib.Fractran.pow2? (2 ^ n) = some n := by
@@ -4426,7 +4426,6 @@ theorem simulation (P : Program) (inputs : List Nat) (result : Nat)
           exit := Langlib.Common.Exit.halted } := by
     unfold Langlib.Fractran.evalProg compileProgram
     simp only [show (encodeInput P inputs == 0) = false by simp [hstart],
-      if_false,
       show (Langlib.Fractran.OutMode.final ==
         Langlib.Fractran.OutMode.trajectory) = false by decide]
     exact hexec

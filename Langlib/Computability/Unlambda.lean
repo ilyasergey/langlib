@@ -478,9 +478,9 @@ theorem lam_spec (x : Nat) (N : Expr) (nv : Value) (hN : VE N nv) :
     intro σ hσ w hw n v
     by_cases hy : y = x
     · subst hy
-      simp only [lam, if_pos rfl, subst] at hw
+      simp only [lam] at hw
       rw [hw.I_inv]
-      simp only [subst, updE, if_pos rfl]
+      simp only [subst, updE]
       constructor
       · intro h; obtain ⟨rfl, rfl⟩ := ap_i_inv h; exact hN.run_iff.mpr ⟨rfl, rfl⟩
       · intro h; obtain ⟨rfl, rfl⟩ := hN.run_iff.mp h; exact .i
