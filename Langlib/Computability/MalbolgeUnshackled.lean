@@ -1,4 +1,5 @@
 import Langlib.Common.Computability
+import Langlib.Computability.Counter
 import Langlib.Languages.MalbolgeUnshackled
 
 /-!
@@ -3680,6 +3681,115 @@ theorem dec_monotone (x : TapePair) : x.p ≤ x.dec.p ∧ x.q ≤ x.dec.q :=
   ⟨Nat.le_refl _, Nat.le_succ _⟩
 
 end TapePair
+
+/-! ## The register file
+
+A whole counter-machine state, in the two-tape representation: one
+`TapePair` per register, plus a count of the bytes emitted. `Refines` is
+the correspondence to `Counter.CState`, and the three lemmas below say the
+representation tracks `up`, `down` and `emitOne` exactly. They are what a
+simulation proof will carry as its invariant on the data side. -/
+
+/-- One `TapePair` for every register. -/
+def RegFile : Type := Nat → TapePair
+
+namespace RegFile
+
+/-- Every register satisfies the tape invariant. -/
+def Wf (f : RegFile) : Prop := ∀ r, (f r).Wf
+
+/-- The values the file denotes. -/
+def value (f : RegFile) : Nat → Nat := fun r => (f r).value
+
+def init : RegFile := fun _ => TapePair.zero
+
+theorem init_wf : init.Wf := fun _ => TapePair.zero_wf
+
+theorem value_init : init.value = fun _ => 0 := rfl
+
+/-- `inc r`. -/
+def up (f : RegFile) (r : Nat) : RegFile := Function.update f r (f r).inc
+
+/-- `dec r`. -/
+def down (f : RegFile) (r : Nat) : RegFile := Function.update f r (f r).dec
+
+theorem up_self (f : RegFile) (r : Nat) : (f.up r) r = (f r).inc :=
+  Function.update_self (β := fun _ => TapePair) r (f r).inc f
+
+theorem up_of_ne (f : RegFile) {r k : Nat} (h : k ≠ r) : (f.up r) k = f k :=
+  Function.update_of_ne (β := fun _ => TapePair) h (f r).inc f
+
+theorem down_self (f : RegFile) (r : Nat) : (f.down r) r = (f r).dec :=
+  Function.update_self (β := fun _ => TapePair) r (f r).dec f
+
+theorem down_of_ne (f : RegFile) {r k : Nat} (h : k ≠ r) : (f.down r) k = f k :=
+  Function.update_of_ne (β := fun _ => TapePair) h (f r).dec f
+
+theorem up_wf {f : RegFile} (h : f.Wf) (r : Nat) : (f.up r).Wf := by
+  intro k
+  by_cases hk : k = r
+  · subst hk; rw [up_self]; exact TapePair.inc_wf (h k)
+  · rw [up_of_ne f hk]; exact h k
+
+theorem down_wf {f : RegFile} (h : f.Wf) {r : Nat} (hnz : (f r).value ≠ 0) :
+    (f.down r).Wf := by
+  intro k
+  by_cases hk : k = r
+  · subst hk; rw [down_self]; exact TapePair.dec_wf (h k) hnz
+  · rw [down_of_ne f hk]; exact h k
+
+/-! ### Tracking the counter machine -/
+
+/-- The file refines a counter-machine state when every register denotes
+the value that state holds. -/
+def Refines (f : RegFile) (out : Nat) (s : Counter.CState) : Prop :=
+  f.Wf ∧ (∀ r, (f r).value = s.regs r) ∧ out = s.out
+
+theorem refines_init : Refines init 0 ⟨fun _ => 0, 0⟩ :=
+  ⟨init_wf, fun _ => rfl, rfl⟩
+
+/-- `inc` is tracked. -/
+theorem refines_up {f : RegFile} {out : Nat} {s : Counter.CState}
+    (h : Refines f out s) (r : Nat) : Refines (f.up r) out (s.up r) := by
+  obtain ⟨hwf, hval, hout⟩ := h
+  refine ⟨up_wf hwf r, fun k => ?_, hout⟩
+  by_cases hk : k = r
+  · subst hk
+    rw [up_self, Counter.CState.up_regs_self, TapePair.value_inc (hwf k), hval k]
+  · rw [up_of_ne f hk, Counter.CState.up_regs_of_ne s hk]
+    exact hval k
+
+/-- `dec` is tracked, under the nonzero side condition the counter machine
+already imposes. -/
+theorem refines_down {f : RegFile} {out : Nat} {s : Counter.CState}
+    (h : Refines f out s) {r : Nat} (hnz : s.regs r ≠ 0) :
+    Refines (f.down r) out (s.down r) := by
+  obtain ⟨hwf, hval, hout⟩ := h
+  have hnz' : (f r).value ≠ 0 := by rw [hval r]; exact hnz
+  refine ⟨down_wf hwf hnz', fun k => ?_, hout⟩
+  by_cases hk : k = r
+  · subst hk
+    rw [down_self, Counter.CState.down_regs_self, TapePair.value_dec (hwf k) hnz', hval k]
+  · rw [down_of_ne f hk, Counter.CState.down_regs_of_ne s hk]
+    exact hval k
+
+/-- `emit` is tracked. -/
+theorem refines_emit {f : RegFile} {out : Nat} {s : Counter.CState}
+    (h : Refines f out s) : Refines f (out + 1) s.emitOne := by
+  obtain ⟨hwf, hval, hout⟩ := h
+  exact ⟨hwf, hval, by rw [hout]; rfl⟩
+
+/-- **The loop condition reads off the tape lengths.** A compiled `loop r b`
+tests whether register `r` is zero, and in this representation that is
+exactly whether its two tapes are equally long, which is what the walk over
+the interleaved pair decides. -/
+theorem refines_zero_iff {f : RegFile} {out : Nat} {s : Counter.CState}
+    (h : Refines f out s) (r : Nat) : s.regs r = 0 ↔ (f r).p = (f r).q := by
+  obtain ⟨hwf, hval, _⟩ := h
+  rw [← hval r]
+  exact TapePair.value_eq_zero_iff (hwf r)
+
+end RegFile
 
 end Unshackled
 

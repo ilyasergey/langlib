@@ -671,6 +671,13 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.TapePair.dec_wf
 #print axioms Unshackled.TapePair.value_eq_zero_iff
 
+-- The register file, and its refinement of Counter.CState.
+#print axioms Unshackled.RegFile.refines_init
+#print axioms Unshackled.RegFile.refines_up
+#print axioms Unshackled.RegFile.refines_down
+#print axioms Unshackled.RegFile.refines_emit
+#print axioms Unshackled.RegFile.refines_zero_iff
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

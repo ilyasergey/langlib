@@ -77,6 +77,7 @@ than by taste:
 | Accumulator ladder | `ladder_cycle` — three self-restoring constants |
 | Register writes | `register_set`, `register_clear` (two visits each) |
 | Two-tape registers | `TapePair` — `inc`, `dec` and the zero test all forward |
+| Register file | `RegFile.Refines` and `refines_up/down/emit/zero_iff` |
 
 ## Remaining
 
@@ -98,7 +99,10 @@ than by taste:
 5. **The assembler** — `compile : Program → List Nat → Image`, total and
    runnable, laying gadgets out at stride 94 with data after the code.
 6. **The induction on `Ev`** — the largest piece by volume, standing on
-   `run_of_measure` at the top and `exec_halts_of_run?` at the bottom.
+   `run_of_measure` at the top and `exec_halts_of_run?` at the bottom. The
+   data side of its invariant is already proved: `RegFile.Refines` tracks
+   `Counter.CState` through `up`, `down` and `emitOne`, and turns the loop
+   condition into a comparison of two tape lengths.
 
 Nothing left lacks a verified precedent in the file, so what remains is
 construction rather than discovery. It is still a lot of construction.
