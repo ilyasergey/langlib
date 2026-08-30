@@ -39,10 +39,14 @@ no cell has to run twice.**
   There is always room to search, because a trit position above both
   operands admits five different `(k₁, k₂)` pairs and only one of them is
   `(0, 0)`: constants can be padded upwards until they land somewhere legal.
-* `build` — the layout. Two parallel rows, because `c` and `d` both advance
-  by one per instruction and so keep a fixed distance: a **code row** that
-  `c` walks and a **data row** that `d` walks under it, plus a five-cell
-  prologue that sets that distance up.
+* `emitPlan` and `build` — the layout. Two parallel rows, because `c` and
+  `d` both advance by one per instruction and so keep a fixed distance: a
+  **code row** that `c` walks and a **data row** that `d` walks under it,
+  plus a three-cell prologue and two table cells that set that distance up.
+* `inputProbe` — not used by `compile`, and deliberately kept: a hand-built
+  128-way dispatch on a character the compiler does not know, with no
+  rotation anywhere, so that the mechanism the input half needs is checked
+  rather than sketched. Its own section below says how it works.
 
 ## The prologue
 
@@ -75,15 +79,24 @@ stream, and compiles the byte string that comes out.
 
 That is an honest compiler for that fragment and a total one, and it is as
 far as a straight-line backend can go, because the next step needs cells
-that run more than once. Unshackled has no way to test a value that is not
-already the compiler's: the crazy operation is tritwise, so it cannot
-collapse a comparison into a single flag, and broadcasting a trit needs
-`rot`, which needs the register encoding, which needs a re-enterable loop.
-The groundwork for all three is proved — `two_sweep` for re-entry,
-`branch_gadget` for the data-driven jump, `register_probe` for the zero
-test — and wiring them into a counter machine is what the second half of
-this backend will be. `docs/malbolge-unshackled/completeness-progress.md`
-tracks it.
+that run more than once.
+
+What it cannot do is *test* a value the compiler does not know. The crazy
+operation is tritwise, so a chain of them against compiled-in constants
+computes `resultᵢ = fᵢ(aᵢ)`: each output trit sees only the input trit at
+its own position. Such a chain can produce a uniform value — `crz_absorb`
+does, and it opens the verified branch pipeline — but not one that
+*depends* on the accumulator, since two inputs differing at one position
+agree at every other while `...000` and `...222` differ everywhere. So a
+comparison needs an instruction that moves a trit between positions, and
+`rot` is the only one; `rot` needs the register encoding, which needs a
+re-enterable loop. The groundwork for all three is proved — `two_sweep`
+for re-entry, `branch_gadget` for the data-driven jump, `register_probe`
+for the zero test — and wiring them into a counter machine is what the
+second half of this backend will be.
+`docs/malbolge-unshackled/completeness-progress.md` tracks it, and
+`inputProbe` below is the one thing a straight line *can* do with an
+unknown value: jump on it.
 
 Two smaller limits, both from Unshackled's I/O being Unicode where
 Turpentine's is bytes:
@@ -428,8 +441,8 @@ at any address. -/
 def onesBelow (w : Nat) : Nat := (3 ^ w - 1) / 2
 
 /-- Fill a run of addresses with no-ops. -/
-def Asm.pad (m : Asm) (from_ count : Nat) : Asm :=
-  (List.range count).foldl (fun m i => m.put (from_ + i) (wordFor opNop (from_ + i))) m
+def Asm.pad (m : Asm) (base count : Nat) : Asm :=
+  (List.range count).foldl (fun m i => m.put (base + i) (wordFor opNop (base + i))) m
 
 /-- One branch of the probe: `n` no-ops walk `d` from `v + 2` to the pointer
 cell `ptr`, a `movd` sends `d` to `mem[ptr]`, and then the bytes are printed
