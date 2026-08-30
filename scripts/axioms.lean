@@ -638,6 +638,7 @@ open Langlib.Turpentine.Compile
 -- Chains: a working cell joined to the next by a stable jmp, which removes
 -- padding from the layout entirely.
 #print axioms Unshackled.chain_link
+#print axioms Unshackled.chain_run
 
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine

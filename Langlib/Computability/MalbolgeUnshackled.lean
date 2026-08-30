@@ -3128,6 +3128,117 @@ theorem chain_link {s : State} {a D t : Nat} {wc wj wt : Nat}
     rw [get_set_ne _ (ofNat_ne (Ne.symm hxt)), hm₁,
       get_set_ne _ (ofNat_ne (Ne.symm hxa)), get_set_ne _ (ofNat_ne (Ne.symm hxD))]
 
+/-! ## Running a chain
+
+A chain of links laid out at **stride 94**. That stride is forced and
+convenient: a re-enterable `crazy` must sit at residue 82 or 86 modulo 94,
+so putting the links 94 apart lands every one of them on the same residue,
+and one word serves for every `crazy` cell and one for every `jmp`.
+
+Link `i` occupies `A + 94i` (the `crazy`) and `A + 94i + 1` (the `jmp`),
+and its jump lands on `A + 94i + 93` so that control resumes at
+`A + 94(i+1)`, the next link. The 92 cells in between are never executed.
+Data sits after the code: operand `i` at `D + 2i`, jump target `i` at
+`D + 2i + 1`. -/
+
+/-- The fold a chain computes: the crazy operation over the operand cells,
+which sit at stride two because `d` advances two per link. -/
+def chainFold (m : Memory) (D : Nat) (a : Value) : Nat → Value
+  | 0 => a
+  | j + 1 => Value.crz (chainFold m D a j) (m.get (Value.ofNat (D + 2 * j)))
+
+/-- **A chain of `n` links runs in `2n` steps.** The accumulator folds the
+operands, each operand cell keeps its intermediate, each `crazy` cell is
+encrypted once, and **every `jmp` cell comes back unchanged**, which is
+what lets the chain be entered again. -/
+theorem chain_run (n : Nat) {s : State} {A D : Nat} (wc wj wt : Nat → Nat)
+    (hc : s.c = Value.ofNat A) (hd : s.d = Value.ofNat D)
+    (hsep : A + 94 * n + 94 ≤ D)
+    (hdecC : ∀ i < n, decode (s.mem.get (Value.ofNat (A + 94 * i)))
+      (Value.ofNat (A + 94 * i)).modClass = .crazy)
+    (hprC : ∀ i < n, printableCode? (s.mem.get (Value.ofNat (A + 94 * i))) = some (wc i))
+    (hdecJ : ∀ i < n, decode (s.mem.get (Value.ofNat (A + 94 * i + 1)))
+      (Value.ofNat (A + 94 * i + 1)).modClass = .jmp)
+    (hprJ : ∀ i < n, printableCode? (s.mem.get (Value.ofNat (A + 94 * i + 1)))
+      = some (wj i))
+    (htgt : ∀ i < n, s.mem.get (Value.ofNat (D + 2 * i + 1))
+      = Value.ofNat (A + 94 * i + 93))
+    (hprT : ∀ i < n, printableCode? (s.mem.get (Value.ofNat (A + 94 * i + 93)))
+      = some (wt i)) :
+    ∃ s', run? (2 * n) s = some s'
+      ∧ s'.a = chainFold s.mem D s.a n
+      ∧ s'.c = Value.ofNat (A + 94 * n)
+      ∧ s'.d = Value.ofNat (D + 2 * n)
+      ∧ (∀ i < n, s'.mem.get (Value.ofNat (D + 2 * i)) = chainFold s.mem D s.a (i + 1))
+      ∧ (∀ i < n, s'.mem.get (Value.ofNat (A + 94 * i)) = Value.ofNat (encrypt (wc i)))
+      ∧ (∀ x : Nat, (∀ i < n, x ≠ A + 94 * i) → (∀ i < n, x ≠ D + 2 * i) →
+          (∀ i < n, x ≠ A + 94 * i + 93) →
+          s'.mem.get (Value.ofNat x) = s.mem.get (Value.ofNat x))
+      ∧ s'.input = s.input ∧ s'.output = s.output ∧ s'.outClosed = s.outClosed := by
+  induction n with
+  | zero =>
+    exact ⟨s, rfl, rfl, by simpa using hc, by simpa using hd,
+      fun i hi => absurd hi (by omega), fun i hi => absurd hi (by omega),
+      fun _ _ _ _ => rfl, rfl, rfl, rfl⟩
+  | succ n ih =>
+    obtain ⟨sn, hrun, hAcc, hC, hD, hOps, hCs, hframe, hin, hout, hoc⟩ :=
+      ih (by omega) (fun i hi => hdecC i (by omega)) (fun i hi => hprC i (by omega))
+        (fun i hi => hdecJ i (by omega)) (fun i hi => hprJ i (by omega))
+        (fun i hi => htgt i (by omega)) (fun i hi => hprT i (by omega))
+    -- link n's cells are all untouched by the first n links
+    have hu : ∀ x : Nat, (∀ i < n, x ≠ A + 94 * i) → (∀ i < n, x ≠ D + 2 * i) →
+        (∀ i < n, x ≠ A + 94 * i + 93) →
+        sn.mem.get (Value.ofNat x) = s.mem.get (Value.ofNat x) := hframe
+    have hC0 : sn.mem.get (Value.ofNat (A + 94 * n)) = s.mem.get (Value.ofNat (A + 94 * n)) :=
+      hu _ (fun i hi => by omega) (fun i hi => by omega) (fun i hi => by omega)
+    have hJ0 : sn.mem.get (Value.ofNat (A + 94 * n + 1))
+        = s.mem.get (Value.ofNat (A + 94 * n + 1)) :=
+      hu _ (fun i hi => by omega) (fun i hi => by omega) (fun i hi => by omega)
+    have hT0 : sn.mem.get (Value.ofNat (D + 2 * n + 1))
+        = s.mem.get (Value.ofNat (D + 2 * n + 1)) :=
+      hu _ (fun i hi => by omega) (fun i hi => by omega) (fun i hi => by omega)
+    have hTC : sn.mem.get (Value.ofNat (A + 94 * n + 93))
+        = s.mem.get (Value.ofNat (A + 94 * n + 93)) :=
+      hu _ (fun i hi => by omega) (fun i hi => by omega) (fun i hi => by omega)
+    obtain ⟨s', hr', hacc', hc', hd', hop', hcr', hjm', hfr', hi', ho', hoc'⟩ :=
+      chain_link (s := sn) (a := A + 94 * n) (D := D + 2 * n)
+        (t := A + 94 * n + 93) (wc := wc n) (wj := wj n) (wt := wt n)
+        hC hD (by rw [hC0]; exact hdecC n (by omega))
+        (by rw [hC0]; exact hprC n (by omega))
+        (by rw [hJ0]; exact hdecJ n (by omega))
+        (by rw [hJ0]; exact hprJ n (by omega))
+        (by omega) (by omega) (by omega) (by omega)
+        (by rw [hT0]; exact htgt n (by omega))
+        (by rw [hTC]; exact hprT n (by omega))
+        (by omega) (by omega) (by omega)
+    have hfold : Value.crz sn.a (sn.mem.get (Value.ofNat (D + 2 * n)))
+        = chainFold s.mem D s.a (n + 1) := by
+      rw [hAcc, hu (D + 2 * n) (fun i hi => by omega) (fun i hi => by omega)
+        (fun i hi => by omega)]
+      rfl
+    refine ⟨s', ?_, ?_, ?_, ?_, ?_, ?_, ?_, hi'.trans hin, ho'.trans hout,
+      hoc'.trans hoc⟩
+    · rw [show 2 * (n + 1) = 2 * n + 2 by omega, run?_add (2 * n) 2, hrun,
+        Option.bind_some]
+      exact hr'
+    · rw [hacc']; exact hfold
+    · rw [hc', show A + 94 * n + 93 + 1 = A + 94 * (n + 1) by omega]
+    · rw [hd', show D + 2 * n + 2 = D + 2 * (n + 1) by omega]
+    · intro i hi
+      by_cases hin' : i = n
+      · subst hin'; rw [hop']; exact hfold
+      · rw [hfr' _ (by omega) (by omega) (by omega)]
+        exact hOps i (by omega)
+    · intro i hi
+      by_cases hin' : i = n
+      · subst hin'; exact hcr'
+      · rw [hfr' _ (by omega) (by omega) (by omega)]
+        exact hCs i (by omega)
+    · intro x hx1 hx2 hx3
+      rw [hfr' _ (hx2 n (by omega)) (hx1 n (by omega)) (hx3 n (by omega))]
+      exact hu x (fun i hi => hx1 i (by omega)) (fun i hi => hx2 i (by omega))
+        (fun i hi => hx3 i (by omega))
+
 end Unshackled
 
 end Langlib.Computability

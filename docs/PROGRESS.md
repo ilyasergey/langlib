@@ -2,7 +2,30 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-31 (latest): chains, and the end of padding
+## 2026-08-31 (latest): running a chain
+
+`chain_run` composes `n` links, laid out at **stride 94**. The stride is
+both forced and convenient: a re-enterable `crazy` must sit at residue 82
+or 86 modulo 94, so putting the links 94 apart lands every one of them on
+the same residue, and a single word then serves for every `crazy` cell and
+a single word for every `jmp`. Link `i` occupies `A + 94i` and
+`A + 94i + 1`, jumps to `A + 94i + 93`, and control resumes at
+`A + 94(i+1)`; the 92 cells in between are never executed and need no
+words. Data sits after the code, operand `i` at `D + 2i` and jump target
+`i` at `D + 2i + 1`, since `d` advances two per link.
+
+The theorem runs the chain in `2n` steps: the accumulator folds the
+operands (`chainFold`), each operand cell keeps its intermediate, each
+`crazy` cell is encrypted once, every `jmp` cell comes back unchanged, and
+a frame condition names the only cells touched. That last pair of clauses
+is what makes the chain re-enterable and what let the induction go through:
+at each step the next link's cells are shown untouched by all the previous
+ones.
+
+This is the executor a compiled gadget runs on: straight-line arithmetic of
+any length, laid out mechanically, with one induction behind it.
+
+## 2026-08-31: chains, and the end of padding
 
 The layout problem had a solution I had been walking past. Laying a gadget
 out as one contiguous row forces padding into the gaps between working

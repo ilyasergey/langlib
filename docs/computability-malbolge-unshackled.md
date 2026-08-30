@@ -752,6 +752,29 @@ The jump cell coming back unchanged is the clause that matters: it is what
 makes the chain re-enterable, and it is `jmp_cell_stable` cashed out in a
 form a compiler can use.
 
+`chain_run` composes `n` links, laid out at **stride 94**. That stride is
+both forced and convenient: a re-enterable `crazy` must sit at residue 82
+or 86 modulo 94, so putting the links 94 apart lands every one on the same
+residue, and a single word serves for every `crazy` cell and a single word
+for every `jmp`. Link `i` occupies `A + 94i` and `A + 94i + 1`, jumps to
+`A + 94i + 93`, and control resumes at `A + 94(i+1)`; the 92 cells between
+are never executed. Data sits after the code, operand `i` at `D + 2i` and
+jump target `i` at `D + 2i + 1`, because `d` advances two per link.
+
+```lean
+theorem chain_run (n : Nat) … :
+    ∃ s', run? (2 * n) s = some s'
+      ∧ s'.a = chainFold s.mem D s.a n
+      ∧ s'.c = Value.ofNat (A + 94 * n)
+      ∧ s'.d = Value.ofNat (D + 2 * n)
+      ∧ (∀ i < n, s'.mem.get (Value.ofNat (D + 2 * i)) = chainFold s.mem D s.a (i + 1))
+      ∧ (∀ i < n, s'.mem.get (Value.ofNat (A + 94 * i)) = Value.ofNat (encrypt (wc i)))
+      ∧ (frame) ∧ …
+```
+
+This is the executor a compiled gadget runs on: straight-line arithmetic of
+any length, laid out mechanically, with one induction behind it.
+
 ## What is proved, what is cited, what is open
 
 **Proved, axiom-clean**: the `ProgLang` instance; the memory laws
