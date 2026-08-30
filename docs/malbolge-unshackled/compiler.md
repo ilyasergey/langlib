@@ -7,6 +7,8 @@
   RegIR survives contact with self-encrypting code.
 * **Implementation**: none yet; it would go in
   `Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean`.
+* **Progress tracker**: [completeness-progress.md](completeness-progress.md),
+  which says how far the completeness effort has got and what is next.
 * **Machine-checked groundwork**:
   [`Langlib/Computability/MalbolgeUnshackled.lean`](../../Langlib/Computability/MalbolgeUnshackled.lean),
   written up in
