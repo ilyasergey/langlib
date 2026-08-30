@@ -3492,6 +3492,88 @@ theorem probe_feeds_branch (t₀ t₁ : Value) (h₀ : t₀.Normalized) (h₁ : 
   · rw [if_neg (by decide), hm rfl]
     exact (branch_arith t₀ t₁ h₀ h₁ a).2
 
+/-! ## The accumulator ladder, and writing a register
+
+Every crazy operation writes its result back over its operand, so a
+compiler that keeps constants in memory must ask which constants survive
+being used. Three do, and they are exactly the three values the register
+encoding already needs.
+
+Write `one` for `...111`. Then
+
+* `crz blank one = one` — a cell holding `one` takes the accumulator from
+  `blank` to `one` and is left holding `one`;
+* `crz one eof = eof` — a cell holding `eof` takes it from `one` to `eof`
+  and is left holding `eof`;
+* `crz eof blank = blank` — a cell holding `blank` takes it from `eof` back
+  to `blank` and is left holding `blank`.
+
+So the accumulator climbs a **three-cycle** `blank → one → eof → blank`,
+one operation per rung, and **no rung consumes its constant**. That is the
+same three-cycle as `tau` in the copy algebra, which is not a coincidence:
+both are the diagonal of Olmstead's table read as a permutation.
+
+Writing a register cell then falls out, symmetrically through `one`:
+
+* **set** (`blank ↦ mark`): with the accumulator at `blank`, one operation
+  takes the cell to `one`; with the accumulator at `eof`, a second takes it
+  to `mark`.
+* **clear** (`mark ↦ blank`): with the accumulator at `eof`, one operation
+  takes the cell to `one`; with the accumulator at `one`, a second takes it
+  to `blank`.
+
+Both need two visits because no single operation crosses between `...000`
+and `...222` — the column of the table joining them is missing, which is
+the same gap that made `crz_two_steps` need two operations. -/
+
+/-- The middle value of the ladder. -/
+abbrev cellOne : Value := uniform .t1
+
+theorem ladder_blank_to_one : Value.crz cellBlank cellOne = cellOne := by decide
+
+theorem ladder_one_to_eof : Value.crz cellOne cellMark = cellMark := by decide
+
+theorem ladder_eof_to_blank : Value.crz cellMark cellBlank = cellBlank := by decide
+
+/-- **The ladder is a three-cycle.** Three operations against the three
+constants return the accumulator to where it began, and every constant cell
+is left exactly as it was. -/
+theorem ladder_cycle :
+    Value.crz (Value.crz (Value.crz cellBlank cellOne) cellMark) cellBlank = cellBlank := by
+  rw [ladder_blank_to_one, ladder_one_to_eof, ladder_eof_to_blank]
+
+/-! ### Writing -/
+
+theorem set_step₁ : Value.crz cellBlank cellBlank = cellOne := by decide
+
+theorem set_step₂ : Value.crz cellMark cellOne = cellMark := by decide
+
+theorem clear_step₁ : Value.crz cellMark cellMark = cellOne := by decide
+
+theorem clear_step₂ : Value.crz cellOne cellOne = cellBlank := by decide
+
+/-- **Set.** Two visits to the cell, the accumulator at `blank` then at
+`eof`, take a blank register cell to a mark. -/
+theorem register_set :
+    Value.crz cellMark (Value.crz cellBlank cellBlank) = cellMark := by
+  rw [set_step₁, set_step₂]
+
+/-- **Clear.** Two visits, the accumulator at `eof` then at `one`, take a
+marked register cell back to blank. -/
+theorem register_clear :
+    Value.crz cellOne (Value.crz cellMark cellMark) = cellBlank := by
+  rw [clear_step₁, clear_step₂]
+
+/-- Neither direction is possible in one operation: no column of the crazy
+table joins `...000` to `...222`, in either direction. This is why writing
+a register costs two visits, and it is the same gap that makes
+`crz_two_steps` need two. -/
+theorem no_single_step_blank_to_mark (α : Trit) : crzTrit α .t0 ≠ .t2 := by
+  cases α <;> decide
+
+theorem no_single_step_mark_to_blank (α : Trit) : crzTrit α .t2 ≠ .t0 := by
+  cases α <;> decide
+
 end Unshackled
 
 end Langlib.Computability

@@ -68,12 +68,16 @@ than by taste:
 | Chains and gadgets | `chain_link`, `chain_run`, `enter_chain`, `gadget_run` |
 | Output side | `step1_out`, `decodeBytes`, `decodeBytes_append_star` |
 | Register encoding | `register_probe`, `probe_feeds_branch` |
+| Accumulator ladder | `ladder_cycle` — three self-restoring constants |
+| Register writes | `register_set`, `register_clear` (two visits each) |
 
 ## Remaining
 
-1. **`inc`** — walk a register's cells to the first blank and set it. Set
-   costs two visits, since no single crazy operation takes `...000` to
-   `...222`.
+1. **`inc`** — walk a register's cells to the first blank and set it. The
+   write arithmetic is done (`register_set`); what remains is the walk and
+   the layout. Set costs two visits because no single crazy operation
+   crosses from `...000` to `...222`
+   (`no_single_step_blank_to_mark`).
 2. **`dec`** — the one piece with an open design question. Unary registers
    need backward movement, and `d` only advances or jumps to a *stored*
    value, so decrement needs either escalator-minted addresses or the

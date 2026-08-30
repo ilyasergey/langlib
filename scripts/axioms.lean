@@ -652,6 +652,17 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.register_probe
 #print axioms Unshackled.probe_feeds_branch
 
+-- The accumulator ladder (three self-restoring constants, a three-cycle)
+-- and the two-visit register writes it drives.
+#print axioms Unshackled.ladder_blank_to_one
+#print axioms Unshackled.ladder_one_to_eof
+#print axioms Unshackled.ladder_eof_to_blank
+#print axioms Unshackled.ladder_cycle
+#print axioms Unshackled.register_set
+#print axioms Unshackled.register_clear
+#print axioms Unshackled.no_single_step_blank_to_mark
+#print axioms Unshackled.no_single_step_mark_to_blank
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.
