@@ -574,6 +574,28 @@ computed jump targets the finite route needs anyway. It buys nothing, so
 the development targets a finite self-modifying code region with managed
 `xlat2` orbits.
 
+## Re-enterable gadgets: the two-sweep discipline
+
+A cell holding a word of the `70 ↔ 74` cycle alternates instruction,
+no-op. So a gadget row survives repeated entry if it is run *twice*: the
+work sweep leaves every cell in its no-op phase, and the no-op sweep
+returns each to its original word (`nop_run`, `encrypt_encrypt_two_cycle`,
+`row_restored`). `crazy_run` is the work sweep, `nop_run` the other; the
+latter constrains `d` not at all, a no-op reading no operand. One stable
+`jmp` cell, never encrypted by its own execution, walks a two-entry target
+table and sends control back to the top after the first sweep and onward
+after the second.
+
+Traced against the interpreter with two `crazy` cells at residues 82 and
+86, the two cells fire on the work sweep, no-op on the second, hold their
+original words again afterwards, and the next iteration is identical.
+
+Layout is easy for the same reason the architecture is available at all:
+`compile` produces an `Image`, so the loader's constraints do not apply.
+Every one of the 94 residues admits a code whose whole orbit is harmless,
+so padding is free, and each instruction has exactly two 2-cycle residues
+four apart (`crazy` at 82 or 86, `movd` at 60 or 64, `jmp` at 24 or 28).
+
 ## What is proved, what is cited, what is open
 
 **Proved, axiom-clean**: the `ProgLang` instance; the memory laws

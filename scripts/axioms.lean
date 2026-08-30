@@ -598,6 +598,11 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.rotr_forces_halt
 #print axioms Unshackled.halt_forces_rotr
 
+-- Re-enterable rows: the no-op sweep that restores a two-cycle gadget.
+#print axioms Unshackled.encrypt_encrypt_two_cycle
+#print axioms Unshackled.nop_run
+#print axioms Unshackled.row_restored
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

@@ -347,6 +347,58 @@ maps and no proof evaluates a long run. Kernel evaluation is not an option
 here anyway; ten steps of a loaded image take seconds and do not reach a
 normal form.
 
+## Re-enterable gadgets: the two-sweep discipline
+
+Architecture (A) needs gadgets that survive repeated entry, and the
+discipline is simpler than `loop.mu`'s jump-restore trick. A cell holding a
+word of the `70 ↔ 74` cycle alternates **instruction, no-op**. So run the
+gadget row *twice*: the first sweep does the work and leaves every cell in
+its no-op phase, the second sweep executes the same cells as no-ops and
+returns each to its original word. The row is then ready to run again.
+
+```lean
+theorem nop_run (k : Nat) … :
+    ∃ s', run? k s₀ = some s' ∧ s'.a = s₀.a ∧ s'.c = Value.ofNat (c₀ + k) ∧ …
+theorem encrypt_encrypt_two_cycle {w : Nat} (h : w = 70 ∨ w = 74) :
+    encrypt (encrypt w) = w
+```
+
+`crazy_run` executes the work sweep and `nop_run` the no-op sweep;
+`row_restored` is the arithmetic that closes the circle. `nop_run`
+constrains `d` not at all, since a no-op reads no operand.
+
+Getting from the end of one sweep to the start of the next costs one cell:
+a `jmp`, which never encrypts itself and so is stable for the whole run,
+reading a target table that `d` walks. The same cell fires at the end of
+both sweeps and reads a different entry each time: back to the top after
+the work sweep, onward after the no-op sweep. That is `loop.mu`'s cell 155
+doing a job with a name.
+
+Traced against the interpreter, with two `crazy` cells at residues 82 and
+86 of one 94-block:
+
+```text
+start          m176=74  m180=70
+c=176 crazy →  m176=70            work sweep: fires
+c=180 crazy →  m180=74            work sweep: fires
+c=181 jmp   →  loop back
+c=176 nop   →  m176=74            restored
+c=180 nop   →  m180=70            restored
+c=181 jmp   →  loop back
+c=176 crazy →  m176=70            next iteration, identical
+```
+
+Two facts make the layout easy, and both are consequences of compiling to
+an `Image` rather than to source. **Padding is universal**: at every one of
+the 94 residues there is a code whose whole `xlat2` orbit is harmless, so
+the gaps between working cells cost nothing. (For loadable source only 14
+residues work, which is what made `loop.mu` a 201-cell program.) And
+**each instruction has exactly two 2-cycle residues**, four apart: `crazy`
+at 82 with word 74 or 86 with word 70, `movd` at 60 or 64, `jmp` at 24 or
+28, and so on. So a working row places two cells of a given kind per
+94-block and pads the rest, and the assembler's placement problem is a
+short arithmetic one.
+
 ## What a backend still has to solve
 
 1. ~~A data-driven branch.~~ The **arithmetic half is done**:
@@ -368,8 +420,9 @@ normal form.
    arithmetic of any length costs one lemma application rather than a
    proof per instruction. What remains is the final `jmp` (generic,
    `step1_jmp`, the caller owns the landing sites) and making the gadget
-   *re-enterable* for use inside a dispatcher, where its cells' encryption
-   phases must cycle.
+   *re-enterable* for use inside a dispatcher, which the two-sweep
+   discipline above now settles: place its cells at 2-cycle residues and
+   run the row twice.
 2. ~~The value algebra.~~ **Done**: `crz_two_steps` says any value reaches
    any other in two operations, and `crzTrit_zero_ne_zero` says one will
    not do. What remains is the *sequencing*: `p` writes to `mem[d]`, so the

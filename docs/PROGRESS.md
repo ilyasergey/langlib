@@ -2,7 +2,47 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): the architecture decision, settled by a theorem
+## 2026-08-30 (latest): re-enterable gadgets, by running the row twice
+
+With the architecture settled on a finite self-modifying code region, the
+frontier was making a gadget survive repeated entry. The discipline turns
+out to be simpler than `loop.mu`'s jump-restore trick, and it needs no
+jumps at all.
+
+A cell holding a word of the `70 ↔ 74` cycle alternates instruction,
+no-op. So run the gadget row **twice**: the first sweep does the work and
+leaves every cell in its no-op phase, the second executes the same cells
+as no-ops and returns each to its original word. `crazy_run` was already
+the work sweep; `nop_run` is the other, and it constrains `d` not at all,
+since a no-op reads no operand. `encrypt_encrypt_two_cycle` and
+`row_restored` close the circle.
+
+Getting from one sweep to the next costs one cell: a `jmp`, stable because
+it never encrypts itself, reading a target table that `d` walks. The same
+cell fires at the end of both sweeps and reads a different entry each
+time, back to the top after the work sweep and onward after the no-op
+sweep. That is `loop.mu`'s cell 155 doing a job with a name.
+
+Traced against the interpreter, with two `crazy` cells at residues 82
+and 86 of one 94-block: both fire on the work sweep, both no-op on the
+second, both hold their original words afterwards, and the third sweep
+begins identically to the first.
+
+Two facts make the layout easy, and both follow from compiling to an
+`Image` rather than to source, where the loader's checks do not apply.
+**Padding is universal**: at every one of the 94 residues there is a code
+whose whole `xlat2` orbit is harmless, so gaps between working cells cost
+nothing. For loadable source only 14 residues work, which is why `loop.mu`
+needed 201 cells. And **each instruction has exactly two 2-cycle
+residues**, four apart: `crazy` at 82 or 86, `movd` at 60 or 64, `jmp` at
+24 or 28. A working row therefore places two cells of a kind per 94-block
+and pads the rest, and the assembler's placement problem is short
+arithmetic.
+
+Item 1 of the remaining list is now closed. Next: assemble the register
+file from the verified primitives, then the dispatcher.
+
+## 2026-08-30: the architecture decision, settled by a theorem
 
 The frontier was re-enterability: a dispatcher re-executes its cells, and
 every cell is overwritten by its own encryption. Two architectures were on

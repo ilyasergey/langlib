@@ -2429,6 +2429,91 @@ theorem halt_forces_rotr {w a : Nat} (h₁ : 33 ≤ w) (h₂ : w ≤ 126)
   rw [decode_at_ofNat h₁ h₂, show (w + a) % 94 = 39 by omega]
   rfl
 
+/-! ## Re-enterable rows: the nop sweep
+
+`loop.mu` restores its `movd` cell by having it both executed and jumped
+onto in one pass, two orbit steps, which a word from the `70 ↔ 74` cycle
+survives. The general form of that trick needs no jumps at all. A cell
+holding a two-cycle word alternates *instruction, no-op*, so a row of such
+cells run **twice** — once doing its work, once as no-ops — comes back to
+exactly where it started, and the row is re-enterable.
+
+`crazy_run` executes the work sweep. `nop_run` here executes the no-op
+sweep, and `encrypt_encrypt_two_cycle` is the arithmetic that closes the
+circle. Unlike `crazy_run` this lemma constrains `d` not at all: a no-op
+reads no operand, so wherever `d` happens to be it simply advances, and the
+frame covers every address outside the code row. -/
+
+theorem encrypt_encrypt_two_cycle {w : Nat} (h : w = 70 ∨ w = 74) :
+    encrypt (encrypt w) = w := by
+  rcases h with h | h <;> subst h <;> rfl
+
+/-- **A row of no-op cells sweeps in one induction.** The accumulator, the
+input and the output are untouched, `c` advances by `k`, `d` advances by
+`k` successors from wherever it was, each cell is replaced by its own
+encryption, and every other address is unchanged. -/
+theorem nop_run (k : Nat) {s₀ : State} {c₀ : Nat} (w : Nat → Nat)
+    (hc : s₀.c = Value.ofNat c₀)
+    (hdec : ∀ i < k, decode (s₀.mem.get (Value.ofNat (c₀ + i)))
+      (Value.ofNat (c₀ + i)).modClass = .nop)
+    (hprint : ∀ i < k, printableCode? (s₀.mem.get (Value.ofNat (c₀ + i)))
+      = some (w i)) :
+    ∃ s', run? k s₀ = some s'
+      ∧ s'.a = s₀.a
+      ∧ s'.c = Value.ofNat (c₀ + k)
+      ∧ s'.d = (Value.succ^[k]) s₀.d
+      ∧ (∀ i < k, s'.mem.get (Value.ofNat (c₀ + i)) = Value.ofNat (encrypt (w i)))
+      ∧ (∀ addr, (∀ i < k, addr ≠ Value.ofNat (c₀ + i)) →
+          s'.mem.get addr = s₀.mem.get addr)
+      ∧ s'.input = s₀.input ∧ s'.output = s₀.output ∧ s'.outClosed = s₀.outClosed
+      ∧ s'.rotWidth = s₀.rotWidth ∧ s'.maxWidth = s₀.maxWidth := by
+  induction k with
+  | zero =>
+    exact ⟨s₀, rfl, rfl, by simpa using hc, rfl,
+      fun i hi => absurd hi (by omega), fun addr _ => rfl, rfl, rfl, rfl, rfl, rfl⟩
+  | succ k ih =>
+    obtain ⟨sk, hrun, hA, hC, hD, hCs, hframe, hin, hout, hoc, hrw, hmw⟩ :=
+      ih (fun i hi => hdec i (by omega)) (fun i hi => hprint i (by omega))
+    have hcell : sk.mem.get (Value.ofNat (c₀ + k)) = s₀.mem.get (Value.ofNat (c₀ + k)) :=
+      hframe _ (fun i hi => ofNat_ne (by omega))
+    have hstep := step1_nop (s := sk) (code := w k)
+      (by rw [hC, hcell]; exact hdec k (by omega))
+      (by rw [hC, hcell]; exact hprint k (by omega))
+    set snext : State := { sk with mem := sk.mem.set sk.c (Value.ofNat (encrypt (w k))), c := sk.c.succ, d := sk.d.succ } with hsnext
+    have hrun' : run? (k + 1) s₀ = some snext := by
+      rw [run?_add k 1, hrun, Option.bind_some, run?_one]
+      exact hstep
+    refine ⟨snext, hrun', hA, ?_, ?_, ?_, ?_, hin, hout, hoc, hrw, hmw⟩
+    · show sk.c.succ = _
+      rw [hC, succ_ofNat, Nat.add_assoc]
+    · show sk.d.succ = _
+      rw [hD, Function.iterate_succ_apply']
+    · intro i hi
+      show (sk.mem.set sk.c (Value.ofNat (encrypt (w k)))).get (Value.ofNat (c₀ + i)) = _
+      by_cases hik : i = k
+      · subst hik; rw [hC, get_set_self]
+      · rw [get_set_ne _ (by rw [hC]; exact ofNat_ne (by omega))]
+        exact hCs i (by omega)
+    · intro addr hac
+      show (sk.mem.set sk.c (Value.ofNat (encrypt (w k)))).get addr = _
+      rw [get_set_ne _ (by rw [hC]; exact (hac k (by omega)).symm)]
+      exact hframe addr (fun i hi => hac i (by omega))
+
+/-- **A two-cycle row is restored by the sweep that follows it.** If every
+cell of the row held a word of the `70 ↔ 74` cycle before the work sweep,
+then after the work sweep (which encrypted each once) and the no-op sweep
+(which encrypts each again) the row holds exactly its original words: the
+gadget is ready to run again. -/
+theorem row_restored {m : Memory} {c₀ k : Nat} {v : Nat → Nat}
+    (hcycle : ∀ i < k, v i = 70 ∨ v i = 74)
+    (hbefore : ∀ i < k, m.get (Value.ofNat (c₀ + i)) = Value.ofNat (v i))
+    {m' : Memory}
+    (hafter : ∀ i < k, m'.get (Value.ofNat (c₀ + i))
+      = Value.ofNat (encrypt (encrypt (v i)))) :
+    ∀ i < k, m'.get (Value.ofNat (c₀ + i)) = m.get (Value.ofNat (c₀ + i)) := by
+  intro i hi
+  rw [hafter i hi, hbefore i hi, encrypt_encrypt_two_cycle (hcycle i hi)]
+
 end Unshackled
 
 end Langlib.Computability
