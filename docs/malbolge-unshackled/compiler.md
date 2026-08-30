@@ -185,6 +185,25 @@ The price is one line in the manual: **an emitted program needs the loader's
 default setting.** `--strict` (Johansen's `-n`) rejects it, by design, and a
 test asserts that it does.
 
+And the channel is a necessity, not a convenience. A program whose data cells
+are all printable can output **only the bytes below 81**, and the reason is a
+single trit. A printable word is at most `126 = 11200₃`, so its trit 4 is 0
+or 1, never 2; and the crazy table has `crz 0 0 = crz 0 1` and
+`crz 1 0 = crz 1 1`, so while no operand carries a 2 there, the
+accumulator's trit 4 evolves *identically to its repeating trit*. Output
+demands a repeating trit of 0 — that is what makes a value a natural — so
+trit 4 is 0 too, and the value is below `3⁴ = 81`. Breadth-first search over
+chains against all 94 printable words agrees exactly: from an accumulator of
+0 the reachable naturals are precisely `0..80`, and length does not help.
+
+So `Hello` is unreachable with printable data and `HELLO` is not. The escape
+is one data cell whose trit 4 is 2 — a code point in `162..242` modulo
+`3⁵` — and *no printable character has one*. Adding a single such operand to
+the 94 printable ones makes every byte below 128 reachable, which is why the
+suite's `printByte` case over the whole range passes. Rotation is not
+required for this and would not be the cheap way out; one wide-enough data
+cell is.
+
 ### Two crazy operations, with constants a source file can hold
 
 Setting the accumulator is where the target's hostility actually bites.
