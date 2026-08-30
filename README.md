@@ -260,7 +260,7 @@ derived compilers, whose fragment has no I/O, and much too weak for a
 backend that compiles `read` and `print`.
 [`IOCertifiedCompiler`](Langlib/Common/Compilation.lean#L212) is the
 behavioural one: a run's observable behaviour is a
-[`Trace`](Langlib/Common/Io.lean#L107) of the bytes it consumed and
+[`Trace`](Langlib/Common/Io.lean#L115) of the bytes it consumed and
 emitted, in order, and the compiled program has to reproduce the source's
 trace under an encoding the compiler declares up front, as well as its
 answer.

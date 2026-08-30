@@ -140,32 +140,28 @@ proved, not to be run.
 
 ## Which languages remain
 
-From the status matrix in [README.md](README.md), the rows that are not
-settled. Two are `wip`, with the foundations landed and one step left, so
-take these before starting anything from scratch:
+Eight are done: **whitespace**, **subleq** and **brainfuck**, proved in that
+order and the ones to read as worked examples — subleq for the shortest
+route onto the URM, brainfuck for the hardest — then **fractran** (the one
+arithmetic rather than operational simulation), **thue** (string rewriting,
+where the work was showing the interpreter's deterministic strategy cannot
+wander off the intended derivation), **piet** (the one geometric proof), and
+**ook** and **brainloller**, which came free by composing `parse ∘ render =
+id` with brainfuck's.
 
-* **fractran** ([status](computability-fractran.md)): a runnable
-  URM-to-FRACTRAN compiler and the prime-exponent arithmetic are proved.
-  What is missing is the whole-program simulation, and the proof looks
-  different from the others because the machine is arithmetic rather than
-  operational.
-* **piet** ([status](computability-piet.md)): straight-line URM programs
-  compile and their stack discipline is proved. What is missing is
-  image-level control flow: every `J m n q`, backward jumps included,
-  routed through a generated codel grid, with `computeBlocks` and
-  `evalGrid` shown to follow the intended route.
+The `open` rows, claimed complete and settled neither way, are what is left:
 
-The `open` rows, claimed complete and settled neither way, are **thue**
-(string rewriting; confluence of the generated rule set is the main
-obligation), **malbolge-unshackled**, and **unlambda/SKI** (bracket
-abstraction rather than machine simulation, the one genuinely different
-route).
-
-Whitespace, subleq and brainfuck are done, and were proved in that order;
-read all three as worked examples before starting a fourth, subleq for the
-shortest route onto the URM and brainfuck for the hardest. **ook** and
-**brainloller** are free now that brainfuck is proved, by composing with
-`parse ∘ render = id`, and nobody has collected them yet.
+* **unlambda / SKI** — bracket abstraction rather than machine simulation,
+  the one genuinely different route in the library, and the reason to take
+  it next: every proof so far is a register-machine simulation, so the
+  collection says nothing yet about the functional route to universality.
+* **malbolge-unshackled** — the simulation would have to survive both the
+  self-encrypting code and the free choice of rotation width, which no other
+  target here has an analogue of.
+* **turpentine** itself — a statement about the *source* language: a URM
+  compiles to Turpentine directly, which would also make every
+  Turing-complete backend's compiler a second, independent completeness
+  proof for that target.
 
 For the negative side, the target is a decided halting problem. All three
 languages that have one are done: **byte-celled befunge93** through a

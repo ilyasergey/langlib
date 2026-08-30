@@ -4,7 +4,7 @@
 
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved / disproved | Correct via TC | Hosts full Turpentine | Bespoke compiler | Bespoke correct |
 | ---------- | ------ | -------- | ------------- | ------------------ | -------- | ----------------- | ----------- | ---------------- | ----------------------- | ------------------ | ----------------- |
-| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | [**yes**](../Langlib/Computability/Brainfuck.lean#L2888) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L120) | yes | [yes](../Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317), [notes](brainfuck/compiler.md) | wip |
+| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | [**yes**](../Langlib/Computability/Brainfuck.lean#L2888) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L120) | yes | [yes](../Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317), [notes](brainfuck/compiler.md) | - |
 | [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L112) | yes | [yes](../Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530), [notes](whitespace/compiler.md) | [**yes**, scalar fragment](../Langlib/Computability/BespokeWhitespace.lean#L3247) |
 | [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L116) | yes | [yes](../Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125), [notes](subleq/compiler.md) | [**yes**, two shapes](../Langlib/Computability/BespokeSubleq.lean#L630) |
 | [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | [yes, byte core](../Langlib/Computability/Befunge93.lean#L326) | n/a | no, 2000 code cells | [no](befunge93/compiler.md) | n/a |
@@ -185,12 +185,10 @@ whole point of this library.
     the output that no instruction reads, and shows the 59049-word control
     determines the run. Its witness is a `BoundedRun`, the reachable-only
     form of `BoundedStorage`.
-  * `wip` is a proof under way with the load-bearing step still missing.
-    [Fractran](computability-fractran.md) has a runnable URM-to-FRACTRAN
-    compiler and its prime-exponent arithmetic proved, but no whole-program
-    simulation; [piet](computability-piet.md) compiles straight-line URM
-    programs and still owes image-level control flow, which is where
-    backward jumps live.
+  * `wip` would be a proof under way with the load-bearing step still
+    missing. No row is in that state: `fractran` and `piet`, the two that
+    were, are proved
+    ([fractran](computability-fractran.md), [piet](computability-piet.md)).
   * `open` means nobody here has proven it in either direction, whatever
     the literature believes. The claims themselves are in the languages'
     spec pages; the roadmap for closing them is
