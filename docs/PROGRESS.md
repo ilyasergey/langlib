@@ -63,9 +63,13 @@ the table are non-constant, but two of the nine compositions are. What a
 chain of crazy operations cannot produce is a uniform value that *depends*
 on the accumulator: `crz` is tritwise, so each output trit sees only the
 input trit at its own position, and two inputs differing at one position
-agree at every other, while `...000` and `...222` differ everywhere. So a
-comparison still cannot be collapsed into a flag without `*` — and `*` is
-mandatory anyway for addressing, which is the argument
+agree at every other, while `...000` and `...222` differ everywhere. That
+sharper statement is now `no_accumulator_flag` in
+`Langlib/Computability/MalbolgeUnshackled.lean`, proved by the session that
+caught the error — so a branch flag provably has to be *read* from something
+already uniform, which is what forces the unary register encoding rather
+than merely recommending it. A comparison still cannot be collapsed without
+`*`, and `*` is mandatory anyway for addressing, which is the argument
 `widthBounded_step1` actually proves.
 
 One consolation prize, and it works: `crz (crz a k) k` with `k` all ones

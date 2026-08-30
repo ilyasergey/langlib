@@ -274,16 +274,27 @@ constant: `k = 2` then `k = 0` sends every trit to 0, and `k = 0` then
 `k = 2` sends every trit to 2. That is exactly why the verified branch
 pipeline opens with an absorber.
 
-The true version. `crz` is tritwise, so a chain against compiled-in
-constants computes `resultᵢ = fᵢ(aᵢ)`: each output trit sees only the input
-trit at its own position. Let `a` and `a'` differ only at position `i`, and
-take any other position `j`; then `resultⱼ` is the same for both, since
-`aⱼ = a'ⱼ`. But `...000` and `...222` differ at *every* position, `j`
-included. So no chain can send `a` to one and `a'` to the other: **a chain
-of crazy operations can produce a uniform value, but not one that depends on
-the accumulator.** The absorber is the degenerate case, uniform and
-constant, which is why `branch_arith` needs the flag handed to it in a cell
-rather than computed from the value being tested.
+The true version, and it is now a theorem. `crz` is tritwise, so a chain
+against compiled-in constants computes `resultᵢ = fᵢ(aᵢ)`: each output trit
+sees only the input trit at its own position, which is `crzChain_trit`, and
+so two accumulators agreeing at a position give results agreeing there
+(`crzChain_agree`). Now let `a` and `a'` differ only at position `i` and take
+any other position — `i + 1` will do. The results agree there, but `...000`
+and `...222` differ at *every* position (`flags_differ_everywhere`). So no
+chain can send one to `...000` and the other to `...222`:
+
+```lean
+theorem no_accumulator_flag {a a' : Value} (ks : List Value) {i : Nat}
+    (hagree : ∀ j, j ≠ i → a.trit j = a'.trit j) :
+    ¬ (crzChain a ks = Value.zero ∧ crzChain a' ks = Value.eof)
+```
+
+**A chain of crazy operations can produce a uniform value, but not one that
+depends on the accumulator.** The absorber is the degenerate case, uniform
+and constant. So `branch_arith` does not merely happen to take its flag from
+a cell — a flag *has* to be read from something already uniform, which is
+also what forces the unary register encoding rather than merely recommending
+it.
 
 Collapsing a comparison therefore needs an instruction that moves a trit
 from one position to another, and `*` is the only one. And rotation is

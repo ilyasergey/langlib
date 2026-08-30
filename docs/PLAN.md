@@ -112,9 +112,11 @@ state first-order, I/O explicit.
   rather than more code generation. A chain of crazy operations against
   compiled-in constants *can* make an unknown value uniform — that is
   `crz_absorb`, the first step of the verified branch pipeline — but it
-  cannot make a uniform value that **depends** on the accumulator, because
-  `crz` is tritwise and so each output trit sees only the input trit at its
-  own position, while `...000` and `...222` differ at every position.
+  cannot make a uniform value that **depends** on the accumulator
+  (`no_accumulator_flag`), because `crz` is tritwise and so each output trit
+  sees only the input trit at its own position, while `...000` and `...222`
+  differ at every position. A flag has to be read from something already
+  uniform, which is what forces the unary register encoding.
   Collapsing a comparison therefore needs `*`, and `*` is mandatory anyway
   for addressing (`widthBounded_step1`: a rot-free run keeps every storable
   value in a finite alphabet, so every teleport lands in a finite set of
