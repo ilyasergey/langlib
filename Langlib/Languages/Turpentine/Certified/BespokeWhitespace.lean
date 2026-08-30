@@ -64,6 +64,7 @@ lemmas, and a composition step.
 
 open private compileExpr compileStmt emit emits fresh addrOf emitTrap emitBool emitStr
   emitOobTrap from Langlib.Languages.Turpentine.Compile.Whitespace
+open private pushStr from Langlib.Languages.Turpentine.Semantics
 
 namespace Langlib.Turpentine.Certified.BespokeWhitespace
 
@@ -401,6 +402,88 @@ theorem reaches_jn_untaken (s : Whitespace.State) (n : Int) (st : List Int) (l :
     simp only [Whitespace.exec, h, hst]
     rw [if_neg hn]
 
+/-! ## Printing, byte by byte
+
+The fragment's `print` statements are the first constructs whose code does
+something a proof can see from outside the machine, so they need three
+things nothing above them needed: how UTF-8 encoding behaves under string
+append, what code `emitStr` emits, and what running that code does to the
+output and the trace.
+
+The last of those, `reaches_bytesCode`, deliberately does **not** name the
+output bytes. It says only that the events are the bytes pushed; the output
+is recovered from the trace by `Langlib/Languages/Whitespace/Trace.lean`,
+which proves the two agree for every whitespace program. -/
+
+/-- Two byte arrays with the same bytes are the same array. This is how the
+proof gets back from a list of bytes, which is what a trace speaks in, to
+the `ByteArray` an output is. -/
+theorem bytes_ext {a b : ByteArray} (h : a.toList = b.toList) : a = b := by
+  apply ByteArray.ext
+  rw [ByteArray.toList_eq, ByteArray.toList_eq] at h
+  exact Array.ext' h
+
+/-- The empty string encodes to nothing. -/
+@[simp] theorem emptyStr_toList : "".toUTF8.toList = [] := by
+  rw [ByteArray.toList_eq]; rfl
+
+/-- Appending nothing to the output is not appending. -/
+@[simp] theorem append_emptyStr (b : ByteArray) : b ++ "".toUTF8 = b := by
+  have h : "".toUTF8 = ByteArray.empty := ByteArray.ext rfl
+  rw [h]
+  exact ByteArray.append_empty
+
+/-- UTF-8 encoding distributes over string append. -/
+theorem toUTF8_append (s t : String) : (s ++ t).toUTF8 = s.toUTF8 ++ t.toUTF8 :=
+  ByteArray.ext rfl
+
+theorem toUTF8_toList_append (s t : String) :
+    (s ++ t).toUTF8.toList = s.toUTF8.toList ++ t.toUTF8.toList := by
+  rw [toUTF8_append, ByteArray.toList_append]
+
+/-- Recording two runs of bytes is recording their concatenation. -/
+theorem recOut_append (es : List Event) (bs cs : List UInt8) :
+    Trace.recOut es (bs ++ cs) = Trace.recOut (Trace.recOut es bs) cs := by
+  simp [Trace.recOut]
+
+/-- Recording bytes prepends their events, most recent first. This is the
+bridge between the interpreters' `recOut`, which is a `foldl` chosen to make
+recording cheap, and the simulation's `Δ ++ events`, which is what
+composes. -/
+theorem recOut_eq_append (es : List Event) (bs : List UInt8) :
+    Trace.recOut es bs = (Trace.ofOutput bs).reverse ++ es := by
+  induction bs generalizing es with
+  | nil => rfl
+  | cons b bs ih =>
+    show Trace.recOut (Event.out b :: es) bs = _
+    rw [ih]
+    simp [Trace.ofOutput]
+
+/-- The code `emitStr` emits for a list of bytes: push, print, repeat. -/
+def bytesCode (bs : List UInt8) : List Instr :=
+  bs.flatMap fun b => [Instr.push (Int.ofNat b.toNat), Instr.outChar]
+
+theorem bytesCode_append (bs cs : List UInt8) :
+    bytesCode (bs ++ cs) = bytesCode bs ++ bytesCode cs := by
+  simp [bytesCode]
+
+theorem bytesCode_length (bs : List UInt8) : (bytesCode bs).length = 2 * bs.length := by
+  induction bs with
+  | nil => rfl
+  | cons b bs ih => simp [bytesCode] at ih ⊢; omega
+
+theorem emits_emitStr (str : String) (c : Nat) :
+    Emits (emitStr str) c (bytesCode str.toUTF8.toList) c PUnit.unit := by
+  show Emits (str.toUTF8.toList.forM _) c _ c PUnit.unit
+  generalize str.toUTF8.toList = bs
+  induction bs with
+  | nil => exact Emits.pure _ _
+  | cons b bs ih =>
+    show Emits (_ >>= fun _ => List.forM bs _) c _ c PUnit.unit
+    rw [show bytesCode (b :: bs) = ([Instr.push (Int.ofNat b.toNat)] ++ [Instr.outChar])
+        ++ bytesCode bs from by simp [bytesCode]]
+    exact Emits.seq (Emits.seq (emits_emit _ c) (emits_emit _ c)) ih
+
 /-! ## The covered fragment
 
 The backend accepts all of Turpentine. This proof covers the sublanguage
@@ -435,14 +518,33 @@ def okExpr (ns : List String) : Expr → Bool
   | .un _ e => okExpr ns e
   | .bin op a b => okOp op && okExpr ns a && okExpr ns b
 
+/-- The printed types the backend has code for. `print` is the one
+construct whose compilation consults the typing context — it chooses
+between `outnum` and the `true`/`false` branch — so the fragment check has
+to consult it too, and `okStmt` carries the same map the frame does. -/
+def okPrintTy (tys : Types) (e : Expr) : Bool :=
+  match inferExpr tys e with
+  | .ok .int => true
+  | .ok .bool => true
+  | _ => false
+
+theorem okPrintTy_cases {tys : Types} {e : Expr} (h : okPrintTy tys e = true) :
+    inferExpr tys e = .ok Ty.int ∨ inferExpr tys e = .ok Ty.bool := by
+  rw [okPrintTy] at h
+  split at h
+  · rename_i ht; exact Or.inl ht
+  · rename_i ht; exact Or.inr ht
+  · simp at h
+
 /-- Statements in the fragment. -/
-def okStmt (ns : List String) : Stmt → Bool
+def okStmt (ns : List String) (tys : Types) : Stmt → Bool
   | .skip => true
-  | .seq a b => okStmt ns a && okStmt ns b
+  | .seq a b => okStmt ns tys a && okStmt ns tys b
   | .assign x e => ns.contains x && okExpr ns e
-  | .ite c a b => okExpr ns c && okStmt ns a && okStmt ns b
-  | .while c b => okExpr ns c && okStmt ns b
+  | .ite c a b => okExpr ns c && okStmt ns tys a && okStmt ns tys b
+  | .while c b => okExpr ns c && okStmt ns tys b
   | .assert e => okExpr ns e
+  | .printStr _ _ => true
   | _ => false
 
 /-! ## The state relation
@@ -694,6 +796,160 @@ theorem emitsE_or {ctx : Frame} {a b : Expr} {c c₁ c₂ : Nat} {ca cb : List I
   simpa using h3
 
 
+/-- The newline, as the one byte it is. -/
+theorem newline_bytes : "\n".toUTF8.toList = [10] := by
+  rw [ByteArray.toList_eq]; rfl
+
+/-- The bytes a `print`/`println` of a rendered value writes: the rendering,
+then the newline if this was `println`. This is the source's own
+`v.render ++ if nl then "\n" else ""`, read as bytes. -/
+def outBytes (str : String) (nl : Bool) : List UInt8 :=
+  (str ++ (if nl then "\n" else "")).toUTF8.toList
+
+theorem outBytes_eq (str : String) (nl : Bool) :
+    outBytes str nl = str.toUTF8.toList ++ (if nl then [10] else []) := by
+  cases nl with
+  | false =>
+    show (str ++ "").toUTF8.toList = _
+    rw [show str ++ "" = str from by simp]
+    simp
+  | true =>
+    show (str ++ "\n").toUTF8.toList = _
+    rw [toUTF8_toList_append, newline_bytes]
+    simp
+
+/-- The trailing newline, as code. -/
+def nlCode (nl : Bool) : List Instr := if nl then bytesCode [10] else []
+
+theorem bytesCode_outBytes (str : String) (nl : Bool) :
+    bytesCode (outBytes str nl) = bytesCode str.toUTF8.toList ++ nlCode nl := by
+  rw [outBytes_eq, bytesCode_append, nlCode]
+  cases nl <;> simp [bytesCode]
+
+/-- Printed bytes define no labels. -/
+theorem labelsOf_bytesCode (bs : List UInt8) : labelsOf (bytesCode bs) = [] := by
+  induction bs with
+  | nil => rfl
+  | cons b bs ih =>
+    rw [show bytesCode (b :: bs)
+        = [Instr.push (Int.ofNat b.toNat), Instr.outChar] ++ bytesCode bs from by
+      simp [bytesCode], labelsOf_append, ih]
+    rfl
+
+theorem labelIdxs_bytesCode (bs : List UInt8) : labelIdxs (bytesCode bs) = [] := by
+  rw [labelIdxs, labelsOf_bytesCode]; rfl
+
+theorem labelIdxs_nlCode (nl : Bool) : labelIdxs (nlCode nl) = [] := by
+  cases nl
+  · rfl
+  · exact labelIdxs_bytesCode _
+
+theorem emitsS_printStr (ctx : Frame) (str : String) (nl : Bool) (c : Nat) :
+    Emits (compileStmt ctx (.printStr str nl)) c (bytesCode (outBytes str nl)) c PUnit.unit := by
+  have he : compileStmt ctx (.printStr str nl) = emitStr (str ++ (if nl then "\n" else "")) := by
+    cases nl
+    · exact congrArg emitStr (by simp)
+    · rfl
+  rw [he]
+  exact emits_emitStr _ c
+
+theorem emits_nl (nl : Bool) (c : Nat) :
+    Emits (if nl then emitStr "\n" else Pure.pure PUnit.unit) c (nlCode nl) c PUnit.unit := by
+  cases nl
+  · exact Emits.pure _ _
+  · show Emits (emitStr "\n") c (nlCode true) c PUnit.unit
+    have : nlCode true = bytesCode "\n".toUTF8.toList := by rw [nlCode, newline_bytes]; simp
+    rw [this]
+    exact emits_emitStr _ c
+
+theorem emitsS_printExpr_int {ctx : Frame} {e : Expr} {c c' : Nat} {ce : List Instr}
+    (ht : inferExpr ctx.types e = .ok Ty.int) (nl : Bool)
+    (hE : Emits (compileExpr ctx e) c ce c' PUnit.unit) :
+    Emits (compileStmt ctx (.printExpr e nl)) c
+      (ce ++ ([Instr.outNum] ++ nlCode nl)) c' PUnit.unit := by
+  have h0 : compileStmt ctx (.printExpr e nl)
+      = (match inferExpr ctx.types e with
+         | .error m => throw s!"type error in a printed expression: {m}"
+         | .ok .int => do
+            compileExpr ctx e
+            emit Instr.outNum
+            if nl then emitStr "\n"
+         | .ok .bool => do
+            let f ← fresh
+            let end_ ← fresh
+            compileExpr ctx e
+            emit (Instr.jz f)
+            emitStr "true"
+            emits [Instr.jump end_, Instr.label f]
+            emitStr "false"
+            emit (Instr.label end_)
+            if nl then emitStr "\n"
+         | .ok (.array _ _) => throw "internal: printing a whole array") := rfl
+  have he : compileStmt ctx (.printExpr e nl)
+      = (compileExpr ctx e >>= fun _ => emit Instr.outNum >>= fun _ =>
+          (if nl then emitStr "\n" else Pure.pure PUnit.unit)) := by
+    rw [h0, ht]
+  rw [he]
+  exact Emits.seq hE (Emits.seq (emits_emit _ c') (emits_nl nl c'))
+
+/-- The `true`/`false` code, as bytes. -/
+def trueBytes : List UInt8 := "true".toUTF8.toList
+def falseBytes : List UInt8 := "false".toUTF8.toList
+
+theorem emitsS_printExpr_bool {ctx : Frame} {e : Expr} {c c' : Nat} {ce : List Instr}
+    (ht : inferExpr ctx.types e = .ok Ty.bool) (nl : Bool)
+    (hE : Emits (compileExpr ctx e) (c + 2) ce c' PUnit.unit) :
+    Emits (compileStmt ctx (.printExpr e nl)) c
+      (ce ++ ([Instr.jz (labelOf c)] ++ (bytesCode trueBytes ++
+        ([Instr.jump (labelOf (c + 1)), Instr.label (labelOf c)] ++
+          (bytesCode falseBytes ++ ([Instr.label (labelOf (c + 1))] ++ nlCode nl))))))
+      c' PUnit.unit := by
+  have h0 : compileStmt ctx (.printExpr e nl)
+      = (match inferExpr ctx.types e with
+         | .error m => throw s!"type error in a printed expression: {m}"
+         | .ok .int => do
+            compileExpr ctx e
+            emit Instr.outNum
+            if nl then emitStr "\n"
+         | .ok .bool => do
+            let f ← fresh
+            let end_ ← fresh
+            compileExpr ctx e
+            emit (Instr.jz f)
+            emitStr "true"
+            emits [Instr.jump end_, Instr.label f]
+            emitStr "false"
+            emit (Instr.label end_)
+            if nl then emitStr "\n"
+         | .ok (.array _ _) => throw "internal: printing a whole array") := rfl
+  have hd : compileStmt ctx (.printExpr e nl)
+      = (fresh >>= fun f => fresh >>= fun end_ => compileExpr ctx e >>= fun _ =>
+          emit (Instr.jz f) >>= fun _ => emitStr "true" >>= fun _ =>
+            emits [Instr.jump end_, Instr.label f] >>= fun _ =>
+              emitStr "false" >>= fun _ => emit (Instr.label end_) >>= fun _ =>
+                (if nl then emitStr "\n" else Pure.pure PUnit.unit)) := by
+    rw [h0, ht]
+  rw [hd]
+  have h1 := Emits.seq hE (Emits.seq (emits_emit (Instr.jz (labelOf c)) c')
+    (Emits.seq (emits_emitStr "true" c') (Emits.seq
+      (emits_emits [Instr.jump (labelOf (c + 1)), Instr.label (labelOf c)] c')
+      (Emits.seq (emits_emitStr "false" c')
+        (Emits.seq (emits_emit (Instr.label (labelOf (c + 1))) c') (emits_nl nl c'))))))
+  have h2 := Emits.bind (g := fun end_ => compileExpr ctx e >>= fun _ =>
+      emit (Instr.jz (labelOf c)) >>= fun _ => emitStr "true" >>= fun _ =>
+        emits [Instr.jump end_, Instr.label (labelOf c)] >>= fun _ =>
+          emitStr "false" >>= fun _ => emit (Instr.label end_) >>= fun _ =>
+            (if nl then emitStr "\n" else Pure.pure PUnit.unit))
+    (emits_fresh (c + 1)) h1
+  have h3 := Emits.bind (g := fun f => fresh >>= fun end_ =>
+      compileExpr ctx e >>= fun _ => emit (Instr.jz f) >>= fun _ =>
+        emitStr "true" >>= fun _ =>
+          emits [Instr.jump end_, Instr.label f] >>= fun _ =>
+            emitStr "false" >>= fun _ => emit (Instr.label end_) >>= fun _ =>
+              (if nl then emitStr "\n" else Pure.pure PUnit.unit))
+    (emits_fresh c) h2
+  simpa [trueBytes, falseBytes] using h3
+
 /-! ### Cleanliness of the fixed tails -/
 
 theorem clean_boolTail (mk : Label → Instr) (c : Nat)
@@ -930,6 +1186,54 @@ theorem LabelsOk.single {labels : Std.HashMap Label Nat} {p : Nat} {l : Label}
     (h : LabelsOk labels p [Instr.label l]) : labels[l]? = some (p + 1) := by
   have := h 0 l rfl
   simpa using this
+
+theorem reaches_outChar (s : Whitespace.State) (n : Int) (st : List Int)
+    (hst : s.stack = n :: st) (hlo : 0 ≤ n) (hhi : n ≤ 255)
+    (h : prog[s.pc]? = some Instr.outChar) :
+    Reaches (Whitespace.exec prog labels) s
+      ({ s with pc := s.pc + 1, stack := st }.emit n.toNat.toUInt8) :=
+  Reaches.one fun _ => by
+    simp only [Whitespace.exec, h, hst]
+    rw [if_pos (by simp [hlo, hhi] : (0 ≤ n && n ≤ 255) = true)]
+
+example (b : UInt8) : (Int.ofNat b.toNat).toNat.toUInt8 = b := by simp
+
+/-- **Printing a run of bytes.** The code `emitStr` emits walks the list,
+pushing each byte and printing it, and leaves the stack as it found it. The
+output it appends is not named: the caller recovers it from the trace. -/
+theorem reaches_bytesCode (bs : List UInt8) (s : Whitespace.State)
+    (hcode : CodeAt prog s.pc (bytesCode bs)) :
+    ∃ out', out'.toList = s.output.toList ++ bs ∧
+      Reaches (Whitespace.exec prog labels) s
+        { s with pc := s.pc + 2 * bs.length, output := out',
+                 events := Trace.recOut s.events bs } := by
+  induction bs generalizing s with
+  | nil => exact ⟨s.output, by simp, by simpa [Trace.recOut] using Reaches.refl _ s⟩
+  | cons b bs ih =>
+    have hc : CodeAt prog s.pc
+        ([Instr.push (Int.ofNat b.toNat), Instr.outChar] ++ bytesCode bs) :=
+      codeAt_of_eq hcode (by simp [bytesCode])
+    have hb : (b.toNat : Int) ≤ 255 := by
+      have := b.toNat_lt_size; simp [UInt8.size] at this; omega
+    have step1 := reaches_push (prog := prog) (labels := labels) s
+      (Int.ofNat b.toNat) hc.head
+    have step2 : Reaches (Whitespace.exec prog labels)
+        { s with pc := s.pc + 1, stack := (Int.ofNat b.toNat) :: s.stack }
+        ({ s with pc := s.pc + 1 + 1 }.emit b) := by
+      refine reaches_cast (reaches_outChar (prog := prog) (labels := labels)
+        { s with pc := s.pc + 1, stack := (Int.ofNat b.toNat) :: s.stack }
+        (Int.ofNat b.toNat) s.stack rfl (by simp) hb
+        ((hc.right' (c₁ := [Instr.push (Int.ofNat b.toNat)]) (by simp)).head)) ?_
+      simp [Whitespace.State.emit]
+    obtain ⟨out', hout, hr⟩ := ih ({ s with pc := s.pc + 1 + 1 }.emit b)
+      (by
+        have := hc.right' (c₁ := [Instr.push (Int.ofNat b.toNat), Instr.outChar]) rfl
+        simpa [Whitespace.State.emit] using this)
+    refine ⟨out', by simpa [Whitespace.State.emit] using hout,
+      reaches_cast (Reaches.trans step1 (Reaches.trans step2 hr)) ?_⟩
+    simp only [Whitespace.State.emit, Whitespace.State.mk.injEq, Trace.recOut,
+      List.foldl_cons, List.length_cons, true_and, and_true]
+    omega
 
 theorem reaches_boolTail {prog : Prog} {labels : Std.HashMap Label Nat}
     (mk : Label → Instr) (taken : Prop) [Decidable taken]
@@ -2353,7 +2657,7 @@ theorem emitsS_assert {ctx : Frame} {e : Expr} {c c₁ : Nat} {ce : List Instr}
 /-! ### Every fragment statement emits something clean -/
 
 theorem emitsStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns) (st : Stmt) :
-    okStmt ns st = true → ∀ c : Nat,
+    okStmt ns ctx.types st = true → ∀ c : Nat,
       ∃ code c', Emits (compileStmt ctx st) c code c' PUnit.unit ∧ c ≤ c' ∧
         Clean c c' code := by
   induction st with
@@ -2362,8 +2666,8 @@ theorem emitsStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns) (st : 
     exact ⟨_, c, emitsS_skip ctx c, Nat.le_refl c, Clean.ofNoLabels rfl⟩
   | seq a b iha ihb =>
     intro hok c
-    have hoka : okStmt ns a = true := by revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
-    have hokb : okStmt ns b = true := by revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
+    have hoka : okStmt ns ctx.types a = true := by revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
+    have hokb : okStmt ns ctx.types b = true := by revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
     obtain ⟨ca, c₁, hA, hleA, hclA⟩ := iha hoka c
     obtain ⟨cb, c₂, hB, hleB, hclB⟩ := ihb hokb c₁
     exact ⟨_, c₂, emitsS_seq hA hB, by omega, Clean.appendUp hleA hleB hclA hclB⟩
@@ -2381,9 +2685,9 @@ theorem emitsStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns) (st : 
     intro hok c
     have hokc : okExpr ns cnd = true := by
       revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
-    have hokt : okStmt ns t = true := by
+    have hokt : okStmt ns ctx.types t = true := by
       revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
-    have hokf : okStmt ns f = true := by
+    have hokf : okStmt ns ctx.types f = true := by
       revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
     obtain ⟨cc, c₁, hC, hleC, hclC⟩ := emitsExpr hcov cnd hokc (c + 2)
     obtain ⟨ct, c₂, hT, hleT, hclT⟩ := iht hokt c₁
@@ -2435,7 +2739,7 @@ theorem emitsStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns) (st : 
     intro hok c
     have hokc : okExpr ns cnd = true := by
       revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
-    have hokb : okStmt ns body = true := by
+    have hokb : okStmt ns ctx.types body = true := by
       revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
     obtain ⟨cc, c₁, hC, hleC, hclC⟩ := emitsExpr hcov cnd hokc (c + 2)
     obtain ⟨cb, c₂, hB, hleB, hclB⟩ := ihb hokb c₁
@@ -2500,7 +2804,10 @@ theorem emitsStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns) (st : 
   | readIntIndex x i => intro hok _; simp [okStmt] at hok
   | readByteIndex x i => intro hok _; simp [okStmt] at hok
   | printExpr e nl => intro hok _; simp [okStmt] at hok
-  | printStr s nl => intro hok _; simp [okStmt] at hok
+  | printStr s nl =>
+    intro _ c
+    exact ⟨_, c, emitsS_printStr ctx s nl c, Nat.le_refl c,
+      Clean.ofNoLabels (labelIdxs_bytesCode _)⟩
   | printByte e => intro hok _; simp [okStmt] at hok
 
 
@@ -2518,7 +2825,14 @@ back lands *after* the `label` instruction, so the induction hypothesis for
 `while` cannot be applied at the block's own start. The `loop` lemma inside
 the `while` case is stated at the entry point instead, one position in. -/
 
-/-- The simulation property for one statement at one source fuel bound. -/
+/-- The simulation property for one statement at one source fuel bound.
+
+`Δ` is the run's I/O events, most recent first, and it is the *same* list on
+both sides: the compiled code performs the events the source statement
+performs, in the order it performs them. Only the fragment's `print`
+statements make it non-empty. The target's output bytes are not named —
+`Langlib/Languages/Whitespace/Trace.lean` recovers them from the trace, so
+carrying them here would be carrying them twice. -/
 def SimS (ctx : Frame) (prog : Prog) (labels : Std.HashMap Label Nat) (n : Nat)
     (st : Stmt) : Prop :=
   ∀ (c : Nat) (code : List Instr) (c' : Nat),
@@ -2527,13 +2841,15 @@ def SimS (ctx : Frame) (prog : Prog) (labels : Std.HashMap Label Nat) (n : Nat)
       CodeAt prog s.pc code → LabelsOk labels s.pc code →
       ∀ (σ σ' : Turpentine.State),
         Turpentine.exec n st σ = (σ', Exit.halted) → Agrees ctx σ.env s.heap →
-        ∃ heap', Reaches (Whitespace.exec prog labels) s
-            { s with pc := s.pc + code.length, heap := heap' } ∧
-          Agrees ctx σ'.env heap'
+        ∃ (heap' : Std.HashMap Int Int) (str : String) (Δ : List Event),
+          Reaches (Whitespace.exec prog labels) s
+            { s with pc := s.pc + code.length, heap := heap',
+                     output := s.output ++ str.toUTF8, events := Δ ++ s.events } ∧
+          Agrees ctx σ'.env heap' ∧ σ'.events = Δ ++ σ.events
 
 theorem simStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
     (hg : GoodFrame ctx) {prog : Prog} {labels : Std.HashMap Label Nat} :
-    ∀ (n : Nat) (st : Stmt), okStmt ns st = true → SimS ctx prog labels n st := by
+    ∀ (n : Nat) (st : Stmt), okStmt ns ctx.types st = true → SimS ctx prog labels n st := by
   intro n
   induction n using Nat.strong_induction_on with
   | _ n ihn =>
@@ -2553,12 +2869,12 @@ theorem simStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
         simp only [Prod.mk.injEq] at hex
         obtain ⟨hσ, -⟩ := hex
         subst hσ
-        exact ⟨s.heap, reaches_cast (Reaches.refl _ s) (by simp), hag⟩
+        exact ⟨s.heap, "", [], reaches_cast (Reaches.refl _ s) (by simp), hag, rfl⟩
       | seq a b iha ihb =>
         intro hok c code c' hem s hcode hlab σ σ' hex hag
-        have hoka : okStmt ns a = true := by
+        have hoka : okStmt ns ctx.types a = true := by
           revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
-        have hokb : okStmt ns b = true := by
+        have hokb : okStmt ns ctx.types b = true := by
           revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
         obtain ⟨ca, c₁, hEA, -, -⟩ := emitsStmt hcov a hoka c
         obtain ⟨cb, c₂, hEB, -, -⟩ := emitsStmt hcov b hokb c₁
@@ -2573,15 +2889,20 @@ theorem simStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
           | halted =>
             rw [hea] at hex
             simp only at hex
-            obtain ⟨h₂, r₂, ag₂⟩ :=
+            obtain ⟨h₂, str₂, Δ₂, r₂, ag₂, ev₂⟩ :=
               iha hoka c ca c₁ hEA s hcode.left hlab.left σ σ₂ hea hag
-            obtain ⟨h₃, r₃, ag₃⟩ := ihn k (by omega) b hokb c₁ cb c₂ hEB
-              { s with pc := s.pc + ca.length, heap := h₂ }
+            obtain ⟨h₃, str₃, Δ₃, r₃, ag₃, ev₃⟩ := ihn k (by omega) b hokb c₁ cb c₂ hEB
+              { s with pc := s.pc + ca.length, heap := h₂,
+                       output := s.output ++ str₂.toUTF8, events := Δ₂ ++ s.events }
               (hcode.right' (c₁ := ca) rfl) (hlab.right' (c₁ := ca) rfl) σ₂ σ' hex ag₂
-            refine ⟨h₃, ?_, ag₃⟩
+            refine ⟨h₃, str₂ ++ str₃, Δ₃ ++ Δ₂, ?_, ag₃,
+              by rw [ev₃, ev₂, List.append_assoc]⟩
             have chain : Reaches (Whitespace.exec prog labels) s
-                { s with pc := s.pc + ca.length + cb.length, heap := h₃ } :=
-              Reaches.trans r₂ r₃
+                { s with pc := s.pc + ca.length + cb.length, heap := h₃,
+                         output := s.output ++ (str₂ ++ str₃).toUTF8,
+                         events := (Δ₃ ++ Δ₂) ++ s.events } :=
+              reaches_cast (Reaches.trans r₂ r₃)
+                (by simp [ByteArray.append_assoc])
             rw [show s.pc + ca.length + cb.length = s.pc + (ca ++ cb).length from by
               simp only [List.length_append]; omega] at chain
             exact chain
@@ -2617,11 +2938,13 @@ theorem simStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
           have step3 := reaches_store (prog := prog) (labels := labels)
             { s with pc := s.pc + 1 + ce.length, stack := encV w :: a :: s.stack }
             a (encV w) s.stack rfl (hg.nonneg x a ha) hstore
-          refine ⟨s.heap.insert a (encV w), ?_, ?_⟩
+          refine ⟨s.heap.insert a (encV w), "", [], ?_, ?_, by rw [← hσ]; rfl⟩
           · have chain : Reaches (Whitespace.exec prog labels) s
                 { s with pc := s.pc + 1 + ce.length + 1,
-                         heap := s.heap.insert a (encV w) } :=
-              Reaches.trans step1 (Reaches.trans step2 step3)
+                         heap := s.heap.insert a (encV w),
+                         output := s.output ++ "".toUTF8,
+                         events := [] ++ s.events } :=
+              reaches_cast (Reaches.trans step1 (Reaches.trans step2 step3)) (by simp)
             rw [show s.pc + 1 + ce.length + 1
                 = s.pc + ([] ++ ([Instr.push a] ++ (ce ++ [Instr.store]))).length from by
               simp only [List.length_append, List.length_cons, List.length_nil,
@@ -2633,9 +2956,9 @@ theorem simStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
         intro hok c code c' hem s hcode hlab σ σ' hex hag
         have hokc : okExpr ns cnd = true := by
           revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
-        have hokt : okStmt ns t = true := by
+        have hokt : okStmt ns ctx.types t = true := by
           revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
-        have hokf : okStmt ns f = true := by
+        have hokf : okStmt ns ctx.types f = true := by
           revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
         obtain ⟨cc, c₁, hEC, -, -⟩ := emitsExpr hcov cnd hokc (c + 2)
         obtain ⟨ct, c₂, hET, -, -⟩ := emitsStmt hcov t hokt c₁
@@ -2683,47 +3006,55 @@ theorem simStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
             cases bb with
             | true =>
               simp only at hex
-              obtain ⟨h₂, r₂, ag₂⟩ := ihn k (by omega) t hokt c₁ ct c₂ hET
+              obtain ⟨h₂, str₂, Δ₂, r₂, ag₂, ev₂⟩ := ihn k (by omega) t hokt c₁ ct c₂ hET
                 { s with pc := s.pc + cc.length + 1, heap := s.heap }
                 (by simpa using h3.left) (by simpa using hl3.left) σ σ' hex hag
-              refine ⟨h₂, ?_, ag₂⟩
+              refine ⟨h₂, str₂, Δ₂, ?_, ag₂, ev₂⟩
               have step2 := reaches_jz_untaken (prog := prog) (labels := labels)
                 { s with pc := s.pc + cc.length, stack := (1 : Int) :: s.stack }
                 s.stack (labelOf c) 1 (by decide) rfl hjz
               have step4 := reaches_jump (prog := prog) (labels := labels)
-                { s with pc := s.pc + cc.length + 1 + ct.length, heap := h₂ }
+                { s with pc := s.pc + cc.length + 1 + ct.length, heap := h₂,
+                         output := s.output ++ str₂.toUTF8, events := Δ₂ ++ s.events }
                 (labelOf (c + 1)) (s.pc + cc.length + 1 + ct.length + 2 + cf.length + 1)
                 hend (by simpa using hjump)
               have chain : Reaches (Whitespace.exec prog labels) s
                   { s with pc := s.pc + cc.length + 1 + ct.length + 2 + cf.length + 1,
-                           heap := h₂ } :=
-                Reaches.trans stepC (Reaches.trans step2 (Reaches.trans r₂ step4))
+                           heap := h₂, output := s.output ++ str₂.toUTF8,
+                           events := Δ₂ ++ s.events } :=
+                reaches_cast
+                  (Reaches.trans stepC (Reaches.trans step2 (Reaches.trans r₂ step4)))
+                  (by simp)
               rw [hpc] at chain
               exact chain
             | false =>
               simp only at hex
-              obtain ⟨h₂, r₂, ag₂⟩ := ihn k (by omega) f hokf c₂ cf c₃ hEF
+              obtain ⟨h₂, str₂, Δ₂, r₂, ag₂, ev₂⟩ := ihn k (by omega) f hokf c₂ cf c₃ hEF
                 { s with pc := s.pc + cc.length + 1 + ct.length + 2, heap := s.heap }
                 (by simpa using h5.left) (by simpa using hl5.left) σ σ' hex hag
-              refine ⟨h₂, ?_, ag₂⟩
+              refine ⟨h₂, str₂, Δ₂, ?_, ag₂, ev₂⟩
               have step2 := reaches_jz_taken (prog := prog) (labels := labels)
                 { s with pc := s.pc + cc.length, stack := (0 : Int) :: s.stack }
                 s.stack (labelOf c) (s.pc + cc.length + 1 + ct.length + 2) rfl hels hjz
               have step4 := reaches_label (prog := prog) (labels := labels)
                 { s with pc := s.pc + cc.length + 1 + ct.length + 2 + cf.length,
-                         heap := h₂ }
+                         heap := h₂, output := s.output ++ str₂.toUTF8,
+                         events := Δ₂ ++ s.events }
                 (labelOf (c + 1)) (by simpa using hlbl)
               have chain : Reaches (Whitespace.exec prog labels) s
                   { s with pc := s.pc + cc.length + 1 + ct.length + 2 + cf.length + 1,
-                           heap := h₂ } :=
-                Reaches.trans stepC (Reaches.trans step2 (Reaches.trans r₂ step4))
+                           heap := h₂, output := s.output ++ str₂.toUTF8,
+                           events := Δ₂ ++ s.events } :=
+                reaches_cast
+                  (Reaches.trans stepC (Reaches.trans step2 (Reaches.trans r₂ step4)))
+                  (by simp)
               rw [hpc] at chain
               exact chain
       | «while» cnd body ihbody =>
         intro hok c code c' hem s hcode hlab σ σ' hex hag
         have hokc : okExpr ns cnd = true := by
           revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
-        have hokb : okStmt ns body = true := by
+        have hokb : okStmt ns ctx.types body = true := by
           revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
         obtain ⟨cc, c₁, hEC, -, -⟩ := emitsExpr hcov cnd hokc (c + 2)
         obtain ⟨cb, c₂, hEB, -, -⟩ := emitsStmt hcov body hokb c₁
@@ -2751,20 +3082,23 @@ theorem simStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
                 (cb ++ [Instr.jump (labelOf c), Instr.label (labelOf (c + 1))])))).length := by
           simp only [List.length_append, List.length_cons, List.length_nil]; omega
         have loop : ∀ (m : Nat), m ≤ k + 1 →
-            ∀ (τ τ' : Turpentine.State) (heap : Std.HashMap Int Int),
+            ∀ (τ τ' : Turpentine.State) (heap : Std.HashMap Int Int) (outp : ByteArray)
+              (es : List Event),
               Turpentine.exec m (.while cnd body) τ = (τ', Exit.halted) →
               Agrees ctx τ.env heap →
-              ∃ heap', Reaches (Whitespace.exec prog labels)
-                  { s with pc := s.pc + 1, heap := heap }
-                  { s with pc := s.pc + 1 + cc.length + 1 + cb.length + 2, heap := heap' } ∧
-                Agrees ctx τ'.env heap' := by
+              ∃ (heap' : Std.HashMap Int Int) (str : String) (Δ : List Event),
+                Reaches (Whitespace.exec prog labels)
+                  { s with pc := s.pc + 1, heap := heap, output := outp, events := es }
+                  { s with pc := s.pc + 1 + cc.length + 1 + cb.length + 2, heap := heap',
+                           output := outp ++ str.toUTF8, events := Δ ++ es } ∧
+                Agrees ctx τ'.env heap' ∧ τ'.events = Δ ++ τ.events := by
           intro m
           induction m with
           | zero =>
-            intro _ τ τ' heap hex' _
+            intro _ τ τ' heap outp es hex' _
             rw [Turpentine.exec] at hex'; simp at hex'
           | succ m ihm =>
-            intro hm τ τ' heap hex' hag'
+            intro hm τ τ' heap outp es hex' hag'
             rw [Turpentine.exec] at hex'
             cases hv : Turpentine.evalExpr τ.env cnd with
             | error msg => rw [hv] at hex'; simp at hex'
@@ -2775,7 +3109,7 @@ theorem simStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
               | bool bb =>
                 rw [hv] at hex'
                 have stepC := simExpr hcov hg cnd hokc (c + 2) cc c₁ hEC
-                  { s with pc := s.pc + 1, heap := heap }
+                  { s with pc := s.pc + 1, heap := heap, output := outp, events := es }
                   (by simpa using h2.left) (by simpa using hl2.left)
                   τ.env (.bool bb) hv hag'
                 cases bb with
@@ -2783,14 +3117,14 @@ theorem simStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
                   simp only [Prod.mk.injEq] at hex'
                   obtain ⟨hτ, -⟩ := hex'
                   subst hτ
-                  refine ⟨heap, ?_, hag'⟩
+                  refine ⟨heap, "", [], ?_, hag', rfl⟩
                   have step2 := reaches_jz_taken (prog := prog) (labels := labels)
-                    { s with pc := s.pc + 1 + cc.length, heap := heap,
-                             stack := (0 : Int) :: s.stack }
+                    { s with pc := s.pc + 1 + cc.length, heap := heap, output := outp,
+                             events := es, stack := (0 : Int) :: s.stack }
                     s.stack (labelOf (c + 1))
                     (s.pc + 1 + cc.length + 1 + cb.length + 2) rfl hlEnd
                     (by simpa using hjz)
-                  exact Reaches.trans stepC step2
+                  exact reaches_cast (Reaches.trans stepC step2) (by simp)
                 | true =>
                   cases heb : Turpentine.exec m body τ with
                   | mk τ₂ ex =>
@@ -2800,26 +3134,34 @@ theorem simStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
                     | halted =>
                       rw [heb] at hex'
                       simp only at hex'
-                      obtain ⟨h₂, r₂, ag₂⟩ := ihn m (by omega) body hokb c₁ cb c₂ hEB
-                        { s with pc := s.pc + 1 + cc.length + 1, heap := heap }
+                      obtain ⟨h₂, str₂, Δ₂, r₂, ag₂, ev₂⟩ :=
+                        ihn m (by omega) body hokb c₁ cb c₂ hEB
+                        { s with pc := s.pc + 1 + cc.length + 1, heap := heap,
+                                 output := outp, events := es }
                         (by simpa using h3.left) (by simpa using hl3.left) τ τ₂ heb hag'
-                      obtain ⟨h₃, r₃, ag₃⟩ := ihm (by omega) τ₂ τ' h₂ hex' ag₂
-                      refine ⟨h₃, ?_, ag₃⟩
+                      obtain ⟨h₃, str₃, Δ₃, r₃, ag₃, ev₃⟩ :=
+                        ihm (by omega) τ₂ τ' h₂ (outp ++ str₂.toUTF8) (Δ₂ ++ es) hex' ag₂
+                      refine ⟨h₃, str₂ ++ str₃, Δ₃ ++ Δ₂, ?_, ag₃,
+                        by rw [ev₃, ev₂, List.append_assoc]⟩
                       have step2 := reaches_jz_untaken (prog := prog) (labels := labels)
-                        { s with pc := s.pc + 1 + cc.length, heap := heap,
-                                 stack := (1 : Int) :: s.stack }
+                        { s with pc := s.pc + 1 + cc.length, heap := heap, output := outp,
+                                 events := es, stack := (1 : Int) :: s.stack }
                         s.stack (labelOf (c + 1)) 1 (by decide) rfl (by simpa using hjz)
                       have step4 := reaches_jump (prog := prog) (labels := labels)
-                        { s with pc := s.pc + 1 + cc.length + 1 + cb.length, heap := h₂ }
+                        { s with pc := s.pc + 1 + cc.length + 1 + cb.length, heap := h₂,
+                                 output := outp ++ str₂.toUTF8, events := Δ₂ ++ es }
                         (labelOf c) (s.pc + 1) hlTop (by simpa using hjump)
-                      exact Reaches.trans stepC (Reaches.trans step2
-                        (Reaches.trans r₂ (Reaches.trans step4 r₃)))
-        obtain ⟨heap', r, ag⟩ := loop (k + 1) (Nat.le_refl _) σ σ' s.heap hex hag
-        refine ⟨heap', ?_, ag⟩
+                      exact reaches_cast (Reaches.trans stepC (Reaches.trans step2
+                        (Reaches.trans r₂ (Reaches.trans step4 r₃))))
+                        (by simp [ByteArray.append_assoc])
+        obtain ⟨heap', str, Δ, r, ag, ev⟩ :=
+          loop (k + 1) (Nat.le_refl _) σ σ' s.heap s.output s.events hex hag
+        refine ⟨heap', str, Δ, ?_, ag, ev⟩
         have step0 := reaches_label (prog := prog) (labels := labels) s (labelOf c) htop
         have chain : Reaches (Whitespace.exec prog labels) s
-            { s with pc := s.pc + 1 + cc.length + 1 + cb.length + 2, heap := heap' } :=
-          Reaches.trans step0 r
+            { s with pc := s.pc + 1 + cc.length + 1 + cb.length + 2, heap := heap',
+                     output := s.output ++ str.toUTF8, events := Δ ++ s.events } :=
+          Reaches.trans (reaches_cast step0 (by simp)) r
         rw [hpc] at chain
         exact chain
       | «assert» e =>
@@ -2866,7 +3208,7 @@ theorem simStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
               simp only [Prod.mk.injEq] at hex
               obtain ⟨hσ, -⟩ := hex
               subst hσ
-              refine ⟨s.heap, ?_, hag⟩
+              refine ⟨s.heap, "", [], ?_, hag, rfl⟩
               have stepC := simExpr hcov hg e hoke (c + 2) ce c₁ hE s
                 hcode.left hlab.left σ.env (.bool true) hv hag
               have step2 := reaches_jz_untaken (prog := prog) (labels := labels)
@@ -2876,8 +3218,9 @@ theorem simStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
                 { s with pc := s.pc + ce.length + 1 }
                 (labelOf (c + 1)) (s.pc + ce.length + 6) hok' (by simpa using hjump)
               have chain : Reaches (Whitespace.exec prog labels) s
-                  { s with pc := s.pc + ce.length + 6, heap := s.heap } :=
-                Reaches.trans stepC (Reaches.trans step2 step3)
+                  { s with pc := s.pc + ce.length + 6, heap := s.heap,
+                           output := s.output ++ "".toUTF8, events := [] ++ s.events } :=
+                reaches_cast (Reaches.trans stepC (Reaches.trans step2 step3)) (by simp)
               rw [hpc] at chain
               exact chain
       | assignIndex x i e => intro hok; simp [okStmt] at hok
@@ -2886,7 +3229,25 @@ theorem simStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
       | readIntIndex x i => intro hok; simp [okStmt] at hok
       | readByteIndex x i => intro hok; simp [okStmt] at hok
       | printExpr e nl => intro hok; simp [okStmt] at hok
-      | printStr str nl => intro hok; simp [okStmt] at hok
+      | printStr str nl =>
+        intro _ c code c' hem s hcode hlab σ σ' hex hag
+        obtain ⟨hcd, -, -⟩ := Emits.det hem (emitsS_printStr ctx str nl c)
+        subst hcd
+        rw [Turpentine.exec] at hex
+        simp only [Prod.mk.injEq] at hex
+        obtain ⟨hσ, -⟩ := hex
+        obtain ⟨out', hout', r⟩ := reaches_bytesCode (outBytes str nl) s hcode
+        refine ⟨s.heap, str ++ (if nl then "\n" else ""),
+          (Trace.ofOutput (outBytes str nl)).reverse, ?_, ?_, ?_⟩
+        · refine reaches_cast r ?_
+          have hout : out' = s.output ++ (str ++ (if nl then "\n" else "")).toUTF8 :=
+            bytes_ext (by rw [hout', ByteArray.toList_append]; rfl)
+          rw [hout, recOut_eq_append, bytesCode_length]
+        · rw [← hσ]; exact hag
+        · rw [← hσ]
+          show Trace.recOut σ.events _ = _
+          rw [recOut_eq_append]
+          rfl
       | printByte e => intro hok; simp [okStmt] at hok
 
 
@@ -2939,6 +3300,9 @@ theorem isIntTy_eq {t : Ty} (h : isIntTy t = true) : t = Ty.int := by
 def hasAnswerInt (p : Program) : Bool :=
   p.decls.any fun d => d.1 == answerVar && isIntTy d.2.1
 
+/-- The typing context, read off the declarations. -/
+def typesOf (p : Program) : Types := typesGo p.decls ∅
+
 /-- The fragment check. Each rejection names what took the program outside
 the part of the language this file proves the backend correct on. -/
 def checkFragment (p : Program) : Except String Unit :=
@@ -2950,17 +3314,107 @@ def checkFragment (p : Program) : Except String Unit :=
   else if !hasAnswerInt p then
     .error "the verified whitespace fragment needs a declaration 'var answer : int;': \
       the specification names the answer by that variable"
-  else if !okStmt (declNames p) p.body then
+  else if !okStmt (declNames p) (typesOf p) p.body then
     .error "outside the verified whitespace fragment: the body uses I/O, an array, \
       '/' or '%'"
   else .ok ()
 
-/-- The source program with `print(answer)` appended. -/
-def answerProgram (p : Program) : Program :=
-  { p with body := .seq p.body (.printExpr (.var answerVar) false) }
+/-! ### Reading the answer back, from a program that prints for itself
 
-/-- The typing context, read off the declarations. -/
-def typesOf (p : Program) : Types := typesGo p.decls ∅
+`Langlib.Computability.URMWhitespace.decodeOutput` reads the *whole* output
+as a decimal numeral. That is right for the derived compilers, whose
+programs print nothing but the answer, and wrong here as soon as the
+fragment admits `print`: the answer would be buried in whatever the program
+said first.
+
+So the epilogue is `println(""); print(answer);` and the decoder reads the
+digits after the **last** newline. This needs no extra restriction on the
+fragment, because `toString (answer : Nat)` is all digits: the epilogue's
+newline is provably the last byte of its kind in the output, whatever the
+program printed before it. -/
+
+/-- The characters after the last newline, or all of them if there is
+none. -/
+def afterLastNewline (cs : List Char) : List Char :=
+  (cs.reverse.takeWhile (· != '\n')).reverse
+
+/-- The decoder: the digits the epilogue printed, read as a decimal
+numeral. -/
+def decodeAnswer (b : ByteArray) : Option Nat :=
+  match String.fromUTF8? b with
+  | none => none
+  | some s => Langlib.Computability.URMWhitespace.decodeDecimal (afterLastNewline s.toList)
+
+/-- A digit is not a newline. -/
+theorem digit_ne_nl {c : Char} (h : c.isDigit = true) : c ≠ '\n' := by
+  intro hc
+  rw [hc] at h
+  exact absurd h (by decide)
+
+/-- Every character of a decimal rendering is a digit. -/
+theorem toDigits_isDigit (n : Nat) : ∀ c ∈ Nat.toDigits 10 n, c.isDigit = true := by
+  induction n using Nat.strong_induction_on with
+  | _ n ih =>
+    rw [Nat.toDigits_eq_if (by omega)]
+    split
+    · rename_i hlt
+      intro c hc
+      rw [List.mem_singleton] at hc
+      subst hc
+      simp [Nat.isDigit_digitChar, hlt]
+    · rename_i hge
+      intro c hc
+      rcases List.mem_append.mp hc with h | h
+      · exact ih (n / 10) (Nat.div_lt_self (by omega) (by omega)) c h
+      · rw [List.mem_singleton] at h
+        subst h
+        simp [Nat.isDigit_digitChar, Nat.mod_lt _ (by omega : 0 < 10)]
+
+/-- `takeWhile` stops at the first element that fails, and nothing before it
+does. -/
+theorem takeWhile_upto {α : Type} {p : α → Bool} {x : α} {l₁ l₂ : List α}
+    (hx : p x = false) (h : ∀ c ∈ l₁, p c = true) :
+    (l₁ ++ x :: l₂).takeWhile p = l₁ := by
+  induction l₁ with
+  | nil => simp [hx]
+  | cons a as ih =>
+    have ha : p a = true := h a (by simp)
+    simp only [List.cons_append, List.takeWhile_cons, ha, if_true]
+    rw [ih (fun c hc => h c (by simp [hc]))]
+
+/-- Digits after the last newline are the digits after *that* newline. -/
+theorem afterLastNewline_digits (pre ds : List Char)
+    (h : ∀ c ∈ ds, c.isDigit = true) :
+    afterLastNewline (pre ++ '\n' :: ds) = ds := by
+  have hrev : (pre ++ '\n' :: ds).reverse = ds.reverse ++ '\n' :: pre.reverse := by
+    simp
+  rw [afterLastNewline, hrev,
+    takeWhile_upto (p := (· != '\n')) (by decide)
+      (fun c hc => by
+        have := h c (by simpa using List.mem_reverse.mp hc)
+        simpa using digit_ne_nl this),
+    List.reverse_reverse]
+
+/-- **The decoder inverts the epilogue.** Whatever the program printed
+first, the digits after the last newline are the answer. -/
+theorem decodeAnswer_epilogue (pre : String) (n : Nat) :
+    decodeAnswer ((pre ++ "\n" ++ toString ((n : Nat) : Int)).toUTF8) = some n := by
+  have hstr : toString ((n : Nat) : Int) = Nat.repr n := by simp [Int.repr_eq_if]
+  rw [decodeAnswer, Langlib.Computability.URMWhitespace.fromUTF8?_toUTF8, hstr]
+  simp only []
+  rw [show ((pre ++ "\n" ++ Nat.repr n).toList)
+      = pre.toList ++ '\n' :: (Nat.repr n).toList from by
+    rw [String.toList_append, String.toList_append]
+    simp [show "\n".toList = ['\n'] from rfl]]
+  rw [Nat.toList_repr, afterLastNewline_digits _ _ (toDigits_isDigit n),
+    Langlib.Computability.URMWhitespace.decodeDecimal_toDigits]
+
+/-- The source program with `println(""); print(answer);` appended: the
+newline is what makes the answer findable in an output the program has
+already written to. -/
+def answerProgram (p : Program) : Program :=
+  { p with body := .seq p.body (.seq (.printStr "" true)
+      (.printExpr (.var answerVar) false)) }
 
 /-- **The compiler.** The fragment check, then the hand-written backend. -/
 def bespokeCompile (p : Program) : Except String Prog := do
@@ -2971,7 +3425,7 @@ theorem checkFragment_ok {p : Program} (h : checkFragment p = .ok ()) :
     (∀ d ∈ p.decls, scalarTy d.2.1 = true) ∧ (∀ d ∈ p.decls, d.2.2 = none) ∧
     (declNames p).Nodup ∧
     (∃ d, d ∈ p.decls ∧ d.1 = answerVar ∧ d.2.1 = Ty.int) ∧
-    okStmt (declNames p) p.body = true := by
+    okStmt (declNames p) (typesOf p) p.body = true := by
   rw [checkFragment] at h
   split at h
   · simp at h
@@ -3006,7 +3460,7 @@ theorem checkFragment_ok {p : Program} (h : checkFragment p = .ok ()) :
             obtain ⟨d, hd, hcond⟩ := hb
             rw [Bool.and_eq_true, beq_iff_eq] at hcond
             exact ⟨d, hd, hcond.1, isIntTy_eq hcond.2⟩
-          · cases hb : okStmt (declNames p) p.body
+          · cases hb : okStmt (declNames p) (typesOf p) p.body
             · rw [hb] at h4; simp at h4
             · rfl
 
@@ -3095,8 +3549,7 @@ decimal. -/
 theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
     (hc : bespokeCompile p = .ok prog) (hp : HaltsWithAnswer p n result) :
     ∃ m, (Whitespace.evalProg prog (Input.ofString "") m).exit = Exit.halted ∧
-      Langlib.Computability.URMWhitespace.decodeOutput
-        (Whitespace.evalProg prog (Input.ofString "") m).output = some result := by
+      decodeAnswer (Whitespace.evalProg prog (Input.ofString "") m).output = some result := by
   obtain ⟨env₀, st, hinit, hex, hans⟩ := hp
   have hcf : checkFragment p = .ok () := by
     cases hq : checkFragment p with
@@ -3127,11 +3580,17 @@ theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
   obtain ⟨dcode, hdem, hdlab, hdsim⟩ := emits_declLoop ctx hgf p.decls hsc hno hcovd 0
   obtain ⟨bcode, c₁, hbem, hble, hbcl⟩ := emitsStmt hcov p.body hokbody 0
   have hpem := emitsS_printAnswer haA hAty c₁
+  have hnlem : Emits (compileStmt ctx (.printStr "" true)) c₁ (bytesCode [10]) c₁ PUnit.unit := by
+    have h := emitsS_printStr ctx "" true c₁
+    rwa [show outBytes "" true = [10] from by
+      rw [outBytes_eq]; simp] at h
   have hsem : Emits (compileStmt ctx (answerProgram p).body) 0
-      (bcode ++ ([Instr.push aA, Instr.retrieve] ++ ([Instr.outNum] ++ []))) c₁ PUnit.unit :=
-    emitsS_seq hbem hpem
+      (bcode ++ (bytesCode [10]
+        ++ ([Instr.push aA, Instr.retrieve] ++ ([Instr.outNum] ++ [])))) c₁ PUnit.unit :=
+    emitsS_seq hbem (emitsS_seq hnlem hpem)
   have hWem : Emits (genOf (answerProgram p) (typesOf p)) 0
-      (dcode ++ ((bcode ++ ([Instr.push aA, Instr.retrieve] ++ ([Instr.outNum] ++ [])))
+      (dcode ++ ((bcode ++ (bytesCode [10]
+        ++ ([Instr.push aA, Instr.retrieve] ++ ([Instr.outNum] ++ []))))
         ++ ([Instr.halt] ++ []))) c₁ PUnit.unit :=
     Emits.seq hdem (Emits.seq hsem
       (Emits.seq (emits_emit Instr.halt c₁) (Emits.pure _ c₁)))
@@ -3153,21 +3612,24 @@ theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
       obtain ⟨d, hd, hdt⟩ := hb
       rw [hz d hd] at hdt
       simp at hdt
-  have hprogeq : prog = (dcode ++ ((bcode ++ ([Instr.push aA, Instr.retrieve]
-      ++ ([Instr.outNum] ++ []))) ++ ([Instr.halt] ++ []))).toArray := by
+  have hprogeq : prog = (dcode ++ ((bcode ++ (bytesCode [10]
+      ++ ([Instr.push aA, Instr.retrieve] ++ ([Instr.outNum] ++ []))))
+      ++ ([Instr.halt] ++ []))).toArray := by
     have h := compileChecked_of_gen (answerProgram p) (typesOf p) _ c₁ harr hWem
     rw [hcomp] at h
     exact Except.ok.inj h
   subst hprogeq
   set pcode : List Instr := [Instr.push aA, Instr.retrieve] ++ ([Instr.outNum] ++ [])
     with hpcode
-  set W : List Instr := dcode ++ ((bcode ++ pcode) ++ ([Instr.halt] ++ [])) with hW
+  set W : List Instr :=
+    dcode ++ ((bcode ++ (bytesCode [10] ++ pcode)) ++ ([Instr.halt] ++ [])) with hW
   set labels := Whitespace.labelMap W.toArray with hlabels
   have hcodeW : CodeAt W.toArray 0 W := by intro j hj; simp
   have hclean : Clean 0 c₁ W := by
     refine Clean.appendUp (Nat.le_refl 0) (Nat.zero_le c₁) (Clean.ofNoLabels hdlab) ?_
     refine Clean.appendUp (Nat.zero_le c₁) (Nat.le_refl c₁) ?_ (Clean.ofNoLabels rfl)
-    exact Clean.appendUp (Nat.zero_le c₁) (Nat.le_refl c₁) hbcl (Clean.ofNoLabels rfl)
+    exact Clean.appendUp (Nat.zero_le c₁) (Nat.le_refl c₁) hbcl
+      (Clean.ofNoLabels (by simp [bytesCode, labelIdxs, labelsOf, hpcode]))
   have hlabW : LabelsOk labels 0 W := labelsOk_of_nodup W hclean.labels_nodup
   -- the initial state
   set s₀ : Whitespace.State :=
@@ -3185,39 +3647,60 @@ theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
     ((hcodeW.right' (c₁ := dcode) rfl).left).left
   have hlabB : LabelsOk labels (0 + dcode.length) bcode :=
     ((hlabW.right' (c₁ := dcode) rfl).left).left
-  obtain ⟨heap₂, r₂, hag₂⟩ := simStmt hcov hgf n p.body hokbody 0 bcode c₁ hbem
+  obtain ⟨heap₂, str, Δ, r₂, hag₂, -⟩ := simStmt hcov hgf n p.body hokbody 0 bcode c₁ hbem
     { s₀ with pc := 0 + dcode.length, heap := heap₁ } hcodeB hlabB
     { env := env₀, input := Input.ofString "" } st hex hag
   -- the answer, printed
   have hval : heap₂.getD aA 0 = (result : Int) := hag₂ answerVar aA haA _ hans
-  have hcodeP : CodeAt W.toArray (0 + dcode.length + bcode.length) pcode :=
+  -- the epilogue: first its newline, which is what makes the answer findable
+  have hcodeX : CodeAt W.toArray (0 + dcode.length + bcode.length) (bytesCode [10] ++ pcode) :=
     ((hcodeW.right' (c₁ := dcode) rfl).left).right' (c₁ := bcode) rfl
-  have hp0 : (W.toArray)[0 + dcode.length + bcode.length]? = some (Instr.push aA) :=
+  obtain ⟨outNL, houtNL, rNL⟩ :=
+    reaches_bytesCode (prog := W.toArray) (labels := labels) [10]
+      { s₀ with pc := 0 + dcode.length + bcode.length, heap := heap₂,
+                output := s₀.output ++ str.toUTF8, events := Δ ++ s₀.events }
+      hcodeX.left
+  -- then the answer itself, from the state the newline left behind
+  have rNL' : Reaches (Whitespace.exec W.toArray labels)
+      { s₀ with pc := 0 + dcode.length + bcode.length, heap := heap₂,
+                output := s₀.output ++ str.toUTF8, events := Δ ++ s₀.events }
+      { s₀ with pc := 0 + dcode.length + bcode.length + 2, heap := heap₂,
+                output := outNL, events := Trace.recOut (Δ ++ s₀.events) [10] } :=
+    reaches_cast rNL (by simp)
+  have hcodeP : CodeAt W.toArray (0 + dcode.length + bcode.length + 2) pcode :=
+    hcodeX.right' (c₁ := bytesCode [10]) (by simp [bytesCode])
+  have hp0 : (W.toArray)[0 + dcode.length + bcode.length + 2]? = some (Instr.push aA) :=
     hcodeP.head
-  have hp1 : (W.toArray)[0 + dcode.length + bcode.length + 1]? = some Instr.retrieve := by
+  have hp1 : (W.toArray)[0 + dcode.length + bcode.length + 2 + 1]? = some Instr.retrieve := by
     have := hcodeP.get 1 (by simp [hpcode]); simpa [hpcode] using this
-  have hp2 : (W.toArray)[0 + dcode.length + bcode.length + 2]? = some Instr.outNum := by
+  have hp2 : (W.toArray)[0 + dcode.length + bcode.length + 2 + 2]? = some Instr.outNum := by
     have := hcodeP.get 2 (by simp [hpcode]); simpa [hpcode] using this
-  have hhalt : (W.toArray)[0 + dcode.length + bcode.length + 3]? = some Instr.halt := by
-    have h := ((hcodeW.right' (c₁ := dcode) rfl).right' (c₁ := bcode ++ pcode)
-      (q := 0 + dcode.length + bcode.length + 3)
-      (by simp only [List.length_append, List.length_cons, List.length_nil, hpcode]; omega)).head
+  have hhalt : (W.toArray)[0 + dcode.length + bcode.length + 2 + 3]? = some Instr.halt := by
+    have h := ((hcodeW.right' (c₁ := dcode) rfl).right'
+      (c₁ := bcode ++ (bytesCode [10] ++ pcode))
+      (q := 0 + dcode.length + bcode.length + 2 + 3)
+      (by simp only [List.length_append, List.length_cons, List.length_nil, hpcode,
+        bytesCode_length]; omega)).head
     exact h
   have step1 := reaches_push (prog := W.toArray) (labels := labels)
-    { s₀ with pc := 0 + dcode.length + bcode.length, heap := heap₂ } aA hp0
+    { s₀ with pc := 0 + dcode.length + bcode.length + 2, heap := heap₂,
+              output := outNL, events := Trace.recOut (Δ ++ s₀.events) [10] } aA hp0
   have step2 := reaches_retrieve (prog := W.toArray) (labels := labels)
-    { s₀ with pc := 0 + dcode.length + bcode.length + 1, heap := heap₂,
-              stack := [aA] } aA [] rfl (hgf.nonneg answerVar aA haA) (by simpa using hp1)
+    { s₀ with pc := 0 + dcode.length + bcode.length + 2 + 1, heap := heap₂,
+              output := outNL, events := Trace.recOut (Δ ++ s₀.events) [10],
+              stack := [aA] } aA [] rfl
+    (hgf.nonneg answerVar aA haA) (by simpa using hp1)
   have step3 := reaches_outNum (prog := W.toArray) (labels := labels)
-    { s₀ with pc := 0 + dcode.length + bcode.length + 1 + 1, heap := heap₂,
+    { s₀ with pc := 0 + dcode.length + bcode.length + 2 + 1 + 1, heap := heap₂,
+              output := outNL, events := Trace.recOut (Δ ++ s₀.events) [10],
               stack := [heap₂.getD aA 0] } (heap₂.getD aA 0) [] rfl (by simpa using hp2)
   have chain : Reaches (Whitespace.exec W.toArray labels) s₀
-      { s₀ with pc := 0 + dcode.length + bcode.length + 3, heap := heap₂,
-                output := ByteArray.empty ++ (toString ((result : Nat) : Int)).toUTF8,
-                events := Trace.recOut []
+      { s₀ with pc := 0 + dcode.length + bcode.length + 2 + 3, heap := heap₂,
+                output := outNL ++ (toString ((result : Nat) : Int)).toUTF8,
+                events := Trace.recOut (Trace.recOut (Δ ++ s₀.events) [10])
                   ((toString ((result : Nat) : Int)).toUTF8).toList } := by
-    have h := Reaches.trans r₁ (Reaches.trans r₂
-      (Reaches.trans step1 (Reaches.trans step2 step3)))
+    have h := Reaches.trans r₁ (Reaches.trans r₂ (Reaches.trans rNL'
+      (Reaches.trans step1 (Reaches.trans step2 step3))))
     rw [hval] at h
     exact h
   obtain ⟨cst, hcst⟩ := chain
@@ -3228,8 +3711,15 @@ theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
       = Whitespace.exec W.toArray labels (cst + 1) s₀ from rfl, hcst 1,
     exec_halt (prog := W.toArray) (labels := labels) _ (by simpa using hhalt) 0]
   refine ⟨rfl, ?_⟩
-  simp only [ByteArray.empty_append]
-  exact Langlib.Computability.URMWhitespace.decodeOutput_encode result
+  -- the output is what the program printed, then a newline, then the answer
+  have houteq : outNL ++ (toString ((result : Nat) : Int)).toUTF8
+      = (str ++ "\n" ++ toString ((result : Nat) : Int)).toUTF8 := by
+    refine bytes_ext ?_
+    rw [ByteArray.toList_append, houtNL, toUTF8_toList_append, toUTF8_toList_append,
+      newline_bytes]
+    simp [hs₀, ByteArray.toList_eq]
+  rw [houteq]
+  exact decodeAnswer_epilogue str result
 
 end Langlib.Turpentine.Certified.BespokeWhitespace
 
@@ -3251,7 +3741,7 @@ one that is not derived from a completeness proof. -/
 def bespokeWhitespace : TurpentineCompiler WhitespaceLang where
   compile := BespokeWhitespace.bespokeCompile
   encodeInput := Input.ofString ""
-  decodeOutput := Langlib.Computability.URMWhitespace.decodeOutput
+  decodeOutput := BespokeWhitespace.decodeAnswer
   correct := fun p prog result n hc hp =>
     BespokeWhitespace.bespokeCompile_correct p prog result n hc hp
 

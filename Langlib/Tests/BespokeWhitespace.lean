@@ -45,12 +45,16 @@ def run (src : String) (input : Input) (fuel : Nat) : Except String RunResult :=
 
 /-- Run the source both ways and insist they agree: through the bespoke
 backend, and through the Turpentine reference interpreter on the same program
-with `print(answer);` appended. -/
+with the compiler's own epilogue, `println(""); print(answer);`, appended.
+Comparing the raw output strings is what makes this a byte-for-byte check:
+whatever the program printed for itself has to appear, in order, before the
+newline and the answer. -/
 def runBoth (src : String) (input : Input) (fuel : Nat) : Except String RunResult := do
   let p ← Langlib.Turpentine.parse src
   let _ ← (Langlib.Turpentine.checkProgram p).mapError ("type error: " ++ ·)
   let refProg : Langlib.Turpentine.Program :=
-    { p with body := .seq p.body (.printExpr (.var "answer") false) }
+    { p with body := .seq p.body (.seq (.printStr "" true)
+        (.printExpr (.var "answer") false)) }
   let refRes := Langlib.Turpentine.evalProgram refProg input fuel
   let ws ← bespokeWhitespace.compile p
   let wsRes ← Langlib.Whitespace.run ws.render input fuel
@@ -100,82 +104,82 @@ def pipeline : Suite where
   run := run
   cases :=
     [ { name := "default zero", source := .inline "var answer : int;",
-        expect := .outputs "0" }
+        expect := .outputs "\n0" }
     , { name := "constant", source := .inline "var answer : int; answer := 7;",
-        expect := .outputs "7" }
+        expect := .outputs "\n7" }
     , { name := "addition", source := .inline "var answer : int; answer := 2 + 3;",
-        expect := .outputs "5" }
+        expect := .outputs "\n5" }
     , { name := "multiplication", source := .inline "var answer : int; answer := 3 * 4;",
-        expect := .outputs "12" }
+        expect := .outputs "\n12" }
     , { name := "nested arithmetic",
         source := .inline "var answer : int; answer := 2 * 3 + 4 * 5;",
-        expect := .outputs "26" }
+        expect := .outputs "\n26" }
       -- subtraction, unary minus and negative literals are in this fragment
       -- and outside the certified URM one: whitespace cells are signed.
     , { name := "subtraction", source := .inline "var answer : int; answer := 5 - 2;",
-        expect := .outputs "3" }
+        expect := .outputs "\n3" }
     , { name := "a negative answer", source := .inline "var answer : int; answer := 2 - 9;",
-        expect := .outputs "-7" }
+        expect := .outputs "\n-7" }
     , { name := "unary minus",
         source := .inline "var answer : int; var x : int; x := 4; answer := -x - 1;",
-        expect := .outputs "-5" }
+        expect := .outputs "\n-5" }
     , { name := "variable read and write",
         source := .inline "var answer : int; var x : int; x := 4; answer := x + x;",
-        expect := .outputs "8" }
+        expect := .outputs "\n8" }
     , { name := "comparison into a boolean variable",
         source := .inline ("var answer : int; var b : bool; b := 3 < 5; " ++
           "if b { answer := 1; } else { answer := 2; }"),
-        expect := .outputs "1" }
+        expect := .outputs "\n1" }
     , { name := "the other comparisons",
         source := .inline ("var answer : int; var b : bool; " ++
           "b := 5 <= 5; if b { answer := answer + 1; } else { } " ++
           "b := 6 > 2; if b { answer := answer + 10; } else { } " ++
           "b := 2 >= 7; if b { answer := answer + 100; } else { }"),
-        expect := .outputs "11" }
+        expect := .outputs "\n11" }
     , { name := "equality on integers",
         source := .inline ("var answer : int; var b : bool; b := 3 == 3; " ++
           "if b { answer := 1; } else { answer := 0; }"),
-        expect := .outputs "1" }
+        expect := .outputs "\n1" }
     , { name := "inequality on booleans",
         source := .inline ("var answer : int; var b : bool; b := true != false; " ++
           "if b { answer := 1; } else { answer := 0; }"),
-        expect := .outputs "1" }
+        expect := .outputs "\n1" }
     , { name := "boolean negation",
         source := .inline ("var answer : int; var b : bool; b := !(3 < 2); " ++
           "if b { answer := 1; } else { answer := 0; }"),
-        expect := .outputs "1" }
+        expect := .outputs "\n1" }
     , { name := "if taking the else branch",
         source := .inline "var answer : int; if 1 > 2 { answer := 1; } else { answer := 2; }",
-        expect := .outputs "2" }
-    , { name := "while loop", source := .inline sumTo5, expect := .outputs "15" }
+        expect := .outputs "\n2" }
+    , { name := "while loop", source := .inline sumTo5, expect := .outputs "\n15" }
     , { name := "counting down with subtraction",
-        source := .inline countdown, expect := .outputs "55" }
+        source := .inline countdown, expect := .outputs "\n55" }
     , { name := "factorial by repeated multiplication",
-        source := .inline factorial6, expect := .outputs "720" }
+        source := .inline factorial6, expect := .outputs "\n720" }
     , { name := "assert that holds",
         source := .inline "var answer : int; answer := 3; assert answer == 3;",
-        expect := .outputs "3" }
+        expect := .outputs "\n3" }
     , { name := "conjunction",
         source := .inline ("var answer : int; var b : bool; b := 1 < 2 && 3 < 4; " ++
           "if b { answer := 1; } else { answer := 0; }"),
-        expect := .outputs "1" }
+        expect := .outputs "\n1" }
     , { name := "conjunction that is false on the left",
         source := .inline ("var answer : int; var b : bool; b := 2 < 1 && 3 < 4; " ++
           "if b { answer := 1; } else { answer := 0; }"),
-        expect := .outputs "0" }
+        expect := .outputs "\n0" }
     , { name := "disjunction",
         source := .inline ("var answer : int; var b : bool; b := 2 < 1 || 3 < 4; " ++
           "if b { answer := 1; } else { answer := 0; }"),
-        expect := .outputs "1" }
+        expect := .outputs "\n1" }
     , { name := "disjunction that is true on the left",
         source := .inline ("var answer : int; var b : bool; b := 1 < 2 || 4 < 3; " ++
           "if b { answer := 1; } else { answer := 0; }"),
-        expect := .outputs "1" }
+        expect := .outputs "\n1" }
     , { name := "nested loops",
         source := .inline ("var answer : int; var i : int; var j : int; " ++
           "while i < 4 { i := i + 1; j := 0; " ++
           "while j < 3 { j := j + 1; answer := answer + 1; } }"),
-        expect := .outputs "12" }
+        expect := .outputs "\n12" }
       -- a failed assert is a runtime error in the reference semantics and a
       -- forbidden heap access in the compiled program: the error class is
       -- preserved, the wording is not, and the theorem says nothing here
@@ -195,30 +199,50 @@ def differential : Suite where
   run := runBoth
   cases :=
     [ { name := "default zero", source := .inline "var answer : int;",
-        expect := .outputs "0" }
+        expect := .outputs "\n0" }
     , { name := "arithmetic",
         source := .inline "var answer : int; answer := 2 * 3 + 4 * 5;",
-        expect := .outputs "26" }
+        expect := .outputs "\n26" }
     , { name := "subtraction and a negative result",
         source := .inline "var answer : int; answer := 3 - 11;",
-        expect := .outputs "-8" }
-    , { name := "while loop", source := .inline sumTo5, expect := .outputs "15" }
-    , { name := "counting down", source := .inline countdown, expect := .outputs "55" }
-    , { name := "factorial", source := .inline factorial6, expect := .outputs "720" }
+        expect := .outputs "\n-8" }
+    , { name := "while loop", source := .inline sumTo5, expect := .outputs "\n15" }
+    , { name := "counting down", source := .inline countdown, expect := .outputs "\n55" }
+    , { name := "factorial", source := .inline factorial6, expect := .outputs "\n720" }
     , { name := "if and comparison",
         source := .inline ("var answer : int; var i : int; " ++
           "while i < 7 { i := i + 1; if i < 4 { answer := answer + i; } else { } }"),
-        expect := .outputs "6" }
+        expect := .outputs "\n6" }
     , { name := "short-circuit && against the reference interpreter",
         source := .inline ("var answer : int; var i : int; " ++
           "while i < 6 { i := i + 1; " ++
           "if i > 2 && i < 5 { answer := answer + i; } else { } }"),
-        expect := .outputs "7" }
+        expect := .outputs "\n7" }
     , { name := "short-circuit || against the reference interpreter",
         source := .inline ("var answer : int; var i : int; " ++
           "while i < 6 { i := i + 1; " ++
           "if i == 1 || i == 5 { answer := answer + i; } else { } }"),
-        expect := .outputs "6" }
+        expect := .outputs "\n6" }
+      -- string printing is in the verified fragment: the compiled program
+      -- performs the source's output events, byte for byte and in order.
+    , { name := "a printed string",
+        source := .inline "var answer : int; print(\"hi\"); answer := 3;",
+        expect := .outputs "hi\n3" }
+    , { name := "println adds its newline",
+        source := .inline "var answer : int; println(\"ok\"); answer := 1;",
+        expect := .outputs "ok\n\n1" }
+    , { name := "printing before and after the work",
+        source := .inline ("var answer : int; var i : int; print(\"[\"); " ++
+          "while i < 3 { i := i + 1; answer := answer + i; } print(\"]\");"),
+        expect := .outputs "[]\n6" }
+    , { name := "a string printed inside a loop",
+        source := .inline ("var answer : int; var i : int; " ++
+          "while i < 3 { i := i + 1; print(\".\"); } answer := 9;"),
+        expect := .outputs "...\n9" }
+    , { name := "a string printed in one branch only",
+        source := .inline ("var answer : int; if 1 < 2 { print(\"yes\"); } " ++
+          "else { print(\"no\"); } answer := 2;"),
+        expect := .outputs "yes\n2" }
     ]
 
 /-- Programs both compilers accept: no initialisers (the bespoke fragment
@@ -254,8 +278,6 @@ def rejections : Suite where
     , { name := "println", source := .inline "var answer : int; println(answer);",
         expect := .parseError "the body uses I/O" }
     , { name := "printByte", source := .inline "var answer : int; printByte(65);",
-        expect := .parseError "the body uses I/O" }
-    , { name := "string literal", source := .inline "var answer : int; print(\"hi\");",
         expect := .parseError "the body uses I/O" }
     , { name := "readInt", source := .inline "var answer : int; answer := readInt();",
         expect := .parseError "the body uses I/O" }
