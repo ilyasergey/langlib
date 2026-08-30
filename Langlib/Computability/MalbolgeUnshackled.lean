@@ -3315,6 +3315,108 @@ theorem enter_chain {s : State} {M P Q A : Nat} {wm wj wt : Nat}
     show (m₁.set (Value.ofNat (A - 1)) (Value.ofNat (encrypt wt))).get (Value.ofNat x) = _
     rw [get_set_ne _ (ofNat_ne (Ne.symm hxA)), hm₁, get_set_ne _ (ofNat_ne (Ne.symm hxM))]
 
+/-! ## A whole gadget
+
+`enter_chain` followed by `chain_run`: `2 + 2n` steps that position `d`,
+fold `n` operands into the accumulator, and leave every `jmp` cell standing.
+This is the unit a compiled counter-machine command is built from. -/
+
+theorem chainFold_congr {m m' : Memory} {D : Nat} {a : Value} : ∀ n : Nat,
+    (∀ i < n, m.get (Value.ofNat (D + 2 * i)) = m'.get (Value.ofNat (D + 2 * i))) →
+    chainFold m D a n = chainFold m' D a n
+  | 0, _ => rfl
+  | n + 1, h => by
+    show Value.crz (chainFold m D a n) (m.get (Value.ofNat (D + 2 * n)))
+      = Value.crz (chainFold m' D a n) (m'.get (Value.ofNat (D + 2 * n)))
+    rw [chainFold_congr n (fun i hi => h i (by omega)), h n (by omega)]
+
+/-- **A gadget runs.** The prologue re-aims `d`, the chain folds `n`
+operands into the accumulator, and the result is left both in the
+accumulator and in the last operand cell. -/
+theorem gadget_run (n : Nat) {s : State} {M P Q A : Nat} {wm wj₀ wt₀ : Nat}
+    (wc wj wt : Nat → Nat)
+    (hc : s.c = Value.ofNat M) (hd : s.d = Value.ofNat P)
+    -- prologue
+    (hdecM : decode (s.mem.get (Value.ofNat M)) (Value.ofNat M).modClass = .movd)
+    (hprM : printableCode? (s.mem.get (Value.ofNat M)) = some wm)
+    (hptr : s.mem.get (Value.ofNat P) = Value.ofNat Q)
+    (hdecJ₀ : decode (s.mem.get (Value.ofNat (M + 1))) (Value.ofNat (M + 1)).modClass = .jmp)
+    (hprJ₀ : printableCode? (s.mem.get (Value.ofNat (M + 1))) = some wj₀)
+    (htgt₀ : s.mem.get (Value.ofNat (Q + 1)) = Value.ofNat (A - 1))
+    (hA : 1 ≤ A)
+    (hprT₀ : printableCode? (s.mem.get (Value.ofNat (A - 1))) = some wt₀)
+    (hMne : A - 1 ≠ M) (hMne' : A - 1 ≠ M + 1) (hQM : Q + 1 ≠ M)
+    -- the chain, stated on the initial memory
+    (hsep : A + 94 * n + 94 ≤ Q + 2)
+    (hdecC : ∀ i < n, decode (s.mem.get (Value.ofNat (A + 94 * i)))
+      (Value.ofNat (A + 94 * i)).modClass = .crazy)
+    (hprC : ∀ i < n, printableCode? (s.mem.get (Value.ofNat (A + 94 * i))) = some (wc i))
+    (hdecJ : ∀ i < n, decode (s.mem.get (Value.ofNat (A + 94 * i + 1)))
+      (Value.ofNat (A + 94 * i + 1)).modClass = .jmp)
+    (hprJ : ∀ i < n, printableCode? (s.mem.get (Value.ofNat (A + 94 * i + 1)))
+      = some (wj i))
+    (htgt : ∀ i < n, s.mem.get (Value.ofNat (Q + 2 + 2 * i + 1))
+      = Value.ofNat (A + 94 * i + 93))
+    (hprT : ∀ i < n, printableCode? (s.mem.get (Value.ofNat (A + 94 * i + 93)))
+      = some (wt i))
+    -- the gadget's cells avoid the two the prologue writes
+    (hMsep : ∀ i < n, M ≠ A + 94 * i ∧ M ≠ A + 94 * i + 1 ∧ M ≠ A + 94 * i + 93
+      ∧ M ≠ Q + 2 + 2 * i ∧ M ≠ Q + 2 + 2 * i + 1)
+    (hAsep : ∀ i < n, A - 1 ≠ A + 94 * i ∧ A - 1 ≠ A + 94 * i + 1
+      ∧ A - 1 ≠ A + 94 * i + 93 ∧ A - 1 ≠ Q + 2 + 2 * i
+      ∧ A - 1 ≠ Q + 2 + 2 * i + 1) :
+    ∃ s', run? (2 + 2 * n) s = some s'
+      ∧ s'.a = chainFold s.mem (Q + 2) s.a n
+      ∧ s'.c = Value.ofNat (A + 94 * n)
+      ∧ s'.d = Value.ofNat (Q + 2 + 2 * n)
+      ∧ (∀ i < n, s'.mem.get (Value.ofNat (Q + 2 + 2 * i))
+          = chainFold s.mem (Q + 2) s.a (i + 1))
+      ∧ s'.input = s.input ∧ s'.output = s.output ∧ s'.outClosed = s.outClosed := by
+  obtain ⟨s₁, hr1, ha1, hc1, hd1, _, _, hfr1, hi1, ho1, hoc1⟩ :=
+    enter_chain hc hd hdecM hprM hptr hdecJ₀ hprJ₀ htgt₀ hA hprT₀ hMne hMne' hQM
+  -- transfer the chain's hypotheses across the prologue's frame
+  have hC : ∀ i < n, s₁.mem.get (Value.ofNat (A + 94 * i))
+      = s.mem.get (Value.ofNat (A + 94 * i)) :=
+    fun i hi => hfr1 _ (fun h => (hMsep i hi).1 h.symm) (fun h => (hAsep i hi).1 h.symm)
+  have hJ : ∀ i < n, s₁.mem.get (Value.ofNat (A + 94 * i + 1))
+      = s.mem.get (Value.ofNat (A + 94 * i + 1)) :=
+    fun i hi => hfr1 _ (fun h => (hMsep i hi).2.1 h.symm)
+      (fun h => (hAsep i hi).2.1 h.symm)
+  have hT : ∀ i < n, s₁.mem.get (Value.ofNat (A + 94 * i + 93))
+      = s.mem.get (Value.ofNat (A + 94 * i + 93)) :=
+    fun i hi => hfr1 _ (fun h => (hMsep i hi).2.2.1 h.symm)
+      (fun h => (hAsep i hi).2.2.1 h.symm)
+  have hOp : ∀ i < n, s₁.mem.get (Value.ofNat (Q + 2 + 2 * i))
+      = s.mem.get (Value.ofNat (Q + 2 + 2 * i)) :=
+    fun i hi => hfr1 _ (fun h => (hMsep i hi).2.2.2.1 h.symm)
+      (fun h => (hAsep i hi).2.2.2.1 h.symm)
+  have hTg : ∀ i < n, s₁.mem.get (Value.ofNat (Q + 2 + 2 * i + 1))
+      = s.mem.get (Value.ofNat (Q + 2 + 2 * i + 1)) :=
+    fun i hi => hfr1 _ (fun h => (hMsep i hi).2.2.2.2 h.symm)
+      (fun h => (hAsep i hi).2.2.2.2 h.symm)
+  obtain ⟨s₂, hr2, ha2, hc2, hd2, hop2, _, _, hi2, ho2, hoc2⟩ :=
+    chain_run n wc wj wt hc1 hd1 hsep
+      (fun i hi => by rw [hC i hi]; exact hdecC i hi)
+      (fun i hi => by rw [hC i hi]; exact hprC i hi)
+      (fun i hi => by rw [hJ i hi]; exact hdecJ i hi)
+      (fun i hi => by rw [hJ i hi]; exact hprJ i hi)
+      (fun i hi => by rw [hTg i hi]; exact htgt i hi)
+      (fun i hi => by rw [hT i hi]; exact hprT i hi)
+  have hfold : chainFold s₁.mem (Q + 2) s₁.a n = chainFold s.mem (Q + 2) s.a n := by
+    rw [ha1]
+    exact chainFold_congr n (fun i hi => hOp i hi)
+  have hfold' : ∀ k ≤ n, chainFold s₁.mem (Q + 2) s₁.a k = chainFold s.mem (Q + 2) s.a k := by
+    intro k hk
+    rw [ha1]
+    exact chainFold_congr k (fun i hi => hOp i (by omega))
+  refine ⟨s₂, ?_, ?_, hc2, hd2, ?_, hi2.trans hi1, ho2.trans ho1, hoc2.trans hoc1⟩
+  · rw [run?_add 2 (2 * n), hr1, Option.bind_some]
+    exact hr2
+  · rw [ha2]; exact hfold
+  · intro i hi
+    rw [hop2 i hi]
+    exact hfold' (i + 1) (by omega)
+
 end Unshackled
 
 end Langlib.Computability

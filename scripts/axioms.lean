@@ -640,6 +640,8 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.chain_link
 #print axioms Unshackled.chain_run
 #print axioms Unshackled.enter_chain
+#print axioms Unshackled.chainFold_congr
+#print axioms Unshackled.gadget_run
 
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine

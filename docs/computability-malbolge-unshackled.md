@@ -784,6 +784,13 @@ reads the cell at `D - 1`, holding `A - 1`, and drops control at `A`. After
 it, `c = A` and `d = D`, exactly what `chain_run` wants, with the
 accumulator untouched.
 
+`gadget_run` composes the two: `2 + 2n` steps that position `d`, fold `n`
+operands into the accumulator, and leave the result both in the accumulator
+and in the last operand cell, with every `jmp` cell still standing. That is
+the unit a compiled counter-machine command is built from, and its
+hypotheses are all stated on the *initial* memory, the prologue's two
+writes being transferred across by its frame.
+
 ## What is proved, what is cited, what is open
 
 **Proved, axiom-clean**: the `ProgLang` instance; the memory laws

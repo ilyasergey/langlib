@@ -2,7 +2,31 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-31 (latest): running a chain
+## 2026-08-31 (latest): entering a chain, and a whole gadget
+
+Two more layers, and the compiled-command unit now exists.
+
+`enter_chain` is the prologue that positions `d`. `movd` is the only
+instruction that moves it, and a re-enterable `movd` must sit at residue 60
+or 64 modulo 94 while a chain starts at 82, so the two cannot be adjacent;
+one stable `jmp` bridges them. Two instructions: `movd` reads a pointer
+cell holding `D - 2` and re-aims `d`, then `jmp` reads the cell at `D - 1`,
+holding `A - 1`, and drops control at `A`. Afterwards `c = A` and `d = D`,
+exactly what `chain_run` wants, with the accumulator untouched.
+
+`gadget_run` composes prologue and chain: `2 + 2n` steps that position `d`,
+fold `n` operands into the accumulator, and leave the result both in the
+accumulator and in the last operand cell, every `jmp` cell still standing.
+Its hypotheses are stated on the *initial* memory, the prologue's two
+writes being transferred across by its frame, so a caller reasons about one
+memory rather than a chain of intermediate ones. `chainFold_congr` is the
+small congruence that makes that transfer work.
+
+That is the unit a compiled counter-machine command is built from. What
+remains is to instantiate it for `inc`, `dec`, `emit` and `loop`, write the
+assembler that lays the cells out, and run the induction on `Ev`.
+
+## 2026-08-31: running a chain
 
 `chain_run` composes `n` links, laid out at **stride 94**. The stride is
 both forced and convenient: a re-enterable `crazy` must sit at residue 82
