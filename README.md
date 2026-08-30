@@ -80,14 +80,14 @@ status matrix, including compilers):
 
 | Language | Turing-complete (TC) | TC claim mechanised | Turpentine compiler |
 |----------|--------------------------|------------------------------|---------------------|
-| [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L1269)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L122) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317) (trusted) |
-| [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1117)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L114) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530) ([certified on a fragment](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3249)) |
-| [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1201)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L118) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125) ([certified on a fragment](Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L631)) |
-| [fractran](docs/fractran/spec.md) | yes | **[yes](Langlib/Computability/Fractran.lean#L4471)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L127) (certified), and [bespoke](docs/fractran/compiler.md) (trusted) |
-| [piet](docs/piet/spec.md) | yes | **[yes](Langlib/Computability/Piet.lean#L3992)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L139) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Piet.lean) (trusted, no arrays) |
+| [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L1269)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L122) (certified), and [bespoke](docs/brainfuck/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317), trusted) |
+| [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1117)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L114) (certified), and [bespoke](docs/whitespace/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530), [certified on a fragment](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3249)) |
+| [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1201)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L118) (certified), and [bespoke](docs/subleq/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125), [certified on a fragment](Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L631)) |
+| [fractran](docs/fractran/spec.md) | yes | **[yes](Langlib/Computability/Fractran.lean#L4471)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L127) (certified), and [bespoke](docs/fractran/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Fractran.lean), trusted) |
+| [piet](docs/piet/spec.md) | yes | **[yes](Langlib/Computability/Piet.lean#L3992)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L139) (certified), and [bespoke](docs/piet/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Piet.lean), trusted) |
 | [thue](docs/thue/spec.md) | yes | **[yes](Langlib/Computability/Thue.lean#L4026)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L133) (certified); [bespoke planned](docs/thue/compiler.md) |
-| [ook](docs/ook/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Ook.lean#L540)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L145) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Ook.lean#L49) (trusted) |
-| [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Brainloller.lean#L329)**, bar the [pixel walk](docs/brainloller/compiler.md) | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L150) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Brainloller.lean#L57) (trusted) |
+| [ook](docs/ook/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Ook.lean#L540)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L145) (certified), and [bespoke](docs/ook/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Ook.lean#L49), trusted) |
+| [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Brainloller.lean#L329)**, bar the [pixel walk](docs/brainloller/compiler.md) | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L150) (certified), and [bespoke](docs/brainloller/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Brainloller.lean#L57), trusted) |
 | [befunge93](docs/befunge93/spec.md) | [no with byte cells, yes with ours](docs/befunge93/spec.md#computational-class-and-why-our-deviations-matter) | **[yes](Langlib/Computability/Befunge93.lean#L343)**, for the byte core | [none: 2000 cells](docs/befunge93/compiler.md) |
 | [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[yes](Langlib/Computability/Malbolge.lean#L743)** | [none: bounded](docs/malbolge/compiler.md) |
 | [deadfish](docs/deadfish/spec.md) | no, every program halts | **[yes](Langlib/Computability/Deadfish.lean#L89)** | [planned, output only](docs/deadfish/compiler.md) |
@@ -101,8 +101,10 @@ The two middle columns answer different questions.
 **Turing-complete (TC)** is the answer itself, as the literature or our own spec page gives it. **TC claim mechanised** is whether that answer is backed
 by a machine-checked theorem in this repository, and links it.
 
-The last column names the Turpentine compilers a target has and links each
-to its source. A **derived** one comes out of that language's completeness
+The last column names the Turpentine compilers a target has: each name
+links to that backend's compiler notes in `docs/`, and the parenthesis after
+it links the sources — the compiler itself, and its correctness proof where
+there is one. A **derived** one comes out of that language's completeness
 proof, so it is *(certified)* already, but it does not support I/O: it
 routes everything through a register machine, which has no way to read or
 write, so the program takes no input and leaves its result in `answer`.
