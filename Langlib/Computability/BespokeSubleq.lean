@@ -1,5 +1,5 @@
 import Langlib.Computability.Derived
-import Langlib.Turpentine.Compile.Subleq
+import Langlib.Languages.Turpentine.Compile.Subleq
 import Batteries.Tactic.OpenPrivate
 
 /-!
@@ -13,7 +13,7 @@ a register machine in disguise.
 
 This file produces a second inhabitant for subleq, `bespokeSubleq`, whose
 `compile` runs the hand-written backend in
-`Langlib/Turpentine/Compile/Subleq.lean`. That is the compiler users invoke
+`Langlib/Languages/Turpentine/Compile/Subleq.lean`. That is the compiler users invoke
 with `lake exe turpentine compile --to subleq --bespoke`, and the image it
 emits is the one this file's `correct` field is about.
 
@@ -114,7 +114,7 @@ I/O statement while this instance needs the answer printed.
 open private emitItem emitData emitI emitL emitC wZ wSc NEXT OUT tmpW varW varRef
   constW constName noteDepth mZero mSub mMov mSet mOut compileExpr compileStmt
   labelAddrs resolveWord offSuffix
-  from Langlib.Turpentine.Compile.Subleq
+  from Langlib.Languages.Turpentine.Compile.Subleq
 
 namespace Langlib.Computability
 
@@ -621,7 +621,7 @@ end BespokeSubleq
 
 A second inhabitant of `TurpentineCompiler SubleqLang`, next to
 `derivedSubleq`. Its `compile` is the backend in
-`Langlib/Turpentine/Compile/Subleq.lean`, restricted to the fragment this
+`Langlib/Languages/Turpentine/Compile/Subleq.lean`, restricted to the fragment this
 file covers and otherwise unchanged; its `decodeOutput` reads the output
 bytes as a base-256 numeral; and its `correct` field is the composition of
 the reference-semantics lemmas with the twelve-instruction subleq

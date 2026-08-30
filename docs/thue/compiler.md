@@ -6,8 +6,8 @@
 * **Family**: would need its own IR (a "rewriting" IR; see
   `docs/PLAN.md`, Stage 4).
 * **Implementation**: the bespoke backend would go in
-  `Langlib/Turpentine/Compile/Thue.lean`, beside the
-  [whitespace backend](../../Langlib/Turpentine/Compile/Whitespace.lean).
+  `Langlib/Languages/Turpentine/Compile/Thue.lean`, beside the
+  [whitespace backend](../../Langlib/Languages/Turpentine/Compile/Whitespace.lean).
 
 ## What already exists
 

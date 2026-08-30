@@ -27,7 +27,7 @@ root = "Langlib.Languages.Brainfuck.Main"
 
 [[lean_exe]]
 name = "turpentine"
-root = "Langlib.Turpentine.Main"
+root = "Langlib.Languages.Turpentine.Main"
 
 [[lean_exe]]
 name = "fractran"

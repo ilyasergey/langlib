@@ -63,7 +63,7 @@ pixel-decoder front end onto the brainfuck core.
 Turpentine (Well-Typed Formalism, `.turp`), a small imperative language inspired by
 Velvet (https://github.com/verse-lab/velvet), as a deep embedding:
 
-* AST (`Langlib/Turpentine/Syntax.lean`): integer and boolean expressions, mutable
+* AST (`Langlib/Languages/Turpentine/Syntax.lean`): integer and boolean expressions, mutable
   variables, arrays, `if`, `while`, byte/number input and output. Keep the
   core small; it is a compilation source, not a general-purpose language.
 * Parser for `.turp` files, Dafny-flavoured concrete syntax (Velvet-like).
@@ -112,7 +112,7 @@ simulation proofs, once per backend. The targets are not actually all
 different, though. They fall into families, and within a family the hard
 part is identical.
 
-Introduce one IR per family, in `Langlib/Turpentine/IR/`:
+Introduce one IR per family, in `Langlib/Languages/Turpentine/IR/`:
 
 * **StackIR**: a stack machine with a heap addressed by integer, unbounded
   values, labels and conditional jumps. Lowers to **whitespace** almost
@@ -445,10 +445,10 @@ it will not fit at all.
 So the library keeps two compilers per target, deliberately, and names
 them differently:
 
-* `Langlib/Turpentine/Derive/<Lang>.lean`: the derived compiler, obtained
+* `Langlib/Languages/Turpentine/Derive/<Lang>.lean`: the derived compiler, obtained
   from `TuringComplete <Lang>` by composition. Correct by construction.
   Not expected to be practical.
-* `Langlib/Turpentine/Compile/<Lang>.lean`: the **effective compiler**,
+* `Langlib/Languages/Turpentine/Compile/<Lang>.lean`: the **effective compiler**,
   hand-written against the target's real strengths, with its own
   correctness theorem in the shape `docs/verification.md` prescribes. This
   is what `lake exe turpentine compile --to <lang>` uses.

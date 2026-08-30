@@ -13,7 +13,7 @@ import Langlib.Languages.Subleq
 import Langlib.Languages.Thue
 import Langlib.Languages.Unlambda
 import Langlib.Languages.Whitespace
-import Langlib.Turpentine
+import Langlib.Languages.Turpentine
 
 /-!
 # Langlib

@@ -1,6 +1,6 @@
 import Langlib.Common.TestHarness
 import Langlib.Computability.Derived
-import Langlib.Turpentine.Compile.Whitespace
+import Langlib.Languages.Turpentine.Compile.Whitespace
 import Langlib.Languages.Whitespace.Semantics
 import Langlib.Languages.Subleq.Semantics
 
@@ -33,7 +33,7 @@ here rather than in a file of its own because it is testing `derived`, not
 subleq: the same construction, applied to a different completeness witness,
 with no new proof written.
 
-The output is large by design: `Langlib/Turpentine/Compile/URM.lean` and
+The output is large by design: `Langlib/Languages/Turpentine/Compile/URM.lean` and
 `docs/certified-compilation.md` record the measured sizes. Programs are kept
 tiny for that reason.
 -/

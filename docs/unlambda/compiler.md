@@ -6,8 +6,8 @@
   StackIR, TapeIR and RegIR are all machine shaped; Unlambda has no
   machine in it.
 * **Implementation**: none yet; it would go in
-  `Langlib/Turpentine/Compile/Unlambda.lean`, beside the
-  [whitespace backend](../../Langlib/Turpentine/Compile/Whitespace.lean).
+  `Langlib/Languages/Turpentine/Compile/Unlambda.lean`, beside the
+  [whitespace backend](../../Langlib/Languages/Turpentine/Compile/Whitespace.lean).
 
 ## Why it is worth doing
 

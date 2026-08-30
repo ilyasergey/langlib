@@ -1,6 +1,6 @@
 import Batteries.Tactic.OpenPrivate
 import Langlib.Computability.Derived
-import Langlib.Turpentine.Compile.Whitespace
+import Langlib.Languages.Turpentine.Compile.Whitespace
 
 /-!
 # The hand-written Turpentine-to-Whitespace backend, proved correct
@@ -8,7 +8,7 @@ import Langlib.Turpentine.Compile.Whitespace
 `Langlib/Computability/Derived.lean` builds verified Turpentine compilers by
 composing `compileToURM` with a completeness witness. Those compilers are
 correct by construction and nobody runs them. The compiler people run is the
-hand-written backend in `Langlib/Turpentine/Compile/Whitespace.lean`, and
+hand-written backend in `Langlib/Languages/Turpentine/Compile/Whitespace.lean`, and
 until now nothing was proved about it.
 
 This file gives that backend a second `TurpentineCompiler WhitespaceLang`
@@ -63,7 +63,7 @@ lemmas, and a composition step.
 -/
 
 open private compileExpr compileStmt emit emits fresh addrOf emitTrap emitBool emitStr
-  emitOobTrap from Langlib.Turpentine.Compile.Whitespace
+  emitOobTrap from Langlib.Languages.Turpentine.Compile.Whitespace
 
 namespace Langlib.Computability.BespokeWhitespace
 
@@ -2509,7 +2509,7 @@ A statement's code runs with the value stack untouched: it enters and leaves
 empty of its own contribution. What changes is the heap, and the relation to
 maintain is again `Agrees`.
 
-The induction is the one `Langlib/Turpentine/Compile/URM.lean` uses: strong
+The induction is the one `Langlib/Languages/Turpentine/Compile/URM.lean` uses: strong
 induction on the source fuel, and inside it a structural induction on the
 statement, because `seq` runs its first component at the same fuel while
 `if` and `while` drop it by one. The extra piece here is the loop: a jump

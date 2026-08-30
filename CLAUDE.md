@@ -26,10 +26,14 @@ human-readable front-end language (Turpentine) and verified compilers from it.
   comment (e.g. `Usage: echo -n 34 | lake exe brainfuck ...`), where the
   language has any comment syntax at all; otherwise the usage goes in the
   language README's examples table.
-* The front-end language is called Turpentine; its sources use the `.turp`
-  extension and its Lean code lives under `Langlib/Turpentine/` (module
-  `Langlib.Turpentine.*`, namespace `Langlib.Turpentine`). Compilers to
-  targets go in `Langlib/Turpentine/Compile/<Langname>.lean`.
+* The front-end language is called Turpentine; it is a language like any
+  other in the library, so its sources use the `.turp` extension and its
+  Lean code lives under `Langlib/Languages/Turpentine/` (module
+  `Langlib.Languages.Turpentine.*`, namespace `Langlib.Turpentine`, like
+  every other language). Compilers to targets go in
+  `Langlib/Languages/Turpentine/Compile/<Langname>.lean`, and the derived
+  compilers obtained from completeness witnesses go in
+  `Langlib/Languages/Turpentine/Compile/Derived.lean`.
 
 ## Workplan and progress
 
@@ -72,7 +76,7 @@ human-readable front-end language (Turpentine) and verified compilers from it.
   which brings **Mathlib**. The revision is the last one matching our
   `lean-toolchain`; bump the two together, never separately.
 * Keep Mathlib and cslib confined to `Langlib/Computability/`. Language
-  modules under `Langlib/Languages/` and `Langlib/Turpentine/` must not
+  modules under `Langlib/Languages/` and `Langlib/Languages/Turpentine/` must not
   import them, so the interpreters stay light and compile fast.
 * First build on a fresh machine needs Mathlib's cache
   (`lake exe cache get`).

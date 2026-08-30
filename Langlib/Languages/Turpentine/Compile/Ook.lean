@@ -1,4 +1,4 @@
-import Langlib.Turpentine.Compile.Brainfuck
+import Langlib.Languages.Turpentine.Compile.Brainfuck
 import Langlib.Languages.Ook
 
 /-!

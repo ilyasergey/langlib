@@ -1,4 +1,4 @@
-import Langlib.Turpentine.Syntax
+import Langlib.Languages.Turpentine.Syntax
 
 /-!
 # Turpentine: parser

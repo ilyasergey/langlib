@@ -6,8 +6,8 @@
 * **Family**: StackIR (see `docs/PLAN.md`, Stage 4), shared with
   whitespace.
 * **Implementation**: the bespoke backend would go in
-  `Langlib/Turpentine/Compile/Piet.lean`, beside the
-  [whitespace backend](../../Langlib/Turpentine/Compile/Whitespace.lean).
+  `Langlib/Languages/Turpentine/Compile/Piet.lean`, beside the
+  [whitespace backend](../../Langlib/Languages/Turpentine/Compile/Whitespace.lean).
 
 ## What already exists
 

@@ -1,7 +1,7 @@
 # Compiling Turpentine to whitespace
 
-* **Implementation**: [Langlib/Turpentine/Compile/Whitespace.lean](../../Langlib/Turpentine/Compile/Whitespace.lean)
-  (module `Langlib.Turpentine.Compile.Whitespace`)
+* **Implementation**: [Langlib/Languages/Turpentine/Compile/Whitespace.lean](../../Langlib/Languages/Turpentine/Compile/Whitespace.lean)
+  (module `Langlib.Languages.Turpentine.Compile.Whitespace`)
 * **Entry points**: `compile : Turpentine.Program → Except String Whitespace.Prog`
   and `compileSource : String → Except String String` (`.turp` text to `.ws`
   text)
@@ -320,7 +320,7 @@ This backend is the first hand-written compiler in the library with a
 machine-checked correctness theorem. The proof is
 [Langlib/Computability/BespokeWhitespace.lean](../../Langlib/Computability/BespokeWhitespace.lean);
 it reasons about the code generator in
-`Langlib/Turpentine/Compile/Whitespace.lean` itself, not about a copy of it.
+`Langlib/Languages/Turpentine/Compile/Whitespace.lean` itself, not about a copy of it.
 
 ### What is proved
 

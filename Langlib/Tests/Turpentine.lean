@@ -1,5 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Turpentine.Semantics
+import Langlib.Languages.Turpentine.Semantics
 
 /-!
 Golden tests for Turpentine: the examples, arithmetic conventions (Euclidean

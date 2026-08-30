@@ -34,7 +34,7 @@ so the executable side is a definition plus four lemmas, and every theorem
 in `Langlib/Computability/` is stated against cslib's relation.
 
 Mathlib arrives with cslib. It is confined to `Langlib/Computability/`; the
-interpreters under `Langlib/Languages/` and `Langlib/Turpentine/` do not
+interpreters under `Langlib/Languages/` and `Langlib/Languages/Turpentine/` do not
 import it.
 -/
 

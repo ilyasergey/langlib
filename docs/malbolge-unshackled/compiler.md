@@ -5,7 +5,7 @@
 * **Family**: would need its own lowering; none of StackIR, TapeIR or
   RegIR survives contact with self-encrypting code.
 * **Implementation**: none yet; it would go in
-  `Langlib/Turpentine/Compile/MalbolgeUnshackled.lean`.
+  `Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean`.
 
 ## Why this target and not Malbolge
 

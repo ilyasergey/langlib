@@ -1,7 +1,7 @@
 import Langlib.Common.Io
-import Langlib.Turpentine.Syntax
-import Langlib.Turpentine.Parser
-import Langlib.Turpentine.Typecheck
+import Langlib.Languages.Turpentine.Syntax
+import Langlib.Languages.Turpentine.Parser
+import Langlib.Languages.Turpentine.Typecheck
 import Std.Data.HashMap
 
 /-!

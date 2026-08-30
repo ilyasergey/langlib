@@ -1,5 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Turpentine.Compile.Whitespace
+import Langlib.Languages.Turpentine.Compile.Whitespace
 import Langlib.Languages.Whitespace.Semantics
 
 /-!

@@ -68,7 +68,7 @@ A complete language contribution consists of:
 
 ## Adding a compiler from Turpentine
 
-Compilers from Turpentine to a target esolang live in `Langlib/Turpentine/Compile/<Langname>.lean`.
+Compilers from Turpentine to a target esolang live in `Langlib/Languages/Turpentine/Compile/<Langname>.lean`.
 A compiler contribution must state (in the module docstring and in
 `docs/<langname>/compiler.md`) which Turpentine fragment it supports, and add
 compiler tests: each supported Turpentine example is compiled, run on the target's

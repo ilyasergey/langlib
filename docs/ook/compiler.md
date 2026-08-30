@@ -2,7 +2,7 @@
 
 * **Status**: implemented, and the syntax round trip is proved.
 * **Family**: TapeIR, via brainfuck.
-* **Implementation**: [`Langlib/Turpentine/Compile/Ook.lean`](../../Langlib/Turpentine/Compile/Ook.lean).
+* **Implementation**: [`Langlib/Languages/Turpentine/Compile/Ook.lean`](../../Langlib/Languages/Turpentine/Compile/Ook.lean).
 * **Completeness witness**: [`Langlib/Computability/Ook.lean`](../../Langlib/Computability/Ook.lean).
 * **Tests**: [`Langlib/Tests/CompileOok.lean`](../../Langlib/Tests/CompileOok.lean), 27 cases.
 

@@ -18,7 +18,7 @@ engineering.
 | **`derived`**, the general correctness theorem | [Derived.lean:89](../Langlib/Computability/Derived.lean#L89) |
 | `derivedWhitespace`, `derivedSubleq`, `derivedBrainfuck`, `derivedFractran`, `derivedThue`, `derivedPiet`, the instances | [Derived.lean](../Langlib/Computability/Derived.lean) |
 | `agree`, two compilers give one answer | [Derived.lean:153](../Langlib/Computability/Derived.lean#L153) |
-| `compileToURM_correct`, the shared first hop | [Compile/URM.lean:3985](../Langlib/Turpentine/Compile/URM.lean#L3985) |
+| `compileToURM_correct`, the shared first hop | [Compile/URM.lean:3985](../Langlib/Languages/Turpentine/Compile/URM.lean#L3985) |
 | **`TuringComplete`**, the completeness claim | [Class.lean:81](../Langlib/Computability/Class.lean#L81) |
 | `BoundedStorage`, the incompleteness claim | [Class.lean:184](../Langlib/Computability/Class.lean#L184) |
 | `halts_iff_search`, decidability from a bound | [Class.lean:247](../Langlib/Computability/Class.lean#L247) |
@@ -28,9 +28,9 @@ engineering.
 | its `simulation` theorem | [Whitespace.lean:1048](../Langlib/Computability/Whitespace.lean#L1048) |
 | our URM helpers over cslib's | [URM.lean](../Langlib/Computability/URM.lean) |
 | cslib's `Instr` and `Program` | `Cslib/Computability/URM/Defs.lean` |
-| **`compileToURM`**, Turpentine to the URM | [Compile/URM.lean:661](../Langlib/Turpentine/Compile/URM.lean#L661) |
-| **`compileToURM_correct`**, its simulation | [Compile/URM.lean:3985](../Langlib/Turpentine/Compile/URM.lean#L3985) |
-| `TurpentineHaltsWith`, the answer convention | [Compile/URM.lean:3970](../Langlib/Turpentine/Compile/URM.lean#L3970) |
+| **`compileToURM`**, Turpentine to the URM | [Compile/URM.lean:661](../Langlib/Languages/Turpentine/Compile/URM.lean#L661) |
+| **`compileToURM_correct`**, its simulation | [Compile/URM.lean:3985](../Langlib/Languages/Turpentine/Compile/URM.lean#L3985) |
+| `TurpentineHaltsWith`, the answer convention | [Compile/URM.lean:3970](../Langlib/Languages/Turpentine/Compile/URM.lean#L3970) |
 | `TurpentineCompiler`, the interface | [Derived.lean:61](../Langlib/Computability/Derived.lean#L61) |
 | `derived`, one construction for every target | [Derived.lean:89](../Langlib/Computability/Derived.lean#L89) |
 | `derivedWhitespace` | [Derived.lean:107](../Langlib/Computability/Derived.lean#L107) |
@@ -44,9 +44,9 @@ engineering.
 | the axiom audit | [scripts/axioms.lean](../scripts/axioms.lean) |
 
 The bespoke backends, for contrast, are
-[Brainfuck.lean](../Langlib/Turpentine/Compile/Brainfuck.lean),
-[Whitespace.lean](../Langlib/Turpentine/Compile/Whitespace.lean) and
-[Subleq.lean](../Langlib/Turpentine/Compile/Subleq.lean).
+[Brainfuck.lean](../Langlib/Languages/Turpentine/Compile/Brainfuck.lean),
+[Whitespace.lean](../Langlib/Languages/Turpentine/Compile/Whitespace.lean) and
+[Subleq.lean](../Langlib/Languages/Turpentine/Compile/Subleq.lean).
 
 ## The pipeline
 
@@ -93,7 +93,7 @@ type-check, and it is also what bounds the fragment.
 
 ### 1. `compileToURM`
 
-[`Langlib/Turpentine/Compile/URM.lean`](../Langlib/Turpentine/Compile/URM.lean):
+[`Langlib/Languages/Turpentine/Compile/URM.lean`](../Langlib/Languages/Turpentine/Compile/URM.lean):
 
 ```lean
 def compileToURM : Turpentine.Program → Except String (URM.Program × List Nat)
@@ -232,7 +232,7 @@ What the interface buys:
   claim stops being a testing practice and becomes a corollary.
 
 * **A verified effective backend slots in without disturbing anything.**
-  Proving `Langlib/Turpentine/Compile/Whitespace.lean` correct means
+  Proving `Langlib/Languages/Turpentine/Compile/Whitespace.lean` correct means
   producing a second `TurpentineCompiler WhitespaceLang`, and every consumer
   keeps working.
 
@@ -273,7 +273,7 @@ def TurpentineHaltsWith (p : Turpentine.Program) (n : Nat) (result : Nat) : Prop
 ```
 
 `Turpentine.exec` and `Turpentine.initEnv` are the *reference interpreter*
-from `Langlib/Turpentine/Semantics.lean`, unmodified: the theorem is about
+from `Langlib/Languages/Turpentine/Semantics.lean`, unmodified: the theorem is about
 the language as the rest of the library defines it, not about a second
 semantics written to be convenient.
 
@@ -572,7 +572,7 @@ turpentine: retry with --bespoke to compile the whole language.
 turpentine: nothing written to /tmp/sort.sq
 ```
 
-The blurb is a fixed string in `Langlib/Turpentine/Main.lean` and lists what
+The blurb is a fixed string in `Langlib/Languages/Turpentine/Main.lean` and lists what
 the fragment excludes; the first line, the one that names the construct that
 was actually rejected, comes from the compiler.
 

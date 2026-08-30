@@ -387,7 +387,7 @@ def main (args : List String) : IO UInt32 := do
         (lead :=
           "<p class=\"muted\"><code>lake exe turpentine</code> · " ++
           s!"<a href=\"{repoURL}/tree/{repoBranch}/Langlib/Examples/Turpentine/\">examples</a> · " ++
-          s!"<a href=\"{repoURL}/tree/{repoBranch}/Langlib/Turpentine/\">Lean source</a></p>\n")
+          s!"<a href=\"{repoURL}/tree/{repoBranch}/Langlib/Languages/Turpentine/\">Lean source</a></p>\n")
         (kick := "Front end")
     , docPage published "/status/" "status/index.html" "docs/README.md"
         "Status matrix — LangLib" statusSource

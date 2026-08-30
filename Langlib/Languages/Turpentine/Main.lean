@@ -1,10 +1,10 @@
 import Langlib.Common.Runner
-import Langlib.Turpentine.Semantics
-import Langlib.Turpentine.Compile.Brainfuck
-import Langlib.Turpentine.Compile.Subleq
-import Langlib.Turpentine.Compile.Whitespace
-import Langlib.Turpentine.Compile.Ook
-import Langlib.Turpentine.Compile.Brainloller
+import Langlib.Languages.Turpentine.Semantics
+import Langlib.Languages.Turpentine.Compile.Brainfuck
+import Langlib.Languages.Turpentine.Compile.Subleq
+import Langlib.Languages.Turpentine.Compile.Whitespace
+import Langlib.Languages.Turpentine.Compile.Ook
+import Langlib.Languages.Turpentine.Compile.Brainloller
 import Langlib.Languages.Brainfuck.Semantics
 import Langlib.Languages.Subleq.Semantics
 import Langlib.Languages.Whitespace.Semantics

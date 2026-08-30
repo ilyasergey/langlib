@@ -1,5 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Turpentine.Compile.Subleq
+import Langlib.Languages.Turpentine.Compile.Subleq
 import Langlib.Languages.Subleq.Semantics
 
 /-!

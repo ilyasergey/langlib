@@ -1,6 +1,6 @@
 import Langlib.Common.TestHarness
-import Langlib.Turpentine.Semantics
-import Langlib.Turpentine.Compile.Brainloller
+import Langlib.Languages.Turpentine.Semantics
+import Langlib.Languages.Turpentine.Compile.Brainloller
 import Langlib.Computability.Brainloller
 
 /-!

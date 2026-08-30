@@ -1,6 +1,6 @@
 import Langlib.Common.TestHarness
-import Langlib.Turpentine.Semantics
-import Langlib.Turpentine.Compile.Ook
+import Langlib.Languages.Turpentine.Semantics
+import Langlib.Languages.Turpentine.Compile.Ook
 import Langlib.Computability.Ook
 
 /-!

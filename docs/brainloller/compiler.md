@@ -2,7 +2,7 @@
 
 * **Status**: implemented; the round trip is proved except for the pixel walk.
 * **Family**: TapeIR, via brainfuck.
-* **Implementation**: [`Langlib/Turpentine/Compile/Brainloller.lean`](../../Langlib/Turpentine/Compile/Brainloller.lean).
+* **Implementation**: [`Langlib/Languages/Turpentine/Compile/Brainloller.lean`](../../Langlib/Languages/Turpentine/Compile/Brainloller.lean).
 * **Completeness witness**: [`Langlib/Computability/Brainloller.lean`](../../Langlib/Computability/Brainloller.lean).
 * **Tests**: [`Langlib/Tests/CompileBrainloller.lean`](../../Langlib/Tests/CompileBrainloller.lean), 34 cases.
 
@@ -101,7 +101,7 @@ shows spelled as `Ook. Ook?`.
 ## Compiling one yourself, with today's command line
 
 `lake exe turpentine` does not yet accept `--to brainloller`; wiring that
-in is a change to `Langlib/Turpentine/Main.lean`. Until it lands the same
+in is a change to `Langlib/Languages/Turpentine/Main.lean`. Until it lands the same
 pipeline is two commands, because `lake exe brainloller` has an encoder
 mode of its own.
 

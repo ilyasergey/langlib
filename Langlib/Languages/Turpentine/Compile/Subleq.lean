@@ -1,6 +1,6 @@
-import Langlib.Turpentine.Syntax
-import Langlib.Turpentine.Parser
-import Langlib.Turpentine.Typecheck
+import Langlib.Languages.Turpentine.Syntax
+import Langlib.Languages.Turpentine.Parser
+import Langlib.Languages.Turpentine.Typecheck
 import Langlib.Languages.Subleq.Syntax
 import Langlib.Languages.Subleq.Parser
 import Std.Data.HashMap

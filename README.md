@@ -100,14 +100,14 @@ keeps both kinds.
 
 | Language | Turing-complete (TC) | TC claim mechanised | Turpentine compiler |
 |----------|--------------------------|------------------------------|---------------------|
-| [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L2888)** | [derived](Langlib/Computability/Derived.lean#L115) (certified), and [bespoke](Langlib/Turpentine/Compile/Brainfuck.lean#L1317) (trusted) |
-| [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1117)** | [derived](Langlib/Computability/Derived.lean#L107) (certified), and [bespoke](Langlib/Turpentine/Compile/Whitespace.lean#L530) ([certified on a fragment](Langlib/Computability/BespokeWhitespace.lean#L3246)) |
-| [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1201)** | [derived](Langlib/Computability/Derived.lean#L111) (certified), and [bespoke](Langlib/Turpentine/Compile/Subleq.lean#L1125) ([certified on a fragment](Langlib/Computability/BespokeSubleq.lean#L629)) |
+| [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L2888)** | [derived](Langlib/Computability/Derived.lean#L115) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317) (trusted) |
+| [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1117)** | [derived](Langlib/Computability/Derived.lean#L107) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530) ([certified on a fragment](Langlib/Computability/BespokeWhitespace.lean#L3246)) |
+| [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1201)** | [derived](Langlib/Computability/Derived.lean#L111) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125) ([certified on a fragment](Langlib/Computability/BespokeSubleq.lean#L629)) |
 | [fractran](docs/fractran/spec.md) | yes | **[yes](Langlib/Computability/Fractran.lean#L4458)** | [derived](Langlib/Computability/Derived.lean#L120) (certified); [bespoke planned](docs/fractran/compiler.md) |
 | [piet](docs/piet/spec.md) | yes | **[yes](Langlib/Computability/Piet.lean#L3990)** | [derived](Langlib/Computability/Derived.lean#L132) (certified); [bespoke planned](docs/piet/compiler.md) |
 | [thue](docs/thue/spec.md) | yes | **[yes](Langlib/Computability/Thue.lean#L4024)** | [derived](Langlib/Computability/Derived.lean#L126) (certified); [bespoke planned](docs/thue/compiler.md) |
-| [ook](docs/ook/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Ook.lean#L540)** | [derived](Langlib/Computability/Derived.lean#L138) (certified), and [bespoke](Langlib/Turpentine/Compile/Ook.lean#L49) (trusted) |
-| [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Brainloller.lean#L329)**, bar the [pixel walk](docs/brainloller/compiler.md) | [derived](Langlib/Computability/Derived.lean#L143) (certified), and [bespoke](Langlib/Turpentine/Compile/Brainloller.lean#L57) (trusted) |
+| [ook](docs/ook/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Ook.lean#L540)** | [derived](Langlib/Computability/Derived.lean#L138) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Ook.lean#L49) (trusted) |
+| [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Brainloller.lean#L329)**, bar the [pixel walk](docs/brainloller/compiler.md) | [derived](Langlib/Computability/Derived.lean#L143) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Brainloller.lean#L57) (trusted) |
 | [befunge93](docs/befunge93/spec.md) | [no with byte cells, yes with ours](docs/befunge93/spec.md#computational-class-and-why-our-deviations-matter) | **[yes](Langlib/Computability/Befunge93.lean#L343)**, for the byte core | [none: 2000 cells](docs/befunge93/compiler.md) |
 | [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[yes](Langlib/Computability/Malbolge.lean#L743)** | [none: bounded](docs/malbolge/compiler.md) |
 | [deadfish](docs/deadfish/spec.md) | no, every program halts | **[yes](Langlib/Computability/Deadfish.lean#L89)** | [planned, output only](docs/deadfish/compiler.md) |
@@ -189,15 +189,15 @@ A Turpentine program reaches a target two ways, and the library keeps both.
 **Bespoke** compilers are hand-written per target. They accept the whole of
 Turpentine, produce compact output, and are what
 `lake exe turpentine compile --to <lang>` runs today for
-[brainfuck](Langlib/Turpentine/Compile/Brainfuck.lean),
-[whitespace](Langlib/Turpentine/Compile/Whitespace.lean) and
-[subleq](Langlib/Turpentine/Compile/Subleq.lean). None is verified yet;
+[brainfuck](Langlib/Languages/Turpentine/Compile/Brainfuck.lean),
+[whitespace](Langlib/Languages/Turpentine/Compile/Whitespace.lean) and
+[subleq](Langlib/Languages/Turpentine/Compile/Subleq.lean). None is verified yet;
 verifying one is per-language proof work.
 
 **Via the URM**, a compiler costs nothing to write. A `TuringComplete`
 witness already contains a verified compiler from a register machine, so
 composing it with one shared Turpentine-to-register-machine pass,
-[`Compile/URM.lean`](Langlib/Turpentine/Compile/URM.lean), gives a
+[`Compile/URM.lean`](Langlib/Languages/Turpentine/Compile/URM.lean), gives a
 correct-by-construction compiler into any language proved complete. The
 composition is proved once for an arbitrary target, so a new language costs
 one line. The catch is that everything runs through a machine simulation:

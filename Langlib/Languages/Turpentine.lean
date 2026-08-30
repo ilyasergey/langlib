@@ -1,10 +1,10 @@
-import Langlib.Turpentine.Syntax
-import Langlib.Turpentine.Parser
-import Langlib.Turpentine.Typecheck
-import Langlib.Turpentine.Semantics
-import Langlib.Turpentine.Compile.Brainfuck
-import Langlib.Turpentine.Compile.Subleq
-import Langlib.Turpentine.Compile.Whitespace
+import Langlib.Languages.Turpentine.Syntax
+import Langlib.Languages.Turpentine.Parser
+import Langlib.Languages.Turpentine.Typecheck
+import Langlib.Languages.Turpentine.Semantics
+import Langlib.Languages.Turpentine.Compile.Brainfuck
+import Langlib.Languages.Turpentine.Compile.Subleq
+import Langlib.Languages.Turpentine.Compile.Whitespace
 
 /-!
 # Turpentine
@@ -23,5 +23,5 @@ interpreter, and compile to the esoteric languages under
 `Langlib/Languages/` (Stage 4 of `docs/PLAN.md`).
 
 See `docs/turpentine/spec.md` for the language reference and
-`Langlib/Turpentine/README.md` for usage.
+`Langlib/Languages/Turpentine/README.md` for usage.
 -/

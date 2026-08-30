@@ -5,7 +5,7 @@ language that type-checks, runs on a reference interpreter, and compiles to
 the esolangs of the library. It is named for the solvent: a Turing tarpit
 is a language where everything is possible and nothing is easy, and
 turpentine dissolves tar. Full language reference:
-[docs/turpentine/spec.md](../../docs/turpentine/spec.md).
+[docs/turpentine/spec.md](../../../docs/turpentine/spec.md).
 
 ## Modules
 
@@ -39,11 +39,11 @@ code. In short: `compile` and `exec` each take `--bespoke` (the default: hand-wr
 whole language, compact, unverified) or `--tc` (derived from the
 target's Turing-completeness proof: correct by construction, much larger,
 and restricted to the I/O-free fragment documented in
-[docs/certified-compilation.md](../../docs/certified-compilation.md)).
+[docs/certified-compilation.md](../../../docs/certified-compilation.md)).
 Passing both is an error, and the command names the scheme it used in its
 output.
 
-## Examples ([Langlib/Examples/Turpentine/](../Examples/Turpentine/))
+## Examples ([Langlib/Examples/Turpentine/](../../Examples/Turpentine/))
 
 | File | What it does |
 |------|--------------|
@@ -77,11 +77,11 @@ output, no subtraction, and the result left in a variable named `answer`.
 Arrays, division, modulo, `&&`, `||` and initialisers on declarations are
 all in the fragment. Every other example uses Turpentine's own
 I/O and needs a bespoke compiler. See
-[docs/certified-compilation.md](../../docs/certified-compilation.md).
+[docs/certified-compilation.md](../../../docs/certified-compilation.md).
 
 ## Tests
 
-Golden tests live in [Langlib/Tests/Turpentine.lean](../Tests/Turpentine.lean) (run with
+Golden tests live in [Langlib/Tests/Turpentine.lean](../../Tests/Turpentine.lean) (run with
 `lake test` from the repository root): all examples, the Euclidean
 division convention, I/O edge cases, type errors, parse errors, runtime
 errors, and divergence.

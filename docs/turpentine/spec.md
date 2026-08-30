@@ -5,11 +5,11 @@
 * **File extension**: `.turp`
 * **Where it is defined**: here. Turpentine is LangLib's own language, so
   there is no external specification to defer to: this page is the
-  specification, and the Lean sources under `Langlib/Turpentine/` are the
+  specification, and the Lean sources under `Langlib/Languages/Turpentine/` are the
   reference implementation it describes.
 * **Inspiration**: [Velvet](https://github.com/verse-lab/velvet), a
   Dafny-flavoured verification language shallowly embedded in Lean
-* **In LangLib**: `Langlib/Turpentine/`, runner `lake exe turpentine`, examples in
+* **In LangLib**: `Langlib/Languages/Turpentine/`, runner `lake exe turpentine`, examples in
   `Langlib/Examples/Turpentine/`
 
 ## The name
@@ -33,7 +33,7 @@ and compile to the esoteric languages of the library. The compilers, and
 eventually their correctness proofs, are the point: Turpentine is the
 common source language of the whole zoo.
 
-Turpentine is a deep embedding: the AST (`Langlib/Turpentine/Syntax.lean`) is a Lean
+Turpentine is a deep embedding: the AST (`Langlib/Languages/Turpentine/Syntax.lean`) is a Lean
 inductive type, the semantics a Lean function over it. The design keeps the
 door open for compiling shallowly-embedded Velvet programs into Turpentine later
 (a restricted fragment, by relational compilation): expressions are total
@@ -67,7 +67,7 @@ variable twice, or after the first statement, is an error.
 
 `int` (unbounded integers), `bool`, and one-dimensional arrays of either,
 written `int[n]` / `bool[n]` with a literal length. The type checker
-(`Langlib/Turpentine/Typecheck.lean`) enforces: declared-before-use, one
+(`Langlib/Languages/Turpentine/Typecheck.lean`) enforces: declared-before-use, one
 declaration per name, `int`/`bool` discipline on every operator,
 boolean conditions, boolean `assert`, integer targets for the read
 statements.

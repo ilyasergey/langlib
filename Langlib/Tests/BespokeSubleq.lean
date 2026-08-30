@@ -1,7 +1,7 @@
 import Langlib.Common.TestHarness
 import Langlib.Computability.BespokeSubleq
 import Langlib.Languages.Subleq.Semantics
-import Langlib.Turpentine.Semantics
+import Langlib.Languages.Turpentine.Semantics
 
 /-!
 Differential tests for the verified fragment of the hand-written

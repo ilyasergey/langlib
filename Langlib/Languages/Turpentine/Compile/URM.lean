@@ -1,6 +1,6 @@
 import Langlib.Common.Fuel
 import Langlib.Computability.URM
-import Langlib.Turpentine.Semantics
+import Langlib.Languages.Turpentine.Semantics
 
 /-!
 # Turpentine to the unlimited register machine

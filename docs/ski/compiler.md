@@ -4,7 +4,7 @@
 and no observable behaviour except its normal form.
 
 * **Implementation**: none, and none planned. For a backend that exists,
-  see the [whitespace one](../../Langlib/Turpentine/Compile/Whitespace.lean).
+  see the [whitespace one](../../Langlib/Languages/Turpentine/Compile/Whitespace.lean).
 
 ## What a compiler would have to mean
 

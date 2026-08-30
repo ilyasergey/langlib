@@ -28,7 +28,7 @@ all because it has no external definition.
   Mazonka-Kolodin paper gets its arXiv link.
 * **turpentine**: not an esoteric language and has no upstream, so the
   header now says explicitly that the page itself is the specification and
-  `Langlib/Turpentine/` the reference implementation, rather than leaving a
+  `Langlib/Languages/Turpentine/` the reference implementation, rather than leaving a
   reader to wonder what it was written against.
 
 Every URL in every spec page was fetched: all 34 resolve except
@@ -542,7 +542,7 @@ faithfully against `bef.c`. See `docs/befunge93/spec.md`.
 
 * The front-end language WTF is renamed **Turpentine** (`.turp`), after the
   solvent for a Turing tarpit; the pun is explained in
-  `docs/turpentine/spec.md`. Everything moved: `Langlib/Turpentine/`,
+  `docs/turpentine/spec.md`. Everything moved: `Langlib/Languages/Turpentine/`,
   module `Langlib.Turpentine.*`, examples `Langlib/Examples/Turpentine/`,
   runner `lake exe turpentine`, docs `docs/turpentine/`.
 * Thue and Befunge-93 landed (27 and 46 tests). 277 tests, all passing.
@@ -559,7 +559,7 @@ faithfully against `bef.c`. See `docs/befunge93/spec.md`.
 
 * Layout: language implementations moved under `Langlib/Languages/`
   (module names gain the `Languages` segment; Lean namespaces stay
-  `Langlib.<Langname>`). Turpentine stays at `Langlib/Turpentine/` as the front end.
+  `Langlib.<Langname>`). Turpentine stays at `Langlib/Languages/Turpentine/` as the front end.
 * Runners: no longer block reading a terminal stdin (empty input instead);
   new `--verbose` flag reports how a run ended.
 * Stage 3 (Turpentine) core implemented: deep-embedded AST with loop annotations,

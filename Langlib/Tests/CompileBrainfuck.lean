@@ -1,6 +1,6 @@
 import Langlib.Common.TestHarness
-import Langlib.Turpentine.Semantics
-import Langlib.Turpentine.Compile.Brainfuck
+import Langlib.Languages.Turpentine.Semantics
+import Langlib.Languages.Turpentine.Compile.Brainfuck
 
 /-!
 # Compiler tests: Turpentine to brainfuck

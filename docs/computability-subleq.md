@@ -165,7 +165,7 @@ What unary costs and what it does not:
   counting bytes cannot.
 * It does cost size. The output is `R[0]` bytes, so a program whose answer is
   a million prints a megabyte. The hand-written backend at
-  `Langlib/Turpentine/Compile/Subleq.lean` has a real `printint`; this
+  `Langlib/Languages/Turpentine/Compile/Subleq.lean` has a real `printint`; this
   compiler is not for running programs, which
   [certified-compilation.md](certified-compilation.md) says at more length.
 
@@ -258,7 +258,7 @@ over `Nat.Partrec` ones.
   which is the same obligation [verification.md](verification.md) defers for
   the whole library.
 * **Nothing is claimed about the hand-written backend.** This compiler and
-  `Langlib/Turpentine/Compile/Subleq.lean` are two different programs; the
+  `Langlib/Languages/Turpentine/Compile/Subleq.lean` are two different programs; the
   proof here says nothing about the latter. Making it say something is what
   the `TurpentineCompiler` interface and its `agree` theorem are for.
 

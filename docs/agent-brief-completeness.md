@@ -118,7 +118,7 @@ proved, not to be run.
 >   appending to `scripts/axioms.lean`.
 > - Do NOT edit: `lakefile.toml`, `Langlib.lean`, `Langlib/Tests/Main.lean`,
 >   `Langlib/Common/**`, `Langlib/Computability/{Class,URM,Whitespace}.lean`
->   (read-only), `Langlib/Languages/**`, `Langlib/Turpentine/**`, other
+>   (read-only), `Langlib/Languages/**`, `Langlib/Languages/Turpentine/**`, other
 >   `docs/*.md`, `README.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `site/**`. No
 >   git commands.
 > - Run your suite via a scratch file in the session scratchpad importing

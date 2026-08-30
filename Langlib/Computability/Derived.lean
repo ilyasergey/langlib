@@ -6,12 +6,12 @@ import Langlib.Computability.Thue
 import Langlib.Computability.Piet
 import Langlib.Computability.Ook
 import Langlib.Computability.Brainloller
-import Langlib.Turpentine.Compile.URM
+import Langlib.Languages.Turpentine.Compile.URM
 
 /-!
 # Verified compilers, derived from completeness proofs
 
-`Langlib/Turpentine/Compile/URM.lean` compiles a fragment of Turpentine into
+`Langlib/Languages/Turpentine/Compile/URM.lean` compiles a fragment of Turpentine into
 cslib's unlimited register machine and proves the simulation. A
 `TuringComplete L` witness compiles an arbitrary URM into `L` and proves
 *its* simulation. Composing the two gives a verified compiler from Turpentine
@@ -26,7 +26,7 @@ lands afterwards yields a verified Turpentine compiler by applying it.
 
 The exercise is to have *several* compilers for one target at once: the
 derived one below, and, when it is verified, the hand-written backend in
-`Langlib/Turpentine/Compile/Whitespace.lean`. Instance resolution is built to
+`Langlib/Languages/Turpentine/Compile/Whitespace.lean`. Instance resolution is built to
 pick exactly one inhabitant, so a class would either be ambiguous or choose
 silently. `TurpentineCompiler` is therefore bundled data with named
 inhabitants, exactly like `TuringComplete`; callers say which compiler they

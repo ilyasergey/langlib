@@ -1,7 +1,7 @@
 # Compiling Turpentine to brainfuck
 
-* **Implementation**: [Langlib/Turpentine/Compile/Brainfuck.lean](../../Langlib/Turpentine/Compile/Brainfuck.lean)
-  (module `Langlib.Turpentine.Compile.Brainfuck`)
+* **Implementation**: [Langlib/Languages/Turpentine/Compile/Brainfuck.lean](../../Langlib/Languages/Turpentine/Compile/Brainfuck.lean)
+  (module `Langlib.Languages.Turpentine.Compile.Brainfuck`)
 * **Entry points**: `compile : Turpentine.Program → Except String Brainfuck.Prog`
   and `compileSource : String → Except String String` (Turpentine text to
   brainfuck text, with a header comment), plus `runCompiled`, which compiles

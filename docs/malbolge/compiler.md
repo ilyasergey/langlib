@@ -4,7 +4,7 @@
 `docs/malbolge-unshackled/compiler.md`). This page records
 why, because the reasoning is more interesting than the decision.
 
-* **Implementation**: none, and none planned. For a backend that does exist, see the [whitespace one](../../Langlib/Turpentine/Compile/Whitespace.lean).
+* **Implementation**: none, and none planned. For a backend that does exist, see the [whitespace one](../../Langlib/Languages/Turpentine/Compile/Whitespace.lean).
 
 ## The bound settles it
 

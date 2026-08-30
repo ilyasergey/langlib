@@ -38,7 +38,7 @@ character (`spelled`, `renderPairs`, `wordsOf`, all in
 `Langlib/Languages/Ook/Syntax.lean`), emitting exactly the same bytes, so
 the round trip below is proved about the string the shipped renderer
 actually returns, and about the literal output of
-`Langlib/Turpentine/Compile/Ook.lean`. No bridging test is needed.
+`Langlib/Languages/Turpentine/Compile/Ook.lean`. No bridging test is needed.
 
 ## The shape of the proof
 
