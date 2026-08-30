@@ -36,6 +36,12 @@ than by taste:
   the same phase (`rotr_forces_halt`), and rotation is mandatory for
   unbounded storage (`widthBounded_step1`). Fresh-memory execution buys no
   simplification and costs a halt-dodge everywhere it rotates.
+* **Registers as a difference of two unary tapes.** `dec` on a plain unary
+  tape needs its last mark cleared, and `d` cannot step back or learn where
+  it is. Holding `p - q` instead makes `inc`, `dec` and the zero test all
+  forward walks that set or probe a boundary cell, so nothing is cleared
+  and nothing steps back. The tapes only grow, which spends memory the
+  language has without limit to buy the one motion it cannot perform.
 * **Unary registers, blank `...000` and mark `...222`.** The accumulator
   `...111` tests such a cell without changing it, and the value it leaves
   behind is already the flag the branch pipeline consumes
@@ -70,6 +76,7 @@ than by taste:
 | Register encoding | `register_probe`, `probe_feeds_branch` |
 | Accumulator ladder | `ladder_cycle` — three self-restoring constants |
 | Register writes | `register_set`, `register_clear` (two visits each) |
+| Two-tape registers | `TapePair` — `inc`, `dec` and the zero test all forward |
 
 ## Remaining
 
@@ -78,10 +85,13 @@ than by taste:
    the layout. Set costs two visits because no single crazy operation
    crosses from `...000` to `...222`
    (`no_single_step_blank_to_mark`).
-2. **`dec`** — the one piece with an open design question. Unary registers
-   need backward movement, and `d` only advances or jumps to a *stored*
-   value, so decrement needs either escalator-minted addresses or the
-   delayed-write layout sketched in [compiler.md](compiler.md).
+2. **`dec`** — the design question is **resolved**. A register is a pair of
+   unary tapes `(p, q)` holding `p - q`: `inc` sets the first blank of `p`,
+   `dec` sets the first blank of `q`, and the register is zero exactly when
+   the tapes are equally long. All three are forward walks that set or probe
+   a cell at the boundary they halt on, so nothing is ever cleared and
+   nothing ever steps back. `TapePair` proves the arithmetic; the gadget
+   remains.
 3. **`emit`** — settled arithmetically (`step1_out`); needs its gadget.
 4. **`loop`** — the probe feeding a branch, wrapped so the body is
    re-enterable. Every ingredient exists.

@@ -663,6 +663,14 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.no_single_step_blank_to_mark
 #print axioms Unshackled.no_single_step_mark_to_blank
 
+-- Registers as a difference of two unary tapes, which makes inc, dec and
+-- the zero test all forward walks.
+#print axioms Unshackled.TapePair.value_inc
+#print axioms Unshackled.TapePair.value_dec
+#print axioms Unshackled.TapePair.inc_wf
+#print axioms Unshackled.TapePair.dec_wf
+#print axioms Unshackled.TapePair.value_eq_zero_iff
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

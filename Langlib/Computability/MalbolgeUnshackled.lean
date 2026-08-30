@@ -3574,6 +3574,113 @@ theorem no_single_step_blank_to_mark (α : Trit) : crzTrit α .t0 ≠ .t2 := by
 theorem no_single_step_mark_to_blank (α : Trit) : crzTrit α .t2 ≠ .t0 := by
   cases α <;> decide
 
+/-! ## Registers as a difference of two tapes
+
+The one piece of the design that resisted was `dec`. A unary register with
+`n` marks at the front needs its *last* mark cleared, and `d` moves forward
+one cell per instruction or jumps to a value already stored in memory. It
+cannot step back, and it cannot learn where it is, since no instruction
+copies `d` into memory or into the accumulator. Every layout that walks to
+the end therefore arrives one cell past the mark it wants.
+
+Representing a register as a **difference of two unary tapes** removes the
+problem. Let register `r` be a pair `(p, q)` of tapes with `q ≤ p`, holding
+the value `p - q`. Then
+
+* `inc` sets the first blank of `p`,
+* `dec` sets the first blank of `q`,
+* `r = 0` iff the tapes have equal length,
+
+and **all three are forward walks that set or probe a cell at the boundary
+they stop on**. Nothing ever needs clearing, so nothing ever needs stepping
+back. The tapes only grow, which costs memory the language has in
+unlimited supply and buys the one motion the machine cannot perform.
+
+The zero test is a walk over the two tapes interleaved: since `q ≤ p`, the
+walk halts at the first blank of `q`, and the register is zero exactly when
+`p` is blank there too. So the three commands share one gadget shape, a
+forward walk to a boundary followed by a set or a probe.
+
+What follows is the arithmetic of that representation. The machine-level
+gadgets are the remaining work; see
+`docs/malbolge-unshackled/completeness-progress.md`. -/
+
+/-- A counter-machine register, as two unary tape lengths. -/
+structure TapePair where
+  /-- Marks written by `inc`. -/
+  p : Nat
+  /-- Marks written by `dec`. -/
+  q : Nat
+deriving DecidableEq, Repr
+
+namespace TapePair
+
+/-- The register's value. -/
+def value (x : TapePair) : Nat := x.p - x.q
+
+/-- The invariant a register maintains: `dec` never outruns `inc`. -/
+def Wf (x : TapePair) : Prop := x.q ≤ x.p
+
+/-- The all-zero register. -/
+def zero : TapePair := ⟨0, 0⟩
+
+theorem zero_wf : zero.Wf := Nat.le_refl 0
+
+theorem value_zero : zero.value = 0 := rfl
+
+/-- `inc` extends the first tape. -/
+def inc (x : TapePair) : TapePair := ⟨x.p + 1, x.q⟩
+
+/-- `dec` extends the second. -/
+def dec (x : TapePair) : TapePair := ⟨x.p, x.q + 1⟩
+
+theorem inc_wf {x : TapePair} (h : x.Wf) : x.inc.Wf := by
+  show x.q ≤ x.p + 1
+  unfold Wf at h
+  omega
+
+/-- `dec` preserves the invariant exactly when the register is nonzero,
+which is the side condition the counter machine already imposes: its `dec`
+has no rule at zero. -/
+theorem dec_wf {x : TapePair} (h : x.Wf) (hnz : x.value ≠ 0) : x.dec.Wf := by
+  show x.q + 1 ≤ x.p
+  unfold value at hnz
+  unfold Wf at h
+  omega
+
+theorem value_inc {x : TapePair} (h : x.Wf) : x.inc.value = x.value + 1 := by
+  show x.p + 1 - x.q = x.p - x.q + 1
+  unfold Wf at h
+  omega
+
+theorem value_dec {x : TapePair} (h : x.Wf) (hnz : x.value ≠ 0) :
+    x.dec.value = x.value - 1 := by
+  show x.p - (x.q + 1) = x.p - x.q - 1
+  omega
+
+theorem value_inc_ne_zero {x : TapePair} (h : x.Wf) : x.inc.value ≠ 0 := by
+  rw [value_inc h]
+  omega
+
+/-- **The zero test is a length comparison**, which a walk over the two
+tapes interleaved decides at the first blank of `q`. -/
+theorem value_eq_zero_iff {x : TapePair} (h : x.Wf) : x.value = 0 ↔ x.p = x.q := by
+  unfold value Wf at *
+  omega
+
+/-- The walk halts on `q` first, so `p` is still readable there. -/
+theorem q_le_p {x : TapePair} (h : x.Wf) : x.q ≤ x.p := h
+
+/-- Nothing is ever cleared: both operations only ever extend a tape, which
+is what makes them forward walks. -/
+theorem inc_monotone (x : TapePair) : x.p ≤ x.inc.p ∧ x.q ≤ x.inc.q :=
+  ⟨Nat.le_succ _, Nat.le_refl _⟩
+
+theorem dec_monotone (x : TapePair) : x.p ≤ x.dec.p ∧ x.q ≤ x.dec.q :=
+  ⟨Nat.le_refl _, Nat.le_succ _⟩
+
+end TapePair
+
 end Unshackled
 
 end Langlib.Computability
