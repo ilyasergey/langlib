@@ -1,0 +1,77 @@
+{Conformance_suite:_maxelem._Smallest,_largest_and_total_of_eight_numbers.}{Heap:_the_array_at_0_through_7,_then_i,_lo,_hi_and_sum_at_100_to_103.}{One_pass,_three_accumulators.}[push_0]    
+[push_3]   		
+[store]		 [push_1]   	
+[push_1]   	
+[store]		 [push_2]   	 
+[push_4]   	  
+[store]		 [push_3]   		
+[push_1]   	
+[store]		 [push_4]   	  
+[push_5]   	 	
+[store]		 [push_5]   	 	
+[push_9]   	  	
+[store]		 [push_6]   		 
+[push_2]   	 
+[store]		 [push_7]   			
+[push_6]   		 
+[store]		 [push_101]   		  	 	
+[push_0]    
+[retrieve]			{lo_:=_a[0]}[store]		 [push_102]   		  		 
+[push_0]    
+[retrieve]			{hi_:=_a[0]}[store]		 [push_103]   		  			
+[push_0]    
+[retrieve]			{sum_:=_a[0]}[store]		 [push_100]   		  	  
+[push_1]   	
+{i_:=_1}[store]		 [label_loop]
+  		
+[push_100]   		  	  
+[retrieve]			[retrieve]			[push_101]   		  	 	
+[retrieve]			{a[i]_-_lo}[sub]	  	[jn_setlo]
+				 
+[jump_afterlo]
+ 
+			
+[label_setlo]
+  		 
+[push_101]   		  	 	
+[push_100]   		  	  
+[retrieve]			[retrieve]			[store]		 [label_afterlo]
+  			
+[push_102]   		  		 
+[retrieve]			[push_100]   		  	  
+[retrieve]			[retrieve]			{hi_-_a[i]}[sub]	  	[jn_sethi]
+				  
+[jump_afterhi]
+ 
+		 	
+[label_sethi]
+  		  
+[push_102]   		  		 
+[push_100]   		  	  
+[retrieve]			[retrieve]			[store]		 [label_afterhi]
+  		 	
+[push_103]   		  			
+[push_103]   		  			
+[retrieve]			[push_100]   		  	  
+[retrieve]			[retrieve]			[add]	   {sum_:=_sum_+_a[i]}[store]		 [push_100]   		  	  
+[push_100]   		  	  
+[retrieve]			[push_1]   	
+[add]	   [store]		 [push_100]   		  	  
+[retrieve]			[push_8]   	   
+[sub]	  	[jn_loop]
+				
+[push_101]   		  	 	
+[retrieve]			[outnum]	
+ 	[put_LF]   	 	 
+[outchar]	
+  [push_102]   		  		 
+[retrieve]			[outnum]	
+ 	[put_LF]   	 	 
+[outchar]	
+  [push_103]   		  			
+[retrieve]			[outnum]	
+ 	[put_LF]   	 	 
+[outchar]	
+  [halt]
+
+

@@ -86,16 +86,31 @@ disagreement is a real finding rather than a golden file drifting.
 
 ### Coverage
 
-| Program | brainfuck |
-|---|---|
-| `hello` | [yes](../Langlib/Examples/Brainfuck/suite/hello.b) |
-| `triangle` | [yes](../Langlib/Examples/Brainfuck/suite/triangle.b) |
-| `count` | [yes](../Langlib/Examples/Brainfuck/suite/count.b) |
-| `fib` | [yes](../Langlib/Examples/Brainfuck/suite/fib.b) |
-| the other sixteen | — |
+| Program | brainfuck | whitespace |
+|---|---|---|
+| `hello` | [yes](../Langlib/Examples/Brainfuck/suite/hello.b) | [yes](../Langlib/Examples/Whitespace/suite/hello.ws) |
+| `count` | [yes](../Langlib/Examples/Brainfuck/suite/count.b) | [yes](../Langlib/Examples/Whitespace/suite/count.ws) |
+| `fizzbuzz` | — | [yes](../Langlib/Examples/Whitespace/suite/fizzbuzz.ws) |
+| `fib` | [yes](../Langlib/Examples/Brainfuck/suite/fib.b) | [yes](../Langlib/Examples/Whitespace/suite/fib.ws) |
+| `fact` | — (needs bignums) | [yes](../Langlib/Examples/Whitespace/suite/fact.ws) |
+| `gcd` | — | [yes](../Langlib/Examples/Whitespace/suite/gcd.ws) |
+| `primes` | — | [yes](../Langlib/Examples/Whitespace/suite/primes.ws) |
+| `sieve` | — | [yes](../Langlib/Examples/Whitespace/suite/sieve.ws) |
+| `collatz` | — | [yes](../Langlib/Examples/Whitespace/suite/collatz.ws) |
+| `isqrt` | — | [yes](../Langlib/Examples/Whitespace/suite/isqrt.ws) |
+| `sumdigits` | — | [yes](../Langlib/Examples/Whitespace/suite/sumdigits.ws) |
+| `power` | — (needs bignums) | [yes](../Langlib/Examples/Whitespace/suite/power.ws) |
+| `triangle` | [yes](../Langlib/Examples/Brainfuck/suite/triangle.b) | [yes](../Langlib/Examples/Whitespace/suite/triangle.ws) |
+| `sort` | — | [yes](../Langlib/Examples/Whitespace/suite/sort.ws) |
+| `maxelem` | — | [yes](../Langlib/Examples/Whitespace/suite/maxelem.ws) |
+| `binary` | — | [yes](../Langlib/Examples/Whitespace/suite/binary.ws) |
+| `multtable` | — | [yes](../Langlib/Examples/Whitespace/suite/multtable.ws) |
+| `bottles` | — | [yes](../Langlib/Examples/Whitespace/suite/bottles.ws) |
+| `divmod` | — | [yes](../Langlib/Examples/Whitespace/suite/divmod.ws) |
+| `logic` | — | [yes](../Langlib/Examples/Whitespace/suite/logic.ws) |
 
-Coverage is filled in language by language, and the gaps have reasons
-worth recording rather than hiding.
+Coverage is filled in language by language, and the gaps have reasons worth
+recording rather than hiding.
 
 **Brainfuck cells hold one byte.** `fact` reaches 5040 and `power` reaches
 16384, so both need multi-byte arithmetic that the conformance programs
@@ -111,6 +126,41 @@ being used, and it is reproduced with its commentary in each program that
 needs it. That is why `hello` and `triangle`, which only ever emit a fixed
 byte, are much shorter than `count`, which prints the same ten numbers a
 Turpentine `println` would.
+
+**Whitespace is complete, and that is a fact about whitespace.** It has
+`outnum`, so no program here needs a decimal printer; its cells are
+unbounded signed integers, so `fact` and `power` need nothing special; and
+its heap is integer-addressed, so an array index is an `add` and a
+`retrieve`. Every one of the twenty is a direct transcription of what the
+program does.
+
+### Writing whitespace by hand
+
+Whitespace has no comment syntax, because it does not need one: every
+character that is not a space, tab or linefeed is ignored. So the `.ws`
+files in [`Langlib/Examples/Whitespace/suite/`](../Langlib/Examples/Whitespace/suite/)
+carry their own annotation inline — a mnemonic in brackets before each
+instruction's tokens, and the author's prose in braces — and are still
+exactly the programs the interpreter runs. What a comment *cannot* contain
+is a space, a tab or a linefeed, since all three are code; that is why the
+prose in them is joined with underscores.
+
+Two of the twenty are worth reading for what the language made them do.
+
+`divmod.ws` is the one program whose answer whitespace cannot give
+directly. Whitespace's `div` and `mod` **floor**, and Turpentine's are
+**Euclidean**; the two agree whenever the divisor is positive and differ
+when it is negative. So the hand-written program carries the same
+correction the compiler emits — `a ediv b = -(a fdiv -b)` and
+`a emod b = a fmod -b`, reached by testing the divisor's sign with `jn` —
+and arrives at it independently. That agreement is the sort of thing the
+suite exists to notice.
+
+The array programs all write every cell before reading one. Our
+interpreter's heap defaults to zero and would have let a lazier program
+pass, but the authors' `wspace` **crashes** on a cell that was never
+stored, so a program written against the language rather than against our
+implementation has to initialise.
 
 ## Adding a program
 

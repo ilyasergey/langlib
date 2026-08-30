@@ -1,5 +1,6 @@
 import Langlib.Tests.Conformance
 import Langlib.Languages.Brainfuck.Semantics
+import Langlib.Languages.Whitespace.Semantics
 
 /-!
 # The conformance suite, hand-written
@@ -60,6 +61,28 @@ def brainfuck : Suite where
   run := Langlib.Brainfuck.run {}
   cases := cases "Brainfuck" "b" ["hello", "triangle", "count", "fib"]
 
-def suites : List Suite := [brainfuck]
+/-- Whitespace, complete. Every one of the twenty is here, and the reason
+is `outnum`: whitespace prints a *number*, so none of these programs needs
+brainfuck's divide-by-ten printer, and the heap is integer-addressed, so an
+array index is an add and a `retrieve`.
+
+Two of them are worth reading for what the language made them do.
+`divmod.turp` asks for Euclidean division and whitespace's `div` and `mod`
+**floor**, so `divmod.ws` carries the correction as a pair of subroutines
+that test the divisor's sign — the hand-written program has to solve the
+same problem the compiler does, and solves it the same way, which is the
+kind of agreement the suite exists to notice. And every array program
+writes each cell before it reads one, because the authors' `wspace`
+crashes on a cell that was never stored; our interpreter would have let a
+lazier program pass. -/
+def whitespace : Suite where
+  name := "conformance: whitespace by hand"
+  run := Langlib.Whitespace.run
+  cases := cases "Whitespace" "ws"
+    [ "hello", "count", "fizzbuzz", "fib", "fact", "gcd", "primes", "sieve"
+    , "collatz", "isqrt", "sumdigits", "power", "triangle", "sort"
+    , "maxelem", "binary", "multtable", "bottles", "divmod", "logic" ]
+
+def suites : List Suite := [brainfuck, whitespace]
 
 end Langlib.Tests.ConformanceHand

@@ -95,7 +95,7 @@ def compiled : Suite where
           "var i : int; var s : int; while i < 5 { s := s + i; i := i + 1; } println(s);",
         fuel := pFuel, expect := .outputs "10\n" }
     , { name := "nested loops", source := .inline
-          "var i : int := 1; while i <= 3 { var j : int := 1; while j <= i { printByte(42); j := j + 1; } printByte(10); i := i + 1; }",
+          "var i : int := 1; var j : int; while i <= 3 { j := 1; while j <= i { printByte(42); j := j + 1; } printByte(10); i := i + 1; }",
         fuel := pFuel, expect := .outputs "*\n**\n***\n" }
     , { name := "byte output", source := .inline
           "printByte(72); printByte(105); printByte(10);",

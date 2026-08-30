@@ -1,0 +1,66 @@
+{Conformance_suite:_gcd._Euclid_on_four_fixed_pairs.}{Heap:_0_=_k,_1_=_a,_2_=_b,_3_=_t;_the_pairs_at_10_through_17.}{The_inner_loop's_length_is_decided_by_the_data.}[push_10]   	 	 
+[push_252]   						  
+[store]		 [push_11]   	 		
+[push_105]   		 	  	
+[store]		 [push_12]   		  
+[push_1071]   	    	 				
+[store]		 [push_13]   		 	
+[push_462]   			  			 
+[store]		 [push_14]   			 
+[push_17]   	   	
+[store]		 [push_15]   				
+[push_5]   	 	
+[store]		 [push_16]   	    
+[push_30]   				 
+[store]		 [push_17]   	   	
+[push_30]   				 
+[store]		 [push_0]    
+[push_0]    
+[store]		 [label_outer]
+  		
+[push_1]   	
+[push_10]   	 	 
+[push_0]    
+[retrieve]			[push_2]   	 
+[mul]	  
+[add]	   [retrieve]			{a_:=_pair[2k]}[store]		 [push_2]   	 
+[push_11]   	 		
+[push_0]    
+[retrieve]			[push_2]   	 
+[mul]	  
+[add]	   [retrieve]			{b_:=_pair[2k+1]}[store]		 [label_inner]
+  		 
+[push_2]   	 
+[retrieve]			[jz_innerdone]
+	 			
+[push_3]   		
+[push_1]   	
+[retrieve]			[push_2]   	 
+[retrieve]			[mod]	 		{t_:=_a_mod_b}[store]		 [push_1]   	
+[push_2]   	 
+[retrieve]			{a_:=_b}[store]		 [push_2]   	 
+[push_3]   		
+[retrieve]			{b_:=_t}[store]		 [jump_inner]
+ 
+		 
+[label_innerdone]
+  			
+[push_1]   	
+[retrieve]			[outnum]	
+ 	[put_LF]   	 	 
+[outchar]	
+  [push_0]    
+[push_0]    
+[retrieve]			[push_1]   	
+[add]	   [store]		 [push_0]    
+[retrieve]			[push_4]   	  
+[sub]	  	[jz_done]
+	 		  
+[jump_outer]
+ 
+		
+[label_done]
+  		  
+[halt]
+
+
