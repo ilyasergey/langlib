@@ -1,6 +1,6 @@
 import Langlib.Common.Fuel
 import Std.Data.String.ToNat
-import Langlib.Computability.Class
+import Langlib.Common.Computability
 import Langlib.Computability.URM
 import Langlib.Languages.Piet.Semantics
 
@@ -3976,6 +3976,8 @@ theorem simulation (P : Program) (inputs : List Nat) (result : Nat)
 end Langlib.Computability.URMPiet
 
 namespace Langlib.Computability
+
+open Langlib.Common
 
 /-- The tag type naming Piet for `ProgLang`. -/
 inductive PietLang : Type

@@ -33,6 +33,7 @@ namespace Langlib.Tests.BespokeWhitespace
 
 open Langlib.Common
 open Langlib.Computability
+open Langlib.Turpentine.Compile (derivedWhitespace)
 
 /-- Compile Turpentine source with the bespoke compiler, render it to
 whitespace text, then parse and run that text. Going through the text

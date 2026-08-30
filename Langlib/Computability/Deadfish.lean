@@ -1,4 +1,4 @@
-import Langlib.Computability.Class
+import Langlib.Common.Computability
 import Langlib.Languages.Deadfish.Semantics
 
 /-!

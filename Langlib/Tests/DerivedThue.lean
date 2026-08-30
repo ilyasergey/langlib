@@ -1,5 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.Derived
+import Langlib.Languages.Turpentine.Compile.Derived
 
 /-!
 Executable checks for the certified Turpentine-to-Thue compiler.
@@ -17,6 +17,7 @@ namespace Langlib.Tests.DerivedThue
 
 open Langlib.Common
 open Langlib.Computability
+open Langlib.Turpentine.Compile (derivedThue)
 
 def runCertified (src : String) (_input : Input) (fuel : Nat) :
     Except String RunResult := do

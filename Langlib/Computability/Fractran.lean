@@ -1,4 +1,4 @@
-import Langlib.Computability.Class
+import Langlib.Common.Computability
 import Langlib.Languages.Fractran.Semantics
 import Mathlib.Data.Nat.Factorization.Basic
 import Mathlib.Data.Nat.GCD.BigOperators
@@ -4453,6 +4453,19 @@ instance : ProgLang FractranLang where
     return ⟨code, 1⟩
   run := fun p _input fuel =>
     Langlib.Fractran.evalProg { out := .final } p.code p.start fuel
+
+/-- **FRACTRAN's trace semantics.** A FRACTRAN run never reads: `run`
+takes an `Input` and does not look at it, so `TraceLang.ofInputFree`
+discharges its side condition by `rfl` and the observable behaviour of a
+run is exactly the sequence of bytes it printed.
+
+This is the library's first `TraceLang` instance, and it is here to show
+what the class costs where the answer is easy. A language whose programs
+do read — Brainfuck, whitespace, Befunge-93 — cannot be given one this way;
+its interpreter has to record the events, which is the refactoring
+`docs/certified-compilation.md` schedules. -/
+instance : TraceLang FractranLang :=
+  TraceLang.ofInputFree FractranLang (fun _ _ _ _ => rfl)
 
 /-- FRACTRAN is Turing complete via the verified URM compiler. -/
 def fractranComplete : TuringComplete FractranLang where

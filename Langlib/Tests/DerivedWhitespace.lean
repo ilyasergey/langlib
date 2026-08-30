@@ -1,5 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.Derived
+import Langlib.Languages.Turpentine.Compile.Derived
 import Langlib.Languages.Turpentine.Compile.Whitespace
 import Langlib.Languages.Whitespace.Semantics
 import Langlib.Languages.Subleq.Semantics
@@ -46,7 +46,7 @@ open Langlib.Common
 whitespace text, then parse and run that text. Going through the text
 exercises `Prog.render` and the whitespace parser as well. -/
 def run (src : String) (input : Input) (fuel : Nat) : Except String RunResult := do
-  let prog ← Langlib.Computability.derivedWhitespace.compileSource src
+  let prog ← Langlib.Turpentine.Compile.derivedWhitespace.compileSource src
   Langlib.Whitespace.run prog.render input fuel
 
 /-- Run the source both ways and insist they agree: through the derived
@@ -58,7 +58,7 @@ def runBoth (src : String) (input : Input) (fuel : Nat) : Except String RunResul
   let refProg : Langlib.Turpentine.Program :=
     { p with body := .seq p.body (.printExpr (.var "answer") false) }
   let refRes := Langlib.Turpentine.evalProgram refProg input fuel
-  let ws ← Langlib.Computability.derivedWhitespace.compile p
+  let ws ← Langlib.Turpentine.Compile.derivedWhitespace.compile p
   let wsRes ← Langlib.Whitespace.run ws.render input fuel
   match refRes.exit, wsRes.exit with
   | .halted, .halted =>
@@ -350,10 +350,10 @@ def rejections : Suite where
 witness leaves its answer in unary, so the raw output is decoded and
 re-rendered in decimal before comparison. -/
 def runSubleq (src : String) (_input : Input) (fuel : Nat) : Except String RunResult := do
-  let prog ← Langlib.Computability.derivedSubleq.compileSource src
-  let r := Langlib.Computability.ProgLang.run (L := Langlib.Computability.SubleqLang) prog
-    Langlib.Computability.derivedSubleq.encodeInput fuel
-  match r.exit, Langlib.Computability.derivedSubleq.decodeOutput r.output with
+  let prog ← Langlib.Turpentine.Compile.derivedSubleq.compileSource src
+  let r := Langlib.Common.ProgLang.run (L := Langlib.Computability.SubleqLang) prog
+    Langlib.Turpentine.Compile.derivedSubleq.encodeInput fuel
+  match r.exit, Langlib.Turpentine.Compile.derivedSubleq.decodeOutput r.output with
   | .halted, some k => return { r with output := (toString k).toUTF8 }
   | .halted, none => return { r with exit := .error "output did not decode to a number" }
   | _, _ => return r

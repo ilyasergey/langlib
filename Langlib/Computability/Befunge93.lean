@@ -1,4 +1,4 @@
-import Langlib.Computability.Class
+import Langlib.Common.Computability
 import Langlib.Languages.Befunge93.Semantics
 import Mathlib.Data.Fintype.EquivFin
 import Mathlib.Data.Fintype.Fin

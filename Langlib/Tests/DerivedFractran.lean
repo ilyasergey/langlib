@@ -1,5 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.Derived
+import Langlib.Languages.Turpentine.Compile.Derived
 
 /-!
 Executable checks for the certified Turpentine-to-FRACTRAN compiler.
@@ -13,6 +13,7 @@ namespace Langlib.Tests.DerivedFractran
 
 open Langlib.Common
 open Langlib.Computability
+open Langlib.Turpentine.Compile (derivedFractran)
 
 def runCertified (src : String) (_input : Input) (fuel : Nat) :
     Except String RunResult := do

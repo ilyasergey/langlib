@@ -1,4 +1,4 @@
-import Langlib.Computability.Derived
+import Langlib.Languages.Turpentine.Compile.Derived
 import Langlib.Languages.Turpentine.Compile.Subleq
 import Batteries.Tactic.OpenPrivate
 
@@ -125,6 +125,7 @@ open Langlib.Turpentine.Compile.Subleq (Item Word Types buildChecked assembleIte
 open Langlib.Computability.URMSubleq
   (get_ofProg extent_ofProg get_set extent_set reaches_sub reaches_out exec_halt)
 open Langlib.Turpentine.Compile.URM (TurpentineHaltsWith answerVar)
+open Langlib.Turpentine.Compile (TurpentineCompiler derivedSubleq)
 
 namespace BespokeSubleq
 
@@ -680,7 +681,7 @@ theorem bespokeSubleq_agrees_derived
           (ProgLang.run (L := SubleqLang) prog₁ bespokeSubleq.encodeInput m₁).output =
         derivedSubleq.decodeOutput
           (ProgLang.run (L := SubleqLang) prog₂ derivedSubleq.encodeInput m₂).output :=
-  agree bespokeSubleq derivedSubleq p prog₁ prog₂ result n h₁ h₂ hp
+  CertifiedCompiler.agree bespokeSubleq derivedSubleq p prog₁ prog₂ result n h₁ h₂ hp
 
 /-- **The corollary is not vacuous**, which is worth checking, because a
 hypothesis of the form "both compilers accept `p`" is easy to state and, for

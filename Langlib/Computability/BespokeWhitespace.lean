@@ -1,5 +1,5 @@
 import Batteries.Tactic.OpenPrivate
-import Langlib.Computability.Derived
+import Langlib.Languages.Turpentine.Compile.Derived
 import Langlib.Languages.Turpentine.Compile.Whitespace
 
 /-!
@@ -3234,6 +3234,7 @@ namespace Langlib.Computability
 
 open Langlib.Common
 open Langlib.Turpentine.Compile.URM (TurpentineHaltsWith)
+open Langlib.Turpentine.Compile (TurpentineCompiler derivedWhitespace)
 
 /-- **The hand-written Turpentine-to-Whitespace backend, as a verified
 compiler.** `compile` is `Langlib.Turpentine.Compile.Whitespace`'s own
@@ -3270,6 +3271,6 @@ theorem bespokeWhitespace_agrees_derived (p : Turpentine.Program)
           (ProgLang.run prog₁ bespokeWhitespace.encodeInput m₁).output =
         derivedWhitespace.decodeOutput
           (ProgLang.run prog₂ derivedWhitespace.encodeInput m₂).output :=
-  agree bespokeWhitespace derivedWhitespace p prog₁ prog₂ result n h₁ h₂ hp
+  CertifiedCompiler.agree bespokeWhitespace derivedWhitespace p prog₁ prog₂ result n h₁ h₂ hp
 
 end Langlib.Computability

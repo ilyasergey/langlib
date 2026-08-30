@@ -1,16 +1,16 @@
-import Langlib.Common.Io
-import Langlib.Computability.URM
+import Langlib.Common.Compilation
 import Cslib.Computability.URM.Computable
 
 /-!
 # Computational class, stated once for every language
 
-The claims in `docs/PLAN.md` Stage 8 are not meant to be eleven unrelated
+The claims in `docs/PLAN.md` Stage 8 are not meant to be a dozen unrelated
 theorems. They are instances of two definitions, so that "langlib proves
 that `L` is Turing complete" means literally the same thing for every `L`.
 
-* `ProgLang L` packages the shape every interpreter in the library already
-  has: a program type, a parser, and a fuel-based runner.
+* `ProgLang L` (in `Langlib/Common/Compilation.lean`) packages the shape
+  every interpreter in the library already has: a program type, a parser,
+  and a fuel-based runner.
 * `TuringComplete L` is the positive claim, and it is a *witness*: a
   compiler from the unlimited register machine plus a proof that the
   compiled program simulates it. Producing a term of this type is what
@@ -26,25 +26,20 @@ langlib adds to it and why. Finiteness in `BoundedStorage` is stated as an
 injection into an initial segment of `Nat` rather than with `Set.Finite`:
 Mathlib is available here, but the injection needs no theory at all and the
 decidability proof below is short either way.
+
+## Why this file is the one that costs
+
+cslib, and with it Mathlib, enters langlib here and nowhere else in
+`Langlib/Common/`. `Langlib/Common/Compilation.lean` — languages and
+certified compilation — is deliberately free of both, so a hand-written
+backend can state and prove its own correctness without a Mathlib
+dependency. Only the files that talk about *computational power* need the
+universal model, and they import this one.
 -/
 
-namespace Langlib.Computability
+namespace Langlib.Common
 
-open Langlib.Common
 open Cslib.URM (Program HaltsWithResult)
-
-/-! ## Languages -/
-
-/-- A language, as langlib sees it: a program representation, a parser, and
-a pure fuel-based interpreter. `L` is a tag type naming the language; the
-program type is the class field `Prog`. -/
-class ProgLang (L : Type) where
-  /-- The abstract syntax the interpreter runs. -/
-  Prog : Type
-  /-- Concrete syntax to abstract syntax. -/
-  parse : String → Except String Prog
-  /-- The pure interpreter core: program, input, fuel. -/
-  run : Prog → Input → Nat → RunResult
 
 /-! ## Turing completeness -/
 
@@ -71,6 +66,14 @@ what can actually be proved (see `docs/computability.md`):
   supplies a `compile` that ignores its second argument. Universality is
   unaffected: a URM can build any constant in its registers from zero, so
   quantifying over input vectors on the left is the same claim.
+
+`TuringComplete` is an *answer-only* claim, in the sense of
+`Langlib/Common/Compilation.lean`: it says the compiled program halts and
+prints something that decodes to register 0, and nothing about the events
+on the way. That is the right strength here, because a URM has no I/O to
+preserve — its whole interface is the input vector and register 0 — and it
+is why `derived`, which turns a witness into a compiler, produces a
+`CertifiedCompiler` and not an `IOCertifiedCompiler`.
 
 The simulation is stated against cslib's `HaltsWithResult`, so the three
 ingredients (`compile`, `encodeInput`, `decodeOutput`) stay explicit fields
@@ -341,4 +344,4 @@ def halting_decidable (b : BoundedStorage L) (p : ProgLang.Prog L) (i : Input) :
 
 end BoundedStorage
 
-end Langlib.Computability
+end Langlib.Common

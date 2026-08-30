@@ -21,7 +21,7 @@ incompleteness instance lands.
 -/
 import Langlib.Computability.Whitespace
 import Langlib.Computability.Subleq
-import Langlib.Computability.Derived
+import Langlib.Languages.Turpentine.Compile.Derived
 import Langlib.Computability.BespokeWhitespace
 import Langlib.Computability.Brainfuck
 import Langlib.Computability.Deadfish
@@ -34,7 +34,9 @@ import Langlib.Computability.Piet
 import Langlib.Computability.Fractran
 import Langlib.Computability.BespokeSubleq
 
+open Langlib.Common
 open Langlib.Computability
+open Langlib.Turpentine.Compile
 
 -- Whitespace: Turing complete, via cslib's unlimited register machine.
 -- The bridge to cslib's vocabulary: a Turing-complete language computes
@@ -81,6 +83,15 @@ open Langlib.Computability
 #print axioms derivedThue
 #print axioms derivedPiet
 #print axioms agree
+#print axioms Langlib.Common.CertifiedCompiler.agree
+
+-- Certified compilation, generically: the answer-only notion, the I/O-aware
+-- notion, and the proof that the second implies the first.
+#print axioms Langlib.Common.IOCertifiedCompiler.toCertified
+#print axioms Langlib.Common.IOCertifiedCompiler.toCertifiedOf
+#print axioms Langlib.Common.IOCertifiedCompiler.output_eq
+#print axioms Langlib.Common.IOCertifiedCompiler.agree
+#print axioms Langlib.Common.TraceLang.ofInputFree
 
 -- Brainfuck: Turing complete via paired unary tape columns. The compiler
 -- embeds inputs, simulates a structured counter dispatcher, and encodes the

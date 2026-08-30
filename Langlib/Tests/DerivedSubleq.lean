@@ -1,5 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.Derived
+import Langlib.Languages.Turpentine.Compile.Derived
 import Langlib.Languages.Subleq.Semantics
 
 /-!
@@ -24,6 +24,7 @@ namespace Langlib.Tests.DerivedSubleq
 
 open Langlib.Common
 open Langlib.Computability
+open Langlib.Turpentine.Compile (derivedSubleq)
 
 /-- Compile Turpentine source through the certified subleq compiler and run
 the result, reporting the decoded answer as decimal so a golden test can

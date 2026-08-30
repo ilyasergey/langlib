@@ -70,7 +70,7 @@ Not proved, and not claimed:
 
 * that Ook! computes every partial computable function. That step is the
   cited classical result (Shepherdson and Sturgis 1963); see
-  `Langlib.Computability.computes_of_turingComplete` for the honest
+  `Langlib.Common.computes_of_turingComplete` for the honest
   statement of what does follow.
 * anything about divergence. `simulates` constrains halting runs only.
 * the other direction of the round trip, `render <$> parse s = s`, which

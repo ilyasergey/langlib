@@ -59,7 +59,7 @@ register 0 is simulated by a Brainloller program that halts with `result`
 bytes of output. Not proved, and not claimed: that Brainloller computes
 every partial computable function (that step is the cited classical
 result, Shepherdson and Sturgis 1963; see
-`Langlib.Computability.computes_of_turingComplete`), anything about
+`Langlib.Common.computes_of_turingComplete`), anything about
 divergence (`simulates` constrains halting runs only), and the pixel walk
 above.
 -/

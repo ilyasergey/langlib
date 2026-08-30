@@ -11,69 +11,74 @@ import Langlib.Languages.Turpentine.Compile.URM
 /-!
 # Verified compilers, derived from completeness proofs
 
-`Langlib/Languages/Turpentine/Compile/URM.lean` compiles a fragment of Turpentine into
-cslib's unlimited register machine and proves the simulation. A
-`TuringComplete L` witness compiles an arbitrary URM into `L` and proves
-*its* simulation. Composing the two gives a verified compiler from Turpentine
-into `L`, and this file is that composition.
+`Langlib/Languages/Turpentine/Compile/URM.lean` compiles a fragment of
+Turpentine into cslib's unlimited register machine and proves the
+simulation. A `TuringComplete L` witness compiles an arbitrary URM into `L`
+and proves *its* simulation. Composing the two gives a verified compiler
+from Turpentine into `L`, and this file is that composition.
 
-The point of writing it as a structure with a `derived` constructor rather
-than as one definition per language is that `derived` quantifies over `L` and
-over the witness: it is proved once, and every completeness proof anyone
-lands afterwards yields a verified Turpentine compiler by applying it.
+The point of writing it as one `derived` construction rather than as one
+definition per language is that `derived` quantifies over `L` and over the
+witness: it is proved once, and every completeness proof anyone lands
+afterwards yields a verified Turpentine compiler by applying it.
 
-## Why a structure and not a class
+## Where the definitions live
+
+The type of a verified compiler is not Turpentine's to define. It is
+`Langlib.Common.CertifiedCompiler`, in `Langlib/Common/Compilation.lean`,
+which is generic in the source language, the answer type and the target;
+`TurpentineCompiler` below is that type instantiated at Turpentine's
+specification, `TurpentineHaltsWith`. Everything general — that two
+compilers for one target agree, that behavioural correctness implies
+answer correctness — is proved there, once, and inherited here.
+
+This is also the one file under `Langlib/Languages/` that imports Mathlib,
+by way of the completeness witnesses under `Langlib/Computability/`. That
+is unavoidable: a derived compiler *is* a completeness witness composed
+with the URM pass. The interpreters and the hand-written backends beside
+this file stay free of it.
+
+## Why data and not a class
 
 The exercise is to have *several* compilers for one target at once: the
 derived one below, and, when it is verified, the hand-written backend in
-`Langlib/Languages/Turpentine/Compile/Whitespace.lean`. Instance resolution is built to
-pick exactly one inhabitant, so a class would either be ambiguous or choose
-silently. `TurpentineCompiler` is therefore bundled data with named
-inhabitants, exactly like `TuringComplete`; callers say which compiler they
-mean. `ProgLang L` stays a class, because there is only ever one way to run a
-given language.
+`Langlib/Languages/Turpentine/Compile/Whitespace.lean`. Instance resolution
+is built to pick exactly one inhabitant, so a class would either be
+ambiguous or choose silently. A `CertifiedCompiler` is therefore bundled
+data with named inhabitants, exactly like `TuringComplete`; callers say
+which compiler they mean. `ProgLang L` stays a class, because there is only
+ever one way to run a given language.
 
-## What `agree` says
+## I/O
 
-`agree` is the formal version of "the derived compiler is an oracle for the
-hand-written one": two verified compilers for the same target, on a program
-both accept, decode the same answer out of their respective runs. It follows
-from the two `correct` fields against the one specification,
-`TurpentineHaltsWith`, and it is proved once for every target and every pair.
+`TurpentineHaltsWith` is I/O-free: it names the final value of the variable
+`answer` on an empty input stream, and says nothing about events, because
+the fragment `compileToURM` accepts has no I/O in it. That is why the
+derived compilers are `CertifiedCompiler`s and not
+`IOCertifiedCompiler`s. The stronger statement is available for backends
+that do compile Turpentine's `read`/`print`; see
+`docs/certified-compilation.md`.
 -/
 
-namespace Langlib.Computability
+namespace Langlib.Turpentine.Compile
 
 open Langlib.Common
+open Langlib.Computability
 open Langlib.Turpentine.Compile.URM (compileToURM compileToURM_correct
   compileToURM_inputs TurpentineHaltsWith)
 
 variable {L : Type} [ProgLang L]
 
-/-- A verified compiler from Turpentine into `L`.
+/-- A verified compiler from Turpentine into `L`: the generic
+`CertifiedCompiler` at Turpentine's own specification.
 
 `compile` is total: `Except.error` names the constructs outside this
 compiler's fragment, so the fragment is part of the data rather than prose.
-
-`encodeInput` is a single stream rather than a function of the program
-because the specification `TurpentineHaltsWith` is I/O-free: the source
-program reads nothing, so there is nothing for a caller to supply. -/
-structure TurpentineCompiler (L : Type) [ProgLang L] where
-  /-- Turpentine source to a program of `L`, or an error naming what is
-  outside the fragment. -/
-  compile : Turpentine.Program → Except String (ProgLang.Prog L)
-  /-- The input stream the compiled program is run on. -/
-  encodeInput : Input
-  /-- How to read the answer out of the compiled program's output. -/
-  decodeOutput : ByteArray → Option Nat
-  /-- Whenever the source halts with `result` in `answer` and `compile`
-  accepts the program, the compiled program halts, for some fuel bound, with
-  an output that decodes to `result`. -/
-  correct : ∀ (p : Turpentine.Program) (prog : ProgLang.Prog L) (result n : Nat),
-    compile p = .ok prog → TurpentineHaltsWith p n result →
-      ∃ m,
-        (ProgLang.run prog encodeInput m).exit = Exit.halted ∧
-        decodeOutput (ProgLang.run prog encodeInput m).output = some result
+`encodeInput` is a single stream because `TurpentineHaltsWith` is I/O-free:
+the source program reads nothing, so there is nothing for a caller to
+supply. -/
+abbrev TurpentineCompiler (L : Type) [ProgLang L] :=
+  CertifiedCompiler TurpentineHaltsWith L
 
 /-- The derived compiler: `compileToURM`, then the completeness witness's own
 compiler. -/
@@ -142,13 +147,14 @@ as an image is `Langlib.Brainloller.encode`, and that the walk reads it back
 is carried by test rather than by proof (`docs/brainloller/compiler.md`). -/
 def derivedBrainloller : TurpentineCompiler BrainlollerLang := derived brainlollerComplete
 
-/-- **Two verified compilers for one target agree.** On a program both accept
-and a source run that halts with `result`, both compiled programs halt and
-their outputs decode to the same answer.
+/-- **Two verified Turpentine compilers for one target agree**:
+`Langlib.Common.CertifiedCompiler.agree` at Turpentine's specification. On a
+program both accept and a source run that halts with `result`, both compiled
+programs halt and their outputs decode to the same answer.
 
-This follows from the two `correct` fields alone, so it holds for every pair
-of inhabitants and every target: once the hand-written backend has a
-`TurpentineCompiler` instance, "the derived compiler is an oracle for it"
+It follows from the two `correct` fields alone, so it holds for every pair of
+inhabitants and every target: once the hand-written backend has a
+`TurpentineCompiler` inhabitant, "the derived compiler is an oracle for it"
 stops being a testing practice and becomes a corollary. -/
 theorem agree (c₁ c₂ : TurpentineCompiler L)
     (p : Turpentine.Program) (prog₁ prog₂ : ProgLang.Prog L) (result n : Nat)
@@ -158,10 +164,8 @@ theorem agree (c₁ c₂ : TurpentineCompiler L)
       (ProgLang.run prog₁ c₁.encodeInput m₁).exit = Exit.halted ∧
       (ProgLang.run prog₂ c₂.encodeInput m₂).exit = Exit.halted ∧
       c₁.decodeOutput (ProgLang.run prog₁ c₁.encodeInput m₁).output =
-        c₂.decodeOutput (ProgLang.run prog₂ c₂.encodeInput m₂).output := by
-  obtain ⟨m₁, hh₁, hd₁⟩ := c₁.correct p prog₁ result n h₁ hp
-  obtain ⟨m₂, hh₂, hd₂⟩ := c₂.correct p prog₂ result n h₂ hp
-  exact ⟨m₁, m₂, hh₁, hh₂, by rw [hd₁, hd₂]⟩
+        c₂.decodeOutput (ProgLang.run prog₂ c₂.encodeInput m₂).output :=
+  CertifiedCompiler.agree c₁ c₂ p prog₁ prog₂ result n h₁ h₂ hp
 
 /-- The whole pipeline as one runnable function: parse, type-check, compile.
 `Langlib/Tests/DerivedWhitespace.lean` runs the result. -/
@@ -171,4 +175,4 @@ def TurpentineCompiler.compileSource (c : TurpentineCompiler L) (src : String) :
   let _ ← (Turpentine.checkProgram p).mapError ("type error: " ++ ·)
   c.compile p
 
-end Langlib.Computability
+end Langlib.Turpentine.Compile

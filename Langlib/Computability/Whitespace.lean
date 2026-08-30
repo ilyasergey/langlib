@@ -1,5 +1,5 @@
 import Langlib.Common.Fuel
-import Langlib.Computability.Class
+import Langlib.Common.Computability
 import Langlib.Computability.URM
 import Langlib.Languages.Whitespace
 

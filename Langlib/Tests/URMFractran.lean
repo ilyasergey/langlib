@@ -1,5 +1,6 @@
 import Langlib.Common.TestHarness
 import Langlib.Computability.Fractran
+import Langlib.Computability.URM
 
 /-!
 Differential tests for the verified URM-to-FRACTRAN compiler.

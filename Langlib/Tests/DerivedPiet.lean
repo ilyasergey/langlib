@@ -1,5 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.Derived
+import Langlib.Languages.Turpentine.Compile.Derived
 
 /-!
 Executable checks for the certified Turpentine-to-Piet compiler.
@@ -18,6 +18,7 @@ namespace Langlib.Tests.DerivedPiet
 
 open Langlib.Common
 open Langlib.Computability
+open Langlib.Turpentine.Compile (derivedPiet)
 
 def runCertified (src : String) (_input : Input) (fuel : Nat) :
     Except String RunResult := do

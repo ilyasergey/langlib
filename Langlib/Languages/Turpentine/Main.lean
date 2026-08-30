@@ -12,7 +12,7 @@ import Langlib.Languages.Ook.Semantics
 import Langlib.Languages.Brainloller.Semantics
 import Langlib.Languages.Fractran.Semantics
 import Langlib.Languages.Thue.Semantics
-import Langlib.Computability.Derived
+import Langlib.Languages.Turpentine.Compile.Derived
 
 /-!
 # Turpentine: standalone runner
@@ -93,7 +93,7 @@ file holds only the fractions: the starting value is a command-line flag or
 the first line of stdin. The emitted file records it in a comment, the note
 repeats the command, and `exec` supplies it the way the note says to. -/
 def fractranCertified : Compiler := fun src => do
-  let cp ← Langlib.Computability.derivedFractran.compileSource src
+  let cp ← Langlib.Turpentine.Compile.derivedFractran.compileSource src
   let text :=
     s!"# Compiled by turpentine, certified route: derived from FRACTRAN's\n\
        # Turing-completeness proof. FRACTRAN has no I/O, so the answer is the\n\
@@ -129,21 +129,21 @@ def backends : List Backend :=
     , bespoke := some (compilerOfSource Compile.Brainfuck.compileSource
         (Langlib.Brainfuck.run { eof := .zero }))
     , certified := some (compilerOfCertified
-        Langlib.Computability.derivedBrainfuck.compileSource
+        Langlib.Turpentine.Compile.derivedBrainfuck.compileSource
         Langlib.Brainfuck.Prog.render
         (Langlib.Brainfuck.run { eof := .zero })) }
   , { name := "whitespace"
     , bespoke := some (compilerOfSource Compile.Whitespace.compileSource
         Langlib.Whitespace.run)
     , certified := some (compilerOfCertified
-        Langlib.Computability.derivedWhitespace.compileSource
+        Langlib.Turpentine.Compile.derivedWhitespace.compileSource
         Langlib.Whitespace.Prog.render
         Langlib.Whitespace.run) }
   , { name := "subleq"
     , bespoke := some (compilerOfSource Compile.Subleq.compileSource
         Langlib.Subleq.run)
     , certified := some (compilerOfCertified
-        Langlib.Computability.derivedSubleq.compileSource
+        Langlib.Turpentine.Compile.derivedSubleq.compileSource
         Langlib.Subleq.Prog.render
         Langlib.Subleq.run) }
   , { name := "ook"
@@ -153,7 +153,7 @@ def backends : List Backend :=
     , bespoke := some (compilerOfSource Compile.Ook.compileSource
         (Langlib.Ook.run { eof := .zero }))
     , certified := some (compilerOfCertified
-        Langlib.Computability.derivedOok.compileSource
+        Langlib.Turpentine.Compile.derivedOok.compileSource
         Langlib.Ook.render
         (Langlib.Ook.run { eof := .zero })) }
   , { name := "brainloller"
@@ -162,7 +162,7 @@ def backends : List Backend :=
     , bespoke := some (compilerOfSource Compile.Brainloller.compileSource
         (Langlib.Brainloller.run { eof := .zero }))
     , certified := some (compilerOfCertified
-        Langlib.Computability.derivedBrainloller.compileSource
+        Langlib.Turpentine.Compile.derivedBrainloller.compileSource
         (fun prog =>
           (Langlib.Brainloller.encode (Langlib.Brainfuck.Prog.render prog)
             Compile.Brainloller.defaultWidth).toPpm3)
@@ -174,7 +174,7 @@ def backends : List Backend :=
       -- primitive is `~`, and the compiled program does not use it, so the
       -- halted state string is the result.
     , certified := some (compilerOfCertified
-        Langlib.Computability.derivedThue.compileSource
+        Langlib.Turpentine.Compile.derivedThue.compileSource
         Langlib.Thue.Prog.render
         (Langlib.Thue.run { finalState := true })) } ]
 

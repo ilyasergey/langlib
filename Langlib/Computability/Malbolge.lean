@@ -1,5 +1,5 @@
 import Mathlib
-import Langlib.Computability.Class
+import Langlib.Common.Computability
 import Langlib.Languages.Malbolge
 
 /-!
