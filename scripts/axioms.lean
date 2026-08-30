@@ -351,12 +351,23 @@ open Langlib.Turpentine.Compile
 -- The first hand-written backend proved correct: Turpentine to Whitespace,
 -- over the fragment `BespokeWhitespace.checkFragment` accepts (scalar
 -- declarations with no initialiser, one of them `answer : int`; `skip`,
--- sequencing, assignment, `if`, `while`, `assert`; every operator except `/`
--- and `%`). `bespokeCompile_correct` is the end-to-end theorem and
--- `bespokeWhitespace_agrees_derived` is `agree` instantiated at the bespoke and derived
--- compilers for Whitespace.
+-- sequencing, well-typed assignment, `if`, `while`, `assert`, and output:
+-- `print`/`println` of an int, a bool or a string literal; every operator
+-- except `/` and `%`). `bespokeCompile_correct` is the answer-only
+-- end-to-end theorem, `bespokeCompile_behaves` the behavioural one, and
+-- `bespokeWhitespace_agrees_derived` is `agree` instantiated at the bespoke
+-- and derived compilers for Whitespace.
 #print axioms bespokeWhitespace
 #print axioms bespokeWhitespace_agrees_derived
+-- The behavioural half: the library's first `IOCertifiedCompiler`, with
+-- `encodeTrace = id`, and the typing soundness the print cases needed.
+#print axioms bespokeWhitespaceIO
+#print axioms bespokeWhitespaceIOErased
+#print axioms BespokeWhitespace.bespokeCompile_core
+#print axioms BespokeWhitespace.bespokeCompile_behaves
+#print axioms BespokeWhitespace.decodeAnswer_epilogue
+#print axioms BespokeWhitespace.evalExpr_hasTy
+#print axioms BespokeWhitespace.reaches_bytesCode
 #print axioms BespokeWhitespace.bespokeCompile
 #print axioms BespokeWhitespace.binOfChars_spell_toDigits
 #print axioms BespokeWhitespace.labelOf_inj

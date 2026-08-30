@@ -304,7 +304,7 @@ as the proof.
 
 | Backend | Effective compiler | Simulation | End-to-end theorem | Derived compiler | Behavioural (I/O) |
 |---------|--------------------|------------|--------------------|------------------|-------------------|
-| whitespace | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3148) | [yes, scalars and output](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4061) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | events proved, [instance pending](../Langlib/Common/Compilation.lean#L212) |
+| whitespace | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3148) | [yes, scalars and output](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4355) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | [**yes**, output only, `encodeTrace = id`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401) |
 | subleq | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L631) | [yes, two shapes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L631) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118) | - |
 | brainfuck | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L122) | - |
 | fractran | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L127) | n/a (no I/O) |

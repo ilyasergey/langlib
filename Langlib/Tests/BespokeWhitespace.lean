@@ -68,6 +68,29 @@ def runBoth (src : String) (input : Input) (fuel : Nat) : Except String RunResul
   | .halted, e => return { exit := .error s!"bespoke backend did not halt: {repr e}" }
   | e, _ => return { exit := .error s!"reference interpreter did not halt: {repr e}" }
 
+/-- The behavioural theorem, executed: compile with the *behaviourally*
+verified compiler, run it, and insist that the events it performed are the
+events the source performed — the same list, in the same order, with no
+re-encoding. `bespokeWhitespaceIO.encodeTrace` is the identity, so this is
+exactly what the instance claims, run rather than proved. -/
+def runTrace (src : String) (input : Input) (fuel : Nat) : Except String RunResult := do
+  let p ← Langlib.Turpentine.parse src
+  let _ ← (Langlib.Turpentine.checkProgram p).mapError ("type error: " ++ ·)
+  let ws ← bespokeWhitespaceIO.compile p
+  let srcTrace := Langlib.Turpentine.evalTrace
+    (Langlib.Turpentine.Certified.BespokeWhitespace.answerProgram p) input fuel
+  let tgtTrace := TraceLang.trace (L := WhitespaceLang) ws
+    (bespokeWhitespaceIO.encodeInput input) fuel
+  let r := ProgLang.run (L := WhitespaceLang) ws (bespokeWhitespaceIO.encodeInput input) fuel
+  match r.exit with
+  | .halted =>
+    if srcTrace == bespokeWhitespaceIO.encodeTrace tgtTrace then
+      return { output := (String.intercalate "," (srcTrace.map reprStr)).toUTF8, exit := .halted }
+    else
+      return { exit := .error s!"trace disagreement: source {repr srcTrace}, \
+        target {repr tgtTrace}" }
+  | e => return { exit := .error s!"compiled program did not halt: {repr e}" }
+
 /-- Run one program through both verified compilers for Whitespace and
 compare the decoded answers: `bespokeWhitespace_agrees_derived`, executed. -/
 def runAgree (src : String) (_input : Input) (fuel : Nat) : Except String RunResult := do
@@ -323,6 +346,38 @@ def rejections : Suite where
         expect := .parseError "needs a declaration 'var answer : int;'" }
     ]
 
-def suites : List Suite := [pipeline, differential, agreement, rejections]
+/-- The behavioural instance, executed. The expectation is the *answer*
+each run leaves, so the cases read like the others; what they check is the
+trace, which `runTrace` compares before reporting anything. -/
+def behavioural : Suite where
+  name := "bespoke whitespace performs the source's events"
+  run := fun src input fuel => do
+    let r ← runTrace src input fuel
+    match r.exit with
+    | .halted => return { output := "traces agree".toUTF8, exit := .halted }
+    | e => return { exit := e }
+  cases :=
+    [ { name := "a program that prints nothing of its own",
+        source := .inline "var answer : int; answer := 7;",
+        expect := .outputs "traces agree" }
+    , { name := "a printed string",
+        source := .inline "var answer : int; print(\"hi\"); answer := 3;",
+        expect := .outputs "traces agree" }
+    , { name := "printed integers",
+        source := .inline ("var answer : int; var i : int; " ++
+          "while i < 3 { i := i + 1; println(i); } answer := i;"),
+        expect := .outputs "traces agree" }
+    , { name := "printed booleans",
+        source := .inline ("var answer : int; println(1 < 2); print(2 < 1); " ++
+          "answer := 0;"),
+        expect := .outputs "traces agree" }
+    , { name := "strings, numbers and booleans interleaved",
+        source := .inline ("var answer : int; var i : int; " ++
+          "while i < 3 { i := i + 1; print(\"i=\"); print(i); print(\" even=\"); " ++
+          "println(i == 2); } answer := i;"),
+        expect := .outputs "traces agree" }
+    ]
+
+def suites : List Suite := [pipeline, differential, agreement, behavioural, rejections]
 
 end Langlib.Tests.BespokeWhitespace

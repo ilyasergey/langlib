@@ -1,6 +1,7 @@
 import Batteries.Tactic.OpenPrivate
 import Langlib.Languages.Turpentine.Compile.Derived
 import Langlib.Languages.Turpentine.Compile.Whitespace
+import Langlib.Languages.Turpentine.Trace
 
 /-!
 # The hand-written Turpentine-to-Whitespace backend, proved correct
@@ -4054,15 +4055,24 @@ theorem compileChecked_of_gen (p : Program) (types : Types) (W : List Instr) (cf
   rw [h]
   rfl
 
-/-- **The theorem.** On a program the fragment check accepts, whenever the
-source halts within some fuel bound with `result` in `answer`, the compiled
-whitespace program halts, for some fuel bound, having printed whatever the
-source printed and then `result` in decimal on a line of its own. -/
-theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
-    (hc : bespokeCompile p = .ok prog) (hp : HaltsWithAnswer p n result) :
+/-- **The core.** One run of the compiled program, reported three ways: it
+halts, its output decodes to the answer, and its trace is the source body's
+trace followed by the epilogue's own two events.
+
+The source runs on an arbitrary input stream and the target on the empty
+one, which is sound here for the reason the fragment exists: nothing in it
+reads, so the source's own stream never reaches its behaviour. -/
+theorem bespokeCompile_core (p : Program) (prog : Prog) (result n : Nat) (σ : Input)
+    (env₀ : Std.HashMap String Value) (st : Turpentine.State)
+    (hc : bespokeCompile p = .ok prog)
+    (hinit : Turpentine.initEnv p = .ok env₀)
+    (hex : Turpentine.exec n p.body { env := env₀, input := σ } = (st, Exit.halted))
+    (hans : st.env[answerVar]? = some (Value.int (result : Int))) :
     ∃ m, (Whitespace.evalProg prog (Input.ofString "") m).exit = Exit.halted ∧
-      decodeAnswer (Whitespace.evalProg prog (Input.ofString "") m).output = some result := by
-  obtain ⟨env₀, st, hinit, hex, hans⟩ := hp
+      decodeAnswer (Whitespace.evalProg prog (Input.ofString "") m).output = some result ∧
+      Whitespace.evalTrace prog (Input.ofString "") m
+        = (Trace.recOut (Trace.recOut st.events [10])
+            (toString ((result : Nat) : Int)).toUTF8.toList).reverse := by
   have hcf : checkFragment p = .ok () := by
     cases hq : checkFragment p with
     | error msg =>
@@ -4161,9 +4171,9 @@ theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
     ((hcodeW.right' (c₁ := dcode) rfl).left).left
   have hlabB : LabelsOk labels (0 + dcode.length) bcode :=
     ((hlabW.right' (c₁ := dcode) rfl).left).left
-  obtain ⟨heap₂, str, Δ, r₂, hag₂, -⟩ := simStmt hcov hgf n p.body hokbody 0 bcode c₁ hbem
+  obtain ⟨heap₂, str, Δ, r₂, hag₂, hev₂⟩ := simStmt hcov hgf n p.body hokbody 0 bcode c₁ hbem
     { s₀ with pc := 0 + dcode.length, heap := heap₁ } hcodeB hlabB
-    { env := env₀, input := Input.ofString "" } st hex hag
+    { env := env₀, input := σ } st hex hag
   -- the answer, printed
   have hval : heap₂.getD aA 0 = (result : Int) := (hag₂ answerVar aA haA _ hans).1
   -- the epilogue: first its newline, which is what makes the answer findable
@@ -4219,12 +4229,17 @@ theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
     exact h
   obtain ⟨cst, hcst⟩ := chain
   refine ⟨cst + 1, ?_⟩
-  simp only [Whitespace.evalProg]
-  rw [show ({ input := Input.ofString "" } : Whitespace.State) = s₀ from rfl]
-  rw [show Whitespace.exec W.toArray (Whitespace.labelMap W.toArray) (cst + 1) s₀
-      = Whitespace.exec W.toArray labels (cst + 1) s₀ from rfl, hcst 1,
-    exec_halt (prog := W.toArray) (labels := labels) _ (by simpa using hhalt) 0]
-  refine ⟨rfl, ?_⟩
+  have hrun : Whitespace.exec W.toArray (Whitespace.labelMap W.toArray) (cst + 1) s₀
+      = ({ s₀ with
+             pc := 0 + dcode.length + bcode.length + 2 + 3 + 1,
+             heap := heap₂,
+             output := outNL ++ (toString ((result : Nat) : Int)).toUTF8,
+             events := Trace.recOut (Trace.recOut (Δ ++ s₀.events) [10])
+               ((toString ((result : Nat) : Int)).toUTF8).toList },
+          Exit.halted) := by
+    rw [show Whitespace.exec W.toArray (Whitespace.labelMap W.toArray) (cst + 1) s₀
+        = Whitespace.exec W.toArray labels (cst + 1) s₀ from rfl, hcst 1,
+      exec_halt (prog := W.toArray) (labels := labels) _ (by simpa using hhalt) 0]
   -- the output is what the program printed, then a newline, then the answer
   have houteq : outNL ++ (toString ((result : Nat) : Int)).toUTF8
       = (str ++ "\n" ++ toString ((result : Nat) : Int)).toUTF8 := by
@@ -4232,8 +4247,119 @@ theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
     rw [ByteArray.toList_append, houtNL, toUTF8_toList_append, toUTF8_toList_append,
       newline_bytes]
     simp [hs₀, ByteArray.toList_eq]
-  rw [houteq]
-  exact decodeAnswer_epilogue str result
+  refine ⟨?_, ?_, ?_⟩
+  · simp only [Whitespace.evalProg]
+    rw [show ({ input := Input.ofString "" } : Whitespace.State) = s₀ from rfl, hrun]
+  · simp only [Whitespace.evalProg]
+    rw [show ({ input := Input.ofString "" } : Whitespace.State) = s₀ from rfl, hrun]
+    simp only []
+    rw [houteq]
+    exact decodeAnswer_epilogue str result
+  · simp only [Whitespace.evalTrace]
+    rw [show ({ input := Input.ofString "" } : Whitespace.State) = s₀ from rfl, hrun]
+    simp only [Whitespace.State.trace]
+    rw [hev₂]
+
+/-! ### The behavioural theorem
+
+`bespokeCompile_correct` says the compiled program computes the right
+answer. This says it *behaves* like the source: same events, in the same
+order, byte for byte, with no re-encoding — `encodeTrace` is the identity.
+
+The specification is stated at `answerProgram p`, the source **with** the
+compiler's epilogue, because the epilogue's two events are real: the
+compiled program prints a newline and the answer, and a specification that
+did not mention them would be describing a different program. What that
+buys is `encodeTrace = id`: everything the target prints, the source prints
+too. -/
+
+/-- The source program, epilogue included, run on `σ`, performs `τ` and
+leaves `result` in `answer`. -/
+def BehavesWithAnswer (p : Program) (σ : Input) (n : Nat) (τ : Trace)
+    (result : Nat) : Prop :=
+  Turpentine.TurpentineBehavesWith (answerProgram p) σ n τ result
+
+theorem initEnv_answerProgram (p : Program) :
+    Turpentine.initEnv (answerProgram p) = Turpentine.initEnv p := rfl
+
+/-- **The behavioural theorem.** -/
+theorem bespokeCompile_behaves (p : Program) (prog : Prog) (σ : Input) (τ : Trace)
+    (result n : Nat) (hc : bespokeCompile p = .ok prog)
+    (hp : BehavesWithAnswer p σ n τ result) :
+    ∃ m, (Whitespace.evalProg prog (Input.ofString "") m).exit = Exit.halted ∧
+      decodeAnswer (Whitespace.evalProg prog (Input.ofString "") m).output = some result ∧
+      Whitespace.evalTrace prog (Input.ofString "") m = τ := by
+  obtain ⟨env₀, st, hinit, hex, htr, hans⟩ := hp
+  rw [initEnv_answerProgram] at hinit
+  -- the source run splits into the body and the epilogue the compiler added.
+  -- `seq` runs its second half at one less fuel, so the epilogue's two
+  -- statements need two of their own; a bound too small to reach them
+  -- contradicts the hypothesis that the whole thing halted.
+  cases n with
+  | zero => rw [Turpentine.exec] at hex; simp at hex
+  | succ k =>
+    rw [show (answerProgram p).body
+        = .seq p.body (.seq (.printStr "" true) (.printExpr (.var answerVar) false)) from rfl,
+      Turpentine.exec] at hex
+    cases hb : Turpentine.exec (k + 1) p.body { env := env₀, input := σ } with
+    | mk σ₁ e₁ =>
+      cases e₁ with
+      | outOfFuel => rw [hb] at hex; simp at hex
+      | error m => rw [hb] at hex; simp at hex
+      | halted =>
+        rw [hb] at hex
+        simp only at hex
+        cases k with
+        | zero => rw [Turpentine.exec] at hex; simp at hex
+        | succ j =>
+          rw [Turpentine.exec] at hex
+          have hnl : Turpentine.exec (j + 1) (Stmt.printStr "" true) σ₁
+              = (pushStr σ₁ ("" ++ "\n"), Exit.halted) := by
+            rw [Turpentine.exec]
+            simp
+          rw [hnl] at hex
+          simp only at hex
+          cases j with
+          | zero => rw [Turpentine.exec] at hex; simp at hex
+          | succ i =>
+            rw [Turpentine.exec] at hex
+            cases hv : Turpentine.evalExpr (pushStr σ₁ ("" ++ "\n")).env (.var answerVar) with
+            | error m => rw [hv] at hex; simp at hex
+            | ok v =>
+              rw [hv] at hex
+              simp only [Prod.mk.injEq] at hex
+              obtain ⟨hst, -⟩ := hex
+              -- the answer the epilogue printed is the answer the body left
+              have hans₁ : σ₁.env[answerVar]? = some (Value.int (result : Int)) := by
+                rw [← hst] at hans
+                simpa [pushStr, Turpentine.State.emitBytes, answerVar] using hans
+              have hvv : v = Value.int (result : Int) := by
+                rw [Turpentine.evalExpr,
+                  show (pushStr σ₁ ("" ++ "\n")).env = σ₁.env from rfl, hans₁] at hv
+                exact (Except.ok.inj hv).symm
+              subst hvv
+              obtain ⟨m, hhalt, hdec, htrace⟩ :=
+                bespokeCompile_core p prog result (i + 1 + 1 + 1) σ env₀ σ₁ hc hinit hb hans₁
+              refine ⟨m, hhalt, hdec, ?_⟩
+              rw [htrace, ← htr, ← hst]
+              simp only [Turpentine.State.trace, pushStr, Turpentine.State.emitBytes,
+                Value.render]
+              simp only [recOut_eq_append, List.reverse_append, List.append_assoc,
+                show ("" ++ "\n").toUTF8.toList = [10] from newline_bytes]
+              simp
+
+/-- **The theorem.** On a program the fragment check accepts, whenever the
+source halts within some fuel bound with `result` in `answer`, the compiled
+whitespace program halts, for some fuel bound, having printed whatever the
+source printed and then `result` in decimal on a line of its own. -/
+theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
+    (hc : bespokeCompile p = .ok prog) (hp : HaltsWithAnswer p n result) :
+    ∃ m, (Whitespace.evalProg prog (Input.ofString "") m).exit = Exit.halted ∧
+      decodeAnswer (Whitespace.evalProg prog (Input.ofString "") m).output = some result := by
+  obtain ⟨env₀, st, hinit, hex, hans⟩ := hp
+  obtain ⟨m, hhalt, hdec, -⟩ :=
+    bespokeCompile_core p prog result n (Input.ofString "") env₀ st hc hinit hex hans
+  exact ⟨m, hhalt, hdec⟩
 
 end Langlib.Turpentine.Certified.BespokeWhitespace
 
@@ -4258,6 +4384,45 @@ def bespokeWhitespace : TurpentineCompiler WhitespaceLang where
   decodeOutput := BespokeWhitespace.decodeAnswer
   correct := fun p prog result n hc hp =>
     BespokeWhitespace.bespokeCompile_correct p prog result n hc hp
+
+/-- **The hand-written backend, as a *behaviourally* verified compiler.**
+The first inhabitant of
+[`IOCertifiedCompiler`](../../Common/Compilation.lean) in the library.
+
+`encodeTrace` is the identity, which is the strongest thing this definition
+can say: the compiled program does not re-encode the source's I/O, it
+performs it. `encodeInput` ignores the source's stream because the verified
+fragment never reads — that is what keeps the identity honest rather than
+an artefact of running both sides on nothing.
+
+The specification is stated at `answerProgram p`, the source with the
+compiler's epilogue, because the epilogue's newline and answer are events
+the compiled program really performs. -/
+def bespokeWhitespaceIO :
+    IOCertifiedCompiler BespokeWhitespace.BehavesWithAnswer WhitespaceLang where
+  compile := BespokeWhitespace.bespokeCompile
+  encodeInput := fun _ => Input.ofString ""
+  decodeOutput := BespokeWhitespace.decodeAnswer
+  encodeTrace := id
+  correct := fun p prog σ τ result n hc hp =>
+    BespokeWhitespace.bespokeCompile_behaves p prog σ τ result n hc hp
+
+/-- Behavioural correctness implies answer correctness, for free: forgetting
+which events happened turns the instance above into a `CertifiedCompiler`.
+`bespokeWhitespace` proves the answer-only statement directly instead, and
+against the sharper specification — it does not need the epilogue's events
+to exist — so the two coexist rather than one replacing the other.
+
+Connecting them the other way, from `HaltsWithAnswer` to
+`BehavesWithAnswer` at the *same* fuel bound, is not free and is not done:
+`seq` runs its second half at one less fuel, so a body that halts with
+exactly `n` leaves nothing for the epilogue, and closing that gap needs
+fuel monotonicity for `Turpentine.exec`, which the library deliberately
+does without (`Langlib.Common.Reaches` carries fuel exactly). -/
+def bespokeWhitespaceIOErased :
+    CertifiedCompiler
+      (specErase BespokeWhitespace.BehavesWithAnswer (Input.ofString "")) WhitespaceLang :=
+  bespokeWhitespaceIO.toCertified (Input.ofString "")
 
 /-- **The derived compiler is no longer an untested oracle.** On a Turpentine
 program both compilers accept and a source run that halts with `result` in

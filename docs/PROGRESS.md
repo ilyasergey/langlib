@@ -2,7 +2,53 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-31 (latest): the compiled program says what the source says
+## 2026-08-31 (latest): a compiler proved to behave, not just to answer
+
+`IOCertifiedCompiler` has an inhabitant. `bespokeWhitespaceIO` is the
+hand-written Turpentine-to-whitespace backend proved *behaviourally*
+correct on the output fragment, and its `encodeTrace` is the **identity**:
+the compiled program does not re-encode the source's I/O into a target
+convention, it performs it, byte for byte and in order. §1.4 of
+`certified-compilation.md` had been titled "what is proved behaviourally:
+nothing, yet" since the definitions landed. It is not called that any more.
+
+Three details decide whether the statement means what it looks like it
+means, and all three are in the definition rather than in prose. The
+specification is stated at `answerProgram p` — the source *with* the
+epilogue the compiler appends — because the epilogue's newline and answer
+are events the compiled program really performs, and naming only the
+source's own events would describe a different program. `encodeInput`
+ignores the source's input stream, which is honest only because the
+verified fragment cannot read; when `readInt` joins it, the input events
+will have to match too. And the source-side specification is not a trace a
+compiler author picked: `behavesWith_wf` says the events it names are a
+real run's.
+
+The proof reuses the answer-only one rather than repeating it. The old
+end-to-end theorem became `bespokeCompile_core`, which reports the same run
+three ways — it halts, its output decodes, and its trace is the body's
+trace followed by the epilogue's two events — and both the answer-only and
+the behavioural theorems are corollaries. What the behavioural one adds is
+an inversion of the epilogue on the *source* side, and that turned up the
+one thing worth warning the next person about: `seq` runs its second half
+at one less fuel, so `answerProgram`'s two appended statements need two
+fuel of their own, and a bound too small to reach them contradicts the
+hypothesis that the whole thing halted.
+
+That same fuel arithmetic is why `toCertifiedOf` back to `HaltsWithAnswer`
+is **not** in this commit. At equal fuel it is false-shaped: a body that
+halts with exactly `n` leaves nothing for the epilogue. Closing it needs
+fuel monotonicity for `Turpentine.exec`, which this library deliberately
+does without, since `Reaches` carries fuel exactly. Nothing is lost —
+`bespokeWhitespace` proves the answer-only statement directly, against a
+sharper specification, and `toCertified` gives the erased direction free.
+
+Five new tests compile with the behavioural compiler, run it, and compare
+the two event lists outright. Milestone 1 of Stage 6 is done; milestone 2
+is `readInt`, and with it the first proof that a compiled program reads
+what its source reads.
+
+## 2026-08-31: the compiled program says what the source says
 
 The hand-written whitespace backend's simulation used to say that a
 statement's code reaches the same heap. It now says that it reaches the

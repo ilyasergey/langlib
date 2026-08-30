@@ -268,11 +268,41 @@ representability side condition in the fragment predicate or a wrapping
 source semantics to match. [verification.md](verification.md) is where both
 gaps are argued.
 
-### 1.4 What is proved behaviourally: nothing, yet
+### 1.4 What is proved behaviourally: the whitespace backend
 
-No `IOCertifiedCompiler` is inhabited. The definitions above say so honestly
-rather than being quietly satisfied by a weak instance. The derived compilers
-of section 2 cannot be upgraded at all —
+`IOCertifiedCompiler` has one inhabitant,
+[`bespokeWhitespaceIO`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401),
+and it is the strongest shape the definition allows: **`encodeTrace` is the
+identity**. The compiled program does not re-encode the source's I/O into a
+target convention; it performs it, byte for byte and in order.
+
+Three things make that statement mean what it appears to mean.
+
+* The specification is
+  [`BehavesWithAnswer`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4278),
+  which is `TurpentineBehavesWith` at `answerProgram p` — the source *with*
+  the epilogue the compiler appends. The epilogue's newline and answer are
+  events the compiled program really performs, and a specification that did
+  not mention them would be describing a different program.
+* `encodeInput` ignores the source's stream, because the verified fragment
+  cannot read. That is what keeps `encodeTrace = id` honest rather than an
+  artefact of running both sides on nothing: were `readInt` in the
+  fragment, the input events would have to match too, and milestone 2 of
+  [PLAN.md](PLAN.md) Stage 6 is where that is settled.
+* `TurpentineBehavesWith` is not a trace a compiler author chose:
+  [`behavesWith_wf`](../Langlib/Languages/Turpentine/Trace.lean) says the
+  events it names are a real run's.
+
+The correctness statement in force elsewhere in the library is still the
+answer-only one — `bespokeWhitespace` proves that directly, against a
+sharper specification that does not need the epilogue's events to exist —
+so the two coexist. Going the other way, from `HaltsWithAnswer` to
+`BehavesWithAnswer` at the same fuel bound, is *not* free: `seq` runs its
+second half at one less fuel, so a body that halts with exactly `n` leaves
+nothing for the epilogue, and closing that gap needs fuel monotonicity for
+`Turpentine.exec`, which this library deliberately does without.
+
+The derived compilers of section 2 cannot be upgraded at all —
 [`TurpentineHaltsWith`](../Langlib/Languages/Turpentine/Compile/URM.lean#L3970)
 is I/O-free, because a register machine is — so the candidates are the
 bespoke backends of section 3, which do compile Turpentine's `read` and
@@ -280,7 +310,7 @@ bespoke backends of section 3, which do compile Turpentine's `read` and
 
 | Backend | Proved today | What the upgrade needs |
 |---|---|---|
-| [Whitespace](../Langlib/Languages/Turpentine/Compile/Whitespace.lean) | `CertifiedCompiler`, scalars and output | **both trace semantics done, and the simulation now carries the trace**: `simStmt` says the compiled code performs the source statement's events, in order. What is left is the instance itself |
+| [Whitespace](../Langlib/Languages/Turpentine/Compile/Whitespace.lean) | **`IOCertifiedCompiler`**, scalars and output, `encodeTrace = id` | done for output; `readInt` is milestone 2 |
 | [Subleq](../Langlib/Languages/Turpentine/Compile/Subleq.lean) | `CertifiedCompiler`, two shapes | **`TraceLang` done**; `encodeTrace` is the identity, now checked |
 | [Brainfuck](../Langlib/Languages/Turpentine/Compile/Brainfuck.lean) | tested, not proved | the correctness proof first |
 | [Ook!](../Langlib/Languages/Turpentine/Compile/Ook.lean), [Brainloller](../Langlib/Languages/Turpentine/Compile/Brainloller.lean) | tested, not proved | Brainfuck's, then re-encoding |
@@ -290,13 +320,12 @@ its events. That is a change to the shape of a small-step semantics, not a
 proof, and it is scheduled in [PLAN.md](PLAN.md) Stage 6. Whitespace's row
 has had it done; the rest have not.
 
-Whitespace's row has since had the next piece too. Its simulation relation
-carries a trace as well as a heap, and the same list of events appears on
-both sides of it, so what remains for `IOCertifiedCompiler` is packaging
-rather than proof: `spec` instantiated at `answerProgram p`, `encodeTrace`
-the identity, and the epilogue's own two events accounted for. The
-correctness statement in force today is still the answer-only one, and this
-section will keep saying "nothing, yet" until the instance exists.
+Whitespace's row has since had every piece: its simulation relation carries
+a trace as well as a heap, the same list of events appears on both sides of
+it, and the instance is inhabited. What is not yet covered there is input —
+the fragment has no `readInt` — which is the one thing standing between
+this row and a compiler proved behaviourally correct on programs that both
+read and write.
 
 One expectation from when this section was written has since been
 corrected. `encodeTrace` for whitespace was going to have "real content",

@@ -272,7 +272,7 @@ ignores the input stream) and is the only one today. Every other language
 needs its interpreter to record events, which is a change to the shape of
 a small-step semantics rather than a proof.
 
-### Behavioural certification for whitespace `[ ]`
+### Behavioural certification for whitespace `[~]`
 
 Whitespace goes first, ahead of subleq. The reason is that
 `encodeTrace` turns out to be the **identity** there, which was not the
@@ -285,7 +285,7 @@ not "the target's I/O is a re-encoding of the source's" but the much
 better *the compiled program performs the source program's I/O events,
 byte for byte, in order*.
 
-**Milestone 1 — the output-only fragment.** Today's scalar fragment plus
+**Milestone 1 — the output-only fragment `[x]`.** Today's scalar fragment plus
 `print(e)`/`println(e)` for `int` and `bool` and `print("...")` string
 literals. No `readInt` yet (that is milestone 2) and no `readByte` ever:
 Turpentine's `readByte()` yields `-1` at end of input and whitespace's
@@ -382,17 +382,39 @@ The steps, in order:
    proves the two agree. Most of that is discharged by the reference
    semantics itself, which throws on operands of the wrong shape; only a
    variable, `&&` and `||` need more.
-4. **The instance**, `bespokeWhitespaceIO : IOCertifiedCompiler spec
-   WhitespaceLang`, in `Langlib/Languages/Turpentine/Certified/`, plus
-   `toCertifiedOf` back to the answer-only statement.
-5. **Tests and docs** `[~]`. The golden suite over I/O-bearing sources is
+4. **The instance** `[x]`. `bespokeWhitespaceIO : IOCertifiedCompiler
+   BehavesWithAnswer WhitespaceLang` is the library's first inhabitant of
+   the behavioural notion, with **`encodeTrace = id`**: the compiled
+   program performs the source's events rather than re-encoding them.
+   `spec` is at `answerProgram p`, since the epilogue's newline and answer
+   are events the compiled program really performs, and `encodeInput`
+   ignores the source's stream, which is honest only because the fragment
+   cannot read.
+
+   `toCertifiedOf` back to `HaltsWithAnswer` at the same fuel bound turned
+   out **not** to be free, and is not done: `seq` runs its second half at
+   one less fuel, so a body that halts with exactly `n` leaves nothing for
+   the epilogue. Closing it needs fuel monotonicity for `Turpentine.exec`,
+   which the library deliberately does without — `Reaches` carries fuel
+   exactly. Nothing is lost by leaving it: `bespokeWhitespace` proves the
+   answer-only statement directly, against a sharper specification, and
+   `toCertified` gives the erased direction for free.
+5. **Tests and docs** `[x]`. The golden suite over I/O-bearing sources is
    done: thirteen cases print strings, integers and booleans before, inside
    and around the work, and the differential half of it runs the reference
    interpreter with the *same* epilogue and compares raw output strings, so
    a byte of disagreement fails the build. `docs/whitespace/compiler.md`
-   and both scoreboards are current. What is left is
-   §1.4 of `certified-compilation.md` (whose table says "nothing, yet"),
-   `docs/whitespace/compiler.md`, and the `verification.md` scoreboard.
+   and both scoreboards are current, as is §1.4 of
+   `certified-compilation.md`, which no longer says "nothing, yet". Five
+   further cases run the behavioural claim itself: compile with
+   `bespokeWhitespaceIO`, run, and compare the two event lists.
+
+Milestone 1 landed on 2026-08-31, and `encodeTrace = id` stopped being a
+prediction: `bespokeWhitespaceIO` is the library's first
+`IOCertifiedCompiler`, over a fragment that prints strings, integers and
+booleans. What it cost that this plan did not foresee is recorded in
+steps 3 and 4 above — a new epilogue and decoder, and a fragment that has
+to be type-checked.
 
 **Milestone 2 — `readInt`.** Needs step 0's byte-level lemmas plus one
 that nobody has proved: that whitespace's `parseNumLine` and Turpentine's

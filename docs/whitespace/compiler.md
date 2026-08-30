@@ -366,6 +366,47 @@ def bespokeWhitespace : TurpentineCompiler WhitespaceLang where
   correct := …
 ```
 
+### What is proved behaviourally
+
+The theorem above says the compiled program computes the right answer. A
+second one says it *behaves* like the source:
+
+```lean
+def bespokeWhitespaceIO : IOCertifiedCompiler BehavesWithAnswer WhitespaceLang where
+  compile := BespokeWhitespace.bespokeCompile
+  encodeInput := fun _ => Input.ofString ""
+  decodeOutput := BespokeWhitespace.decodeAnswer
+  encodeTrace := id
+  correct := …
+```
+
+`encodeTrace = id` is the whole point. `IOCertifiedCompiler` lets a backend
+declare that it re-encodes the source's I/O — a Piet image printing a
+decimal numeral would have to — and this one declares that it does not. The
+events the compiled program performs *are* the events the source performs,
+in order, byte for byte.
+
+The specification is `BehavesWithAnswer`, which is `TurpentineBehavesWith`
+at `answerProgram p`: the source **with** the epilogue. The epilogue's
+newline and answer are events the compiled program really performs, so a
+specification that named only the source's own events would be describing a
+different program. `encodeInput` ignores the source's input stream, which
+is honest only because the fragment cannot read — when `readInt` joins it,
+the input events will have to match too.
+
+It is the library's first inhabitant of `IOCertifiedCompiler`. The
+answer-only `bespokeWhitespace` stays alongside it rather than being
+replaced: it is proved against a sharper specification, one that does not
+need the epilogue's events to exist. Deriving it *from* the behavioural
+instance at the same fuel bound is not free, and is not done — `seq` runs
+its second half at one less fuel, so a body that halts with exactly `n`
+leaves nothing for the epilogue, and closing that gap would need fuel
+monotonicity for `Turpentine.exec`, which the library does without.
+
+The five cases in the `bespoke whitespace performs the source's events`
+suite run exactly this claim: compile with the behavioural compiler, run
+it, and compare the two event lists.
+
 ### Over what fragment
 
 `bespokeWhitespace.compile` returns `Except.error` for everything outside
