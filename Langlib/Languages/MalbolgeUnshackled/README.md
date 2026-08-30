@@ -59,6 +59,7 @@ instruction — so attribution lives here.
 | `star.mu` | prints `*` without reading anything; the value comes from a rotation whose low trit is zero, so it is the same at every width | LangLib original |
 | `answer.mu` | prints `42`; the counterpart of Malbolge's `answer.mal`, which does *not* run here | LangLib original |
 | `banner.mu` | prints `MALBOLGE`; built from crazy operations only, so no rotation width appears in it | LangLib original |
+| `99bottles.mu` | prints the whole song, 78802 characters for 11459 of output; a port of Malbolge's `99bottles.mal`, whose output it matches byte for byte and which does not itself run here | LangLib original |
 | `hello-small.mu` | prints `Hello, world!` in 172 characters rather than `hello.mu`'s 24365, using data cells the loader does not check; `--strict` refuses it | LangLib original |
 
 Usage, since the files cannot carry their own. The two that read input:
@@ -100,11 +101,12 @@ credit here.
 
 Golden tests live in
 [Langlib/Tests/MalbolgeUnshackled.lean](../../Tests/MalbolgeUnshackled.lean)
-(run with `lake test` from the repository root): the three examples,
-micro-programs for halt, output and input, the two Unshackled-specific
-behaviours (end of input closes the output stream; a rotated or
-crazy-operated word has no encryption), `hello.mu` at a second rotation
-width, strict loading, and the loader's errors.
+(run with `lake test` from the repository root), in four suites: every
+example in the table above, micro-programs for halt, output and input, the
+two Unshackled-specific behaviours (end of input closes the output stream;
+a rotated or crazy-operated word has no encryption — which is `rotcrash.mu`
+inline), five examples re-run at rotation width 37, strict loading, and the
+loader's errors.
 
 ## Compiling to Unshackled
 
@@ -141,7 +143,15 @@ how far the completeness effort has got is
 [docs/malbolge-unshackled/completeness-progress.md](../../../docs/malbolge-unshackled/completeness-progress.md).
 
 Compiler tests are in
-[Langlib/Tests/CompileMalbolgeUnshackled.lean](../../Tests/CompileMalbolgeUnshackled.lean):
-differential runs against Turpentine's own interpreter, a sweep over seven
-starting rotation widths, an audit of every emitted cell against the
-loader's rule, and the fragment boundary.
+[Langlib/Tests/CompileMalbolgeUnshackled.lean](../../Tests/CompileMalbolgeUnshackled.lean),
+in ten suites: differential runs against Turpentine's own interpreter, a
+sweep over seven starting rotation widths, an audit of every emitted cell
+against the loader's rule, the `194 + 2n` cell count, a tight fuel bound
+that a program which looped would miss, strict mode's refusal, the fragment
+boundary one case per reason, and the input probe. The last two load the
+checked-in `compiled/*.mu` files with Unshackled's own loader and run them
+— once at the default width and once at 37 — with nothing from the
+compiler involved, so a wrong compiler and a stale artifact fail
+separately. Staleness itself is what
+`scripts/gen-mu-examples.sh --check` catches; run it in the same commit as
+any change to the backend or to either source.

@@ -73,6 +73,12 @@ def suite : Suite where
       -- trit 4 -- which is what the printable-only construction lacks.
     , { name := "hello-small example", source := ex "hello-small.mu",
         expect := .outputs "Hello, world!\n" }
+      -- `99bottles.mu` is deliberately absent. It is verified -- its output
+      -- was compared against Malbolge's `99bottles.mal` with `cmp`, at
+      -- three rotation widths -- but the interpreter's cost grows with the
+      -- size of the program, and at a hundred kilobytes one run takes the
+      -- better part of a minute. That is too much to spend on every
+      -- `lake test`; the spec page carries the command instead.
       -- Micro-programs.
     , { name := "halt at address 0", source := .inline "Q'",
         expect := .outputs "" }

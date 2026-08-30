@@ -283,6 +283,25 @@ Output:
 Hello, world!
 ```
 
+`99bottles.mu` is the whole song, and the largest example here: 78802
+characters, printing 11459. It needs about 40000 steps and takes the better
+part of a minute, so give it fuel and be patient.
+
+```
+lake exe malbolge-unshackled --fuel 200000 Langlib/Examples/MalbolgeUnshackled/99bottles.mu
+```
+
+Output, of which these are the first four lines and the last:
+
+```
+99 bottles of beer on the wall,
+99 bottles of beer,
+Take one down, pass it around,
+98 bottles of beer on the wall.
+...
+No more bottles of beer on the wall.
+```
+
 Every one of those works at any legal rotation width, which is the
 property that matters and the one a hand-written program usually fails.
 Check it the same way `hello.mu` was checked:
@@ -296,6 +315,76 @@ Output:
 ```
 MALBOLGE
 ```
+
+### Programs that read input
+
+Three of the examples read: `echo.mu` takes one character, `cat.mu` copies
+until it is stopped, and `truth.mu` branches on what it is given. All of
+them read **stdin**, so a pipe or a redirect is what feeds them, and the
+`-n` matters — without it `echo` adds a newline the program will also read.
+
+```
+echo -n Z | lake exe malbolge-unshackled Langlib/Examples/MalbolgeUnshackled/echo.mu
+```
+
+Output:
+
+```
+Z
+```
+
+A redirect does as well, and is the way to feed a program more than a line:
+
+```
+lake exe malbolge-unshackled --fuel 200000 Langlib/Examples/MalbolgeUnshackled/cat.mu < README.md
+```
+
+There is no output block for that one because `cat.mu` never halts: it
+copies its input and then spins, so it prints the file and then reports
+running out of fuel on stderr. That is the program, not a fault.
+
+Three things about input here are Unshackled's own rather than the shell's.
+
+**Input is Unicode, not bytes.** The input instruction reads one
+*character* and puts its code point in `a`, decoding UTF-8 on the way in;
+the output instruction encodes it again. So a character outside ASCII makes
+one round trip, not two:
+
+```
+printf '\xc3\xa9' | lake exe malbolge-unshackled Langlib/Examples/MalbolgeUnshackled/echo.mu
+```
+
+Output:
+
+```
+é
+```
+
+**End of input is a value, not an error.** Reading past the end yields
+`...22`, and `...22` is exactly the word whose output *closes the stream*.
+So `echo.mu` with nothing to read prints nothing at all and halts cleanly,
+rather than failing — the character it read was the end of the input, and
+printing that ends the output:
+
+```
+lake exe malbolge-unshackled --verbose Langlib/Examples/MalbolgeUnshackled/echo.mu < /dev/null
+```
+
+Output, on stderr:
+
+```
+malbolge-unshackled: halted normally; read 0 input byte(s), wrote 0 output byte(s)
+```
+
+**A newline is `...21`, and survives the trip.** It is a value of its own
+rather than the code point 10, which is why the table in "What a value is"
+gives the two reserved prefixes meanings at all; `echo.mu` fed a bare
+newline prints a bare newline.
+
+If stdin is an interactive terminal rather than a pipe or a file, the
+program sees **empty input** — it does not wait for you to type. That is
+the shared runner's behaviour across the whole library, and it is why every
+command above pipes or redirects something, even `/dev/null`.
 
 ## Compilation from Turpentine
 
@@ -447,6 +536,33 @@ cannot render it:
 ```
 malbolge-unshackled: character '<U+0099>' (code 153) at 1:129 is not a printable instruction, and --strict rejects those
 ```
+
+**99 bottles** (`99bottles.mu`, 78802 characters) — the song, and the one
+program here that is a *port* rather than an original. Malbolge's
+`99bottles.mal` does not run under Unshackled; this prints its output
+byte for byte, at every rotation width, and the two were compared with
+`cmp` rather than by eye.
+
+It is too long to quote, and it is built the same way `hello-small.mu` is —
+an even number of crazy operations per character, against data cells the
+loader does not check — with one addition that only a long program needs.
+A single load-`d` puts `d` a fixed 118 ahead of `c`, which is fine for a
+hundred instructions and hopeless for thirty-five thousand: the cells `d`
+is eating are the instructions `c` is about to reach. So the prologue does
+it twice. The first load-`d` lands on 126, the second reads address 127 —
+a word the loader never checks, and so as large as we like — and a jump
+steps over that cell, because a jump to `T` encrypts `mem[T]` and resumes
+at `T+1`. After that the data region sits above the last instruction and
+the two never meet.
+
+The size is the interesting number. 78802 characters to print 11459, against
+`99bottles.mal`'s 22807 — so about three and a half times the Malbolge
+original, which for a language with no bounded words and a straight-line
+program with no loop in it is a better ratio than `hello.mu`'s 24365
+characters for fourteen. It is also slow: about 40000 steps, but the better
+part of a minute, because the interpreter's cost grows with the size of the
+program and this one is a hundred kilobytes. That is why it is an example
+and not a test.
 
 **cat** and the **truth-machine** (`cat.mu`, `truth.mu`) — byte-for-byte the
 same files as `cat.mal` and `truth.mal` in the Malbolge examples.
