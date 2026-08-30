@@ -200,37 +200,58 @@ inside the loaded image**, over cells that have already executed, which is
 what makes obstacle 1 bite. The virtual-machine plan below is not one
 option among several; it is the only shape available.
 
-## The rotation width: avoidable, at a price
+## The rotation width: where unboundedness actually lives
 
-This page used to call the rotation width the interesting obstacle, the
-one with no counterpart in any other target. That is a fair description of
-the language and a misleading one for a compiler, so it is worth being
-precise.
+An earlier version of this page called the rotation width avoidable: the
+width is read by exactly one instruction, so a backend that never emits `*`
+never observes it and is correct at every legal starting width. That
+remains true, and it remains the right call for control gadgets like the
+dispatcher loop. What it missed, and what is now a theorem, is the price.
 
-The width is genuinely unpinned: an implementation may start anywhere at
-or above 10 and must widen when `j` loads a wider value into `d`.
-Johansen's interpreter randomises it per run, our runner exposes
-`--rot-width`, and generated code may not depend on it. But it is **read
-by exactly one instruction**, `rotr`. A backend that never emits `*` never
-observes the width, never has to reason about how it grew, and is correct
-at *every* legal starting width rather than only at the reference minimum
-of 10. The proof obligation that had no counterpart elsewhere simply does
-not arise.
+**A rot-free run keeps every storable value inside a finite alphabet.**
+The crazy operation never widens a value (`width_crz_le`), successor widens
+only `c` and `d`, which no instruction can store, and the postal encryption
+writes five-trit words. So every step whose instruction is not `*`
+preserves any width bound `W ≥ 13` on the accumulator and on all of memory
+(`widthBounded_step1`; 13 because an input character's code point is below
+`3^13`). Values of width at most `W` form a finite set, and every `j` and
+`i` reads its target from memory, so **in a rot-free run every teleport
+lands in a fixed finite set of addresses, forever**. The only way past
+that set is `d`'s one-cell-per-step walk, in lockstep with a `c` that must
+be executing real code the whole way, which means writing your own code
+ahead of yourself at the frontier. We do not claim that exotic route is
+impossible; we do claim it is not a route a certified compiler wants.
 
-The price is obstacle 3: without `rot`, stored values never widen, so
-registers cannot be big numbers and have to be unary across cells. That is
-the real trade, and it is the first decision a backend author has to make:
+**`*` is therefore not a convenience the compiler may decline.** It is the
+language's only supply of unboundedly many nameable addresses, and the
+supply mechanism is a feedback loop the escalator theorems pin down:
 
-* **Avoid `rot`.** Bounded-width values, unary counters, unbounded storage
-  from the number of cells. Correct at every rotation width, and every
-  arithmetic lemma is carry-free and tritwise.
-* **Use `rot`.** Big-number registers, far fewer cells, but the compiler
-  must track the width through every `j` that widens `d`, and the
-  correctness statement must be universally quantified over the starting
-  width.
+```lean
+theorem rot_one (w : Nat) (hw : 1 ≤ w) :
+    Value.rot w (Value.ofNat 1) = Value.ofNat (3 ^ (w - 1))
 
-LangLib's groundwork takes the first branch, and the worked example below
-uses no `rot`.
+theorem growRotWidth_double (w : Nat) : growRotWidth w w = 2 * w
+```
+
+Rotating the value `1` at rotation width `w` moves its one set trit to the
+top of the window: the result is `3^(w-1)`, a value of width exactly `w`
+(`width_rot_one`). A `j` through that value raises `maxWidth` to `w`, and
+the rotation width doubles. Rotate `1` again and the next minted address
+has width `2w`. Iterating gives widths `10, 20, 40, …`: this loop is the
+**allocator** of any compiler targeting this language, and the concrete,
+mechanism-level meaning of "Unshackled".
+
+The revised trade, then:
+
+* **Control avoids `rot`.** The dispatcher and its gadgets stay inside the
+  bounded-width world, where every lemma so far applies unchanged.
+* **Storage requires `rot`.** Registers live at addresses the escalator
+  mints, and the correctness statement inherits the reference rotation
+  policy (`rotWidth` starts at 10, doubling is exact), which is what the
+  `ProgLang` instance pins. The earlier hope of a witness that is correct
+  at every legal width is given up for the parts that rotate; a witness
+  against the reference policy is the honest first target, and the
+  quantified statement is a later strengthening.
 
 ## What a backend can build on today
 

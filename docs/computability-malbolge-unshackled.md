@@ -348,30 +348,63 @@ loaded image takes seconds and does not reduce to a normal form, because
 proving the prologue symbolically, the same way the cycle is proved, rather
 than computing it.
 
-## The rotation width
+## The rotation width, and the width algebra
 
 Malbolge Unshackled's rotate instruction works within a *rotation width*
 that starts at 10 or more and doubles whenever a `j` sends `d` to an
 address wider than any seen before. The language deliberately leaves the
 exact policy open, and Johansen's interpreter randomises it, so a program
-is only correct if it works at every legal width.
+is only correct if it works at every legal width. The width is read by
+exactly one instruction, `rotr`, so code that never emits `*` never
+observes it. An earlier version of this page concluded that a compiler
+should simply avoid `*`. The width algebra, now proved, shows exactly how
+far that goes and where it stops.
 
-This is usually described as the hardest thing about compiling to
-Unshackled, and there is a way to make it a non-issue: **do not use `*`.**
-The rotation width is read by exactly one instruction. A compiler that uses
-only `p` (the crazy operation), `j`, `i`, `<`, `/`, `o` and `v` never
-observes the width, so it never has to reason about how the width grew, and
-it is correct at every legal starting width rather than only at 10. The
-cost is that the crazy operation is then the only arithmetic available, and
-it is tritwise with no carries, so registers want a representation that
-makes increment and comparison into data movement rather than addition.
-Unary counters spread across memory cells are the obvious candidate, and
-unbounded memory is precisely what Unshackled has and Malbolge does not.
+```lean
+theorem width_crz_le (a b : Value) : (Value.crz a b).width ≤ max a.width b.width
+theorem width_rot_le (w : Nat) (v : Value) : (Value.rot w v).width ≤ max w v.width
+theorem width_succ_le (v : Value) : v.succ.width ≤ v.width + 1
+```
 
-Whether that trade is the right one is the main open design question. The
-`ProgLang` instance currently pins the starting width at 10, so a witness
-built through it proves the weaker statement; if the compiler avoids `*`,
-the statement can be strengthened to quantify over the configuration.
+The crazy operation never widens; successor widens by one trit but applies
+only to `c` and `d`, which no instruction can store into memory; rotation
+is the one operation that can widen a stored value. Assembling these
+per-instruction:
+
+```lean
+theorem widthBounded_step1 {W : Nat} (hW : 13 ≤ W) {s s' : State}
+    (h : WidthBounded W s)
+    (hrot : decode (s.mem.get s.c) s.c.modClass ≠ .rotr)
+    (hstep : step1 s = some s') : WidthBounded W s'
+```
+
+A step that does not rotate preserves any width bound `W ≥ 13` on the
+accumulator and on every memory cell (13 because an input character's code
+point is below `3^13`). Values of bounded width form a finite set, and
+`j` and `i` read their targets from memory, so **in a rot-free run every
+teleport lands in a fixed finite set of addresses for the whole run**. A
+rot-free backend can still compute plenty inside that world, and every
+gadget in this development lives there, but unbounded storage cannot come
+from stored pointers alone.
+
+The positive half is the escalator, the mechanism that actually mints wide
+values:
+
+```lean
+theorem rot_one (w : Nat) (hw : 1 ≤ w) :
+    Value.rot w (Value.ofNat 1) = Value.ofNat (3 ^ (w - 1))
+
+theorem growRotWidth_double (w : Nat) : growRotWidth w w = 2 * w
+```
+
+Rotating `1` at width `w` yields `3^(w-1)`, a value of width exactly `w`
+(`width_rot_one`); a `j` through it doubles the rotation width. Iterating
+mints addresses of width `10, 20, 40, …` This rot/movd feedback is the
+language's only door to unboundedly many nameable addresses, which is the
+mechanism-level content of the name "Unshackled". A completeness witness
+will therefore use `*`, stated against the reference rotation policy that
+the `ProgLang` instance pins; correctness at every legal policy is a
+strengthening deliberately deferred.
 
 ## The arithmetic a rot-free backend has
 
@@ -430,7 +463,9 @@ the jump-table spacing law (`gap_of_repeated_word`,
 `no_repeated_word_gap_two`); the three-step loop and its non-termination
 (`Loop.looping_step`, `Loop.neverHalts`); the crazy-operation algebra
 (`crz_trit`, `ext_of_trits`, `crz_two_steps`, `crzTrit_zero_ne_zero`); the
-address arithmetic
+width algebra and the escalator (`width_crz_le`, `width_rot_le`,
+`widthBounded_step1`, `rot_one`, `width_rot_one`, `growRotWidth_double`);
+the address arithmetic
 (`toNat?_ofNat`, `succ_ofNat`, `modClass_ofNat`, `mod94_ofNat`,
 `decode_at_ofNat`); the step-level reading (`exec_hang`, `exec_halt`,
 `exec_step`, `exec_of_hang`); obstruction one (`encrypt_mem_range`,
@@ -456,10 +491,12 @@ The evidence is MalbolgeLisp, not a theorem.
 2. Reaching the loop. `Loop.neverHalts` covers every state in the cycle,
    but the 154-step prologue that `loop.mu` uses to get there is checked by
    running the interpreter, not proved. See the note above.
-3. A register representation that survives using `p` as the only
-   arithmetic. `crz_two_steps` says the arithmetic is adequate; what is
-   open is the *sequencing*, since `p` writes to `mem[d]` and the two
-   constants have to be under `d` at the right moments.
+3. A register representation. `crz_two_steps` says the arithmetic is
+   adequate and the escalator says addresses can be minted, but the two
+   have to be joined: registers live at escalator-minted addresses, `p`
+   consumes a fresh constant per operation, and the sequencing of `d`
+   past constants and registers is the layout problem an assembler must
+   solve.
 4. `restTable_not_printable` assumes its two seeds are naturals. The loader
    always supplies naturals, because they are character code points, but
    proving that means carrying an invariant through `loadWith`'s mutable

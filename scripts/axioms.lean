@@ -549,6 +549,19 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.crz_fromTwoConst
 #print axioms Unshackled.crz_two_steps
 
+-- The width algebra: rot-free steps keep every storable value in a finite
+-- alphabet, so `*` is mandatory for unbounded storage; the escalator that
+-- mints wide addresses is the rot/movd feedback.
+#print axioms Unshackled.width_crz_le
+#print axioms Unshackled.width_rot_le
+#print axioms Unshackled.width_succ_le
+#print axioms Unshackled.width_ofChar_le
+#print axioms Unshackled.step_widthBounded
+#print axioms Unshackled.widthBounded_step1
+#print axioms Unshackled.rot_one
+#print axioms Unshackled.width_rot_one
+#print axioms Unshackled.growRotWidth_double
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

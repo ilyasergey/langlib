@@ -1363,6 +1363,422 @@ theorem crz_two_steps (a : Value) {t : Value} (h : t.Normalized) :
     ∃ k₁ k₂, Value.crz (Value.crz a k₁) k₂ = t :=
   ⟨toTwoConst a, fromTwoConst t, by rw [crz_toTwoConst, crz_fromTwoConst h]⟩
 
+/-! ## The width algebra: where unboundedness lives
+
+Malbolge Unshackled is "Malbolge without the memory bound", but the
+unboundedness has to enter through some instruction, and this section pins
+down which one. Three width facts, all proved from the definitions:
+
+* the crazy operation never widens (`width_crz_le`);
+* successor widens by at most one trit, and successor applies only to `c`
+  and `d`, which no instruction can store into memory;
+* rotation is the one operation that can widen a *stored* value, up to the
+  current rotation width (`width_rot_le`).
+
+`widthBounded_step1` assembles them: a step whose instruction is not `*`
+preserves any width bound `W ≥ 13` on the accumulator and on every memory
+cell (13 because an input character's code point is below `3^13`). So in a
+run that never rotates, every storable value stays inside a **finite
+alphabet**: values of width at most `W` with one of three repeating trits.
+Every `j` and `i` target is a stored value, so every teleport lands inside
+that finite set; the only way past it is `d`'s one-cell-per-step walk.
+
+The door the language actually opens is the feedback between `*` and `j`:
+`rot` lifts a narrow value to the full rotation width, `j` on the widened
+value raises `maxWidth`, and the width then doubles (`growRotWidth`). That
+loop, and nothing else, manufactures unboundedly wide values, which is to
+say unboundedly many nameable addresses. `docs/malbolge-unshackled/compiler.md`
+draws the consequences for a compiler. -/
+
+theorem length_stripLead_le (t : Trit) : ∀ l : List Trit,
+    (stripLead t l).length ≤ l.length
+  | [] => Nat.le_refl 0
+  | x :: xs => by
+    have ih := length_stripLead_le t xs
+    show (match stripLead t xs with
+      | [] => if x = t then [] else [x]
+      | ys => x :: ys).length ≤ xs.length + 1
+    cases hs : stripLead t xs with
+    | nil =>
+      by_cases hx : x = t
+      · simp [hx]
+      · simp [hx]
+    | cons y ys =>
+      rw [hs] at ih
+      simpa using ih
+
+theorem width_mk'_le (l : Trit) (L : List Trit) : (Value.mk' l L).width ≤ L.length :=
+  length_stripLead_le l L
+
+/-- **The crazy operation never widens a value.** Every value a rot-free
+program can ever store has the width of some initial value. -/
+theorem width_crz_le (a b : Value) : (Value.crz a b).width ≤ max a.width b.width := by
+  unfold Value.crz
+  refine Nat.le_trans (width_mk'_le _ _) ?_
+  rw [List.length_zipWith,
+    length_padTo _ _ _ (Nat.le_max_left _ _),
+    length_padTo _ _ _ (Nat.le_max_right _ _)]
+  exact Nat.le_of_eq (Nat.min_self _)
+
+/-- **Rotation is the widening operation**: it can lift any value up to the
+current rotation width, and no further. With `movd`'s width doubling this
+is the language's one door to unboundedly wide values. -/
+theorem width_rot_le (w : Nat) (v : Value) : (Value.rot w v).width ≤ max w v.width := by
+  unfold Value.rot
+  cases hw : (List.range w).map v.trit with
+  | nil =>
+    have h0 : w = 0 := by simpa using congrArg List.length hw
+    subst h0
+    exact Nat.le_max_right 0 v.width
+  | cons x xs =>
+    have hlen := congrArg List.length hw
+    simp only [List.length_map, List.length_range, List.length_cons] at hlen
+    refine Nat.le_trans (width_mk'_le _ _) ?_
+    simp only [List.length_append, List.length_cons, List.length_drop,
+      List.length_nil, Value.width]
+    omega
+
+theorem length_succTrits_le (lead : Trit) : ∀ l : List Trit,
+    (Value.succTrits lead l).2.length ≤ l.length + 1
+  | [] => by cases lead <;> simp [Value.succTrits]
+  | .t0 :: rest => by simp [Value.succTrits]
+  | .t1 :: rest => by simp [Value.succTrits]
+  | .t2 :: rest => by
+    have ih := length_succTrits_le lead rest
+    show (match Value.succTrits lead rest with
+      | (lead', rest') => (lead', Trit.t0 :: rest')).2.length ≤ rest.length + 1 + 1
+    cases hs : Value.succTrits lead rest with
+    | mk lead' rest' =>
+      rw [hs] at ih
+      simpa using ih
+
+/-- Successor widens by at most one trit. It applies only to `c` and `d`,
+which no instruction can store, so it never widens a memory cell. -/
+theorem width_succ_le (v : Value) : v.succ.width ≤ v.width + 1 := by
+  show (match Value.succTrits v.lead v.low with
+    | (lead, low) => Value.mk' lead low).width ≤ v.low.length + 1
+  have h := length_succTrits_le v.lead v.low
+  cases hs : Value.succTrits v.lead v.low with
+  | mk lead' low' =>
+    rw [hs] at h
+    exact Nat.le_trans (width_mk'_le _ _) h
+
+/-! ### The bounds an interpreter step needs -/
+
+theorem length_trits3_le : ∀ n, ∀ k : Nat, n < 3 ^ k → (trits3 n).length ≤ k := by
+  intro n
+  induction n using trits3.induct with
+  | case1 => intro k _; rw [trits3_zero]; exact Nat.zero_le k
+  | case2 n ih =>
+    intro k hk
+    cases k with
+    | zero => simp at hk
+    | succ k =>
+      rw [trits3_succ]
+      simp only [List.length_cons]
+      have hdiv : (n + 1) / 3 < 3 ^ k := by
+        rw [Nat.div_lt_iff_lt_mul (by omega)]
+        calc n + 1 < 3 ^ (k + 1) := hk
+          _ = 3 ^ k * 3 := by rw [Nat.pow_succ]
+      exact Nat.succ_le_succ (ih k hdiv)
+
+theorem width_ofNat_le {n k : Nat} (h : n < 3 ^ k) : (Value.ofNat n).width ≤ k := by
+  rw [ofNat_eq]
+  exact length_trits3_le n k h
+
+/-- A character's code point is below `3^13 = 1594323`, so an input
+character is at most 13 trits wide. -/
+theorem width_ofChar_le (c : Char) : (Value.ofChar c).width ≤ 13 := by
+  refine width_ofNat_le ?_
+  have h := c.valid
+  unfold Char.toNat
+  show c.val.toNat < 1594323
+  rcases h with h | h <;> omega
+
+theorem printableCode?_bounds {v : Value} {n : Nat}
+    (h : printableCode? v = some n) : 33 ≤ n ∧ n ≤ 126 := by
+  unfold printableCode? at h
+  cases ht : v.toNat? with
+  | none => rw [ht] at h; simp at h
+  | some m =>
+    rw [ht] at h
+    dsimp only at h
+    split at h
+    · rename_i hcond
+      simp only [Option.some.injEq] at h
+      subst h
+      simpa using hcond
+    · simp at h
+
+/-- The word the postal stage writes is at most 5 trits wide: encryption
+stays inside `33..126 < 3^5`. -/
+theorem width_encrypt_le {code : Nat} (h₁ : 33 ≤ code) (h₂ : code ≤ 126) :
+    (Value.ofNat (encrypt code)).width ≤ 5 := by
+  obtain ⟨_, he₂⟩ := encrypt_range h₁ h₂
+  exact width_ofNat_le (by omega)
+
+/-! ### The step theorem -/
+
+/-- Every value the machine can store or accumulate is at most `W` trits
+wide. `c` and `d` are deliberately absent: they grow by successor and
+cannot be stored, so no bound on them is needed or true. -/
+def WidthBounded (W : Nat) (s : State) : Prop :=
+  s.a.width ≤ W ∧ ∀ addr, (s.mem.get addr).width ≤ W
+
+theorem widthBounded_set {m : Memory} {W : Nat}
+    (h : ∀ addr, (m.get addr).width ≤ W) {v : Value} (hv : v.width ≤ W)
+    (x : Value) : ∀ addr, ((m.set x v).get addr).width ≤ W := by
+  intro addr
+  by_cases hx : x = addr
+  · subst hx; rw [get_set_self]; exact hv
+  · rw [get_set_ne _ hx]; exact h addr
+
+private theorem doOutput_frame {s s₁ : State} (h : doOutput s = .ok s₁) :
+    s₁.a = s.a ∧ s₁.mem = s.mem := by
+  unfold doOutput at h
+  split at h
+  · injection h with h; subst h; exact ⟨rfl, rfl⟩
+  · split at h
+    · simp at h
+    · split at h
+      · injection h with h; subst h; exact ⟨rfl, rfl⟩
+      · cases hn : s.a.toNat? with
+        | none => rw [hn] at h; simp at h
+        | some n =>
+          rw [hn] at h
+          dsimp only at h
+          split at h
+          · injection h with h; subst h; exact ⟨rfl, rfl⟩
+          · simp at h
+
+private theorem doInput_width {W : Nat} (hW : 13 ≤ W) {s s₁ : State}
+    (h : doInput s = .ok s₁) :
+    s₁.a.width ≤ W ∧ s₁.mem = s.mem := by
+  unfold doInput at h
+  cases hr : readChar? s.input with
+  | error e =>
+    rw [hr] at h
+    simp only [bind, Except.bind] at h
+    cases h
+  | ok r =>
+    rw [hr] at h
+    simp only [bind, Except.bind] at h
+    cases r with
+    | none =>
+      injection h with h
+      subst h
+      refine ⟨?_, rfl⟩
+      show Value.eof.width ≤ W
+      exact Nat.le_trans (by decide) hW
+    | some p =>
+      obtain ⟨ch, i⟩ := p
+      injection h with h
+      subst h
+      refine ⟨?_, rfl⟩
+      show (if ch == '\n' then Value.eol else Value.ofChar ch).width ≤ W
+      split
+      · exact Nat.le_trans (by decide) hW
+      · exact Nat.le_trans (width_ofChar_le ch) hW
+
+/-- One instruction of the pure step, minus the postal stage: every
+instruction except `*` preserves a width bound of at least 13. -/
+theorem step_widthBounded {W : Nat} (hW : 13 ≤ W) {instr : Instr} {s s₁ : State}
+    (h : WidthBounded W s) (hrot : instr ≠ .rotr)
+    (hstep : step instr s = .ok s₁) : WidthBounded W s₁ := by
+  obtain ⟨ha, hm⟩ := h
+  cases instr with
+  | rotr => exact absurd rfl hrot
+  | jmp =>
+    simp only [step] at hstep
+    injection hstep with hstep
+    subst hstep
+    exact ⟨ha, hm⟩
+  | out =>
+    simp only [step] at hstep
+    obtain ⟨ha', hm'⟩ := doOutput_frame hstep
+    exact ⟨ha' ▸ ha, fun addr => hm' ▸ hm addr⟩
+  | inp =>
+    simp only [step] at hstep
+    obtain ⟨ha', hm'⟩ := doInput_width hW hstep
+    exact ⟨ha', fun addr => hm' ▸ hm addr⟩
+  | movd =>
+    simp only [step] at hstep
+    split at hstep <;>
+      · injection hstep with hstep
+        subst hstep
+        exact ⟨ha, hm⟩
+  | crazy =>
+    simp only [step] at hstep
+    injection hstep with hstep
+    subst hstep
+    have hv : (Value.crz s.a (s.mem.get s.d)).width ≤ W :=
+      Nat.le_trans (width_crz_le _ _) (Nat.max_le.mpr ⟨ha, hm s.d⟩)
+    exact ⟨hv, widthBounded_set hm hv s.d⟩
+  | nop =>
+    simp only [step] at hstep
+    injection hstep with hstep
+    subst hstep
+    exact ⟨ha, hm⟩
+  | halt =>
+    simp only [step] at hstep
+    injection hstep with hstep
+    subst hstep
+    exact ⟨ha, hm⟩
+  | outOfBounds =>
+    simp only [step] at hstep
+    injection hstep with hstep
+    subst hstep
+    exact ⟨ha, hm⟩
+
+/-- **A step that does not rotate preserves any width bound `W ≥ 13`.**
+The consequence for architecture: in a run that never executes `*`, every
+storable value lives in the finite set of values at most `W` trits wide, so
+every `j` and `i` teleports into a finite set of addresses, for the whole
+of the run. Rotation is not a convenience the compiler may decline; the
+`rot`/`movd` width-doubling feedback is the language's only supply of
+unboundedly many nameable addresses. -/
+private theorem widthBounded_step1_generic {W : Nat} (hW : 13 ≤ W)
+    {instr : Instr} {s s' : State}
+    (_ : decode (s.mem.get s.c) s.c.modClass = instr)
+    (h : WidthBounded W s) (hrot : instr ≠ .rotr)
+    (hstep : (match step instr s with
+              | .error _ => none
+              | .ok s₁ =>
+                match printableCode? (s₁.mem.get s₁.c) with
+                | none => none
+                | some code =>
+                  some { s₁ with mem := s₁.mem.set s₁.c (Value.ofNat (encrypt code)),
+                                 c := s₁.c.succ, d := s₁.d.succ }) = some s') :
+    WidthBounded W s' := by
+  cases hst : step instr s with
+  | error e => rw [hst] at hstep; simp at hstep
+  | ok s₁ =>
+    rw [hst] at hstep
+    dsimp only at hstep
+    cases hp : printableCode? (s₁.mem.get s₁.c) with
+    | none => rw [hp] at hstep; simp at hstep
+    | some code =>
+      rw [hp] at hstep
+      simp only [Option.some.injEq] at hstep
+      subst hstep
+      obtain ⟨hc₁, hc₂⟩ := printableCode?_bounds hp
+      have h₁ : WidthBounded W s₁ := step_widthBounded hW h hrot hst
+      exact ⟨h₁.1,
+        widthBounded_set h₁.2
+          (Nat.le_trans (width_encrypt_le hc₁ hc₂) (by omega)) s₁.c⟩
+
+/-- **A step that does not rotate preserves any width bound `W ≥ 13`.**
+The consequence for architecture: in a run that never executes `*`, every
+storable value lives in the finite set of values at most `W` trits wide, so
+every `j` and `i` teleports into a finite set of addresses, for the whole
+of the run. Rotation is not a convenience the compiler may decline; the
+`rot`/`movd` width-doubling feedback is the language's only supply of
+unboundedly many nameable addresses. -/
+theorem widthBounded_step1 {W : Nat} (hW : 13 ≤ W) {s s' : State}
+    (h : WidthBounded W s)
+    (hrot : decode (s.mem.get s.c) s.c.modClass ≠ .rotr)
+    (hstep : step1 s = some s') : WidthBounded W s' := by
+  unfold step1 at hstep
+  cases hd : decode (s.mem.get s.c) s.c.modClass <;> rw [hd] at hstep
+  case outOfBounds =>
+    simp only [Option.some.injEq] at hstep
+    subst hstep
+    exact h
+  case halt => simp at hstep
+  case rotr => exact absurd hd hrot
+  all_goals exact widthBounded_step1_generic hW hd h (by simp) hstep
+
+/-! ### The escalator
+
+The positive half of the width story: how a program actually manufactures a
+wide value. Rotating the value `1` at rotation width `w` moves its single
+set trit to the top of the window, producing `3^(w-1)`, a value of width
+exactly `w`. A `j` through that value then raises `maxWidth` to `w` and the
+rotation width to `2w` (`growRotWidth`). Rotate `1` again and the next
+value has width `2w`. Iterating mints addresses of width `10, 20, 40, …`:
+this loop is the allocator of any compiler targeting this language, and the
+concrete meaning of "Unshackled". -/
+
+theorem trits3_three_mul {m : Nat} (hm : 0 < m) :
+    trits3 (3 * m) = .t0 :: trits3 m := by
+  rw [show 3 * m = (3 * m - 1) + 1 by omega, trits3_succ,
+    show (3 * m - 1) + 1 = 3 * m by omega,
+    ofResidue_zero (by omega), Nat.mul_div_cancel_left m (by omega)]
+
+theorem trits3_one : trits3 1 = [.t1] := by
+  rw [show (1:Nat) = 0 + 1 from rfl, trits3_succ, ofResidue_one (by omega),
+    show (0 + 1) / 3 = 0 by omega, trits3_zero]
+
+theorem trits3_pow3 : ∀ k, trits3 (3 ^ k) = List.replicate k .t0 ++ [.t1]
+  | 0 => by rw [show (3:Nat) ^ 0 = 1 from rfl, trits3_one]; rfl
+  | k + 1 => by
+    rw [show (3:Nat) ^ (k + 1) = 3 * 3 ^ k by rw [Nat.pow_succ, Nat.mul_comm],
+      trits3_three_mul (Nat.pow_pos (by omega)), trits3_pow3 k]
+    rfl
+
+theorem trit_ofNat_one : ∀ i, (Value.ofNat 1).trit i = if i = 0 then .t1 else .t0 := by
+  intro i
+  rw [ofNat_eq]
+  show (trits3 1).getD i .t0 = _
+  rw [show (1:Nat) = 0 + 1 from rfl, trits3_succ, trits3_zero]
+  cases i with
+  | zero => rfl
+  | succ j => simp [List.getD]
+
+/-- **Rotation mints a wide value from a narrow one**: the value `1` at
+rotation width `w` becomes `3^(w-1)`. -/
+theorem rot_one (w : Nat) (hw : 1 ≤ w) :
+    Value.rot w (Value.ofNat 1) = Value.ofNat (3 ^ (w - 1)) := by
+  have hmap : (List.range w).map (Value.ofNat 1).trit
+      = .t1 :: List.replicate (w - 1) .t0 := by
+    rw [show w = (w - 1) + 1 by omega, List.range_succ_eq_map, List.map_cons,
+      List.map_map, trit_ofNat_one 0, if_pos rfl]
+    congr 1
+    have hall : ∀ b ∈ (List.range (w - 1)).map ((Value.ofNat 1).trit ∘ (· + 1)),
+        b = Trit.t0 := by
+      intro b hb
+      obtain ⟨i, _, hi⟩ := List.mem_map.mp hb
+      rw [← hi]
+      show (Value.ofNat 1).trit (i + 1) = .t0
+      rw [trit_ofNat_one]
+      simp
+    calc (List.range (w - 1)).map ((Value.ofNat 1).trit ∘ (· + 1))
+        = List.replicate ((List.range (w - 1)).map ((Value.ofNat 1).trit ∘ (· + 1))).length .t0 :=
+          List.eq_replicate_of_mem hall
+      _ = List.replicate (w - 1) .t0 := by simp
+  have hdrop : (Value.ofNat 1).low.drop w = [] := by
+    apply List.drop_eq_nil_of_le
+    rw [ofNat_eq]
+    show (trits3 1).length ≤ w
+    exact Nat.le_trans (length_trits3_le 1 1 (by omega)) hw
+  unfold Value.rot
+  rw [hmap, hdrop]
+  show Value.mk' Trit.t0 (List.replicate (w - 1) Trit.t0 ++ [Trit.t1] ++ []) = _
+  rw [List.append_nil]
+  have hlast : lastTrit? (List.replicate (w - 1) Trit.t0 ++ [Trit.t1]) ≠ some Trit.t0 := by
+    rw [lastTrit?_eq_getD (by simp) Trit.t0]
+    rw [getD_lt (by simp)]
+    rw [List.getElem_append_right (by simp)]
+    simp
+  rw [Value.mk', stripLead_eq_self hlast, ofNat_eq, trits3_pow3]
+
+/-- The width really is `w`: rotation reached the top of its window. -/
+theorem width_rot_one (w : Nat) (hw : 1 ≤ w) :
+    (Value.rot w (Value.ofNat 1)).width = w := by
+  rw [rot_one w hw, ofNat_eq]
+  show (trits3 (3 ^ (w - 1))).length = w
+  rw [trits3_pow3]
+  simp
+  omega
+
+/-- **The doubling**: a `j` that raises the maximum seen width to the
+current rotation width doubles the rotation width. With `rot_one` this is
+the allocator loop: rotate `1` into a width-`w` address, `j` through it,
+and the window is `2w`. -/
+theorem growRotWidth_double (w : Nat) : growRotWidth w w = 2 * w := by
+  unfold growRotWidth
+  omega
+
 end Unshackled
 
 end Langlib.Computability

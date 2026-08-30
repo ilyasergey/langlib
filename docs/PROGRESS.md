@@ -2,7 +2,47 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): SKI is Turing complete, and the functional route is closed
+## 2026-08-30 (latest): the width algebra, and a correction
+
+The Malbolge Unshackled docs said a backend should avoid `*` entirely,
+since the rotation width is read by exactly one instruction and dodging it
+buys correctness at every legal width. The width algebra, now proved,
+shows that advice is right for control and wrong for storage, and the
+wrong half matters more.
+
+Three width facts (`width_crz_le`, `width_rot_le`, `width_succ_le`): the
+crazy operation never widens a value; successor widens by one trit but
+applies only to `c` and `d`, which no instruction can store; rotation is
+the one operation that can widen a stored value. Assembled per instruction,
+`widthBounded_step1`: a step that does not rotate preserves any width
+bound `W ≥ 13` on the accumulator and on all of memory. Bounded-width
+values form a finite set, and `j` and `i` read their targets from memory,
+so **in a rot-free run every teleport lands in a fixed finite set of
+addresses, forever**. Unbounded storage cannot come from stored pointers
+in a rot-free program; the only residual route is `d`'s one-cell-per-step
+walk with self-extending code at the frontier, which nobody should want
+to certify.
+
+The positive half is the escalator, also proved. Rotating the value `1`
+at rotation width `w` moves its single set trit to the top of the window:
+`rot_one : Value.rot w (Value.ofNat 1) = Value.ofNat (3 ^ (w - 1))`, a
+value of width exactly `w` (`width_rot_one`). A `j` through it raises
+`maxWidth` to `w` and the rotation width doubles
+(`growRotWidth_double`). Rotate `1` again and the next minted address has
+width `2w`: widths `10, 20, 40, …` This rot/movd feedback is the
+language's only supply of unboundedly many nameable addresses, which is
+the mechanism-level meaning of "Unshackled", and it is the allocator of
+any compiler targeting the language.
+
+Consequence for the completeness plan, recorded in
+`docs/malbolge-unshackled/compiler.md`: control gadgets stay rot-free and
+keep every lemma proved so far; the register file cannot, so the witness
+will be stated against the reference rotation policy the `ProgLang`
+instance pins (start at 10, exact doubling), and correctness at every
+legal policy is deferred. Both pages now say this in place of the old
+advice.
+
+## 2026-08-30: SKI is Turing complete, and the functional route is closed
 
 `skiComplete : TuringComplete SkiLang`, axiom-clean. Both halves of the
 functional route are now proved, and the second did **not** come free from
