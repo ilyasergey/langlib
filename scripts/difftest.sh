@@ -132,7 +132,7 @@ else
     note "malbolge: 'malbolge' not found (run ./scripts/get-references.sh); skipping"
   else
     note "malbolge vs malbolge.c:"
-    for ex in hello truth; do
+    for ex in nop answer hello hello-world 99bottles truth; do
       f=Langlib/Examples/Malbolge/$ex.mal
       input=""
       case $ex in truth) input="0" ;; esac

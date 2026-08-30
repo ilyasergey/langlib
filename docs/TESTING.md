@@ -151,8 +151,9 @@ interpreter wins (see `docs/malbolge/spec.md`). `./scripts/get-references.sh`
 fetches it from the Esoteric File Archive and builds it, deleting the
 `#include <malloc.h>` line that non-glibc systems reject.
 
-Only halting examples are compared (`hello.mal`, and `truth.mal` on input
-`0`): both cat programs never halt by design, and `scheffer-cat.mal` is
+Only halting examples are compared (`nop.mal`, `answer.mal`, `hello.mal`,
+`hello-world.mal`, `99bottles.mal`, and `truth.mal` on input `0`): both cat
+programs never halt by design, and `scheffer-cat.mal` is
 stored UTF-8 re-encoded (see the language README), so the C interpreter
 would read different bytes from it. The cats' echo behaviour, EOF handling,
 the loader oversight, and the non-printable spin are pinned by golden tests

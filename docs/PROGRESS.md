@@ -2,7 +2,46 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): the bespoke proofs move next to the backends
+## 2026-08-30 (latest): the Malbolge spec, and four more programs from the wild
+
+`docs/malbolge/spec.md` grew from a reference card into something you could
+learn the language from, and four example programs joined it, each verified
+by running it.
+
+The new examples are `nop.mal` (`DP`, two characters, credited to Ben
+Olmstead and apparently the only Malbolge program its author ever wrote),
+`answer.mal` (`mtve`, 28 straight-line instructions that print `42`),
+`hello-world.mal` (the punctuated hello world that circulates today — which
+prints `Hello, world.`, not `Hello, World!` as Wikipedia claims), and
+`99bottles.mal` (Iizawa et al., 2005, 22561 instructions, the program that
+settled whether Malbolge can branch). The 99-bottles golden test does not
+quote its 11459 bytes of output; it regenerates the song from a four-line
+Lean function.
+
+Two things in the spec are ours rather than folklore. The first is the
+generated memory tail: reading the fill one trit column at a time, the
+column map has exactly three cycles, of lengths 2, 2 and 3, so the tail
+repeats with period 2, 3 or 6 — and since no cycle is constant, some word
+in every period has a nonzero top trit, hence a value of at least 19683,
+hence unexecutable. **Running off the end of a Malbolge program always
+hangs**, within six steps. (Wikipedia says the fill has period 12; that is
+the other operand order, not the reference interpreter's.) The second is
+the three worked program analyses — `answer.mal` traced instruction by
+instruction, `cat.mal`'s five-address loop with its 9-cycle at address 37
+and the jump that re-encrypts the `j` at 60, and `truth.mal`'s branch,
+which turns the input byte into a two-entry jump table in seven cycles.
+Every claim of that kind was checked against the interpreter before it
+went in, and two earlier drafts of those paragraphs were wrong.
+
+Also folded in: the `xlat2` cycle structure (six cycles, lengths
+2 + 4 + 5 + 6 + 9 + 68 = 94), the 2-cycle and immutable-no-op address
+tables, the store/load idioms as identities about the crazy operation,
+a section on normalized Malbolge, and a fuller history — Cooke's account
+of the genetic algorithm that stalled at `hello wor` before the beam
+search worked, and the pre-2005 "99 bottles" that turned out to be a
+straight-line `printf` of a uuencoded gzip. 1168 tests pass.
+
+## 2026-08-30: the bespoke proofs move next to the backends
 
 `Langlib/Computability/` is for Turing-completeness results and their URM
 bridges. The two correctness proofs of the hand-written Turpentine

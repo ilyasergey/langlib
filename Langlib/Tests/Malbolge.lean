@@ -7,6 +7,9 @@ hand-crafted micro-programs for each word operation (verified byte-for-byte
 against Olmstead's reference interpreter), EOF handling, the loader errors,
 and divergence.
 
+The 99-bottles example prints 11459 bytes, so rather than quote them we
+rebuild the song here (`beerSong`) and compare against that.
+
 Malbolge's classic cat programs never halt: at end of input they print the
 byte 168 (= 59048 mod 256) forever. The `echo` and `first byte` suites run
 them with bounded fuel through a wrapper that truncates the output and
@@ -37,6 +40,21 @@ program-too-long test: position `p` gets the unique printable `x` with
 private def nops (n : Nat) : String :=
   String.ofList <| (List.range n).map fun p => Char.ofNat (33 + (35 + 94 - p % 94) % 94)
 
+/-- `n` bottles of beer, singular at one. -/
+private def bottles (n : Nat) : String :=
+  if n == 1 then "1 bottle of beer" else s!"{n} bottles of beer"
+
+/-- One verse of the song as Iizawa et al.'s example prints it. -/
+private def verse (n : Nat) : String :=
+  let next := if n == 1 then "No more bottles of beer" else bottles (n - 1)
+  s!"{bottles n} on the wall,\n{bottles n},\n\
+     Take one down, pass it around,\n{next} on the wall.\n\n"
+
+/-- The whole song, 99 verses down to none: exactly what `99bottles.mal`
+prints (11459 bytes). -/
+private def beerSong : String :=
+  (List.range 99).foldl (fun acc i => acc ++ verse (99 - i)) ""
+
 def suite : Suite where
   name := "malbolge"
   run := run
@@ -44,6 +62,14 @@ def suite : Suite where
     [ -- The classics.
       { name := "hello example (Cooke's search-generated original)",
         source := ex "hello.mal", expect := .outputs "HEllO WORld" }
+    , { name := "hello-world example (the corrected, punctuated one)",
+        source := ex "hello-world.mal", expect := .outputs "Hello, world." }
+    , { name := "nop example (Olmstead's own two-instruction program)",
+        source := ex "nop.mal", expect := .outputs "" }
+    , { name := "answer example (28 straight-line instructions)",
+        source := ex "answer.mal", expect := .outputs "42" }
+    , { name := "99 bottles example (Iizawa et al., real loops)",
+        source := ex "99bottles.mal", expect := .outputs beerSong }
     , { name := "truth-machine example on 0", source := ex "truth.mal",
         input := "0", expect := .outputs "0" }
     , { name := "truth-machine example on 1", source := ex "truth.mal",
