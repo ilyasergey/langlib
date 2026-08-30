@@ -2,6 +2,38 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-30 (latest): Piet examples that loop, branch, and hang a painting
+
+Every Piet example was straight-line — push, compute, print, stop — which
+left the hard half of the language undemonstrated. Control flow in Piet is
+geometry: a loop is a closed circuit through a white return corridor, and a
+branch is `pointer` rotating the DP into one corridor or the other.
+
+Four new programs in `Langlib/Examples/Piet/`, with golden tests:
+
+* `count.ppm` (40x3) prints 1 to 10. The first example with a cycle in it.
+* `truth.ppm` (13x3) is the truth-machine, and at thirty-nine codels the
+  whole loop skeleton is legible in one codel map.
+* `collatz.ppm` (65x3) reads n and prints its hailstone sequence. The
+  Collatz step wants a second branch and does not take one: with r = n mod
+  2, both cases are `(n*(1+2r) + r) / (2-r)`, so it costs one `mod`, one
+  `div` and two `roll`s instead of a change of direction.
+* `mondrian.ppm` (48x34) prints `Piet`, and everything below its top three
+  rows is a painting in Mondrian's palette that the pointer never enters —
+  which is the point: unreachable blocks cost nothing and constrain
+  nothing.
+
+`scripts/gen-piet-examples.py` lays them out, because nobody paints a loop
+by hand. It implements the two codel geometries `linearGrid` and `loopGrid`
+from `Langlib/Computability/Piet.lean` — the ones the completeness proof
+already uses — plus cheap constant building (a square with a correction
+beats a block of n codels above about twelve). Its output is checked the
+only honest way, by running the programs.
+
+`docs/piet/spec.md` walks all four with their pictures;
+`scripts/render-docs-images.sh` renders them, `mondrian` without `--grid`.
+`lake test` is green at 1108 tests.
+
 ## 2026-08-30 (latest): `--to piet` exists
 
 `derivedPiet` had been correct-by-construction since Piet's completeness
