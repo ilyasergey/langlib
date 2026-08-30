@@ -4032,6 +4032,83 @@ theorem sim_loop_test {DB SI R : Nat} {f : RegFile} {σ : Counter.CState} {s : S
     unfold TapePair.Wf at hq
     omega
 
+/-! ## Why a flag has to come from a cell
+
+`crz_absorb` shows that a chain of crazy operations against compiled-in
+constants can produce a uniform value. It cannot produce one that
+*depends* on the accumulator, and that is the sharp reason `branch_arith`
+reads its flag from a memory cell rather than computing it, and the reason
+the register encoding stores blank and mark as uniform values in the first
+place.
+
+The argument is one line once the tritwise structure is in hand. A chain
+against fixed constants computes, at each position independently,
+`resultᵢ = fᵢ(aᵢ)` for a function `fᵢ` fixed at compile time. So two
+accumulators differing at a single position produce results differing at
+most at that position. But `...000` and `...222` differ at *every*
+position. No chain can send one accumulator to the first and another to
+the second unless they already differ everywhere.
+
+So the encoding is forced, not chosen: a branch flag must be read from
+something already uniform, which is what `cellBlank` and `cellMark` are,
+and what `register_probe` returns.
+
+Credit where due: this sharpening came from langlib-c9, working on the
+Turpentine backend, after we had both been loose about what "cannot
+aggregate across trit positions" actually rules out. -/
+
+/-- A chain of crazy operations against a fixed list of constants. -/
+def crzChain (a : Value) : List Value → Value
+  | [] => a
+  | k :: ks => crzChain (Value.crz a k) ks
+
+/-- The trit-level chain: what one position does, independently of the
+others. -/
+def crzChainTrit (t : Trit) : List Trit → Trit
+  | [] => t
+  | k :: ks => crzChainTrit (crzTrit t k) ks
+
+/-- **A chain acts position by position.** -/
+theorem crzChain_trit : ∀ (ks : List Value) (a : Value) (i : Nat),
+    (crzChain a ks).trit i = crzChainTrit (a.trit i) (ks.map (fun k => k.trit i))
+  | [], a, i => rfl
+  | k :: ks, a, i => by
+    show (crzChain (Value.crz a k) ks).trit i
+      = crzChainTrit (crzTrit (a.trit i) (k.trit i)) (ks.map (fun k => k.trit i))
+    rw [crzChain_trit ks (Value.crz a k) i, crz_trit]
+
+/-- **Positions the inputs agree on, the outputs agree on.** A chain
+against compiled-in constants cannot move information between trit
+positions. -/
+theorem crzChain_agree {a a' : Value} {ks : List Value} {j : Nat}
+    (h : a.trit j = a'.trit j) : (crzChain a ks).trit j = (crzChain a' ks).trit j := by
+  rw [crzChain_trit, crzChain_trit, h]
+
+/-- **No chain computes an accumulator-dependent flag.** If two
+accumulators differ at only one position, no chain of crazy operations
+against compiled-in constants sends one to `...000` and the other to
+`...222`, because those differ at every position. A branch flag therefore
+has to be *read* from something already uniform, which is why registers
+store blank and mark as `Value.zero` and `Value.eof` and why
+`register_probe` is the only zero test in the development. -/
+theorem no_accumulator_flag {a a' : Value} (ks : List Value) {i : Nat}
+    (hagree : ∀ j, j ≠ i → a.trit j = a'.trit j) :
+    ¬ (crzChain a ks = Value.zero ∧ crzChain a' ks = Value.eof) := by
+  rintro ⟨h₀, h₂⟩
+  -- pick any position other than `i`
+  have hne : i + 1 ≠ i := by omega
+  have hj := crzChain_agree (ks := ks) (hagree (i + 1) hne)
+  rw [h₀, h₂] at hj
+  exact Trit.noConfusion hj
+
+/-- The same conclusion stated the way a compiler meets it: the two flag
+values differ everywhere, so nothing computed position-by-position from a
+single-position difference can tell them apart. -/
+theorem flags_differ_everywhere (j : Nat) :
+    Value.zero.trit j ≠ Value.eof.trit j := by
+  show Trit.t0 ≠ Trit.t2
+  decide
+
 end Unshackled
 
 end Langlib.Computability

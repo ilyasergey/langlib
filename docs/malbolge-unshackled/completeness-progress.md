@@ -80,6 +80,7 @@ than by taste:
 | Register file | `RegFile.Refines` and `refines_up/down/emit/zero_iff` |
 | Tape memory layout | `regAddr`, `RegMem`, `regMem_up`, `regMem_down` |
 | Simulation invariant | `Sim`, `sim_inc`, `sim_dec`, `sim_emit`, `sim_frame`, `sim_loop_test` |
+| Flags must be read, not computed | `crzChain_agree`, `no_accumulator_flag` |
 
 ## Remaining
 
@@ -148,6 +149,18 @@ inside a finite alphabet, so every `j` and `i` teleports into a fixed
 finite set of addresses. That is what forces `*`, and with it the unary
 register route — the argument is about *addressing*, not about collapsing
 flags.
+
+What the tritwise structure *does* rule out has a sharp statement, and it
+is now proved (`no_accumulator_flag`). A chain against fixed constants
+computes `resultᵢ = fᵢ(aᵢ)` at each position independently, so two
+accumulators differing at a single position give results differing at most
+there. But `...000` and `...222` differ at *every* position. So no chain
+can send one accumulator to the first and another to the second: **a branch
+flag cannot be computed, it has to be read from something already
+uniform.** That is why registers store blank and mark as `Value.zero` and
+`Value.eof`, and why `register_probe` is the only zero test here — the
+encoding is forced, not chosen. The sharpening is langlib-c9's, from the
+Turpentine backend side.
 
 The distinction matters for a gadget author. `crz_two_steps` reaches any
 target and needs constants computed from the accumulator, so it applies

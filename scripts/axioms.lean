@@ -695,6 +695,11 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.sim_frame
 #print axioms Unshackled.sim_loop_test
 
+-- Why a branch flag has to be read from a cell rather than computed.
+#print axioms Unshackled.crzChain_trit
+#print axioms Unshackled.crzChain_agree
+#print axioms Unshackled.no_accumulator_flag
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.
