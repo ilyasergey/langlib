@@ -5,7 +5,7 @@ import Langlib.Languages.Turpentine.Compile.Whitespace
 /-!
 # The hand-written Turpentine-to-Whitespace backend, proved correct
 
-`Langlib/Computability/Derived.lean` builds verified Turpentine compilers by
+`Langlib/Languages/Turpentine/Compile/Derived.lean` builds verified Turpentine compilers by
 composing `compileToURM` with a completeness witness. Those compilers are
 correct by construction and nobody runs them. The compiler people run is the
 hand-written backend in `Langlib/Languages/Turpentine/Compile/Whitespace.lean`, and

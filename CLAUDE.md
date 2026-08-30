@@ -75,9 +75,18 @@ human-readable front-end language (Turpentine) and verified compilers from it.
 * `langlib` depends on **cslib** (pinned by revision in `lakefile.toml`),
   which brings **Mathlib**. The revision is the last one matching our
   `lean-toolchain`; bump the two together, never separately.
-* Keep Mathlib and cslib confined to `Langlib/Computability/`. Language
-  modules under `Langlib/Languages/` and `Langlib/Languages/Turpentine/` must not
-  import them, so the interpreters stay light and compile fast.
+* Keep Mathlib and cslib confined to `Langlib/Computability/` plus
+  `Langlib/Common/Computability.lean`. Interpreters, parsers, runners and
+  hand-written compilers under `Langlib/Languages/` must not import them,
+  so they stay light and compile fast. Two files are the documented
+  exceptions, both because they are built out of completeness witnesses:
+  `Langlib/Languages/Turpentine/Compile/Derived.lean` and the `--tc` half
+  of `Langlib/Languages/Turpentine/Main.lean`.
+* `Langlib/Common/Compilation.lean` — `ProgLang`, `CertifiedCompiler`,
+  `IOCertifiedCompiler` — is deliberately free of both, and
+  `Langlib/Common.lean` rolls it up while leaving
+  `Langlib/Common/Computability.lean` out. State a compiler's correctness
+  against those definitions; do not move them anywhere that needs Mathlib.
 * First build on a fresh machine needs Mathlib's cache
   (`lake exe cache get`).
 

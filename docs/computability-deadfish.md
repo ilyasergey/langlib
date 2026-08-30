@@ -95,7 +95,7 @@ theorem no_boundedStorage (b : BoundedStorage DeadfishLang) : False
 A revised interface could make configurations depend on the program and
 input, or weaken the injection law to reachable configurations. Either form
 would allow the finite prefix set of each Deadfish program to carry its own
-size. `Class.lean` would need to change before a Deadfish bounded-storage
+size. `Langlib/Common/Computability.lean` would need to change before a Deadfish bounded-storage
 witness could be supplied.
 
 ## What is proved and what remains

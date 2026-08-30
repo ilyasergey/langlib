@@ -100,14 +100,14 @@ keeps both kinds.
 
 | Language | Turing-complete (TC) | TC claim mechanised | Turpentine compiler |
 |----------|--------------------------|------------------------------|---------------------|
-| [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L2888)** | [derived](Langlib/Computability/Derived.lean#L115) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317) (trusted) |
-| [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1117)** | [derived](Langlib/Computability/Derived.lean#L107) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530) ([certified on a fragment](Langlib/Computability/BespokeWhitespace.lean#L3246)) |
-| [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1201)** | [derived](Langlib/Computability/Derived.lean#L111) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125) ([certified on a fragment](Langlib/Computability/BespokeSubleq.lean#L629)) |
-| [fractran](docs/fractran/spec.md) | yes | **[yes](Langlib/Computability/Fractran.lean#L4458)** | [derived](Langlib/Computability/Derived.lean#L120) (certified); [bespoke planned](docs/fractran/compiler.md) |
-| [piet](docs/piet/spec.md) | yes | **[yes](Langlib/Computability/Piet.lean#L3990)** | [derived](Langlib/Computability/Derived.lean#L132) (certified); [bespoke planned](docs/piet/compiler.md) |
-| [thue](docs/thue/spec.md) | yes | **[yes](Langlib/Computability/Thue.lean#L4024)** | [derived](Langlib/Computability/Derived.lean#L126) (certified); [bespoke planned](docs/thue/compiler.md) |
-| [ook](docs/ook/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Ook.lean#L540)** | [derived](Langlib/Computability/Derived.lean#L138) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Ook.lean#L49) (trusted) |
-| [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Brainloller.lean#L329)**, bar the [pixel walk](docs/brainloller/compiler.md) | [derived](Langlib/Computability/Derived.lean#L143) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Brainloller.lean#L57) (trusted) |
+| [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L2888)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L120) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317) (trusted) |
+| [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1117)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L112) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530) ([certified on a fragment](Langlib/Computability/BespokeWhitespace.lean#L3247)) |
+| [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1201)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L116) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125) ([certified on a fragment](Langlib/Computability/BespokeSubleq.lean#L630)) |
+| [fractran](docs/fractran/spec.md) | yes | **[yes](Langlib/Computability/Fractran.lean#L4471)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L125) (certified); [bespoke planned](docs/fractran/compiler.md) |
+| [piet](docs/piet/spec.md) | yes | **[yes](Langlib/Computability/Piet.lean#L3992)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L137) (certified); [bespoke planned](docs/piet/compiler.md) |
+| [thue](docs/thue/spec.md) | yes | **[yes](Langlib/Computability/Thue.lean#L4024)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L131) (certified); [bespoke planned](docs/thue/compiler.md) |
+| [ook](docs/ook/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Ook.lean#L540)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L143) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Ook.lean#L49) (trusted) |
+| [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Brainloller.lean#L329)**, bar the [pixel walk](docs/brainloller/compiler.md) | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L148) (certified), and [bespoke](Langlib/Languages/Turpentine/Compile/Brainloller.lean#L57) (trusted) |
 | [befunge93](docs/befunge93/spec.md) | [no with byte cells, yes with ours](docs/befunge93/spec.md#computational-class-and-why-our-deviations-matter) | **[yes](Langlib/Computability/Befunge93.lean#L343)**, for the byte core | [none: 2000 cells](docs/befunge93/compiler.md) |
 | [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[yes](Langlib/Computability/Malbolge.lean#L743)** | [none: bounded](docs/malbolge/compiler.md) |
 | [deadfish](docs/deadfish/spec.md) | no, every program halts | **[yes](Langlib/Computability/Deadfish.lean#L89)** | [planned, output only](docs/deadfish/compiler.md) |
@@ -132,8 +132,12 @@ its halting problem. Per-language status is in the
 
 ### The four definitions everything is stated with
 
-They live in [`Class.lean`](Langlib/Computability/Class.lean), so a claim
-means the same thing for every language.
+`ProgLang` lives in
+[`Common/Compilation.lean`](Langlib/Common/Compilation.lean) with the
+compiler-correctness definitions; the other three live in
+[`Common/Computability.lean`](Langlib/Common/Computability.lean). Both are
+shared infrastructure rather than per-language files, so a claim means the
+same thing for every language.
 
 **The URM** is the yardstick, and it comes from
 [cslib](https://github.com/leanprover/cslib) rather than being defined here,
@@ -203,10 +207,31 @@ composition is proved once for an arbitrary target, so a new language costs
 one line. The catch is that everything runs through a machine simulation:
 the output is enormous, and the fragment is I/O-free.
 
-Both are instances of one `TurpentineCompiler` interface, which pays off
-where a target has both: they provably produce the same observable
-behaviour on programs both accept. Until a bespoke compiler is verified,
-the derived one is the strongest available check on it.
+Both are inhabitants of one `CertifiedCompiler` interface, which pays off
+where a target has both: `agree` proves that any two verified compilers for
+one target decode the same answer out of every program both accept. Until a
+bespoke compiler is verified, the derived one is the strongest available
+check on it.
+
+### Two notions of correct
+
+Answer preservation is not behaviour preservation, and the library says
+which one it has proved.
+[`CertifiedCompiler`](Langlib/Common/Compilation.lean#L96) is the
+answer-only statement: the compiled program halts and prints something that
+decodes to the number the source computed. That is exactly right for the
+derived compilers, whose fragment has no I/O, and much too weak for a
+backend that compiles `read` and `print`.
+[`IOCertifiedCompiler`](Langlib/Common/Compilation.lean#L212) is the
+behavioural one: a run's observable behaviour is the `Trace` of bytes it
+consumed and emitted, in order, and the compiled program has to reproduce
+the source's trace under an encoding the compiler declares up front, as
+well as its answer.
+[`toCertified`](Langlib/Common/Compilation.lean#L253) proves the second
+implies the first, so upgrading a backend loses none of what was already
+proved about it. Nothing is proved behaviourally yet; the candidates and
+what each one needs are tabulated in
+[certified-compilation.md](docs/certified-compilation.md).
 
 Choose explicitly. `compile` and `exec` each take `--bespoke` or `--tc`,
 refuse both at once, and name the scheme they used, so a build log says

@@ -2,6 +2,60 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-08-30 (latest): Turpentine is a language, and compilation has an I/O-aware theory
+
+Three structural changes, no new language and no new compiler.
+
+**Turpentine moved to `Langlib/Languages/Turpentine/`.** It was the one
+language in the library living outside `Langlib/Languages/`, for no reason
+except that it was written first. The namespace is unchanged
+(`Langlib.Turpentine`, exactly like `Langlib.Brainfuck` under
+`Langlib/Languages/Brainfuck/`); the module path, the lakefile's executable
+root, two `open private ... from` module references and every documentation
+link followed.
+
+**`Langlib/Computability/Class.lean` is gone**, replaced by two modules in
+`Langlib/Common/` split by what they cost:
+
+* `Common/Compilation.lean` — `ProgLang`, and what it means to compile a
+  language correctly. Free of Mathlib and cslib, deliberately, so that a
+  hand-written backend can state and prove its own correctness without
+  either reaching the interpreters.
+* `Common/Computability.lean` — `TuringComplete`, `BoundedStorage`,
+  `BoundedRun` and the decidability that follows from a bound. The one
+  module in `Common/` that needs cslib, and therefore the one
+  `Langlib/Common.lean` does not roll up.
+
+`Derived.lean` moved with the compilers it builds, to
+`Langlib/Languages/Turpentine/Compile/Derived.lean`.
+
+**Certified compilation became generic, and acquired an I/O-aware
+sibling.** `CertifiedCompiler spec L` is parameterised by the source
+specification, so `agree` and the new `weaken` are proved once for every
+source and target; `TurpentineCompiler L` is that type at
+`TurpentineHaltsWith` and everything already proved kept working
+unchanged.
+
+The new statement is the one the library did not have. A run's observable
+behaviour is a `Trace` of interleaved `inp`/`out` events; a language opts
+into reporting one with a `TraceLang` instance, subject to two laws tying
+the report back to its interpreter; and `IOCertifiedCompiler` demands that
+a compiled program reproduce the source's trace, under an encoding the
+compiler declares as data, as well as its answer.
+`IOCertifiedCompiler.toCertified` proves the behavioural notion implies the
+answer-only one, so nothing already proved has to be reproved when a
+backend is upgraded.
+
+Nothing inhabits `IOCertifiedCompiler` yet, on purpose. The prerequisite is
+per-language: an interpreter has to record its events. FRACTRAN got the
+first `TraceLang` instance for free, since its `run` provably ignores the
+input stream and `TraceLang.ofInputFree` discharges the side condition by
+`rfl`. `docs/PLAN.md` Stage 6 sequences the rest.
+
+`lake build` and `lake test` clean (979 tests); `scripts/axioms.lean` audits
+the new definitions and reports the three standard axioms or fewer —
+`CertifiedCompiler.agree` needs none at all.
+
 ## 2026-08-30 (late): every spec names a resource that defines its language
 
 An audit of the fifteen `docs/*/spec.md` headers against the documentation

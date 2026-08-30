@@ -9,7 +9,7 @@ def subleqComplete : TuringComplete SubleqLang
 ```
 
 which is langlib's statement of the claim, in the sense fixed once for every
-language by [`Langlib/Computability/Class.lean`](../Langlib/Computability/Class.lean).
+language by [`Langlib/Common/Computability.lean`](../Langlib/Common/Computability.lean).
 Because `TuringComplete` is a witness rather than a certificate, subleq also
 acquires a verified compiler from Turpentine the moment `compileToURM` lands;
 see [certified-compilation.md](certified-compilation.md).
@@ -243,7 +243,7 @@ every partial computable function" is the classical equivalence of the
 unlimited register machine with the other models of computation (Shepherdson
 and Sturgis 1963; Cutland, *Computability*, chapter 3). cslib proves no
 equivalence between URM-computability and any other model, so langlib does
-not claim one. `computes_of_turingComplete` in `Class.lean` is the honest
+not claim one. `computes_of_turingComplete` in `Langlib/Common/Computability.lean` is the honest
 consequence: it quantifies over `Cslib.URM.Computable` functions rather than
 over `Nat.Partrec` ones.
 

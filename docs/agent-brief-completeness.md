@@ -7,7 +7,7 @@ explains why the task is shaped the way it is; read it before adapting.
 ## Why these two jobs are one job
 
 A Turing-completeness proof in LangLib is not a certificate filed away.
-`TuringComplete L` ([Class.lean:81](../Langlib/Computability/Class.lean#L81))
+`TuringComplete L` ([Computability.lean:84](../Langlib/Common/Computability.lean#L84))
 is a *witness*: it carries a real compiler from the unlimited register
 machine into `L`, plus a proof that the compiled program simulates. So the
 moment somebody proves `<LANG>` complete, `<LANG>` also acquires a verified
@@ -38,7 +38,8 @@ computable function: that step is a cited classical result (Shepherdson and
 Sturgis 1963), because cslib proves no equivalence between URM-computability
 and any other model. It also says nothing about divergence, since
 `simulates` constrains halting runs only. Say both things in the docs; do
-not blur them. `computes_of_turingComplete` in `Class.lean` is the honest
+not blur them. `computes_of_turingComplete` in
+`Langlib/Common/Computability.lean` is the honest
 statement of what follows.
 
 **Choosing a representation that caps the range.** The natural instinct is
@@ -63,7 +64,9 @@ proved, not to be run.
 > **Read first, in this order:**
 > - `docs/agent-brief-completeness.md` (this brief, including the two traps)
 > - `docs/certified-compilation.md` (the pipeline and why the proof composes)
-> - `Langlib/Computability/Class.lean` (`ProgLang`, `TuringComplete`,
+> - `Langlib/Common/Compilation.lean` (`ProgLang`, and what a certified
+>   compiler is)
+> - `Langlib/Common/Computability.lean` (`TuringComplete`,
 >   `BoundedStorage`, and `computes_of_turingComplete`)
 > - **`Langlib/Computability/Whitespace.lean`**, the finished, axiom-clean
 >   instance. This is your model: match how it lays out its compiler, states

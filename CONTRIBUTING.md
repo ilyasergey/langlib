@@ -68,13 +68,30 @@ A complete language contribution consists of:
 
 ## Adding a compiler from Turpentine
 
-Compilers from Turpentine to a target esolang live in `Langlib/Languages/Turpentine/Compile/<Langname>.lean`.
-A compiler contribution must state (in the module docstring and in
+Compilers from Turpentine to a target esolang live in
+`Langlib/Languages/Turpentine/Compile/<Langname>.lean`. A compiler
+contribution must state (in the module docstring and in
 `docs/<langname>/compiler.md`) which Turpentine fragment it supports, and add
 compiler tests: each supported Turpentine example is compiled, run on the target's
 reference interpreter, and compared against the Turpentine interpreter's output.
 Verification of compilers follows the pipeline described in
 `docs/verification.md`; proofs are welcome but may land after the compiler.
+
+When you do prove one, state it as an inhabitant of one of the two
+interfaces in `Langlib/Common/Compilation.lean` rather than as a bespoke
+theorem, so that it composes with everything else:
+
+* `CertifiedCompiler spec L` preserves the *answer*. Enough for a source
+  program with no I/O; the derived compilers and both verified bespoke
+  backends are stated with it.
+* `IOCertifiedCompiler spec L` preserves the *behaviour*: the trace of
+  bytes consumed and emitted, in order, under an encoding the compiler
+  declares. It needs a `TraceLang` instance for the target — the
+  interpreter has to record its events — and it implies the first, so
+  nothing is lost by upgrading later.
+
+Both are generic in the source language and the answer type; Turpentine's
+`TurpentineCompiler` is the first at `TurpentineHaltsWith`.
 
 ## Style
 

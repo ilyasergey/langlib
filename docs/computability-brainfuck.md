@@ -10,7 +10,7 @@ def brainfuckComplete : TuringComplete BrainfuckLang
 ```
 
 `TuringComplete` is the common interface from
-[`Langlib/Computability/Class.lean`](../Langlib/Computability/Class.lean).
+[`Langlib/Common/Computability.lean`](../Langlib/Common/Computability.lean).
 The witness also supplies the completeness stage used by the verified
 Turpentine compilation pipeline described in
 [`certified-compilation.md`](certified-compilation.md).

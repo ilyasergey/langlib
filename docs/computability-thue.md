@@ -6,7 +6,7 @@ and the simulation theorem that makes it a completeness proof:
 [`thueComplete : TuringComplete ThueLang`](../Langlib/Computability/Thue.lean#L4024).
 Composing it with the shared Turpentine-to-URM pass gives a certified
 Turpentine-to-Thue compiler,
-[`derivedThue`](../Langlib/Computability/Derived.lean#L126).
+[`derivedThue`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L131).
 
 Post proved in 1947 that semi-Thue systems are universal, so the *result* is
 not news. What the esolang literature does not have is a check that the

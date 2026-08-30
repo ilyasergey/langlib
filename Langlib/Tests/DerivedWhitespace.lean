@@ -7,7 +7,7 @@ import Langlib.Languages.Subleq.Semantics
 /-!
 Tests for the certified pipeline: Turpentine → URM → Whitespace, where the
 second arrow is `whitespaceComplete`'s own compiler rather than a hand-written
-backend (`Langlib/Computability/Derived.lean`).
+backend (`Langlib/Languages/Turpentine/Compile/Derived.lean`).
 
 Three suites.
 

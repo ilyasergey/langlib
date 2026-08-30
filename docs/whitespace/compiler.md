@@ -334,7 +334,7 @@ theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
 
 `HaltsWithAnswer p n result` is the specification the library states
 compiler correctness against
-(`Langlib/Computability/Derived.lean`, via
+(`Langlib/Languages/Turpentine/Compile/Derived.lean`, via
 `Langlib.Turpentine.Compile.URM.TurpentineHaltsWith`): within fuel `n`, the
 source program halts on empty input with `result` in a variable called
 `answer`. The theorem says the compiled whitespace program then halts, for
@@ -442,7 +442,7 @@ are in `scripts/axioms.lean`.
 
 ### The derived compiler is no longer an oracle
 
-`Langlib/Computability/Derived.lean` proves `agree`: two verified compilers
+`Langlib/Languages/Turpentine/Compile/Derived.lean` proves `agree`: two verified compilers
 for one target, on a program both accept, decode the same answer. Until now
 Whitespace had one inhabitant of `TurpentineCompiler`, so `agree` had nothing
 to say. It now has two:

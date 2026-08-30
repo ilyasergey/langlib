@@ -43,7 +43,7 @@ so that `lake exe brainfuck quine.b | diff - quine.b` is empty.
 
 ## Compiled from Turpentine
 
-The [Turpentine](../../Turpentine/README.md) backend emits programs that
+The [Turpentine](../Turpentine/README.md) backend emits programs that
 expect `--eof zero`, because its `readByte` reports -1 for a zero byte and
 for end of input alike. See
 [docs/brainfuck/compiler.md](../../../docs/brainfuck/compiler.md).

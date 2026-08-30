@@ -8,7 +8,7 @@ import Langlib.Languages.Turpentine.Semantics
 The front half of langlib's certified pipeline: one compiler from Turpentine
 into cslib's unlimited register machine, proved once, so that every language
 with a `TuringComplete` witness gets a verified Turpentine compiler by
-composition (`Langlib/Computability/Derived.lean`).
+composition (`Langlib/Languages/Turpentine/Compile/Derived.lean`).
 
 ## The machine, and what it forces
 
@@ -145,7 +145,7 @@ representation would start.
 program halts within some fuel bound with `result` in `answer`, the compiled
 URM program halts with `result` in register 0. That is exactly the
 *hypothesis* of `TuringComplete.simulates`, which is why
-`Langlib/Computability/Derived.lean` can compose the two without glue.
+`Langlib/Languages/Turpentine/Compile/Derived.lean` can compose the two without glue.
 -/
 
 namespace Langlib.Turpentine.Compile.URM
@@ -3979,7 +3979,7 @@ fuel bound with `result` in `answer`, the compiled URM program halts with
 `result` in register 0.
 
 This is exactly the *hypothesis* of `TuringComplete.simulates`, so
-`Langlib/Computability/Derived.lean` composes the two with no glue: the URM
+`Langlib/Languages/Turpentine/Compile/Derived.lean` composes the two with no glue: the URM
 program disappears from the statement and what is left is a verified
 compiler from Turpentine into every language with a completeness witness. -/
 theorem compileToURM_correct

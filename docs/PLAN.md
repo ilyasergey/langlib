@@ -196,9 +196,45 @@ shared correctness statement (forward simulation on halting runs, with
 observable behaviour a byte stream), the per-backend proof structure (a
 state relation plus per-construct simulation lemmas over shared fuel
 machinery in `Langlib/Common/`), and the order: whitespace, then subleq,
-then brainfuck, with ook free from brainfuck. No proofs yet; the
-differential compiler tests are the current evidence, and
+then brainfuck, with ook free from brainfuck. Two backends are now proved
+over fragments (`bespokeSubleq`, `bespokeWhitespace`) and
 `verification.md` carries the scoreboard.
+
+### The statement is now a definition `[~]`
+
+`Langlib/Common/Compilation.lean` holds both notions of correct
+compilation, generic in the source language, the answer type and the
+target:
+
+* `CertifiedCompiler spec L` — answer preservation. Everything proved in
+  the library today is stated with it, including every derived compiler and
+  both bespoke ones.
+* `IOCertifiedCompiler spec L` — behaviour preservation. A run's
+  observable behaviour is a `Trace` of interleaved input and output events
+  (`Langlib/Common/Io.lean`); a compiled program must reproduce the
+  source's trace under an encoding the compiler declares, as well as its
+  answer. `IOCertifiedCompiler.toCertified` proves it implies the weaker
+  notion, so an upgrade reproves nothing.
+
+Nothing inhabits `IOCertifiedCompiler` yet, and that is deliberate: the
+prerequisite is per-language, not per-compiler.
+
+**Next, in order:**
+
+1. **`TraceLang` instances.** A language opts into behavioural reasoning by
+   reporting the events of a run, subject to two laws tying the report back
+   to the interpreter. FRACTRAN has one for free (`TraceLang.ofInputFree`,
+   since its `run` provably ignores the input stream). The rest need the
+   interpreter to record events, which is a change to the shape of a
+   small-step semantics: subleq and whitespace first, since those are the
+   backends already proved answer-correct.
+2. **Upgrade `bespokeSubleq`.** `encodeTrace` is the identity there, so it
+   is the cheapest first behavioural result in the library.
+3. **Upgrade `bespokeWhitespace`**, where `encodeTrace` has real content:
+   whitespace's I/O is line-oriented and numeric.
+
+The derived compilers are out of scope for the upgrade and always will be:
+`TurpentineHaltsWith` is I/O-free because the URM is.
 
 ## Stage 7: website `[ ]`
 
@@ -252,7 +288,9 @@ exhibit the bound and conclude that its halting problem is decidable.
 The claims in the table below must not be eleven unrelated theorems. They
 should be eleven instances of two definitions, so that "LangLib proves X
 is Turing complete" means the same thing every time and the reader learns
-the shape once. Concretely, in `Langlib/Computability/`:
+the shape once. Concretely, in `Langlib/Common/Compilation.lean` (the
+language, and correct compilation) and `Langlib/Common/Computability.lean`
+(the computational class):
 
 **A language is a package of syntax and semantics.** Every interpreter in
 the library already has this shape, so the class is a formality that makes

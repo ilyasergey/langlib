@@ -82,6 +82,38 @@ brainfuck's fixed-width cells, and so on). Each compiler already computes
 it: `compile` returns `Except.error` outside its fragment, so the predicate
 is `(C P).isOk`, and the theorem is stated against the successful case.
 
+### Where this lives in Lean
+
+The sketch above is now a definition rather than prose:
+[`IOCertifiedCompiler`](../Langlib/Common/Compilation.lean#L212) in
+`Langlib/Common/Compilation.lean`, generic in the source language, the
+answer type and the target. It differs from the sketch in two ways, both
+strengthenings.
+
+*The observation is a trace, not an output.* Comparing `output` says the
+two runs printed the same bytes; it says nothing about what they *read*, so
+a compiled program that ignored its input and printed the right answer
+would pass. A `Trace` records consumption and emission as interleaved
+events, so the statement pins down how much of the stream was used and in
+what order relative to the printing.
+
+*The target's stream and events are the source's under a declared
+encoding.* The sketch runs both programs on the same `Input` and demands
+identical output, which only makes sense for a backend that passes bytes
+through unchanged. `encodeInput` and `encodeTrace` are the compiler's own
+declaration of how it re-represents I/O — the identity for a byte-for-byte
+backend, something explicit for whitespace's line-oriented numbers — so a
+re-encoding backend states a real theorem instead of a weakened one.
+
+What it does *not* strengthen is the halting hypothesis: divergence is
+still unconstrained, and "Later" below is still where that is owed. The
+weaker, answer-only
+[`CertifiedCompiler`](../Langlib/Common/Compilation.lean#L96) is what every
+result in the table below is stated with today, and
+[`toCertified`](../Langlib/Common/Compilation.lean#L253) proves the
+behavioural statement implies it, so a backend can be upgraded without
+reproving anything that already rests on it.
+
 ## How each proof is structured
 
 Every backend proof factors the same way, which is the point of routing all
@@ -270,18 +302,24 @@ data rather than as prose: the compiler's own `Except.error` is the
 fragment. The table below is the scoreboard; update it in the same commit
 as the proof.
 
-| Backend | Effective compiler | Simulation | End-to-end theorem | Derived compiler |
-|---------|--------------------|------------|--------------------|------------------|
-| whitespace | yes | [yes](../Langlib/Computability/BespokeWhitespace.lean#L3246) | [yes, scalar fragment](../Langlib/Computability/BespokeWhitespace.lean#L3246) | [yes](../Langlib/Computability/Derived.lean#L107) |
-| subleq | yes | [yes](../Langlib/Computability/BespokeSubleq.lean#L629) | [yes, two shapes](../Langlib/Computability/BespokeSubleq.lean#L629) | [yes](../Langlib/Computability/Derived.lean#L111) |
-| brainfuck | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L115) |
-| fractran | - | - | - | [yes](../Langlib/Computability/Derived.lean#L120) |
-| thue | - | - | - | [yes](../Langlib/Computability/Derived.lean#L126) |
-| piet | - | - | - | [yes](../Langlib/Computability/Derived.lean#L132) |
-| ook | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L138) |
-| brainloller | yes | - | - | [yes](../Langlib/Computability/Derived.lean#L143) |
-| deadfish | - | - | - | n/a (not complete) |
-| malbolge | - | - | - | n/a (not complete) |
+| Backend | Effective compiler | Simulation | End-to-end theorem | Derived compiler | Behavioural (I/O) |
+|---------|--------------------|------------|--------------------|------------------|-------------------|
+| whitespace | yes | [yes](../Langlib/Computability/BespokeWhitespace.lean#L3247) | [yes, scalar fragment](../Langlib/Computability/BespokeWhitespace.lean#L3247) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L112) | - |
+| subleq | yes | [yes](../Langlib/Computability/BespokeSubleq.lean#L630) | [yes, two shapes](../Langlib/Computability/BespokeSubleq.lean#L630) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L116) | - |
+| brainfuck | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L120) | - |
+| fractran | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L125) | n/a (no I/O) |
+| thue | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L131) | - |
+| piet | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L137) | - |
+| ook | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L143) | - |
+| brainloller | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L148) | - |
+| deadfish | - | - | - | n/a (not complete) | - |
+| malbolge | - | - | - | n/a (not complete) | - |
+
+The last column is empty on purpose. Nothing inhabits
+`IOCertifiedCompiler` yet, and the first step for any row is not a proof
+but a `TraceLang` instance: the interpreter has to record its events.
+FRACTRAN has one already, for free, because its `run` provably ignores the
+input stream — which is also why its cell says `n/a` rather than `-`.
 
 Fuel monotonicity dropped out of the scoreboard: both proofs use the
 exact-cost `Langlib.Common.Reaches` and never needed it.

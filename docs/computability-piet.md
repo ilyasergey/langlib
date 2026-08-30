@@ -3,10 +3,10 @@
 LangLib contains a total runnable URM-to-Piet compiler that accepts
 arbitrary `J` instructions, including backward jumps, and the simulation
 theorem that makes it a completeness proof:
-[`pietComplete : TuringComplete PietLang`](../Langlib/Computability/Piet.lean#L3990).
+[`pietComplete : TuringComplete PietLang`](../Langlib/Computability/Piet.lean#L3992).
 Composing it with the shared Turpentine-to-URM pass gives a certified
 Turpentine-to-Piet compiler,
-[`derivedPiet`](../Langlib/Computability/Derived.lean#L132).
+[`derivedPiet`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L137).
 
 The claim is not that Piet is universal — that has never been in doubt, and
 the esolang wiki has said so since 2002. The claim is that *this image*,

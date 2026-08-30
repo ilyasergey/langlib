@@ -1,7 +1,7 @@
 # Compiling Turpentine to Piet
 
 * **Status**: a *derived*, certified compiler exists
-  ([`derivedPiet`](../../Langlib/Computability/Derived.lean#L132)); the
+  ([`derivedPiet`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L137)); the
   bespoke one is planned, not started.
 * **Family**: StackIR (see `docs/PLAN.md`, Stage 4), shared with
   whitespace.
@@ -11,7 +11,7 @@
 
 ## What already exists
 
-[`pietComplete`](../../Langlib/Computability/Piet.lean#L3990) compiles an
+[`pietComplete`](../../Langlib/Computability/Piet.lean#L3992) compiles an
 arbitrary register machine into a codel grid and proves the simulation
 against `evalGrid`, so composing it with the shared Turpentine-to-URM pass
 gives a verified Turpentine-to-Piet compiler today. It has the limits every

@@ -593,7 +593,7 @@ nobody has to guess.
 ### What is proved
 
 `bespokeSubleq : TurpentineCompiler SubleqLang` is a second inhabitant of the
-structure that `Langlib/Computability/Derived.lean` defines, next to the
+structure that `Langlib/Languages/Turpentine/Compile/Derived.lean` defines, next to the
 `derivedSubleq` obtained from the subleq completeness proof. Inhabiting it
 means discharging its `correct` field:
 

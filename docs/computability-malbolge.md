@@ -62,7 +62,7 @@ type would be infinite and could not satisfy that injection.
 The fix is to ask for the laws where they are used. Reading the proof of
 `BoundedStorage.halts_iff_search` shows it only ever applies `index_lt` and
 `index_inj` to `configOf` values, never to arbitrary inhabitants, so
-`Langlib/Computability/Class.lean` now also defines `BoundedRun`, whose two
+`Langlib/Common/Computability.lean` now also defines `BoundedRun`, whose two
 finiteness fields are stated at reachable configurations:
 
 ```lean

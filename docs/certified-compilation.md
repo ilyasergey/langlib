@@ -12,16 +12,21 @@ engineering.
 
 | Definition | File |
 |---|---|
-| `ProgLang`, the class of runnable languages | [Class.lean:41](../Langlib/Computability/Class.lean#L41) |
-| `computes_of_turingComplete`, the bridge to cslib | [Class.lean](../Langlib/Computability/Class.lean) |
-| `TurpentineCompiler`, a compiler bundled with its proof | [Derived.lean:61](../Langlib/Computability/Derived.lean#L61) |
-| **`derived`**, the general correctness theorem | [Derived.lean:89](../Langlib/Computability/Derived.lean#L89) |
-| `derivedWhitespace`, `derivedSubleq`, `derivedBrainfuck`, `derivedFractran`, `derivedThue`, `derivedPiet`, the instances | [Derived.lean](../Langlib/Computability/Derived.lean) |
-| `agree`, two compilers give one answer | [Derived.lean:153](../Langlib/Computability/Derived.lean#L153) |
+| `ProgLang`, the class of runnable languages | [Compilation.lean:71](../Langlib/Common/Compilation.lean#L71) |
+| **`CertifiedCompiler`**, correct compilation, generically | [Compilation.lean:96](../Langlib/Common/Compilation.lean#L96) |
+| `Trace` and `Event`, a run's observable behaviour | [Io.lean:107](../Langlib/Common/Io.lean#L107) |
+| `TraceLang`, a language that reports its events | [Compilation.lean:162](../Langlib/Common/Compilation.lean#L162) |
+| **`IOCertifiedCompiler`**, correct compilation with I/O | [Compilation.lean:212](../Langlib/Common/Compilation.lean#L212) |
+| `IOCertifiedCompiler.toCertified`, the implication | [Compilation.lean:253](../Langlib/Common/Compilation.lean#L253) |
+| `computes_of_turingComplete`, the bridge to cslib | [Computability.lean](../Langlib/Common/Computability.lean) |
+| `TurpentineCompiler`, that interface at Turpentine's spec | [Derived.lean:80](../Langlib/Languages/Turpentine/Compile/Derived.lean#L80) |
+| **`derived`**, the general correctness theorem | [Derived.lean:94](../Langlib/Languages/Turpentine/Compile/Derived.lean#L94) |
+| `derivedWhitespace`, `derivedSubleq`, `derivedBrainfuck`, `derivedFractran`, `derivedThue`, `derivedPiet`, the instances | [Derived.lean](../Langlib/Languages/Turpentine/Compile/Derived.lean) |
+| `agree`, two compilers give one answer | [Derived.lean:159](../Langlib/Languages/Turpentine/Compile/Derived.lean#L159) |
 | `compileToURM_correct`, the shared first hop | [Compile/URM.lean:3985](../Langlib/Languages/Turpentine/Compile/URM.lean#L3985) |
-| **`TuringComplete`**, the completeness claim | [Class.lean:81](../Langlib/Computability/Class.lean#L81) |
-| `BoundedStorage`, the incompleteness claim | [Class.lean:184](../Langlib/Computability/Class.lean#L184) |
-| `halts_iff_search`, decidability from a bound | [Class.lean:247](../Langlib/Computability/Class.lean#L247) |
+| **`TuringComplete`**, the completeness claim | [Computability.lean:84](../Langlib/Common/Computability.lean#L84) |
+| `BoundedStorage`, the incompleteness claim | [Computability.lean:187](../Langlib/Common/Computability.lean#L187) |
+| `halts_iff_search`, decidability from a bound | [Computability.lean:250](../Langlib/Common/Computability.lean#L250) |
 | `whitespaceComplete`, a proved instance | [Whitespace.lean:1117](../Langlib/Computability/Whitespace.lean#L1117) |
 | `subleqComplete`, a proved instance | [Subleq.lean](../Langlib/Computability/Subleq.lean) |
 | its compiler, `compile` | [Whitespace.lean:126](../Langlib/Computability/Whitespace.lean#L126) |
@@ -31,15 +36,15 @@ engineering.
 | **`compileToURM`**, Turpentine to the URM | [Compile/URM.lean:661](../Langlib/Languages/Turpentine/Compile/URM.lean#L661) |
 | **`compileToURM_correct`**, its simulation | [Compile/URM.lean:3985](../Langlib/Languages/Turpentine/Compile/URM.lean#L3985) |
 | `TurpentineHaltsWith`, the answer convention | [Compile/URM.lean:3970](../Langlib/Languages/Turpentine/Compile/URM.lean#L3970) |
-| `TurpentineCompiler`, the interface | [Derived.lean:61](../Langlib/Computability/Derived.lean#L61) |
-| `derived`, one construction for every target | [Derived.lean:89](../Langlib/Computability/Derived.lean#L89) |
-| `derivedWhitespace` | [Derived.lean:107](../Langlib/Computability/Derived.lean#L107) |
-| `derivedSubleq` | [Derived.lean:111](../Langlib/Computability/Derived.lean#L111) |
-| `derivedBrainfuck` | [Derived.lean:115](../Langlib/Computability/Derived.lean#L115) |
-| `derivedFractran` | [Derived.lean:120](../Langlib/Computability/Derived.lean#L120) |
-| `derivedThue` | [Derived.lean:126](../Langlib/Computability/Derived.lean#L126) |
-| `derivedPiet` | [Derived.lean:132](../Langlib/Computability/Derived.lean#L132) |
-| `agree`, two compilers give one answer | [Derived.lean:153](../Langlib/Computability/Derived.lean#L153) |
+| `TurpentineCompiler`, the interface | [Derived.lean:80](../Langlib/Languages/Turpentine/Compile/Derived.lean#L80) |
+| `derived`, one construction for every target | [Derived.lean:94](../Langlib/Languages/Turpentine/Compile/Derived.lean#L94) |
+| `derivedWhitespace` | [Derived.lean:112](../Langlib/Languages/Turpentine/Compile/Derived.lean#L112) |
+| `derivedSubleq` | [Derived.lean:116](../Langlib/Languages/Turpentine/Compile/Derived.lean#L116) |
+| `derivedBrainfuck` | [Derived.lean:120](../Langlib/Languages/Turpentine/Compile/Derived.lean#L120) |
+| `derivedFractran` | [Derived.lean:125](../Langlib/Languages/Turpentine/Compile/Derived.lean#L125) |
+| `derivedThue` | [Derived.lean:131](../Langlib/Languages/Turpentine/Compile/Derived.lean#L131) |
+| `derivedPiet` | [Derived.lean:137](../Langlib/Languages/Turpentine/Compile/Derived.lean#L137) |
+| `agree`, two compilers give one answer | [Derived.lean:159](../Langlib/Languages/Turpentine/Compile/Derived.lean#L159) |
 | its tests | [Tests/DerivedWhitespace.lean](../Langlib/Tests/DerivedWhitespace.lean), [Tests/DerivedSubleq.lean](../Langlib/Tests/DerivedSubleq.lean), [Tests/DerivedFractran.lean](../Langlib/Tests/DerivedFractran.lean), [Tests/DerivedThue.lean](../Langlib/Tests/DerivedThue.lean), [Tests/DerivedPiet.lean](../Langlib/Tests/DerivedPiet.lean) |
 | the axiom audit | [scripts/axioms.lean](../scripts/axioms.lean) |
 
@@ -71,7 +76,7 @@ first arrow. `derivedWhitespace` is the composition.
 
 ## The interface it plugs into
 
-[`Langlib/Computability/Class.lean`](../Langlib/Computability/Class.lean)
+[`Langlib/Common/Computability.lean`](../Langlib/Common/Computability.lean)
 fixes the shape:
 
 ```lean
@@ -151,24 +156,38 @@ and the compiled machine's last instruction copies it into register 0. This
 is why every printing statement is rejected: with `print` in the language
 there is a *stream* of answers and no single `Nat` for the theorem to name.
 
-### 2. `TurpentineCompiler`: one interface, many instances
+### 2. `CertifiedCompiler`: one interface, many instances
 
-[`Langlib/Computability/Derived.lean`](../Langlib/Computability/Derived.lean)
-makes "a verified compiler from Turpentine into `L`" a first-class thing, the
-way `TuringComplete L` is, so that the derived compiler and a future verified
-hand-written one are two inhabitants of one interface rather than two
-unrelated definitions:
+"A verified compiler" is not Turpentine's notion, and it is not the URM's
+either, so it does not live with either of them.
+[`Langlib/Common/Compilation.lean`](../Langlib/Common/Compilation.lean)
+makes it a first-class thing, generic in the source language, the answer
+type and the target, the way `TuringComplete L` is a first-class thing:
 
 ```lean
-structure TurpentineCompiler (L : Type) [ProgLang L] where
-  compile : Turpentine.Program → Except String (ProgLang.Prog L)
+structure CertifiedCompiler {Src Ans : Type} (spec : Src → Nat → Ans → Prop)
+    (L : Type) [ProgLang L] where
+  compile : Src → Except String (ProgLang.Prog L)
   encodeInput : Input
-  decodeOutput : ByteArray → Option Nat
-  correct : ∀ (p : Turpentine.Program) (prog : ProgLang.Prog L) (result n : Nat),
-    compile p = .ok prog → TurpentineHaltsWith p n result →
+  decodeOutput : ByteArray → Option Ans
+  correct : ∀ (p : Src) (prog : ProgLang.Prog L) (result : Ans) (n : Nat),
+    compile p = .ok prog → spec p n result →
       ∃ m,
         (ProgLang.run prog encodeInput m).exit = Exit.halted ∧
         decodeOutput (ProgLang.run prog encodeInput m).output = some result
+```
+
+`spec p n result` is read as "the source program `p`, run with fuel `n`,
+produces the answer `result`". It is a *parameter* and not a field, and that
+is the whole reason the interface is worth having: two compilers can only be
+compared when they are answerable to the same specification, and making the
+specification part of the type is what states that. Turpentine's own
+compilers are this type at Turpentine's own specification, one line in
+[`Derived.lean`](../Langlib/Languages/Turpentine/Compile/Derived.lean):
+
+```lean
+abbrev TurpentineCompiler (L : Type) [ProgLang L] :=
+  CertifiedCompiler TurpentineHaltsWith L
 ```
 
 `compile` is total, and `Except.error` names the constructs outside the
@@ -178,7 +197,16 @@ accepts exactly the fragment it can prove itself correct on.
 
 `encodeInput` is a single stream rather than a function of the program
 because `TurpentineHaltsWith` is I/O-free: the source reads nothing, so
-there is nothing for a caller to supply.
+there is nothing for a caller to supply. A compiler for a source program
+that *does* read wants the stronger interface of the next section.
+
+`Langlib/Common/Compilation.lean` imports nothing but the execution model.
+It is free of Mathlib and of cslib, deliberately, so that a hand-written
+backend can state and prove its own correctness without either of them
+reaching the interpreters. Only the *computability* half of the story —
+`TuringComplete`, `BoundedStorage`, and the bridge to cslib's vocabulary —
+needs the universal model, and that half lives next door in
+[`Langlib/Common/Computability.lean`](../Langlib/Common/Computability.lean).
 
 **A structure, not a `class`.** The point of the exercise is to have
 *several* compilers for the same target at once (a derived one and an
@@ -235,6 +263,146 @@ What the interface buys:
   Proving `Langlib/Languages/Turpentine/Compile/Whitespace.lean` correct means
   producing a second `TurpentineCompiler WhitespaceLang`, and every consumer
   keeps working.
+
+### 2b. Certified compilation with I/O
+
+`CertifiedCompiler` preserves an *answer*. It says the compiled program
+halts and prints something that decodes to the number the source computed,
+and it says nothing whatever about what the program read, what it printed
+on the way, or in what order. For the fragment `compileToURM` accepts that
+is not a loss — programs in that fragment have no I/O — but it is much too
+weak to be the library's only notion of a correct compiler. A backend that
+compiled `cat` into a program printing the right final answer and nothing
+else would satisfy it.
+
+The stronger statement needs a vocabulary for what a run observably *does*.
+[`Langlib/Common/Io.lean`](../Langlib/Common/Io.lean#L107) supplies it:
+
+```lean
+inductive Event where
+  | inp (b : UInt8)   -- a byte was consumed from the input stream
+  | out (b : UInt8)   -- a byte was emitted
+
+abbrev Trace := List Event
+```
+
+A run that does no I/O has trace `[]`, which is why the vocabulary costs
+nothing for the many langlib programs that only compute.
+
+#### A language has to opt in
+
+A `RunResult` reports the bytes a run emitted and nothing at all about the
+bytes it consumed, so it cannot be a run's observable behaviour. Traces are
+therefore extra structure a language supplies, not something derivable from
+the interpreter it already has:
+
+```lean
+class TraceLang (L : Type) [ProgLang L] where
+  trace : ProgLang.Prog L → Input → Nat → Trace
+  trace_outputs : ∀ p i n, (trace p i n).outputs = (ProgLang.run p i n).output.toList
+  trace_inputs  : ∀ p i n, (trace p i n).inputs <+: i.remaining
+```
+
+The two laws pin the output side exactly — `trace` can neither invent nor
+lose output — and constrain the input side to a prefix of what the stream
+still had to give. They do not, by themselves, force an interpreter to
+report every read it performs, and no law over a fuel-based evaluator can:
+a run that stopped at end of input is indistinguishable from one that never
+looked. A `TraceLang` instance is therefore part of a *language's*
+specification, written and reviewed next to its interpreter, and not
+something a compiler author may invent to make a proof go through.
+
+The one shortcut that is sound is a language that provably never reads.
+`TraceLang.ofInputFree` builds the instance from a proof that `run` gives
+the same answer on every input stream, and FRACTRAN — whose `run` takes an
+`Input` and never looks at it — discharges that by `rfl`. It is the
+library's first and, today, only instance.
+
+#### The compiler obligation
+
+```lean
+structure IOCertifiedCompiler {Src Ans : Type}
+    (spec : Src → Input → Nat → Trace → Ans → Prop)
+    (L : Type) [ProgLang L] [TraceLang L] where
+  compile : Src → Except String (ProgLang.Prog L)
+  encodeInput : Input → Input
+  decodeOutput : ByteArray → Option Ans
+  encodeTrace : Trace → Trace
+  correct : ∀ p prog σ τ result n,
+    compile p = .ok prog → spec p σ n τ result →
+      ∃ m,
+        (ProgLang.run prog (encodeInput σ) m).exit = Exit.halted ∧
+        decodeOutput (ProgLang.run prog (encodeInput σ) m).output = some result ∧
+        TraceLang.trace prog (encodeInput σ) m = encodeTrace τ
+```
+
+Three things changed. The specification now names the input stream `σ` and
+the trace `τ` the source performs, so it describes a *behaviour* and not
+just an answer. `encodeInput` became a function of that stream, because
+there is now something for a caller to supply. And the conclusion has a
+third conjunct: the compiled program's trace is the source's, under
+`encodeTrace`.
+
+`encodeTrace` is what keeps the definition usable for more than
+byte-for-byte backends. A compiler that hands the target the same bytes the
+source read and wrote takes it to be the identity, and then the third
+conjunct reads literally "same behaviour". A compiler that changes the
+representation — whitespace's line-oriented numeric I/O, a Piet image that
+prints a decimal numeral — says so *here*, once, in the compiler's own data,
+instead of quietly weakening the theorem where nobody will look for it. It
+is a function of the trace alone, so it cannot depend on the program, the
+answer or the fuel: the encoding is a property of the compilation scheme,
+not an excuse.
+
+#### The implication, and what it is for
+
+```lean
+def IOCertifiedCompiler.toCertified (c : IOCertifiedCompiler spec L) (σ : Input) :
+    CertifiedCompiler (specErase spec σ) L
+```
+
+where `specErase spec σ p n a := ∃ τ, spec p σ n τ a` is the answer-only
+specification an I/O-aware one refines: fix the input stream, forget which
+events happened, keep that some run produced the answer. There is a second
+form, `toCertifiedOf`, that takes the answer-only specification a backend
+was *already* proved against plus a proof that the I/O-aware one accounts
+for every run it describes.
+
+This is the migration path, and it is the reason the two notions coexist
+rather than one replacing the other. Everything the library has proved so
+far — `derived` and its seven instances, `bespokeSubleq`, `bespokeWhitespace`,
+`agree` — is stated for `CertifiedCompiler`. When a backend is upgraded to
+the behavioural statement, none of that has to be reproved: `toCertified`
+hands the old results back.
+
+Two consequences come for free with the stronger notion:
+
+* `IOCertifiedCompiler.output_eq`: the compiled run's output bytes are
+  determined by the source trace, which is exactly the information the
+  answer-only statement throws away.
+* `IOCertifiedCompiler.agree`: two behaviourally verified compilers for one
+  target, encoding traces the same way, agree on the trace as well as on the
+  answer.
+
+#### What is not claimed
+
+No `IOCertifiedCompiler` is inhabited yet, and the definitions above say so
+honestly rather than being quietly satisfied by a weak instance. The derived
+compilers cannot be upgraded — `TurpentineHaltsWith` is I/O-free, because
+the URM is — so the candidates are the hand-written backends, which do
+compile Turpentine's `read` and `print`:
+
+| Backend | What is proved today | What the upgrade needs |
+|---|---|---|
+| [Whitespace](../Langlib/Languages/Turpentine/Compile/Whitespace.lean) | `CertifiedCompiler`, scalar fragment | a `TraceLang Whitespace` instance; `encodeTrace` for line-oriented numeric I/O |
+| [Subleq](../Langlib/Languages/Turpentine/Compile/Subleq.lean) | `CertifiedCompiler`, two shapes | a `TraceLang Subleq` instance; `encodeTrace` is the identity |
+| [Brainfuck](../Langlib/Languages/Turpentine/Compile/Brainfuck.lean) | tested, not proved | the correctness proof first |
+| [Ook!](../Langlib/Languages/Turpentine/Compile/Ook.lean), [Brainloller](../Langlib/Languages/Turpentine/Compile/Brainloller.lean) | tested, not proved | Brainfuck's, then re-encoding |
+
+Every one of those starts with the same piece of work: the interpreter has
+to record its events. That is a change to the shape of a small-step
+semantics, not a proof, and it is scheduled in [PLAN.md](PLAN.md) rather
+than done here.
 
 ### 3. The theorem, and why it composes
 
@@ -347,12 +515,22 @@ assumptions fails at once.
   width, and the theorem needs either a representability side condition in
   the fragment predicate or a wrapping source semantics to match.
 
+The first two of those four now have a formal home. `IOCertifiedCompiler`
+(section 2b) is exactly "the observation is a stream of events, and the
+input stream is a parameter", written generically so that every backend
+states it the same way. The last two it does not address: it inherits the
+halting hypothesis, so divergence is still unconstrained, and it says
+nothing about cell widths. Those remain open, and
+[verification.md](verification.md) is where they are argued.
+
 None of this is wrong with the current statement; it is what the current
-statement was scoped to. The two are not in competition either: the
-stream-level theorem, restricted to programs that read nothing and print
-nothing and carry the `answer` convention, *implies* the answer-level
-field, so a verified bespoke backend still yields a `TurpentineCompiler`
-instance and the [`agree`](../Langlib/Computability/Derived.lean#L153)
+statement was scoped to. The two are not in competition either, and that is
+a theorem rather than a hope:
+[`IOCertifiedCompiler.toCertified`](../Langlib/Common/Compilation.lean#L253)
+turns the stream-level statement into the answer-level one, so a bespoke
+backend verified behaviourally still yields a `TurpentineCompiler`
+inhabitant and the
+[`agree`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L159)
 corollary still fires. It fires on the overlap, which is the I/O-free
 fragment, and says nothing about the programs that made the stronger
 theorem necessary.
@@ -626,7 +804,7 @@ So what is left, in order:
 
    The hypothesis cannot be weakened to dodge that.
    `TurpentineHaltsWith`'s shape is fixed by
-   [`TurpentineCompiler.correct`](../Langlib/Computability/Derived.lean),
+   [`TurpentineCompiler.correct`](../Langlib/Languages/Turpentine/Compile/Derived.lean),
    so a side condition like "no intermediate goes negative" cannot be
    added to it without changing that field, and restating it over a
    second interpreter would quietly change what the theorem claims about
@@ -704,7 +882,7 @@ So what is left, in order:
    | .ok (_, inputs) => tc.encodeInput inputs | .error _ => tc.encodeInput []`,
    and thread the same `inputs` through `correct` and through `agree`. That
    is a change to
-   [`Derived.lean`](../Langlib/Computability/Derived.lean) and to its two
+   [`Derived.lean`](../Langlib/Languages/Turpentine/Compile/Derived.lean) and to its two
    consumers' call sites, not to the register machine and not to any
    completeness witness. Until it lands, `compileToURM` keeps returning
    `[]` and `compileToURM_inputs` stays true, which is why the input half
@@ -1165,11 +1343,17 @@ Output:
 'Langlib.Turpentine.Compile.URM.reaches_orCode' depends on axioms: [propext, Quot.sound]
 'Langlib.Turpentine.Compile.URM.reaches_divModCode' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Langlib.Turpentine.Compile.URM.binCode_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
-'Langlib.Computability.derived' depends on axioms: [propext, Classical.choice, Quot.sound]
-'Langlib.Computability.derivedWhitespace' depends on axioms: [propext, Classical.choice, Quot.sound]
-'Langlib.Computability.derivedSubleq' depends on axioms: [propext, Classical.choice, Quot.sound]
-'Langlib.Computability.derivedFractran' depends on axioms: [propext, Classical.choice, Quot.sound]
-'Langlib.Computability.agree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.derived' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.derivedWhitespace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.derivedSubleq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.derivedFractran' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Turpentine.Compile.agree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Langlib.Common.CertifiedCompiler.agree' does not depend on any axioms
+'Langlib.Common.IOCertifiedCompiler.toCertified' depends on axioms: [propext]
+'Langlib.Common.IOCertifiedCompiler.toCertifiedOf' depends on axioms: [propext]
+'Langlib.Common.IOCertifiedCompiler.output_eq' depends on axioms: [propext]
+'Langlib.Common.IOCertifiedCompiler.agree' depends on axioms: [propext]
+'Langlib.Common.TraceLang.ofInputFree' depends on axioms: [propext, Quot.sound]
 'Langlib.Turpentine.Compile.URM.layoutFrom_spec' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Langlib.Turpentine.Compile.URM.goodSlots_of_layout' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Langlib.Turpentine.Compile.URM.reaches_dispatchT' depends on axioms: [propext, Quot.sound]
@@ -1189,7 +1373,11 @@ declaration rests on since it emits no code.
 The script covers every completeness result in the library; those are the
 lines for the certified pipeline. A shorter list than the three is fine and
 means only that the proof did not need the rest: `compileToURM` is a
-computation, so it uses `propext` alone.
+computation, so it uses `propext` alone, and the generic results in
+`Langlib/Common/Compilation.lean` are so nearly definitional that
+`CertifiedCompiler.agree` needs no axiom at all — which is what one wants
+from an interface, since anything it *did* need would be inherited by every
+compiler in the library.
 
 Add a line to it for every new instance. Anything beyond those three
 axioms, `sorryAx` above all, means the result is not what it claims.

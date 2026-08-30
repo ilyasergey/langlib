@@ -5,7 +5,7 @@ import Batteries.Tactic.OpenPrivate
 /-!
 # The hand-written Turpentine-to-Subleq backend, verified on a fragment
 
-`Langlib/Computability/Derived.lean` defines `TurpentineCompiler L`, the type
+`Langlib/Languages/Turpentine/Compile/Derived.lean` defines `TurpentineCompiler L`, the type
 of verified Turpentine compilers, and inhabits it by composing the shared
 `compileToURM` pass with a completeness witness. Every inhabitant built that
 way is *derived*: no new proof is written, and the program that comes out is
