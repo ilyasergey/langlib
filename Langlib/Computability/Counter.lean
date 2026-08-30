@@ -130,6 +130,127 @@ theorem Ev.mono {R R' : Nat} (hRR : R ≤ R') {code : Code} {s t : CState}
   | loopZ hr hz _ ih => exact Ev.loopZ (lt_of_lt_of_le hr hRR) hz ih
   | loopS hr hnz _ ih => exact Ev.loopS (lt_of_lt_of_le hr hRR) hnz ih
 
+/-! ## The same relation, with a step count
+
+A backend that compiles `loop r b` to a fixed point cannot recurse on the
+`Ev` derivation directly. Its `loopS` premise is a derivation for
+`b ++ Cmd.loop r b :: cs`, and what the proof needs are the two halves of
+that concatenation, which are not subderivations. `EvN` is `Ev` with a
+counter that strictly decreases up the derivation, so a proof can recurse on
+a natural number instead, and `EvN.split` provides the halves with a smaller
+count than the whole.
+
+Nothing else in the library needs this; `Ev` remains the relation the
+compilers are stated about, and `Ev.toEvN` is the only bridge required.
+-/
+
+/-- `Ev` with a step count. -/
+inductive EvN (R : Nat) : Nat → Code → CState → CState → Prop where
+  | nil {s : CState} : EvN R 0 [] s s
+  | inc {r n : Nat} {cs : Code} {s t : CState} (h : r < R) :
+      EvN R n cs (s.up r) t → EvN R (n + 1) (Cmd.inc r :: cs) s t
+  | dec {r n : Nat} {cs : Code} {s t : CState} (h : r < R) (hnz : s.regs r ≠ 0) :
+      EvN R n cs (s.down r) t → EvN R (n + 1) (Cmd.dec r :: cs) s t
+  | emit {n : Nat} {cs : Code} {s t : CState} :
+      EvN R n cs s.emitOne t → EvN R (n + 1) (Cmd.emit :: cs) s t
+  | loopZ {r n : Nat} {b cs : Code} {s t : CState} (h : r < R) (hz : s.regs r = 0) :
+      EvN R n cs s t → EvN R (n + 1) (Cmd.loop r b :: cs) s t
+  | loopS {r n : Nat} {b cs : Code} {s t : CState} (h : r < R) (hnz : s.regs r ≠ 0) :
+      EvN R n (b ++ Cmd.loop r b :: cs) s t → EvN R (n + 1) (Cmd.loop r b :: cs) s t
+
+/-- Every derivation has a count. -/
+theorem Ev.toEvN {R : Nat} {c : Code} {s t : CState} (h : Ev R c s t) :
+    ∃ n, EvN R n c s t := by
+  induction h with
+  | nil => exact ⟨0, .nil⟩
+  | inc h _ ih => obtain ⟨n, hn⟩ := ih; exact ⟨n + 1, .inc h hn⟩
+  | dec h hnz _ ih => obtain ⟨n, hn⟩ := ih; exact ⟨n + 1, .dec h hnz hn⟩
+  | emit _ ih => obtain ⟨n, hn⟩ := ih; exact ⟨n + 1, .emit hn⟩
+  | loopZ h hz _ ih => obtain ⟨n, hn⟩ := ih; exact ⟨n + 1, .loopZ h hz hn⟩
+  | loopS h hnz _ ih => obtain ⟨n, hn⟩ := ih; exact ⟨n + 1, .loopS h hnz hn⟩
+
+/-- **Splitting a concatenation.** The two halves cost no more between them
+than the whole did, which is what lets a proof recurse on the count. -/
+theorem EvN.split {R : Nat} : ∀ {n : Nat} {c : Code} {s t : CState}, EvN R n c s t →
+    ∀ (c₁ c₂ : Code), c = c₁ ++ c₂ →
+      ∃ (u : CState) (n₁ n₂ : Nat),
+        EvN R n₁ c₁ s u ∧ EvN R n₂ c₂ u t ∧ n₁ + n₂ ≤ n := by
+  intro n c s t h
+  induction h with
+  | @nil s =>
+    intro c₁ c₂ hc
+    have h₁ : c₁ = [] := by
+      cases c₁ with
+      | nil => rfl
+      | cons a as => simp at hc
+    have h₂ : c₂ = [] := by
+      cases c₁ with
+      | nil => simpa using hc.symm
+      | cons a as => simp at hc
+    subst h₁; subst h₂
+    exact ⟨s, 0, 0, .nil, .nil, by omega⟩
+  | @inc r n cs s t hr hbody ih =>
+    intro c₁ c₂ hc
+    cases c₁ with
+    | nil =>
+      simp only [List.nil_append] at hc
+      subst hc
+      exact ⟨s, 0, n + 1, .nil, EvN.inc hr hbody, by omega⟩
+    | cons a as =>
+      simp only [List.cons_append, List.cons.injEq] at hc
+      obtain ⟨rfl, hcs⟩ := hc
+      obtain ⟨u, n₁, n₂, h₁, h₂, hle⟩ := ih as c₂ hcs
+      exact ⟨u, n₁ + 1, n₂, .inc hr h₁, h₂, by omega⟩
+  | @dec r n cs s t hr hnz hbody ih =>
+    intro c₁ c₂ hc
+    cases c₁ with
+    | nil =>
+      simp only [List.nil_append] at hc
+      subst hc
+      exact ⟨s, 0, n + 1, .nil, EvN.dec hr hnz hbody, by omega⟩
+    | cons a as =>
+      simp only [List.cons_append, List.cons.injEq] at hc
+      obtain ⟨rfl, hcs⟩ := hc
+      obtain ⟨u, n₁, n₂, h₁, h₂, hle⟩ := ih as c₂ hcs
+      exact ⟨u, n₁ + 1, n₂, .dec hr hnz h₁, h₂, by omega⟩
+  | @emit n cs s t hbody ih =>
+    intro c₁ c₂ hc
+    cases c₁ with
+    | nil =>
+      simp only [List.nil_append] at hc
+      subst hc
+      exact ⟨s, 0, n + 1, .nil, EvN.emit hbody, by omega⟩
+    | cons a as =>
+      simp only [List.cons_append, List.cons.injEq] at hc
+      obtain ⟨rfl, hcs⟩ := hc
+      obtain ⟨u, n₁, n₂, h₁, h₂, hle⟩ := ih as c₂ hcs
+      exact ⟨u, n₁ + 1, n₂, .emit h₁, h₂, by omega⟩
+  | @loopZ r n b cs s t hr hz hbody ih =>
+    intro c₁ c₂ hc
+    cases c₁ with
+    | nil =>
+      simp only [List.nil_append] at hc
+      subst hc
+      exact ⟨s, 0, n + 1, .nil, EvN.loopZ hr hz hbody, by omega⟩
+    | cons a as =>
+      simp only [List.cons_append, List.cons.injEq] at hc
+      obtain ⟨rfl, hcs⟩ := hc
+      obtain ⟨u, n₁, n₂, h₁, h₂, hle⟩ := ih as c₂ hcs
+      exact ⟨u, n₁ + 1, n₂, .loopZ hr hz h₁, h₂, by omega⟩
+  | @loopS r n b cs s t hr hnz hbody ih =>
+    intro c₁ c₂ hc
+    cases c₁ with
+    | nil =>
+      simp only [List.nil_append] at hc
+      subst hc
+      exact ⟨s, 0, n + 1, .nil, EvN.loopS hr hnz hbody, by omega⟩
+    | cons a as =>
+      simp only [List.cons_append, List.cons.injEq] at hc
+      obtain ⟨rfl, hcs⟩ := hc
+      subst hcs
+      obtain ⟨u, n₁, n₂, h₁, h₂, hle⟩ := ih (b ++ Cmd.loop r b :: as) c₂ (by simp)
+      exact ⟨u, n₁ + 1, n₂, .loopS hr hnz h₁, h₂, by omega⟩
+
 /-! ## Counter-machine macros
 
 Each macro comes with a lemma of one shape: from any register file `w` it

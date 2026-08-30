@@ -26,6 +26,7 @@ set_option linter.constructorNameAsVariable false
 
 open Langlib.Common
 open Langlib.Unlambda
+open Langlib.Computability.Counter
 
 /-! ## A big-step semantics for the pure fragment
 
@@ -1405,4 +1406,322 @@ theorem loopE_succ {r j : Nat} {B : Expr} (hB : noVars B = true)
   rw [harg] at h
   exact h
 
+/-! ## Compiling the counter machine
+
+Each of the four commands becomes a function from the register file to the
+register file, and a program is their composition. Output is the one place
+where a builtin does the work directly: `.x` prints its byte and returns its
+argument, so `emit` compiles to a single character.
+
+Every byte the compiled program prints is the same one, so the answer is the
+length of the output. That is what `counterProgram` was built to deliver: it
+ends by emitting one byte per unit of register 0.
+-/
+
+/-- The byte a compiled program prints, once per unit of the answer. -/
+def outByte : UInt8 := 42
+
+/-- `fun l => F (G l)`. -/
+def compE (F G : Expr) : Expr := lam 3 (.app F (.app G (.var 3)))
+
+/-- The compiler. -/
+def codeE : Code → Expr
+  | [] => .I
+  | Cmd.inc r :: cs => compE (codeE cs) (setE r succF)
+  | Cmd.dec r :: cs => compE (codeE cs) (setE r predF)
+  | Cmd.emit :: cs => compE (codeE cs) (.dot outByte)
+  | Cmd.loop r b :: cs => compE (codeE cs) (loopE r (codeE b))
+termination_by c => sizeOf c
+decreasing_by all_goals simp_wf <;> omega
+
+theorem compE_noVars {F G : Expr} (hF : noVars F = true) (hG : noVars G = true) :
+    noVars (compE F G) = true := by
+  refine lam_noVars 3 ?_
+  simp [varsIn, varsIn_of_noVars hF, varsIn_of_noVars hG]
+
+@[simp] theorem codeE_nil : codeE [] = .I := by rw [codeE]
+
+@[simp] theorem codeE_inc (r : Nat) (cs : Code) :
+    codeE (Cmd.inc r :: cs) = compE (codeE cs) (setE r succF) := by rw [codeE]
+
+@[simp] theorem codeE_dec (r : Nat) (cs : Code) :
+    codeE (Cmd.dec r :: cs) = compE (codeE cs) (setE r predF) := by rw [codeE]
+
+@[simp] theorem codeE_emit (cs : Code) :
+    codeE (Cmd.emit :: cs) = compE (codeE cs) (.dot outByte) := by rw [codeE]
+
+@[simp] theorem codeE_loop (r : Nat) (b cs : Code) :
+    codeE (Cmd.loop r b :: cs) = compE (codeE cs) (loopE r (codeE b)) := by rw [codeE]
+
+theorem codeE_noVars : ∀ c : Code, noVars (codeE c) = true
+  | [] => by rw [codeE_nil]; rfl
+  | Cmd.inc r :: cs => by
+      rw [codeE_inc]
+      exact compE_noVars (codeE_noVars cs) (setE_noVars succF_noVars r)
+  | Cmd.dec r :: cs => by
+      rw [codeE_dec]
+      exact compE_noVars (codeE_noVars cs) (setE_noVars predF_noVars r)
+  | Cmd.emit :: cs => by
+      rw [codeE_emit]
+      exact compE_noVars (codeE_noVars cs) rfl
+  | Cmd.loop r b :: cs => by
+      rw [codeE_loop]
+      exact compE_noVars (codeE_noVars cs) (loopE_noVars (codeE_noVars b))
+termination_by c => sizeOf c
+decreasing_by all_goals simp_wf <;> omega
+
+theorem compE_step {F G L : Expr} (hF : noVars F = true) (hG : noVars G = true)
+    (hL : ValE L) : EqE (.app (compE F G) L) (.app F (.app G L)) := by
+  refine EqE.trans (ev_app_lam0 (compE_noVars hF hG) hL) ?_
+  have harg : subst (updE σ0 3 L) (Expr.app F (.app G (.var 3))) = .app F (.app G L) := by
+    simp [subst, updE, subst_noVars hF, subst_noVars hG]
+  rw [harg]
+  exact EqE.refl _
+
+/-! ### The register file as a list -/
+
+/-- The first `R` registers, in order. -/
+def regsList (R : Nat) (w : Nat → Nat) : List Nat := (List.range R).map w
+
+theorem regsList_getElem? {R : Nat} {w : Nat → Nat} {i : Nat} (h : i < R) :
+    (regsList R w)[i]? = some (w i) := by
+  have hlen : i < (regsList R w).length := by simpa [regsList] using h
+  rw [List.getElem?_eq_getElem hlen]
+  simp [regsList]
+
+theorem regsList_set {R : Nat} {w : Nat → Nat} {r v : Nat} (h : r < R) :
+    (regsList R w).set r v = regsList R (Function.update w r v) := by
+  refine List.ext_getElem (by simp [regsList]) (fun i h1 h2 => ?_)
+  simp only [regsList, List.getElem_set, List.getElem_map, List.getElem_range]
+  by_cases hir : i = r
+  · subst hir; simp
+  · have hri : ¬ (r = i) := fun hh => hir hh.symm
+    simp [hri, Function.update_of_ne hir]
+
+/-! ### The simulation
+
+The induction is on the step count of `Langlib.Computability.Counter.EvN`
+rather than on the derivation, because the `loopS` case needs the two halves
+of `b ++ Cmd.loop r b :: cs`, which `EvN.split` supplies with a smaller count.
+Compiled code needs no analogue of that split: the loop reappears applied to
+the file the body produced, which is exactly the second half's obligation. -/
+
+theorem codeE_spec (R : Nat) : ∀ (n : Nat) (c : Code) (s t : CState),
+    EvN R n c s t → ∀ (L : Expr), ListE (regsList R s.regs) L →
+      ∃ L' : Expr, ListE (regsList R t.regs) L' ∧ s.out ≤ t.out ∧
+        EqK (t.out - s.out) (.app (codeE c) L) L' := by
+  intro n
+  induction n using Nat.strong_induction_on with
+  | _ n ih =>
+    intro c s t h L hL
+    cases h with
+    | @nil s =>
+      refine ⟨L, hL, Nat.le_refl _, ?_⟩
+      have hk : s.out - s.out = 0 := by omega
+      rw [hk, codeE_nil]
+      exact EqK.ofE (ev_app_I L)
+    | @inc r n' cs s t hr hbody =>
+      obtain ⟨L1, hL1, hL1eq⟩ := setE_spec succF_spec r (regsList R s.regs) L hL
+        (s.regs r) (regsList_getElem? hr)
+      rw [regsList_set hr] at hL1
+      have hup : Function.update s.regs r (s.regs r + 1) = (s.up r).regs := rfl
+      rw [hup] at hL1
+      obtain ⟨L', hL', hout, heq⟩ := ih n' (by omega) cs (s.up r) t hbody L1 hL1
+      refine ⟨L', hL', by simpa using hout, ?_⟩
+      rw [codeE_inc]
+      have hstep : EqE (.app (compE (codeE cs) (setE r succF)) L)
+          (.app (codeE cs) (.app (setE r succF) L)) :=
+        compE_step (codeE_noVars cs) (setE_noVars succF_noVars r) hL.valE
+      refine EqE.transK (EqE.trans hstep (EqE.app_right hL1eq (codeE cs))) ?_
+      simpa using heq
+    | @dec r n' cs s t hr hnz hbody =>
+      obtain ⟨L1, hL1, hL1eq⟩ := setE_spec predF_spec r (regsList R s.regs) L hL
+        (s.regs r) (regsList_getElem? hr)
+      rw [regsList_set hr] at hL1
+      have hup : Function.update s.regs r (s.regs r - 1) = (s.down r).regs := rfl
+      rw [hup] at hL1
+      obtain ⟨L', hL', hout, heq⟩ := ih n' (by omega) cs (s.down r) t hbody L1 hL1
+      refine ⟨L', hL', by simpa using hout, ?_⟩
+      rw [codeE_dec]
+      have hstep : EqE (.app (compE (codeE cs) (setE r predF)) L)
+          (.app (codeE cs) (.app (setE r predF) L)) :=
+        compE_step (codeE_noVars cs) (setE_noVars predF_noVars r) hL.valE
+      refine EqE.transK (EqE.trans hstep (EqE.app_right hL1eq (codeE cs))) ?_
+      simpa using heq
+    | @emit n' cs s t hbody =>
+      have hL' : ListE (regsList R s.emitOne.regs) L := hL
+      obtain ⟨L', hLf, hout, heq⟩ := ih n' (by omega) cs s.emitOne t hbody L hL'
+      have houts : s.out + 1 ≤ t.out := by simpa using hout
+      refine ⟨L', hLf, by omega, ?_⟩
+      have hstep : EqE (.app (compE (codeE cs) (.dot outByte)) L)
+          (.app (codeE cs) (.app (.dot outByte) L)) :=
+        compE_step (codeE_noVars cs) rfl hL.valE
+      have hdot : EqK 1 (.app (.dot outByte) L) L := by
+        simpa using ev_app_dot (c := outByte) (EqK.ofE (EqE.refl L))
+      have hbody' : EqK (t.out - s.emitOne.out) (.app (codeE cs) L) L' := heq
+      have hk : t.out - s.out = 1 + (t.out - s.emitOne.out) := by
+        simp only [CState.emitOne_out]; omega
+      rw [hk, codeE_emit]
+      exact EqE.transK hstep ((EqK.app_right hdot (codeE cs)).trans hbody')
+    | @loopZ r n' b cs s t hr hz hbody =>
+      obtain ⟨L', hLf, hout, heq⟩ := ih n' (by omega) cs s t hbody L hL
+      refine ⟨L', hLf, hout, ?_⟩
+      have hx : (regsList R s.regs)[r]? = some 0 := by
+        rw [regsList_getElem? hr, hz]
+      have hloop : EqE (.app (loopE r (codeE b)) L) L :=
+        loopE_zero (codeE_noVars b) hL hx
+      have hstep : EqE (.app (compE (codeE cs) (loopE r (codeE b))) L)
+          (.app (codeE cs) (.app (loopE r (codeE b)) L)) :=
+        compE_step (codeE_noVars cs) (loopE_noVars (codeE_noVars b)) hL.valE
+      rw [codeE_loop]
+      exact EqE.transK (EqE.trans hstep (EqE.app_right hloop (codeE cs))) heq
+    | @loopS r n' b cs s t hr hnz hbody =>
+      obtain ⟨u, n₁, n₂, h₁, h₂, hle⟩ := EvN.split hbody b (Cmd.loop r b :: cs) rfl
+      obtain ⟨L1, hL1, hout1, heq1⟩ := ih n₁ (by omega) b s u h₁ L hL
+      obtain ⟨L', hLf, hout2, heq2⟩ := ih n₂ (by omega) (Cmd.loop r b :: cs) u t h₂ L1 hL1
+      refine ⟨L', hLf, by omega, ?_⟩
+      obtain ⟨j, hj⟩ : ∃ j, s.regs r = j + 1 := ⟨s.regs r - 1, by omega⟩
+      have hx : (regsList R s.regs)[r]? = some (j + 1) := by
+        rw [regsList_getElem? hr, hj]
+      have hloop : EqE (.app (loopE r (codeE b)) L)
+          (.app (loopE r (codeE b)) (.app (codeE b) L)) :=
+        loopE_succ (codeE_noVars b) hL hx
+      rw [codeE_loop] at heq2 ⊢
+      have hstep : EqE (.app (compE (codeE cs) (loopE r (codeE b))) L)
+          (.app (codeE cs) (.app (loopE r (codeE b)) L)) :=
+        compE_step (codeE_noVars cs) (loopE_noVars (codeE_noVars b)) hL.valE
+      have hstep2 : EqE (.app (codeE cs) (.app (loopE r (codeE b)) L1))
+          (.app (compE (codeE cs) (loopE r (codeE b))) L1) :=
+        EqE.symm (compE_step (codeE_noVars cs)
+          (loopE_noVars (codeE_noVars b)) hL1.valE)
+      have hinner : EqK (u.out - s.out)
+          (.app (loopE r (codeE b)) (.app (codeE b) L))
+          (.app (loopE r (codeE b)) L1) := EqK.app_right heq1 _
+      have hchain : EqK (u.out - s.out)
+          (.app (compE (codeE cs) (loopE r (codeE b))) L)
+          (.app (compE (codeE cs) (loopE r (codeE b))) L1) :=
+        EqE.transK (EqE.trans hstep (EqE.app_right hloop (codeE cs)))
+          (EqK.transE (EqK.app_right hinner (codeE cs)) hstep2)
+      have hk : t.out - s.out = (u.out - s.out) + (t.out - u.out) := by omega
+      rw [hk]
+      exact hchain.trans heq2
+
+/-! ## The compiler, and the simulation
+
+The whole compiler is one application: the compiled counter program applied
+to a register file of `R` zeros, where `R` is the bound
+`Langlib.Computability.Counter.counterProgram` needs. The URM's input vector
+is built into the program, so the compiled term ignores the input stream,
+which it has no way of reading anyway: the fragment contains no `@`.
+
+The answer comes back as the *length* of the output. `counterProgram` ends by
+emitting one byte per unit of register 0, and every byte the compiled term
+prints is `outByte`, so counting them is all the decoding there is. Unary
+output is absurd for large answers and exactly right for a proof: nothing
+about it can overflow, and the decoder needs no lemmas. -/
+
+/-- The initial register file, as a literal. -/
+def listE : List Nat → Expr
+  | [] => nilE
+  | x :: xs => consE (numE x) (listE xs)
+
+theorem listE_noVars : ∀ xs : List Nat, noVars (listE xs) = true
+  | [] => nilE_noVars
+  | x :: xs => consE_noVars (numE_noVars x) (listE_noVars xs)
+
+theorem listE_spec : ∀ xs : List Nat, ListE xs (listE xs)
+  | [] => nilE_ValE
+  | x :: xs => by
+      obtain ⟨hv, hspec⟩ := consE_spec (numE_noVars x) (listE_noVars xs)
+      exact ⟨hv, numE x, listE xs, numE_spec x, listE_spec xs, hspec⟩
+
+/-- The register bound the counter program needs. -/
+def bound (P : Cslib.URM.Program) (inputs : List Nat) : Nat :=
+  counterBound (sourceBound P inputs)
+
+/-- **The compiler.** A URM program and its input vector become one Unlambda
+term: the compiled counter program applied to a file of zeros. -/
+def compile (P : Cslib.URM.Program) (inputs : List Nat) : Term :=
+  toTerm (.app (codeE (counterProgram P inputs))
+    (listE (regsList (bound P inputs) (fun _ => 0))))
+
+/-- The compiled term reads nothing. -/
+def encodeInput (_ : List Nat) : Input := Input.empty
+
+/-- The answer is how many bytes came out. -/
+def decodeOutput (b : ByteArray) : Option Nat := some b.size
+
+/-- **The simulation.** Whenever the URM halts with `result` in register 0,
+the compiled term halts and prints exactly `result` bytes. -/
+theorem simulation (P : Cslib.URM.Program) (inputs : List Nat) (result : Nat)
+    (h : Cslib.URM.HaltsWithResult P inputs result) (inp : Input) :
+    ∃ m, (Langlib.Unlambda.evalProg (compile P inputs) inp m).exit = Exit.halted ∧
+      decodeOutput (Langlib.Unlambda.evalProg (compile P inputs) inp m).output
+        = some result := by
+  obtain ⟨w', hcounter⟩ := counterProgram_spec P inputs result h
+  obtain ⟨n, hn⟩ := hcounter.toEvN
+  obtain ⟨L', hL', _, heq⟩ := codeE_spec (bound P inputs) n (counterProgram P inputs)
+    ⟨fun _ => 0, 0⟩ ⟨w', result⟩ hn
+    (listE (regsList (bound P inputs) (fun _ => 0))) (listE_spec _)
+  obtain ⟨lv, hlv⟩ := hL'.valE
+  have hres : result - 0 = result := by omega
+  rw [hres] at heq
+  have hev : Ev (compile P inputs) result lv := by
+    refine (heq result lv).mpr ⟨0, by omega, ?_⟩
+    exact hlv.run_iff.mpr ⟨rfl, rfl⟩
+  obtain ⟨out', hsize, hreach⟩ :=
+    run_reaches hev .nil inp none ByteArray.empty
+  obtain ⟨m, hm⟩ := hreach.eval 1
+  refine ⟨m, ?_, ?_⟩
+  · simp only [Langlib.Unlambda.evalProg]
+    rw [show ({ ctl := .eval (compile P inputs) .nil, input := inp } : Mach)
+        = ⟨(Job.ev (compile P inputs)).ctl .nil, inp, none, ByteArray.empty⟩ from rfl,
+      hm]
+    rfl
+  · simp only [Langlib.Unlambda.evalProg]
+    rw [show ({ ctl := .eval (compile P inputs) .nil, input := inp } : Mach)
+        = ⟨(Job.ev (compile P inputs)).ctl .nil, inp, none, ByteArray.empty⟩ from rfl,
+      hm]
+    simp only [decodeOutput]
+    have : (Langlib.Unlambda.exec 1 ⟨.ret lv .nil, inp, none, out'⟩).1 = _ := rfl
+    simpa [Langlib.Unlambda.exec, Langlib.Unlambda.step] using
+      congrArg some (by simpa using hsize)
+
 end Langlib.Computability.URMUnlambda
+
+namespace Langlib.Computability
+
+open Langlib.Common
+
+/-- The tag type naming Unlambda for the `ProgLang` class. -/
+inductive UnlambdaLang : Type
+
+instance : ProgLang UnlambdaLang where
+  Prog := Langlib.Unlambda.Prog
+  parse := Langlib.Unlambda.parse
+  run := Langlib.Unlambda.evalProg
+
+/-- **Unlambda is Turing complete.**
+
+The witness compiles a URM program into a single application: the structured
+counter machine of `Langlib/Computability/Counter.lean`, rendered in
+combinators, applied to a register file of Scott numerals. Registers are a
+Scott list, the loop is a call-by-value fixed point, and the answer comes back
+in unary, one `*` per unit of register 0.
+
+The fragment used is `s`, `k`, `i`, `.x` and application. Unlambda's
+distinctive builtins play no part: `d` never appears, so the delay rule never
+fires; `c` never appears, so no continuation is reified; and nothing reads the
+input stream.
+
+Since the unlimited register machine computes every partial computable
+function (Shepherdson and Sturgis 1963; Cutland, *Computability*, chapter 3),
+so does Unlambda. -/
+def unlambdaComplete : TuringComplete UnlambdaLang where
+  compile := URMUnlambda.compile
+  encodeInput := URMUnlambda.encodeInput
+  decodeOutput := URMUnlambda.decodeOutput
+  simulates := fun P inputs result h =>
+    URMUnlambda.simulation P inputs result h (URMUnlambda.encodeInput inputs)
+
+end Langlib.Computability
