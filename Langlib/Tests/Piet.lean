@@ -157,6 +157,21 @@ def suite : Suite where
         input := " -5  12", expect := .outputs "7" }
     , { name := "square example", source := ex "square.ppm", input := "12",
         expect := .outputs "144" }
+      -- The four examples below are the ones with control flow: a loop is
+      -- a closed circuit through a white return corridor, and a branch is
+      -- `pointer` turning the DP into one corridor or the other.
+    , { name := "count example (a loop)", source := ex "count.ppm",
+        expect := .outputs "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n" }
+    , { name := "truth-machine example, halting on 0", source := ex "truth.ppm",
+        input := "0", expect := .outputs "0" }
+    , { name := "truth-machine example, looping on 1", source := ex "truth.ppm",
+        input := "1", fuel := 500, expect := .diverges }
+    , { name := "collatz example", source := ex "collatz.ppm", input := "6",
+        expect := .outputs "6\n3\n10\n5\n16\n8\n4\n2\n1\n" }
+    , { name := "collatz example, already at 1", source := ex "collatz.ppm",
+        input := "1", expect := .outputs "1\n" }
+    , { name := "mondrian example (the decoration is never entered)",
+        source := ex "mondrian.ppm", expect := .outputs "Piet" }
     , { name := "push and out(num); first-move CC toggle",
         source := .inline push2, expect := .outputs "2" }
     , { name := "subtract order (2 - 5)", source := .inline subtractP,
