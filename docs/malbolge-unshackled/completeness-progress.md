@@ -99,7 +99,14 @@ than by taste:
 3. **`emit`** — settled arithmetically (`step1_out`); needs its gadget.
 4. **`loop`** — the probe feeding a branch, wrapped so the body is
    re-enterable. Every ingredient exists.
-5. **The assembler** — `compile : Program → List Nat → Image`, total and
+5. **The assembler** — likely *not* new work. langlib-c9's Turpentine
+   backend (`Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean`)
+   already carries a tested one: `wordFor` places any instruction at any
+   address, `legalCell` decides what the loader accepts, and `Asm` builds
+   and renders the image. It was written for straight-line code, so it does
+   not yet exercise the two-cycle residues or the spacing law a re-enterable
+   gadget row needs, but it is the right thing to grow rather than
+   duplicate. `compile : Program → List Nat → Image`, total and
    runnable, laying gadgets out at stride 94 with data after the code. The
    *placement* half now exists and is runnable, in the straight-line
    backend `Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean`:

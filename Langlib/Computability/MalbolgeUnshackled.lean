@@ -2653,7 +2653,7 @@ theorem row_run (L : Nat) {s₀ : State} {c₀ d₀ : Nat} (isC : Nat → Bool) 
       ∧ s'.a = rowFold s₀.mem d₀ isC s₀.a L
       ∧ s'.c = Value.ofNat (c₀ + L)
       ∧ s'.d = Value.ofNat (d₀ + L)
-      ∧ (∀ j, ∀ hj : j < L, isC j = true →
+      ∧ (∀ j, j < L → isC j = true →
           s'.mem.get (Value.ofNat (d₀ + j)) = rowFold s₀.mem d₀ isC s₀.a (j + 1))
       ∧ (∀ j < L, isC j = false →
           s'.mem.get (Value.ofNat (d₀ + j)) = s₀.mem.get (Value.ofNat (d₀ + j)))
@@ -2787,7 +2787,7 @@ theorem rowFold_false (m : Memory) (d₀ : Nat) (a : Value) : ∀ L : Nat,
     simp [rowFold_false m d₀ a L]
 
 theorem two_sweep (L : Nat) {s₀ : State} {b d₀ E : Nat} (isC : Nat → Bool)
-    (w : Nat → Nat) {wJ wb wE : Nat}
+    (w : Nat → Nat) {wb wE : Nat}
     (hc : s₀.c = Value.ofNat (b + 1)) (hd : s₀.d = Value.ofNat d₀)
     (hsep : b + L + 2 ≤ d₀)
     -- the row, on entry
@@ -2819,6 +2819,8 @@ theorem two_sweep (L : Nat) {s₀ : State} {b d₀ E : Nat} (isC : Nat → Bool)
       ∧ s'.d = Value.ofNat (d₀ + 2 * L + 2)
       ∧ (∀ i < L, s'.mem.get (Value.ofNat (b + 1 + i))
           = Value.ofNat (encrypt (encrypt (w i))))
+      ∧ s'.mem.get (Value.ofNat (b + 1 + L))
+          = s₀.mem.get (Value.ofNat (b + 1 + L))
       ∧ s'.input = s₀.input ∧ s'.output = s₀.output ∧ s'.outClosed = s₀.outClosed := by
   -- sweep one
   obtain ⟨s₁, hr1, hA1, hC1, hD1, _, _, hCs1, hfr1, hin1, hout1, hoc1, hrw1, hmw1⟩ :=
@@ -2888,7 +2890,7 @@ theorem two_sweep (L : Nat) {s₀ : State} {b d₀ E : Nat} (isC : Nat → Bool)
         exact printableCode?_ofNat hEr.1 hEr.2)
   rw [hD3, show d₀ + L + 1 + L = d₀ + 2 * L + 1 by omega, hT13] at hstepJ2
   set s₄ : State := { s₃ with mem := s₃.mem.set (Value.ofNat E) (Value.ofNat (encrypt wE)), c := (Value.ofNat E).succ, d := (Value.ofNat (d₀ + 2 * L + 1)).succ } with hs₄
-  refine ⟨s₄, ?_, ?_, succ_ofNat E, ?_, ?_, ?_, ?_, ?_⟩
+  refine ⟨s₄, ?_, ?_, succ_ofNat E, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · rw [show 2 * L + 2 = (L + 1 + L) + 1 by omega, run?_add (L + 1 + L) 1,
       run?_add (L + 1) L, hr2, Option.bind_some, hr3, Option.bind_some, run?_one]
     exact hstepJ2
@@ -2900,6 +2902,9 @@ theorem two_sweep (L : Nat) {s₀ : State} {b d₀ E : Nat} (isC : Nat → Bool)
     show (s₃.mem.set (Value.ofNat E) (Value.ofNat (encrypt wE))).get
       (Value.ofNat (b + 1 + i)) = _
     rw [get_set_ne _ (ofNat_ne (hEsep i hi)), hCs3 i hi]
+  · show (s₃.mem.set (Value.ofNat E) (Value.ofNat (encrypt wE))).get
+      (Value.ofNat (b + 1 + L)) = _
+    rw [get_set_ne _ (ofNat_ne hEsep'), hJ3]
   · exact hin3.trans hin1
   · exact hout3.trans hout1
   · exact hoc3.trans hoc1
@@ -3054,13 +3059,12 @@ reads at `D + 1`. Both are placed statically. `chain_link` is one link and
 
 /-- One link: a working `crazy` cell, then a stable `jmp` to the next link.
 Two steps. -/
-theorem chain_link {s : State} {a D t : Nat} {wc wj wt : Nat}
+theorem chain_link {s : State} {a D t : Nat} {wc wt : Nat}
     (hc : s.c = Value.ofNat a) (hd : s.d = Value.ofNat D)
     (hdecC : decode (s.mem.get (Value.ofNat a)) (Value.ofNat a).modClass = .crazy)
     (hprC : printableCode? (s.mem.get (Value.ofNat a)) = some wc)
     (hdecJ : decode (s.mem.get (Value.ofNat (a + 1))) (Value.ofNat (a + 1)).modClass = .jmp)
-    (hprJ : printableCode? (s.mem.get (Value.ofNat (a + 1))) = some wj)
-    (hDne : D ≠ a) (hDne' : D + 1 ≠ a + 1) (hDne'' : D ≠ a + 1) (hD1a : D + 1 ≠ a)
+    (hDne : D ≠ a) (hDne'' : D ≠ a + 1) (hD1a : D + 1 ≠ a)
     (htgt : s.mem.get (Value.ofNat (D + 1)) = Value.ofNat t)
     (hprT : printableCode? (s.mem.get (Value.ofNat t)) = some wt)
     (htne : t ≠ a) (htne' : t ≠ D) (htne'' : t ≠ a + 1) :
@@ -3152,7 +3156,7 @@ def chainFold (m : Memory) (D : Nat) (a : Value) : Nat → Value
 operands, each operand cell keeps its intermediate, each `crazy` cell is
 encrypted once, and **every `jmp` cell comes back unchanged**, which is
 what lets the chain be entered again. -/
-theorem chain_run (n : Nat) {s : State} {A D : Nat} (wc wj wt : Nat → Nat)
+theorem chain_run (n : Nat) {s : State} {A D : Nat} (wc wt : Nat → Nat)
     (hc : s.c = Value.ofNat A) (hd : s.d = Value.ofNat D)
     (hsep : A + 94 * n + 94 ≤ D)
     (hdecC : ∀ i < n, decode (s.mem.get (Value.ofNat (A + 94 * i)))
@@ -3160,8 +3164,6 @@ theorem chain_run (n : Nat) {s : State} {A D : Nat} (wc wj wt : Nat → Nat)
     (hprC : ∀ i < n, printableCode? (s.mem.get (Value.ofNat (A + 94 * i))) = some (wc i))
     (hdecJ : ∀ i < n, decode (s.mem.get (Value.ofNat (A + 94 * i + 1)))
       (Value.ofNat (A + 94 * i + 1)).modClass = .jmp)
-    (hprJ : ∀ i < n, printableCode? (s.mem.get (Value.ofNat (A + 94 * i + 1)))
-      = some (wj i))
     (htgt : ∀ i < n, s.mem.get (Value.ofNat (D + 2 * i + 1))
       = Value.ofNat (A + 94 * i + 93))
     (hprT : ∀ i < n, printableCode? (s.mem.get (Value.ofNat (A + 94 * i + 93)))
@@ -3184,7 +3186,7 @@ theorem chain_run (n : Nat) {s : State} {A D : Nat} (wc wj wt : Nat → Nat)
   | succ n ih =>
     obtain ⟨sn, hrun, hAcc, hC, hD, hOps, hCs, hframe, hin, hout, hoc⟩ :=
       ih (by omega) (fun i hi => hdecC i (by omega)) (fun i hi => hprC i (by omega))
-        (fun i hi => hdecJ i (by omega)) (fun i hi => hprJ i (by omega))
+        (fun i hi => hdecJ i (by omega))
         (fun i hi => htgt i (by omega)) (fun i hi => hprT i (by omega))
     -- link n's cells are all untouched by the first n links
     have hu : ∀ x : Nat, (∀ i < n, x ≠ A + 94 * i) → (∀ i < n, x ≠ D + 2 * i) →
@@ -3203,12 +3205,11 @@ theorem chain_run (n : Nat) {s : State} {A D : Nat} (wc wj wt : Nat → Nat)
       hu _ (fun i hi => by omega) (fun i hi => by omega) (fun i hi => by omega)
     obtain ⟨s', hr', hacc', hc', hd', hop', hcr', hjm', hfr', hi', ho', hoc'⟩ :=
       chain_link (s := sn) (a := A + 94 * n) (D := D + 2 * n)
-        (t := A + 94 * n + 93) (wc := wc n) (wj := wj n) (wt := wt n)
+        (t := A + 94 * n + 93) (wc := wc n) (wt := wt n)
         hC hD (by rw [hC0]; exact hdecC n (by omega))
         (by rw [hC0]; exact hprC n (by omega))
         (by rw [hJ0]; exact hdecJ n (by omega))
-        (by rw [hJ0]; exact hprJ n (by omega))
-        (by omega) (by omega) (by omega) (by omega)
+        (by omega) (by omega) (by omega)
         (by rw [hT0]; exact htgt n (by omega))
         (by rw [hTC]; exact hprT n (by omega))
         (by omega) (by omega) (by omega)
@@ -3255,17 +3256,16 @@ Laid out: the pointer cell holds `D - 2`, the cell at `D - 1` holds
 `A - 1`, and afterwards `c = A` and `d = D`, exactly what `chain_run`
 wants. The `movd` cell is encrypted, the `jmp` is not. -/
 
-theorem enter_chain {s : State} {M P Q A : Nat} {wm wj wt : Nat}
+theorem enter_chain {s : State} {M P Q A : Nat} {wm wt : Nat}
     (hc : s.c = Value.ofNat M) (hd : s.d = Value.ofNat P)
     (hdecM : decode (s.mem.get (Value.ofNat M)) (Value.ofNat M).modClass = .movd)
     (hprM : printableCode? (s.mem.get (Value.ofNat M)) = some wm)
     (hptr : s.mem.get (Value.ofNat P) = Value.ofNat Q)
     (hdecJ : decode (s.mem.get (Value.ofNat (M + 1))) (Value.ofNat (M + 1)).modClass = .jmp)
-    (hprJ : printableCode? (s.mem.get (Value.ofNat (M + 1))) = some wj)
     (htgt : s.mem.get (Value.ofNat (Q + 1)) = Value.ofNat (A - 1))
     (hA : 1 ≤ A)
     (hprT : printableCode? (s.mem.get (Value.ofNat (A - 1))) = some wt)
-    (hMne : A - 1 ≠ M) (hMne' : A - 1 ≠ M + 1) (hQM : Q + 1 ≠ M) :
+    (hMne : A - 1 ≠ M) (hQM : Q + 1 ≠ M) :
     ∃ s', run? 2 s = some s'
       ∧ s'.a = s.a
       ∧ s'.c = Value.ofNat A
@@ -3334,19 +3334,18 @@ theorem chainFold_congr {m m' : Memory} {D : Nat} {a : Value} : ∀ n : Nat,
 /-- **A gadget runs.** The prologue re-aims `d`, the chain folds `n`
 operands into the accumulator, and the result is left both in the
 accumulator and in the last operand cell. -/
-theorem gadget_run (n : Nat) {s : State} {M P Q A : Nat} {wm wj₀ wt₀ : Nat}
-    (wc wj wt : Nat → Nat)
+theorem gadget_run (n : Nat) {s : State} {M P Q A : Nat} {wm wt₀ : Nat}
+    (wc wt : Nat → Nat)
     (hc : s.c = Value.ofNat M) (hd : s.d = Value.ofNat P)
     -- prologue
     (hdecM : decode (s.mem.get (Value.ofNat M)) (Value.ofNat M).modClass = .movd)
     (hprM : printableCode? (s.mem.get (Value.ofNat M)) = some wm)
     (hptr : s.mem.get (Value.ofNat P) = Value.ofNat Q)
     (hdecJ₀ : decode (s.mem.get (Value.ofNat (M + 1))) (Value.ofNat (M + 1)).modClass = .jmp)
-    (hprJ₀ : printableCode? (s.mem.get (Value.ofNat (M + 1))) = some wj₀)
     (htgt₀ : s.mem.get (Value.ofNat (Q + 1)) = Value.ofNat (A - 1))
     (hA : 1 ≤ A)
     (hprT₀ : printableCode? (s.mem.get (Value.ofNat (A - 1))) = some wt₀)
-    (hMne : A - 1 ≠ M) (hMne' : A - 1 ≠ M + 1) (hQM : Q + 1 ≠ M)
+    (hMne : A - 1 ≠ M) (hQM : Q + 1 ≠ M)
     -- the chain, stated on the initial memory
     (hsep : A + 94 * n + 94 ≤ Q + 2)
     (hdecC : ∀ i < n, decode (s.mem.get (Value.ofNat (A + 94 * i)))
@@ -3354,8 +3353,6 @@ theorem gadget_run (n : Nat) {s : State} {M P Q A : Nat} {wm wj₀ wt₀ : Nat}
     (hprC : ∀ i < n, printableCode? (s.mem.get (Value.ofNat (A + 94 * i))) = some (wc i))
     (hdecJ : ∀ i < n, decode (s.mem.get (Value.ofNat (A + 94 * i + 1)))
       (Value.ofNat (A + 94 * i + 1)).modClass = .jmp)
-    (hprJ : ∀ i < n, printableCode? (s.mem.get (Value.ofNat (A + 94 * i + 1)))
-      = some (wj i))
     (htgt : ∀ i < n, s.mem.get (Value.ofNat (Q + 2 + 2 * i + 1))
       = Value.ofNat (A + 94 * i + 93))
     (hprT : ∀ i < n, printableCode? (s.mem.get (Value.ofNat (A + 94 * i + 93)))
@@ -3374,7 +3371,7 @@ theorem gadget_run (n : Nat) {s : State} {M P Q A : Nat} {wm wj₀ wt₀ : Nat}
           = chainFold s.mem (Q + 2) s.a (i + 1))
       ∧ s'.input = s.input ∧ s'.output = s.output ∧ s'.outClosed = s.outClosed := by
   obtain ⟨s₁, hr1, ha1, hc1, hd1, _, _, hfr1, hi1, ho1, hoc1⟩ :=
-    enter_chain hc hd hdecM hprM hptr hdecJ₀ hprJ₀ htgt₀ hA hprT₀ hMne hMne' hQM
+    enter_chain hc hd hdecM hprM hptr hdecJ₀ htgt₀ hA hprT₀ hMne hQM
   -- transfer the chain's hypotheses across the prologue's frame
   have hC : ∀ i < n, s₁.mem.get (Value.ofNat (A + 94 * i))
       = s.mem.get (Value.ofNat (A + 94 * i)) :=
@@ -3396,11 +3393,10 @@ theorem gadget_run (n : Nat) {s : State} {M P Q A : Nat} {wm wj₀ wt₀ : Nat}
     fun i hi => hfr1 _ (fun h => (hMsep i hi).2.2.2.2 h.symm)
       (fun h => (hAsep i hi).2.2.2.2 h.symm)
   obtain ⟨s₂, hr2, ha2, hc2, hd2, hop2, _, _, hi2, ho2, hoc2⟩ :=
-    chain_run n wc wj wt hc1 hd1 hsep
+    chain_run n wc wt hc1 hd1 hsep
       (fun i hi => by rw [hC i hi]; exact hdecC i hi)
       (fun i hi => by rw [hC i hi]; exact hprC i hi)
       (fun i hi => by rw [hJ i hi]; exact hdecJ i hi)
-      (fun i hi => by rw [hJ i hi]; exact hprJ i hi)
       (fun i hi => by rw [hTg i hi]; exact htgt i hi)
       (fun i hi => by rw [hT i hi]; exact hprT i hi)
   have hfold : chainFold s₁.mem (Q + 2) s₁.a n = chainFold s.mem (Q + 2) s.a n := by
@@ -3659,8 +3655,7 @@ theorem value_inc {x : TapePair} (h : x.Wf) : x.inc.value = x.value + 1 := by
   unfold Wf at h
   omega
 
-theorem value_dec {x : TapePair} (h : x.Wf) (hnz : x.value ≠ 0) :
-    x.dec.value = x.value - 1 := by
+theorem value_dec (x : TapePair) : x.dec.value = x.value - 1 := by
   show x.p - (x.q + 1) = x.p - x.q - 1
   omega
 
@@ -3774,7 +3769,7 @@ theorem refines_down {f : RegFile} {out : Nat} {s : Counter.CState}
   refine ⟨down_wf hwf hnz', fun k => ?_, hout⟩
   by_cases hk : k = r
   · subst hk
-    rw [down_self, Counter.CState.down_regs_self, TapePair.value_dec (hwf k) hnz', hval k]
+    rw [down_self, Counter.CState.down_regs_self, TapePair.value_dec (f k), hval k]
   · rw [down_of_ne f hk, Counter.CState.down_regs_of_ne s hk]
     exact hval k
 
@@ -3819,7 +3814,7 @@ def regAddr (DB SI r : Nat) (q : Bool) (i : Nat) : Nat :=
   DB + (i * SI + (2 * r + (if q then 1 else 0)))
 
 /-- Two slot decompositions with remainders below the stride agree. -/
-theorem slot_inj {SI : Nat} (hSI : 0 < SI) {i x i' x' : Nat}
+theorem slot_inj {SI : Nat} {i x i' x' : Nat}
     (hx : x < SI) (hx' : x' < SI) (h : i * SI + x = i' * SI + x') :
     i = i' ∧ x = x' := by
   rcases Nat.lt_trichotomy i i' with hlt | heq | hgt
@@ -3837,12 +3832,11 @@ theorem regAddr_inj {DB SI R : Nat} (hSI : 2 * R ≤ SI)
     {r r' : Nat} (hr : r < R) (hr' : r' < R) {q q' : Bool} {i i' : Nat}
     (h : regAddr DB SI r q i = regAddr DB SI r' q' i') :
     r = r' ∧ q = q' ∧ i = i' := by
-  have hSI0 : 0 < SI := by omega
   have hb : (if q then 1 else 0) < 2 := by cases q <;> decide
   have hb' : (if q' then 1 else 0) < 2 := by cases q' <;> decide
   have h' : i * SI + (2 * r + (if q then 1 else 0))
       = i' * SI + (2 * r' + (if q' then 1 else 0)) := Nat.add_left_cancel h
-  obtain ⟨hi, hx⟩ := slot_inj hSI0 (by omega) (by omega) h'
+  obtain ⟨hi, hx⟩ := slot_inj (by omega) (by omega) h'
   refine ⟨by omega, ?_, hi⟩
   cases q <;> cases q' <;> revert hx <;> simp <;> omega
 
