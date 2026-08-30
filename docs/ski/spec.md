@@ -88,10 +88,17 @@ about.
 
 **Turing complete**, by bracket abstraction from the untyped lambda
 calculus. LangLib's machine-checked statement of that claim is not yet
-written; the entry in [docs/README.md](../README.md) tracks it. The
-argument the proof will follow is the classical one, and it is the reason
-this language is in the library: it reaches universality without a program
-counter anywhere in sight.
+written; the entry in [docs/README.md](../README.md) tracks it.
+
+[Unlambda](../unlambda/spec.md) *is* proved
+([computability-unlambda.md](../computability-unlambda.md)), and that proof
+does not carry over, which is worth saying plainly because the two languages
+share their combinators. Two things differ. Unlambda is call by value and
+SKI is normal order, so the compiled terms are not even the same programs.
+And Unlambda has an output instruction, so its answer is a stream of bytes,
+while an SKI run's whole observable is the normal form it prints: the answer
+has to be a *term*, which changes what the compiler has to arrange and what
+the decoder has to read.
 
 ## Trying it
 

@@ -2,7 +2,67 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): Piet examples that loop, branch, and hang a painting
+## 2026-08-30 (latest): Unlambda is Turing complete, by the functional route
+
+`unlambdaComplete : TuringComplete UnlambdaLang`, axiom-clean. The first
+completeness result in the library that is not a machine simulation: the
+target has no store and no jumps, so the argument is bracket abstraction
+applied to a program written in a lambda notation that exists only inside
+the proof. See [computability-unlambda.md](computability-unlambda.md).
+
+**The counter machine is now shared.** The register-machine half of the
+brainfuck proof was never about brainfuck. `Cmd`, its big-step semantics,
+and the URM-to-counter compiler with `counterProgram_spec` moved to
+`Langlib/Computability/Counter.lean`, leaving brainfuck with the tape
+layout that is actually its own. Thue already reused them and now says so
+by importing the shared module. A new backend therefore has four commands
+to interpret and nothing else: increment, decrement, emit a byte, and a
+while loop.
+
+**What the second half looks like.** A register is a Scott numeral, the
+file holding them is a Scott list with every index unrolled at compile
+time, and the answer comes back in unary, one byte per unit of register 0,
+which leaves nothing for the decoder to prove. Both data predicates are
+behavioural rather than syntactic, because applying the successor to a
+numeral gives a term that branches like `m + 1` without being the numeral
+literal for it.
+
+**Three things call by value forces**, and they are the content of the
+proof rather than incidental:
+
+* The textbook bracket-abstraction clause `[x] e = k e` for an `e` without
+  `x` is **unsound**. It evaluates `e` when the closure is built, so an `e`
+  that prints prints at the wrong time and an `e` that loops loops
+  unconditionally. Restricted to closed *value expressions* it is sound,
+  and it is not optional: without it a Scott numeral costs `3 ^ n`
+  combinators instead of `4 * n`.
+* A loop's zero test has to wrap both branches in an abstraction and force
+  the chosen one afterwards. Unguarded, the body runs once on a register
+  that is already zero, and then forever.
+* `Y` diverges, so the fixed point is the strict variant, defined as a
+  substitution instance so that unfolding it is an identity rather than an
+  appeal to an extensionality the equivalence does not have.
+
+**Counting the machine's own steps.** `Counter.lean` gained `EvN`, the
+same big-step relation with a step count, and `EvN.split`. The `loopS`
+premise is a derivation for `b ++ Cmd.loop r b :: cs` whose two halves are
+not subderivations of it, and the compiled loop needs them separately;
+counting the steps is what lets the simulation recurse on a number.
+
+**And the compiler that comes with it.** `derived unlambdaComplete` is a
+verified Turpentine-to-Unlambda compiler with no backend written, reachable
+as `turpentine exec --via unlambda --tc`. It is correct and impractical:
+adding one to one compiles to 1.4 million combinators and sixteen million
+machine steps, and factorial of five does not finish in two billion. The
+compiler page now also carries a correction, since it used to recommend
+the bracket-abstraction clause the proof has shown to be unsound.
+
+SKI is the open half of the functional route, and Unlambda's witness does
+not carry over to it: SKI is normal order rather than call by value, and
+it has no output instruction, so its answer has to be a normal form rather
+than a stream of bytes.
+
+## 2026-08-30: Piet examples that loop, branch, and hang a painting
 
 Every Piet example was straight-line — push, compute, print, stop — which
 left the hard half of the language undemonstrated. Control flow in Piet is
@@ -34,7 +94,7 @@ only honest way, by running the programs.
 `scripts/render-docs-images.sh` renders them, `mondrian` without `--grid`.
 `lake test` is green at 1108 tests.
 
-## 2026-08-30 (latest): `--to piet` exists
+## 2026-08-30: `--to piet` exists
 
 `derivedPiet` had been correct-by-construction since Piet's completeness
 proof landed, and unreachable from the command line the whole time: the

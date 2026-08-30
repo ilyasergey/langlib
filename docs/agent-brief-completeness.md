@@ -140,21 +140,29 @@ proved, not to be run.
 
 ## Which languages remain
 
-Eight are done: **whitespace**, **subleq** and **brainfuck**, proved in that
+Nine are done: **whitespace**, **subleq** and **brainfuck**, proved in that
 order and the ones to read as worked examples — subleq for the shortest
 route onto the URM, brainfuck for the hardest — then **fractran** (the one
 arithmetic rather than operational simulation), **thue** (string rewriting,
 where the work was showing the interpreter's deterministic strategy cannot
-wander off the intended derivation), **piet** (the one geometric proof), and
+wander off the intended derivation), **piet** (the one geometric proof),
 **ook** and **brainloller**, which came free by composing `parse ∘ render =
-id` with brainfuck's.
+id` with brainfuck's, and **unlambda**, the one that is not a machine
+simulation at all.
+
+Read `Langlib/Computability/Unlambda.lean` before taking a functional
+target. Its front half is the shared counter machine of
+`Langlib/Computability/Counter.lean`, extracted from the brainfuck proof
+precisely so that a new backend has only four commands to interpret; its
+back half is the part that is genuinely new each time.
 
 The `open` rows, claimed complete and settled neither way, are what is left:
 
-* **unlambda / SKI** — bracket abstraction rather than machine simulation,
-  the one genuinely different route in the library, and the reason to take
-  it next: every proof so far is a register-machine simulation, so the
-  collection says nothing yet about the functional route to universality.
+* **SKI** — the other half of the functional route. Unlambda's witness does
+  not transfer: SKI is normal order where Unlambda is call by value, and it
+  has no output instruction, so the answer has to be a normal form rather
+  than a byte stream. Normal order is a licence as much as an obstacle,
+  since nothing has to be forced before it is stored.
 * **malbolge-unshackled** — the simulation would have to survive both the
   self-encrypting code and the free choice of rotation width, which no other
   target here has an analogue of.

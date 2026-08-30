@@ -27,7 +27,10 @@ out.
 [Unlambda](../unlambda/spec.md) *is* SKI plus I/O: same combinators, prefix
 backquote for application, and `.x` to print a byte. A Turpentine backend
 that wanted the functional route would target Unlambda and get a real
-observable, and `Langlib.Ski.Term.toUnlambda` is already the whole
+observable. Unlambda now has a certified compiler of its own, derived from
+its completeness proof, so that route is not hypothetical:
+`turpentine exec --via unlambda --tc` runs it.
+`Langlib.Ski.Term.toUnlambda` is already the whole
 translation of the combinator part — application becomes a backquote.
 
 So the plan of record is: no SKI backend; see

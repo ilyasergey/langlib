@@ -140,10 +140,24 @@ embeds the untyped lambda calculus into SKI; so Unlambda computes every
 computable function. `c` and `d` are not needed for the argument and are
 out of scope for it.
 
-LangLib's machine-checked version of this claim is not yet written — see
-the status matrix in [docs/README.md](../README.md). It is the one
-completeness proof in the plan that is not a register-machine simulation,
-which is exactly why the library carries SKI as a separate language.
+LangLib **proves** it:
+[`Langlib/Computability/Unlambda.lean`](../../Langlib/Computability/Unlambda.lean)
+contains `unlambdaComplete : TuringComplete UnlambdaLang`, axiom-clean. It is
+the one completeness proof in the library that is not a register-machine
+simulation, which is why SKI is carried here as a separate language.
+
+The proof uses `s`, `k`, `i`, `.x` and application, and nothing else: `d`
+never appears, so the delay rule never fires, and `c` never appears, so no
+continuation is reified. It compiles a register machine into the structured
+counter machine of
+[`Langlib/Computability/Counter.lean`](../../Langlib/Computability/Counter.lean)
+and runs that in combinators, with a register a Scott numeral, the file
+holding them a Scott list, and the answer in unary, one `*` per unit. The
+finding worth carrying away is that the textbook bracket-abstraction clause
+`[x] e = k e` for an `e` without `x` is **unsound under call by value**,
+because it evaluates `e` when the closure is built. See
+[computability-unlambda.md](../computability-unlambda.md) for the account,
+the costs, and what is cited rather than proved.
 
 ## Trying it
 

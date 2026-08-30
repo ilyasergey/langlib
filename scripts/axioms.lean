@@ -33,6 +33,7 @@ import Langlib.Computability.Brainloller
 import Langlib.Computability.Piet
 import Langlib.Computability.Fractran
 import Langlib.Computability.BespokeSubleq
+import Langlib.Computability.Unlambda
 
 open Langlib.Common
 open Langlib.Computability
@@ -483,3 +484,22 @@ open Langlib.Turpentine.Compile
 #print axioms URMFractran.decodeOutput_encode
 #print axioms URMFractran.simulation
 #print axioms fractranComplete
+
+-- UNLAMBDA: the functional route. The call-by-value big-step relation and
+-- its bridge to the CEK machine, bracket abstraction, the counter machine
+-- rendered in combinators, and the completeness witness.
+#print axioms URMUnlambda.run_reaches
+#print axioms URMUnlambda.lam_spec
+#print axioms URMUnlambda.ev_app_lam
+#print axioms URMUnlambda.numE_spec
+#print axioms URMUnlambda.succF_spec
+#print axioms URMUnlambda.predF_spec
+#print axioms URMUnlambda.getE_spec
+#print axioms URMUnlambda.setE_spec
+#print axioms URMUnlambda.selfE_unfold
+#print axioms URMUnlambda.loopE_zero
+#print axioms URMUnlambda.loopE_succ
+#print axioms URMUnlambda.codeE_spec
+#print axioms URMUnlambda.simulation
+#print axioms URMUnlambda.compile
+#print axioms unlambdaComplete

@@ -7,11 +7,11 @@ at the bottom, check the license situation, and move the language into
 
 ## In the library today
 
-Eleven languages are implemented, documented and tested: brainfuck,
-whitespace, malbolge, befunge93, subleq, fractran, thue, ook, deadfish,
-piet and brainloller, plus the Turpentine front end. Whitespace is proved
-Turing complete. Three more are part-written and unwired: Malbolge
-Unshackled, Unlambda and SKI.
+Fourteen languages are implemented, documented and tested: brainfuck,
+whitespace, malbolge, malbolge-unshackled, befunge93, subleq, fractran,
+thue, ook, deadfish, piet, brainloller, unlambda and ski, plus the
+Turpentine front end. Nine of them carry a machine-checked answer about
+their computational class; `docs/README.md` has the matrix.
 
 ## Committed (first wave, see `docs/PLAN.md`)
 
@@ -31,9 +31,6 @@ also confirmed wanted: **Piet** and **Brainloller** form the second wave
 * **FALSE** (Wouter van Oortmerssen, 1993). The stack language that
   inspired brainfuck; compact and clean. Interpreter is easy; a good extra
   compilation target.
-* **Unlambda** (David Madore, 1999). SKI combinators plus `call/cc` and
-  side effects. Interpreter is a nice exercise in CPS; compilation from Turpentine
-  is research-grade.
 * **Befunge-98** (Chris Pressey, 1998). Extends our Befunge-93 with an
   unbounded funge-space and fingerprints. Natural follow-up once
   Befunge-93 is solid.

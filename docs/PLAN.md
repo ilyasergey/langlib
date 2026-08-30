@@ -395,7 +395,8 @@ contorting the statements to fit theorems we have not needed yet.
 | ook | **complete, PROVED** (`Langlib/Computability/Ook.lean`, axiom-clean) | free: `parse . render = id` against brainfuck, so it inherits the brainfuck result by composition. |
 | brainloller | **complete, PROVED** (`Langlib/Computability/Brainloller.lean`, axiom-clean) | likewise free, via its decoder into the brainfuck AST. |
 | turpentine | complete | our own front end, so this is a statement about the *source* language: a URM compiles to Turpentine directly (registers are array elements, the decrement-or-jump is a `while`), which also makes every Turing-complete backend's compiler a second, independent completeness proof for that target. |
-| unlambda / SKI | complete | **both languages landed** (interpreters, runners, tests, `docs/unlambda/spec.md` and `docs/ski/spec.md`); the proofs are open. See below for the bracket-abstraction route, which is the one completeness argument in this table that is not a machine simulation. |
+| unlambda | **complete, PROVED** (`Langlib/Computability/Unlambda.lean`, axiom-clean) | the one completeness argument in this table that is not a machine simulation. The register-machine half is the shared counter machine; what is new is running its four commands in combinators, with a register a Scott numeral, the file a Scott list, and the answer in unary. Three things call by value forces, all recorded in `docs/computability-unlambda.md`: the textbook clause `[x] e = k e` for an `e` without `x` is **unsound**, because it evaluates `e` when the closure is built (restricted to closed value expressions it is sound, and keeps a numeral linear rather than exponential); a loop's zero test has to guard both branches and force the chosen one, or the body runs once on a zero register and then forever; and `Y` diverges, so the fixed point is the strict variant. `c` and `d` never appear, so the two places the machine would intercept a delay are dead code. |
+| SKI | complete | **language landed**; the proof is open, and Unlambda's does **not** carry over even though the two share their combinators. SKI is normal order where Unlambda is call by value, so the compiled terms are different programs; and SKI has no output instruction, so the answer has to be a term rather than a byte stream, which changes both the compiler's job and the decoder's. Normal order pays for itself elsewhere: nothing has to be forced before it is stored, so no branch needs a guard and the ordinary fixed point works. |
 | deadfish | **incomplete, PROVED** (`Langlib/Computability/Deadfish.lean`, axiom-clean) | no input, no loops, no conditionals: the reachable state is a function of the program text alone. Prove that every program's output is computable by a total function of its source, hence its halting problem is trivially decidable. The easiest theorem here and the one most worth stating, since Deadfish's fame rests on it. |
 
 ### A combinator language for the other side of the argument
@@ -405,15 +406,21 @@ register-machine simulation. That makes the collection lopsided: it says
 nothing about the functional route to universality. Add an **SKI
 combinator calculus**, and then **Unlambda** (David Madore, 1999) as its
 esoteric surface syntax, so the library also contains a language whose
-completeness argument is a translation from the lambda calculus by
-bracket abstraction rather than a machine simulation. This gives a second,
-structurally different completeness proof to compare against, and it is
-the natural home for the one genuinely non-imperative idea in the
-esolang canon. Unlambda's `c` (call/cc) and `d` (delay) are out of scope
-for the completeness proof and can be interpreted without being reasoned
-about.
+completeness argument is bracket abstraction rather than a machine
+simulation. This gives a second, structurally different completeness proof
+to compare against, and it is the natural home for the one genuinely
+non-imperative idea in the esolang canon. Unlambda's `c` (call/cc) and `d`
+(delay) are out of scope for the completeness proof and can be interpreted
+without being reasoned about.
 
-Order: whitespace (the exemplar), then Turpentine itself (which
+**Unlambda is done** (2026-08-30, `Langlib/Computability/Unlambda.lean`),
+and the account of it is `docs/computability-unlambda.md`. SKI is still
+open, and the entry above says why the Unlambda witness does not transfer
+to it.
+
+Order (unlambda has since landed, out of this order, because the
+counter machine the brainfuck proof left behind made it cheap): whitespace
+(the exemplar), then Turpentine itself (which
 subsumes several targets by composition), then deadfish and befunge93
 (the negative results, which are short), then subleq, then SKI and
 Unlambda for the functional route, then brainfuck via Minsky, then the
