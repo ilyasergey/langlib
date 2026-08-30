@@ -1,60 +1,84 @@
 # Compiling Turpentine to Piet
 
-* **Status**: the *derived*, certified compiler
-  ([`derivedPiet`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L139))
-  is wired up and reachable as `--to piet --tc`. The bespoke one is
-  **in progress**: its layout mechanism is prototyped and verified against
-  the interpreter (see "Planned approach" below), and the code generator is
-  not written yet.
+* **Status**: both compilers exist. The *bespoke* one,
+  [`Langlib/Languages/Turpentine/Compile/Piet.lean`](../../Langlib/Languages/Turpentine/Compile/Piet.lean),
+  is hand-written and unverified; the *derived* one,
+  [`derivedPiet`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L139),
+  is correct by construction and reachable as `--to piet --tc`.
 * **Family**: StackIR (see `docs/PLAN.md`, Stage 4), shared with
   whitespace.
-* **Tests**: [Langlib/Tests/DerivedPiet.lean](../../Langlib/Tests/DerivedPiet.lean)
-* **Implementation**: the bespoke backend would go in
-  `Langlib/Languages/Turpentine/Compile/Piet.lean`, beside the
-  [whitespace backend](../../Langlib/Languages/Turpentine/Compile/Whitespace.lean).
-
-## What already exists
-
-[`pietComplete`](../../Langlib/Computability/Piet.lean#L3992) compiles an
-arbitrary register machine into a codel grid and proves the simulation
-against `evalGrid`, so composing it with the shared Turpentine-to-URM pass
-gives a verified Turpentine-to-Piet compiler today. It has the limits every
-derived compiler has — no I/O, because everything routes through a register
-machine, and an enormous image, because every command is one codel and
-every literal is built from one-codel pushes. `docs/computability-piet.md`
-has the measured sizes. What a bespoke backend would add is a readable
-image and Piet's own `inNum` and `inChar`.
-
-Turning that grid into a file needs one thing the completeness proof does
-not: a way to *paint* a codel. That is
-[`Codel.toRgb`](../../Langlib/Languages/Piet/Syntax.lean#L111), the inverse
-of the palette table the parser uses, and
-[`colorOfRgb_toRgb`](../../Langlib/Languages/Piet/Syntax.lean#L137) proves
-the two are inverse on all 20 colours — so the image the compiler writes
-out is read back as the grid it meant. (That is the codel-level half; that
-the *whole* grid survives the round trip is carried by test, like
-brainloller's pixel walk.)
+* **Tests**: [Langlib/Tests/CompilePiet.lean](../../Langlib/Tests/CompilePiet.lean)
+  for the bespoke route,
+  [Langlib/Tests/DerivedPiet.lean](../../Langlib/Tests/DerivedPiet.lean)
+  for the certified one.
 
 ## Compile and run one
 
-The derived compiler is the only one, so `--tc` is required; without it the
-command asks for the hand-written backend that does not exist yet. The
-program must be in the certified fragment: no I/O, no subtraction, answer
-left in `answer` (see [certified-compilation.md](../certified-compilation.md)).
+The hand-written backend is the default, and it accepts everything but
+arrays — including I/O, which is what makes a compiled program worth
+looking at.
 
 ```
-lake exe turpentine compile --to piet --tc -o /tmp/fact.ppm Langlib/Examples/Turpentine/fact-tc.turp
+lake exe turpentine compile --to piet --bespoke -o /tmp/hello.ppm Langlib/Examples/Turpentine/suite/hello.turp
 ```
 
 Output, on stderr:
 
 ```
-turpentine: wrote 1431593 bytes to /tmp/fact.ppm [certified, derived from the Turing-completeness proof]
+turpentine: wrote 42064 bytes to /tmp/hello.ppm [bespoke, hand-written and unverified]
 ```
 
-That is 5! as a `51135 x 3` codel image: a corridor three codels tall and
-thirty thousand long, in ASCII PPM, which is what `lake exe piet` reads.
-Something small enough to actually watch run:
+That is a `254 x 14` codel image in ASCII PPM, which is what
+`lake exe piet` reads. Run it:
+
+```
+lake exe piet /tmp/hello.ppm
+```
+
+Output:
+
+```
+Hello, World!
+```
+
+Or in one step, compiling in memory and running the result on the piet
+interpreter, which is the differential test against `turpentine run`:
+
+```
+lake exe turpentine exec --via piet --bespoke /dev/stdin <<< 'var a : int := 6; var b : int := 7; println(a * b);'
+```
+
+Output:
+
+```
+42
+```
+
+A program outside the fragment is refused by name:
+
+```
+lake exe turpentine compile --to piet --bespoke Langlib/Examples/Turpentine/suite/sieve.turp
+```
+
+Output:
+
+```
+turpentine compile: the array 'composite' (of 50 elements) is outside the piet backend: piet has no heap, and a computed index would need the roll depth itself computed at run time
+turpentine: nothing emitted
+```
+
+## The other compiler, and why this one exists
+
+[`pietComplete`](../../Langlib/Computability/Piet.lean#L3992) compiles an
+arbitrary register machine into a codel grid and proves the simulation
+against `evalGrid`, so composing it with the shared Turpentine-to-URM pass
+gives a verified Turpentine-to-Piet compiler. It is correct by
+construction and this one is not. What this one buys is I/O — Piet's own
+`inNum`, `inChar`, `outNum` and `outChar`, none of which survive a trip
+through a register machine — and size.
+
+The size difference is the whole argument. `var answer : int; answer := 2;`
+through the certified route:
 
 ```
 lake exe turpentine compile --to piet --tc -o /tmp/two.ppm /dev/stdin <<< 'var answer : int; answer := 2;'
@@ -66,45 +90,50 @@ Output, on stderr:
 turpentine: wrote 98338 bytes to /tmp/two.ppm [certified, derived from the Turing-completeness proof]
 ```
 
-Then run the image. The answer comes back as the decimal number the picture
-prints before it halts — Piet has real numeric output, so unlike FRACTRAN
-or Thue there is nothing to decode.
+The same computation through the bespoke one, which also *prints* its
+answer rather than leaving it in a register:
 
 ```
-lake exe piet --fuel 5000000 /tmp/two.ppm
+lake exe turpentine compile --to piet --bespoke -o /tmp/two-b.ppm /dev/stdin <<< 'var answer : int; answer := 2; println(answer);'
 ```
 
-Output:
+Output, on stderr:
 
 ```
-2
+turpentine: wrote 8757 bytes to /tmp/two-b.ppm [bespoke, hand-written and unverified]
 ```
 
-Or in one step, compiling in memory and running the result on the piet
-interpreter, which is the differential test against `turpentine run`:
+A `53 x 14` picture against a `3516 x 3` one, for more work.
 
-```
-lake exe turpentine exec --via piet --tc --fuel 5000000 /dev/stdin <<< 'var answer : int; var b : int; answer := 2; b := 3; answer := answer + b;'
-```
-
-Output:
-
-```
-5
-```
+Turning either grid into a file needs one thing the completeness proof does
+not: a way to *paint* a codel. That is
+[`Codel.toRgb`](../../Langlib/Languages/Piet/Syntax.lean#L111), the inverse
+of the palette table the parser uses, and
+[`colorOfRgb_toRgb`](../../Langlib/Languages/Piet/Syntax.lean#L137) proves
+the two are inverse on all 20 colours — so the image the compiler writes
+out is read back as the grid it meant.
 
 ### A warning about the fuel
 
-These images are slow out of all proportion to what they compute, and the
-reason is not the register machine — it is Piet. Finding the colour block
-under the interpreter's pointer is a flood fill, and it happens at every
-step, so the cost of one instruction grows with the size of the picture.
-Singleton normalization then makes the picture grow with the size of the
-program. The product is the cliff: the 3,516-codel image above prints its
-answer in about two seconds, while the 51,135-codel factorial had printed
-nothing after twenty minutes, and neither had the 30,501-codel image of
-`sum.turp`, which only adds up 0 through 4. This is a beautiful
-construction to look at, not a way to compute 5!.
+Piet images are slow out of all proportion to what they compute, and the
+reason is the interpreter rather than either compiler. Finding the colour
+block under the pointer is a flood fill, and it happens at every step, so
+the cost of one instruction grows with the *area of the picture*. Keeping
+the picture small is therefore not a cosmetic concern, and it is most of
+why the bespoke backend is worth having: the certified route normalises
+every block to a singleton, so its pictures grow with the program and its
+running time grows with the square.
+
+The measured cliff on the certified route: the 3,516-codel image above
+prints its answer in about two seconds, while the 51,135-codel factorial
+had printed nothing after twenty minutes, and neither had the 30,501-codel
+image of `sum.turp`, which only adds up 0 through 4.
+
+The bespoke route's pictures are small enough that this mostly stops
+mattering. `fizzbuzz.turp` is a `302 x 130` image and prints its twenty
+lines in about 1.3 seconds; `hello.turp` and `count.turp` finish in
+hundredths. The programs that still hurt are the ones with many lanes,
+since the area grows with the lane count in both directions.
 
 ## The semantics are easy and the layout is hard
 
@@ -129,19 +158,17 @@ geometry:
   `pointer` rotates the direction pointer and the program continues into
   whatever block lies that way. Loops are literal cycles in the picture.
 
-## Planned approach
+## How it is laid out
 
-Compile StackIR to a **linear corridor**: a single row of blocks between
-black walls, one block per instruction, executed left to right. This is
-the least painterly Piet imaginable and it makes layout arithmetic
-trivial, which is the point for a first backend. The examples in
-`Langlib/Examples/Piet/` are already drawn in this style by hand, so the
-target shape is known to work with our interpreter and with npiet.
+Two compilers stacked. The first lowers Turpentine to a flat list of
+**lanes** — straight-line runs of Piet commands, each ending in a `goto`, a
+two-way branch, or a halt. That pass is an ordinary basic-block compiler
+and contains no geometry at all. The second lays the lanes out as
+corridors wired together with white, and contains no Turpentine.
 
-Control flow in a corridor needs a trick, since a corridor is a straight
-line. The mechanism below has been **prototyped against `evalGrid` and
-works**; the four pieces are what a backend needs, and each was checked on
-the real interpreter rather than reasoned about.
+The four facts below are what the second pass rests on. Each was checked
+against `Langlib.Piet.evalGrid` rather than reasoned about from the
+specification.
 
 **White is a free wire.** Sliding across white executes no command — the
 interpreter lands on the far side with the DP and CC it had. So white
@@ -149,39 +176,159 @@ corridors route control anywhere without side effects, and only chromatic
 blocks compute. This is the fact the whole layout rests on.
 
 **Wires turn clockwise.** When a white slide is blocked it rotates the DP
-clockwise and toggles the CC, then slides on. A wire can therefore turn
-right at a black wall for free, and a loop that runs clockwise — body
-rightwards along the top, down the right side, back leftwards along the
-bottom, up the left side — needs no commands at all for its return path.
+clockwise and toggles the CC, then slides on. So `right → down → left → up
+→ right` is a complete circuit that costs no commands, and that circuit is
+exactly what a jump is.
 
 **Two-way branches are `pointer`.** With the DP pointing right, `pointer`
 pops `v` and rotates: `v = 0` continues along the row, `v = 1` turns down.
-So a conditional is `… push v; pointer`, with the taken branch laid to the
-right of the block `pointer` lands on and the other branch below it. For
-`while c { … }` the value wanted is `not c`, which for a counter is just
-`dup; not`.
+So a lane's branch is `… push v; pointer`, with one successor reached by
+carrying on right and the other by falling down.
 
 **Halting takes a shape, not a codel.** A block halts when all eight
 attempts to leave it fail, and a lone block reached through white does
-*not* qualify: it rotates the DP back towards the white it arrived
-through and slides out again. A bar three codels wide, with black on every
-side, does qualify, because the exit codel the CC picks for the vertical
-directions is one of the two ends, and both have black above and below.
+*not* qualify: it rotates the DP back towards the white it arrived through
+and slides out again. What halts is a bar of three entered **from above
+through its middle codel**, with black above its two ends, below all three,
+and to either side — because the exit codel the CC picks for the vertical
+directions is one of the two ends, and both of those are walled. The probe
+confirms both halves: the bar of three halts, and the same picture with a
+bar of one runs out of fuel instead.
 
-One trap worth naming, because it cost an afternoon. Consecutive runs of
-the *same* colour merge into one block, so the block a `pointer` lands on
-and the first run of the branch after it are the same block. Its size is
-therefore the sum of both, and a `push` leaving it pushes the wrong number.
+### The picture
+
+Lane `i` is a corridor on **row `2i`**, running left to right. Odd rows are
+white, which is what keeps two corridors from merging into each other.
+Everything is white unless something needs a wall.
+
+```
+col:   0   1  3  5 ...      C ....................  E₀     F₀ F₁ ...
+row 0      u₀              [ lane 0 code .......... ]  ..  ▓
+row 1       ▓
+row 2          u₁          [ lane 1 code ........ ]  ..     ▓
+row 3         ▓
+...
+row 2L         (leg rows, one per jump, each its own return channel)
+```
+
+* `uₜ = 2t + 1` is lane `t`'s **entry column**, with a black codel at
+  `(uₜ, 2t-1)` so a wire climbing it stops on lane `t`'s row and turns
+  right.
+* Lane code is right-aligned to end at column `Eᵢ`, and **the `Eᵢ` strictly
+  decrease down the picture.** That is the one constraint that is not
+  obvious, and it is what makes the branch wires legal: lane `i`'s branch
+  falls down its own end column, crossing every lane below it, and a lower
+  lane ends further left and so cannot reach that column.
+* `Fᵢ` is lane `i`'s **fall-through column**, right of all code, with a
+  black wall at `Fᵢ + 1` to turn the wire down.
+* Each jump owns a **leg row** below every lane, so one jump's stopper
+  cannot block another's leftward return.
+
+A jump is then one circuit and no commands: right to the wall, down the
+wire column to the leg row, left to `uₜ - 1`, up to row `2t`, right onto
+lane `t`'s first block.
+
+### The trap that cost an afternoon
+
+Consecutive runs of the *same* colour merge into one block. The block a
+`pointer` lands on and the first run after it are therefore **one** block
+whose size is the sum, and a `push` leaving it pushes the wrong number — 7
+instead of 6, which multiplied out to 49 and printed `1` instead of `*`.
 The fix is to treat the landing block as the branch's first run rather than
-emitting a separate one — the layout has one block there, so the code
-generator must too.
+emitting a separate one. Here that is structural: `Lane` stores its runs
+and its landing block separately, a `branch` carries its own `pointer` as
+its last command, and nothing is ever emitted after the block that command
+lands on.
+
+## Variables, and what they cost
+
+Piet has no heap, so variables live **on the stack**, below whatever an
+expression is using. With the temporaries empty the stack is exactly
+`v₀ :: v₁ :: … :: v_{n-1}`, and `roll` reaches into it:
+
+* **read** variable `k` at temporary depth `d`, with `j = d + k`:
+  `push (j+1); push j; roll; dup; push (j+2); push 1; roll` — bring it up,
+  duplicate it, and rotate the original back under the copy;
+* **write** variable `k`, value on top: `push (j+1); push 1; roll;
+  push j; push (j-1); roll; pop`.
+
+Both are `O(depth)`. That is the documented price of not having a heap, and
+it is why the backend is happier with five variables than fifty.
+
+The compile-time depth is a property of the **program point**, not of the
+path walked to reach it. Two lanes that join have to be walked from the
+same depth and have to arrive at the same one, and the generator checks it:
+letting the counter run on through both branches of the division
+correction put every variable access after a `/` one slot too low, which
+surfaced as `gcd.turp` printing 42 where the reference printed 21.
+
+## Constants are built, not spelled out
+
+A `push` pushes the number of codels in the block it leaves, so the naive
+cost of the literal `n` is `n` codels. Instead every literal is built:
+`n = a * b` costs `cost a + cost b + 1`, and so does `n = a + b`. So
+`push 72` is `push 8; push 9; multiply` at 19 codels rather than 72, and
+`push 16384` — the widest value in the conformance suite — costs 51 codels
+rather than 16384. `planCost` tabulates the cheapest plan for every value
+up to 512 by dynamic programming; larger values are split against the top
+of the table and the quotient recurs. Zero is `push 1; not`, and a negative
+constant is `0 - |n|`.
+
+## What is proved, and what is only tested
+
+Two round trips meet in the middle, and between them they say the
+interpreter runs the commands the code generator chose.
+
+[`colorOfRgb_toRgb`](../../Langlib/Languages/Piet/Syntax.lean#L137) says a
+painted codel reads back as the colour it was painted from, on all 20
+colours — so the image is the grid the compiler built.
+[`opFor_advance`](../../Langlib/Languages/Turpentine/Compile/Piet.lean)
+says the generator's colour arithmetic inverts `opFor` on all 17 commands
+at all 18 colours — so the grid is the command sequence the generator
+chose. It is proved by `decide`, which keeps Mathlib out of
+`Langlib/Languages/` where it belongs.
+
+Neither says anything about the *layout*, which is the hard half and is
+carried by test. The tests compile, paint to PPM, parse the PPM back, and
+run the result, so a case exercises the whole path rather than only the
+grid in memory.
 
 ## Fragment
 
-Expected to be the whole language, since the stack model has no bounds.
-Arrays need a heap, which Piet does not have; the plan is to keep them on
-the stack and index with `roll`, which is O(depth) per access and worth
-documenting as a performance cliff rather than a semantic restriction.
+Everything except **arrays**. Piet has no heap, and while an array could
+live on the stack beside the scalars, a *computed* index needs the roll
+depth itself computed at run time — the constants in the read and write
+sequences above become stack expressions. That is the next thing to do
+here, and it is not done, so the six conformance programs that use arrays
+(`sieve`, `sort`, `maxelem`, `binary`, `sumdigits`, `isqrt`) are refused
+by name rather than mis-compiled.
+
+Three behaviours differ from the reference interpreter.
+
+**`readByte()` at end of input** (a real divergence). Turpentine yields
+`-1`, so a `cat` loop terminates. Piet *ignores* a command it cannot
+perform, so `inChar` at end of input leaves the stack exactly as it was and
+the compiled program reads a stale value. Programs that read a known number
+of bytes are unaffected.
+
+**A failed `assert`** becomes an infinite loop, as in every other backend:
+the reference reports a runtime error and the compiled program runs out of
+fuel. The loop is a lane whose wire runs straight back into itself.
+
+**Division by zero** goes to that same trap. This one is not a choice.
+Because Piet ignores a command it cannot perform, a `divide` by zero would
+leave *both* operands on the stack and put every later variable access one
+slot off — silently wrong output rather than a stopped program. So the
+generated code tests the divisor and diverges instead. The reference calls
+it a runtime error, so the two runs agree on the output produced up to that
+point and disagree only on how they stop.
+
+`/` and `%` are Euclidean in Turpentine and **flooring** in Piet, which
+differ exactly when the divisor is negative. The generated code tests the
+divisor's sign and, on the negative branch, divides by `-b` and negates the
+quotient: with `|b| = b * s` and `s = (b > 0) - (0 > b)`,
+`a ediv b = (a fdiv |b|) * s` and `a emod b = a fmod |b|`. All four sign
+pairs of `divmod.turp` come out right.
 
 ## Output format
 

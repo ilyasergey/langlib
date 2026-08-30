@@ -103,12 +103,23 @@ state first-order, I/O explicit.
   through `xlat2`'s orbits (`decode_encrypt_ne`), and it cannot escape
   that by running forward into untouched memory (`restTable_not_printable`).
   See `docs/computability-malbolge-unshackled.md`.
-* Turpentine -> thue, -> fractran and -> piet `[ ]` (bespoke): planned via a
-  shared register machine (RegIR); see their compiler pages. All three
-  already have a *derived*, certified compiler out of their completeness
-  proofs (`derivedThue`, `derivedFractran`, `derivedPiet`), all three are
+* Turpentine -> fractran `[x]` and -> piet `[x]` (bespoke): **done**, and
+  neither went through the shared register machine in the end. FRACTRAN
+  compiles to a Minsky machine and lowers that to fractions
+  (`Compile/Fractran.lean`); Piet compiles to a flat list of lanes and lays
+  them out as corridors wired with white (`Compile/Piet.lean`). See their
+  compiler pages.
+* Turpentine -> thue `[ ]` (bespoke): still planned, via a shared register
+  machine (RegIR); see `docs/thue/compiler.md`. All three targets already
+  have a *derived*, certified compiler out of their completeness proofs
+  (`derivedThue`, `derivedFractran`, `derivedPiet`), all three are
   reachable from the CLI as `--to <lang> --tc`, so what a bespoke backend
-  would add is readable output and I/O, not correctness.
+  adds is readable output and I/O, not correctness.
+* Turpentine -> piet, arrays `[ ]`: the one thing the Piet backend refuses.
+  Variables live on the stack and are reached with `roll`, so an array
+  would too — but a *computed* index needs the roll depth itself computed
+  at run time, turning the constants in the read and write sequences into
+  stack expressions. Six conformance programs are waiting on it.
 
 ### Intermediate representations, and why
 
