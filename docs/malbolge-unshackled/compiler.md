@@ -1,11 +1,16 @@
 # Compiling Turpentine to Malbolge Unshackled
 
 * **Status**: planned, hard, and the reason the library implements
-  Unshackled at all.
+  Unshackled at all. Not started as a backend; the groundwork now exists
+  as theorems, and this page records what they say a backend must do.
 * **Family**: would need its own lowering; none of StackIR, TapeIR or
   RegIR survives contact with self-encrypting code.
 * **Implementation**: none yet; it would go in
   `Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean`.
+* **Machine-checked groundwork**:
+  [`Langlib/Computability/MalbolgeUnshackled.lean`](../../Langlib/Computability/MalbolgeUnshackled.lean),
+  written up in
+  [computability-malbolge-unshackled.md](../computability-malbolge-unshackled.md).
 
 ## Why this target and not Malbolge
 
@@ -17,34 +22,262 @@ through the reasoning. Unshackled lifts exactly that bound — values are
 registers are unbounded — and with it the objection. A full compiler is
 possible here.
 
-## The three obstacles, and the one known way through
+## The three obstacles, and what is now proved about each
 
-The obstacles are Olmstead's, inherited unchanged:
+The obstacles are Olmstead's, inherited unchanged. Each is now a theorem
+rather than folklore, and each turns out to have a sharper form than the
+prose version.
 
-1. **Executed code encrypts itself.** After the instruction at `c` runs,
-   `mem[c]` is replaced through a fixed permutation, so a cell means
-   something different the second time control reaches it.
-2. **Opcodes are position-dependent**: the instruction at `c` is
-   `(mem[c] + c) mod 94`. Code is not relocatable.
-3. **The data operations are hostile.** No addition, no subtraction: a
-   rotate-right of variable width and the per-trit crazy operation.
+### 1. Executed code encrypts itself
 
-The known way through, and the one every substantial Malbolge program
-takes, is a **virtual machine inside the language**: hand-write an
-interpreter whose bytecode lives in *data* cells, which are never executed
-and therefore never encrypt, then compile Turpentine to that bytecode. The
-self-encryption problem disappears because the compiled program is data;
-the position dependence is confined to the hand-written interpreter.
+After the instruction at `c` runs, `mem[c]` is replaced through a fixed
+permutation, so a cell means something different the second time control
+reaches it. The sharp form: the table `xlat2` has **no fixed point**, and
+the 94 printable codes `33..126` are 94 consecutive naturals, hence
+pairwise distinct modulo 94. So a cell's opcode changes on *every*
+execution, without exception:
 
-Unshackled adds one obstacle of its own, and it is the interesting one.
-**The starting rotation width is not fixed by the language**: an
-implementation may begin anywhere at or above 10 and must widen when `j`
-loads a wider value into `d`. Johansen's interpreter randomises it on
-every run. So generated code cannot depend on the width, and the
-correctness statement for a backend has to be universally quantified over
-it — a proof obligation with no counterpart in any other target here. The
-runner exposes `--rot-width` for exactly this reason, and the test suite
-runs `hello.mu` at two settings.
+```lean
+theorem decode_encrypt_ne {w : Nat} (h₁ : 33 ≤ w) (h₂ : w ≤ 126) {m : Nat}
+    (hne : decode (Value.ofNat w) m ≠ .nop) :
+    decode (Value.ofNat (encrypt w)) m ≠ decode (Value.ofNat w) m
+```
+
+**But one instruction escapes the dynamics.** The interpreter reads the
+word to encrypt *after* the instruction has run. Every instruction leaves
+`c` where it was, so every instruction overwrites its own cell — except
+`jmp`, which has already moved `c` to its target, so the encryption lands
+on the target and the jumping cell is untouched:
+
+```lean
+theorem jmp_cell_stable {s : State} {code : Nat} (hne : s.mem.get s.d ≠ s.c) :
+    (s.mem.set (s.mem.get s.d) (Value.ofNat (encrypt code))).get s.c
+      = s.mem.get s.c
+```
+
+`jmp` is the only self-preserving instruction in the language, and that is
+what makes any loop possible. **A backend's dispatcher should be built out
+of stable `jmp` cells reading a table of targets**, which is exactly what
+the surviving Malbolge programs do.
+
+The second useful fact is arithmetic on orbits. A cell that is both
+executed *and* jumped onto in the same pass advances **two** steps along
+its `xlat2` orbit, so a word from the table's two-element orbit,
+`70 ↔ 74`, comes back every pass. That is how a `movd` can appear in a
+loop at all, and it is the trick the worked example below turns on.
+
+Measured corroboration, from running our own interpreter: the control
+state of `Langlib/Examples/MalbolgeUnshackled/cat.mu` is periodic with
+period **3060**, which is `lcm 68 9 6 5 4 2`, the lcm of the orbit lengths
+of `xlat2`. A loop closes exactly when every cell it touches has come back
+round. `truth.mu` on input `1` has period 408, which is `68 * 6`.
+
+### 2. Opcodes are position-dependent
+
+The instruction at `c` is `(mem[c] + c) mod 94`, so code is not
+relocatable. Stated for the addresses a compiler actually lays code out
+at, the naturals:
+
+```lean
+theorem decode_at_ofNat {w : Nat} (h₁ : 33 ≤ w) (h₂ : w ≤ 126) (a : Nat) :
+    decode (Value.ofNat w) (Value.ofNat a).modClass
+      = (Instr.ofOpcode? ((w + a) % 94)).getD .nop
+```
+
+Two consequences an assembler has to obey.
+
+**Instruction choice is free; placement is not.** Every one of the eight
+instructions is available as a loadable cell that alternates between that
+instruction and a no-op, using the two-cycle `70 ↔ 74`
+(`alternatingCell_spec`). But the residue is forced modulo 94: a `crazy`
+wants an address congruent to 82, a `movd` one congruent to 60, a `jmp`
+one congruent to 24. Padding between them is the scarce resource, not
+instructions: only 14 of the 94 residues admit a cell that both loads and
+stays harmless through its whole orbit.
+
+**The jump-table spacing law.** Every cell of a program the loader
+accepted must decode to one of the eight opcodes at its own address. So if
+a dispatcher needs the same target value at two addresses `g` apart, the
+two opcodes it produces differ by `g` modulo 94, and `g` must be a
+difference of two opcodes:
+
+```lean
+theorem gap_of_repeated_word {v a g : Nat}
+    (h₁ : (Instr.ofOpcode? ((v + a) % 94)).isSome = true)
+    (h₂ : (Instr.ofOpcode? ((v + a + g) % 94)).isSome = true) :
+    g % 94 ∈ loadableGaps
+```
+
+Only 43 of the 94 gaps qualify, and among the small ones only 0, 1 and 6.
+In particular **2 does not** (`no_repeated_word_gap_two`), which rules out
+the shortest jump-table loop a compiler would reach for. Consecutive table
+entries, gap 1, are one of only two short options the loader permits, and
+they are what `cat.mu` uses.
+
+### 3. The data operations are hostile
+
+No addition, no subtraction: a rotate-right of variable width and the
+per-trit crazy operation. The consequence a backend has to plan around is
+about *widths*, and it interacts with the rotation-width problem below.
+
+`crz` is applied trit by trit over the wider of its two operands, so it
+**never widens a value**: `width (crz a b) ≤ max (width a) (width b)`.
+`rot w` is the only operation that can widen a stored value, taking a
+narrow value up to width `w`. Successor widens too, but successor applies
+only to `c` and `d`, never to a stored word.
+
+So a compiler that avoids `rot` keeps every value it ever stores inside the
+width of its largest compiled-in constant. That is a bounded alphabet.
+Unbounded storage then has to come from the *number* of cells rather than
+from the size of a value, which points at unary counters spread across
+memory, with `d` walking them. Registers as big numbers require `rot`, and
+`rot` requires knowing the rotation width.
+
+What such a compiler can compute is settled. `crz` is tritwise
+(`crz_trit`), so it is decided position by position, and reading the table
+by rows gives:
+
+| accumulator trit | results reachable by varying the memory trit |
+|---|---|
+| 0 | 1, 2 |
+| 1 | 0, 2 |
+| 2 | 0, 1, 2 |
+
+One operation is therefore not enough: from an accumulator trit of 0 no
+choice of memory produces a 0 (`crzTrit_zero_ne_zero`). Two always are,
+because every row reaches 2 and the row for 2 reaches everything:
+
+```lean
+theorem crz_two_steps (a : Value) {t : Value} (h : t.Normalized) :
+    ∃ k₁ k₂, Value.crz (Value.crz a k₁) k₂ = t
+```
+
+**Any value becomes any other in exactly two `p` operations against chosen
+constants**, and the constants are computed, not searched for
+(`toTwoConst`, `fromTwoConst`). Since the compiler owns what sits in
+memory, that is a usable primitive: writing a computed address into a jump
+table costs two crazy operations, and a data-driven branch is exactly a
+computed jump-table entry.
+
+## A route that is closed, and worth knowing is closed
+
+Unbounded memory suggests an escape from obstacle 1 that Malbolge never
+offered: never re-execute a cell at all, run forward for ever through
+fresh instructions. It does not work. The loader fills every address it
+never reached with Malbolge's 6-periodic `mem[i] = crz mem[i-1] mem[i-2]`
+iteration, and the crazy operation of two values whose repeating trit is
+`0` has repeating trit `1`. From the third term the repeating trits
+alternate, so three of the six residues hold values that are not naturals,
+hence not printable, hence hang the interpreter when executed:
+
+```lean
+theorem restTable_not_printable {p q : Value} (hp : p.lead = .t0) (hq : q.lead = .t0)
+    (m : Nat) :
+    ∃ j, j < 6 ∧ printableCode? ((restTable p q m).getD j Value.zero) = none
+```
+
+Marching forward hits a hang within two steps. **Whatever loops, loops
+inside the loaded image**, over cells that have already executed, which is
+what makes obstacle 1 bite. The virtual-machine plan below is not one
+option among several; it is the only shape available.
+
+## The rotation width: avoidable, at a price
+
+This page used to call the rotation width the interesting obstacle, the
+one with no counterpart in any other target. That is a fair description of
+the language and a misleading one for a compiler, so it is worth being
+precise.
+
+The width is genuinely unpinned: an implementation may start anywhere at
+or above 10 and must widen when `j` loads a wider value into `d`.
+Johansen's interpreter randomises it per run, our runner exposes
+`--rot-width`, and generated code may not depend on it. But it is **read
+by exactly one instruction**, `rotr`. A backend that never emits `*` never
+observes the width, never has to reason about how it grew, and is correct
+at *every* legal starting width rather than only at the reference minimum
+of 10. The proof obligation that had no counterpart elsewhere simply does
+not arise.
+
+The price is obstacle 3: without `rot`, stored values never widen, so
+registers cannot be big numbers and have to be unary across cells. That is
+the real trade, and it is the first decision a backend author has to make:
+
+* **Avoid `rot`.** Bounded-width values, unary counters, unbounded storage
+  from the number of cells. Correct at every rotation width, and every
+  arithmetic lemma is carry-free and tritwise.
+* **Use `rot`.** Big-number registers, far fewer cells, but the compiler
+  must track the width through every `j` that widens `d`, and the
+  correctness statement must be universally quantified over the starting
+  width.
+
+LangLib's groundwork takes the first branch, and the worked example below
+uses no `rot`.
+
+## What a backend can build on today
+
+The dispatcher a virtual machine needs is a loop, and there is now a
+verified one.
+
+`Langlib/Examples/MalbolgeUnshackled/loop.mu` is a 201-cell program the
+loader accepts whose execution settles into a three-step cycle:
+
+```text
+c=154  d=200  movd      mem[154]=74
+c=155  d=198  jmp       mem[154]=70
+c=155  d=199  jmp       mem[154]=74   (restored)
+```
+
+* **155** holds 37, `jmp` at an address congruent to 61 modulo 94. Never
+  written for the whole run, by `jmp_cell_stable`. It fires twice a cycle.
+* **154** holds 74, `movd` at an address congruent to 60 modulo 94.
+  Encrypted twice a cycle, once by executing and once as the first jump's
+  target, and `74 ↦ 70 ↦ 74` restores it.
+* **153** is the second jump's target, encrypted once a cycle. The
+  invariant never tracks its word: encryption keeps a printable word
+  printable, and printable is all this cell must be.
+* **198, 199** are the jump table, read at consecutive `d`, the shortest
+  spacing the spacing law allows. **200** holds 197, three below itself,
+  which is what returns `d` each cycle.
+
+`Loop.neverHalts` proves that cycle runs for ever: at every fuel bound the
+interpreter reports `outOfFuel`, so no halt and no runtime error. That the
+program *reaches* the cycle, after a 154-step no-op prologue, is checked by
+running the interpreter and by a golden test, not in the kernel.
+
+Two pieces of reusable machinery come with it, and a backend proof should
+use both:
+
+```lean
+theorem neverHalts_of_invariant {P : State → Prop}
+    (hstep : ∀ s, P s → ∃ s', step1 s = some s' ∧ P s')
+    {s : State} (hs : P s) (n : Nat) : (exec n s).2 = Exit.outOfFuel
+```
+
+and the memory laws `get_set_self` and `get_set_ne`, which hold because
+`Value` admits `LawfulBEq` and `LawfulHashable`. The lesson from proving
+the loop is worth stating plainly: **write the invariant as `Memory.get`
+equations, never as memory equality**. Then no proof compares two hash
+maps and no proof evaluates a long run. Kernel evaluation is not an option
+here anyway; ten steps of a loaded image take seconds and do not reach a
+normal form.
+
+## What a backend still has to solve
+
+1. **A data-driven branch.** The verified loop is unconditional. A virtual
+   machine needs the jump table's entry to be *computed*, so that a data
+   cell selects between "dispatch again" and "leave", which means writing
+   an address with the crazy operation.
+2. ~~The value algebra.~~ **Done**: `crz_two_steps` says any value reaches
+   any other in two operations, and `crzTrit_zero_ne_zero` says one will
+   not do. What remains is the *sequencing*: `p` writes to `mem[d]`, so the
+   two constants have to be reachable by `d` at the right moments, which is
+   a layout problem rather than an arithmetic one.
+3. **A layout pass.** Solving the residue constraints of obstacle 2
+   automatically, with the spacing law as a side condition, is an
+   assembler and should be written and tested as one.
+4. **The prologue.** Reaching the dispatcher from `c = 0` is a real piece
+   of code, and proving it symbolically is what the worked example above
+   leaves out.
 
 ## Credit
 
@@ -60,7 +293,13 @@ art; see `CONTRIBUTING.md`.
 
 Known and positive, and it is the whole point of the variant: Unshackled
 is Turing complete, settled in 2020 when Palaiologos's MalbolgeLisp gave a
-working Lisp interpreter written in it. LangLib has no machine-checked
-proof yet; the entry in [docs/README.md](../README.md) tracks it, and it
-would be one of the harder ones in the library, since the simulation has
-to survive both the encryption and the free choice of rotation width.
+working Lisp interpreter written in it. LangLib has **no machine-checked
+proof yet**, and no `TuringComplete` witness, so the library currently
+asserts nothing about the language's computational class. The entry in
+[docs/README.md](../README.md) tracks it, and
+[computability-malbolge-unshackled.md](../computability-malbolge-unshackled.md)
+says exactly what is proved, what is measured, and what is open.
+
+Because a completeness witness in LangLib *carries* a compiler from the
+unlimited register machine, the proof and this backend are the same piece
+of work; see [certified-compilation.md](../certified-compilation.md).

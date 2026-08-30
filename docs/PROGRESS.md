@@ -114,6 +114,223 @@ not carry over to it: SKI is normal order rather than call by value, and
 it has no output instruction, so its answer has to be a normal form rather
 than a stream of bytes.
 
+## 2026-08-30: two crazy operations reach anything
+
+The compiler page for Malbolge Unshackled argues that a backend should
+avoid `*` entirely, since the rotation width is read by exactly one
+instruction and dodging it makes a backend correct at every legal width.
+That trade is only worth taking if the crazy operation alone computes
+enough. It does, and the bound is exact.
+
+`crz_trit` proves the operation is tritwise, at every position and in the
+repeating trit, so the question reduces to nine cases of Olmstead's table.
+Reading it by rows: an accumulator trit of 0 reaches 1 and 2, one of 1
+reaches 0 and 2, one of 2 reaches everything. So **one operation is not
+enough** (`crzTrit_zero_ne_zero`: a 0 can never produce a 0) and **two
+always are**, because every row reaches 2 and the row for 2 reaches
+everything:
+
+```lean
+theorem crz_two_steps (a : Value) {t : Value} (h : t.Normalized) :
+    ∃ k₁ k₂, Value.crz (Value.crz a k₁) k₂ = t
+```
+
+Any value becomes any other in exactly two `p` operations against chosen
+constants, and the constants are computed rather than searched for. Since
+a compiler owns what sits in memory, that is the primitive a data-driven
+branch needs: a branch is a computed jump-table entry, and writing one
+costs two crazy operations.
+
+The supporting lemma is value extensionality, `ext_of_trits`: normalised
+values with the same repeating trit and the same trits are equal. Without
+it a tritwise argument cannot conclude an equation between values, and
+`stripLead` and `padTo` both had to be shown invisible to `trit` first.
+
+`docs/malbolge-unshackled/compiler.md` was rewritten in the same batch to
+carry all of the Malbolge Unshackled findings in one place: the three
+obstacles with the theorem for each, the closed-off route through virgin
+memory, the rotation width reclassified from hardest obstacle to avoidable
+one, the verified loop a dispatcher can be built on, and what a backend
+still has to solve.
+
+## 2026-08-30: a Malbolge Unshackled program that provably never halts
+
+`Langlib/Examples/MalbolgeUnshackled/loop.mu` is a 201-cell program the
+loader accepts whose execution settles into a three-step cycle, and
+`Langlib.Computability.Unshackled.Loop.neverHalts` proves that cycle runs
+for ever: at every fuel bound the interpreter reports `outOfFuel`, so no
+halt and no runtime error, ever. It is the first LangLib theorem asserting
+anything about a Malbolge Unshackled run of unbounded length.
+
+The cycle is `movd` at 154, then `jmp` at 155 twice:
+
+```text
+c=154  d=200  movd      mem[154]=74
+c=155  d=198  jmp       mem[154]=70
+c=155  d=199  jmp       mem[154]=74   (restored)
+```
+
+Three cells carry it, and the reason each works is the point of the entry:
+
+* **155** holds 37, which decodes to `jmp` at an address congruent to 61
+  modulo 94. A `jmp` never encrypts itself, so this cell is never written
+  for the whole run.
+* **154** holds 74, `movd` at an address congruent to 60 modulo 94. It is
+  encrypted **twice** per cycle, once by executing and once by being the
+  first jump's target, and `74 ↦ 70 ↦ 74` is `xlat2`'s two-cycle. So it is
+  restored every pass. **A cell that is both executed and jumped onto
+  advances two orbit steps per cycle**, which is what makes a two-cycle
+  word survive, and it is the trick the whole construction turns on.
+* **153** is the second jump's target, encrypted once per cycle. The
+  invariant does not track its word at all: encryption keeps a printable
+  word printable, and printable is all this cell has to be.
+
+The jump table is at 198 and 199, read at consecutive `d`, which is the
+shortest spacing yesterday's `gap_of_repeated_word` permits; cell 200 holds
+197, three below itself, which is what returns `d` each cycle. Designing
+around that law is what made the program 201 cells rather than a handful:
+the data values have to sit above 126 so the loader stores them unchecked,
+and the `movd` residue is 60 modulo 94, so the loop cannot start before
+address 154.
+
+The proof is three step lemmas and a disjunction of three phase
+predicates, each a few `Memory.get` equations plus the two registers.
+Nothing is computed anywhere: `get_set_self` and `get_set_ne` push each
+phase to the next, and `neverHalts_of_invariant` finishes. That is the
+payoff of writing the invariant with `get` equations instead of memory
+equality, and it is the shape an unbounded data-driven loop will need too,
+where the reachable set is infinite and computation could not help.
+
+Honest gap: the theorem covers every state in the cycle, but that `loop.mu`
+*reaches* one, after a 154-step no-op prologue, is checked by running the
+interpreter and by a golden test, not in the kernel. Kernel evaluation is
+not a route: ten steps of `run?` on a loaded image takes seconds and does
+not reach a normal form, because `load` and `Memory` are built on
+`Std.HashMap`. Closing it means proving the prologue symbolically too.
+
+No semantics were changed.
+
+## 2026-08-30: how a Malbolge loop actually works, and the gadget that proves one
+
+Second batch on Malbolge Unshackled, and it corrects the first. Yesterday's
+entry said an unbounded loop would need cells from the long `xlat2` orbits
+phased so exactly one of a run fires per pass. That is not the mechanism.
+
+The interpreter reads the word to encrypt **after** the instruction has run.
+Every instruction leaves `c` where it was, so every instruction overwrites
+its own cell, which is what `decode_encrypt_ne` makes bite. `jmp` has
+already moved `c` to its target, so the encryption lands on the target and
+the jumping cell is untouched. **`jmp` is the only self-preserving
+instruction in the language** (`jmp_cell_stable`), and that is the whole
+reason anything can loop. The reference semantics knew it: the comment in
+`Semantics.lean` says the encryption is "after a jump that is the *target*,
+never the jump itself". What was missing was the consequence.
+
+So a loop is a stable `jmp` reading a table of targets while `d` walks
+through it. Tracing `cat.mu` against our own interpreter shows exactly that:
+from step 38 the control cycle is `37, 38, 60, 61, 61` and back, five steps,
+with cell 61 firing `jmp` on two consecutive steps without changing, reading
+its table at `d` and `d + 1`.
+
+The full control state repeats with period **3060**, after an 89-step
+prologue. That is `lcm 68 9 6 5 4 2`, the lcm of the encryption table's
+orbit lengths: the loop closes exactly when every cell it touches has come
+back round. `truth.mu` on input `1` has period 408, which is `68 * 6`. Both
+are measurements against `Semantics.lean`, flagged as such in the docs.
+
+Consecutive table entries turn out to be nearly forced, and that is a
+theorem. Every cell of a loadable program must decode to one of the eight
+opcodes at its own address, so if one target value appears at two addresses
+`g` apart, `g` is a difference of two opcodes modulo 94
+(`gap_of_repeated_word`). Only 43 of 94 gaps qualify, and of the small ones
+only 0, 1 and 6. **Not 2** (`no_repeated_word_gap_two`), which rules out the
+shortest jump-table loop a compiler would reach for.
+
+The reusable half is `neverHalts_of_invariant`: a set of states closed under
+one iteration proves the run consumes every fuel bound without reporting a
+result, restated at the language interface as `image_neverHalts` and
+`not_halts_of_invariant`. It goes through `step1` and `step1_sound`, whose
+only job is to be provably the body of `exec`, so none of this can drift
+from the reference semantics. The point of the invariant shape is that the
+predicate is written with `Memory.get` equations rather than memory
+equality, so discharging one needs neither hash-map comparison nor a long
+kernel evaluation; `get_set_self` and `get_set_ne` (via `LawfulBEq Value`
+and `LawfulHashable Value`) are the only memory facts required. An
+unbounded loop over an unbounded counter will need exactly this shape, since
+there the reachable set is infinite and computation would not help.
+
+Still open, and now a bounded task: no `P` has been written down and
+discharged for an actual image, so LangLib does not yet assert that any
+particular Malbolge Unshackled program runs forever.
+
+No semantics were changed. The only edits outside
+`Langlib/Computability/` remain the visibility of five internal helpers
+(`natTritsAux`, `padTo`, `succTrits`, `doOutput`, `doInput`, `step`), which
+proofs have to be able to name.
+
+## 2026-08-30: Malbolge Unshackled, the ground floor of a completeness proof
+
+Malbolge Unshackled is one of Stage 8's open positive claims.
+This is the start of it. There is no `TuringComplete` witness
+yet and this entry does not claim one; what landed is
+`Langlib/Computability/MalbolgeUnshackled.lean`, axiom-clean, containing the
+layer a witness has to be built on and the two theorems that say why the
+obvious constructions do not work.
+
+The `ProgLang` instance names the language: a program is a loaded `Image`,
+the parser is the loader, the runner is `evalImage` at the default
+configuration.
+
+The arithmetic of addresses is proved rather than sampled.
+`succ_ofNat` says 3-adic successor is ordinary increment on the naturals,
+`modClass_ofNat` says the decreed residue of a natural is `n % 282`, and
+`decode_at_ofNat` puts them together: the instruction a cell holds is a
+function of its word **and its address**. `exec_hang`, `exec_halt` and
+`exec_step` are the three exits from the interpreter's dispatch, and
+`exec_of_hang` proves Johansen's `hang` never halts, never errors and never
+emits.
+
+Then the two obstructions, which are the point of the entry.
+
+* `decode_encrypt_ne`: `xlat2` has no fixed point and the 94 printable codes
+  are 94 consecutive naturals, hence distinct modulo 94, so **no cell
+  executes the same non-`nop` instruction on two consecutive executions**. A
+  loop whose body is a fixed instruction sequence is not expressible in this
+  language. Loops have to be cycles through the encryption table's orbits,
+  whose lengths are 68, 9, 6, 5, 4 and 2.
+* `restTable_not_printable`: the 6-periodic memory fill that covers the
+  addresses the loader never reached produces, at three of its six residues,
+  values whose repeating trit is 1. Those are not naturals, so not
+  printable, so executing one hangs. **A program cannot walk off its own end
+  into an infinite supply of fresh instructions.** That strategy is the one
+  thing Unshackled's infinite address space appears to offer over Malbolge,
+  it is the first thing one reaches for, and it does not work.
+
+The constructive half is `alternatingCell`, a table of eight cells built
+from `xlat2`'s single 2-cycle `70 ↔ 74`, one per instruction, checked in the
+kernel. Every instruction is available as a loadable period-2 cell, so
+instruction choice is free; the residue is forced modulo 94, so instruction
+*placement* is the real cost, and padding is scarcer than instructions
+(only 14 of 94 residues admit a cell that both loads and stays harmless
+through its whole orbit). The table also shows the phase is forced: an
+alternating cell always fires on its first execution, never on its second,
+which is why a loop cannot be assembled from two half-bodies of opposite
+phase.
+
+One finding is worth flagging because it contradicts the received wisdom in
+`docs/PLAN.md`. The free choice of rotation width, described there as
+something no other target has an analogue of, is read by exactly one
+instruction. A compiler that never emits `*` never observes it, and is then
+correct at every legal width rather than only at the reference minimum. The
+price is that the crazy operation becomes the only arithmetic, which pushes
+registers towards unary counters spread over memory cells, which is exactly
+the resource Unshackled has and Malbolge lacks.
+
+Next: loop construction from the longer orbits, phased so exactly one cell
+of a run fires per pass. That is the HeLL assembler's technique and
+everything else waits on it. `docs/computability-malbolge-unshackled.md`
+has the full account, including what is cited rather than proved.
+
 ## 2026-08-30: Piet examples that loop, branch, and hang a painting
 
 Every Piet example was straight-line — push, compute, print, stop — which

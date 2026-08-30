@@ -161,7 +161,7 @@ structure State where
 /-- The output instruction. `...22` closes the stream, `...21` writes a
 newline, a natural writes the character it names, and anything else is
 reserved for future expansion and therefore an error. -/
-private def doOutput (s : State) : Except String State :=
+def doOutput (s : State) : Except String State :=
   if s.a == Value.eof then
     .ok { s with outClosed := true }
   else if s.outClosed then
@@ -179,14 +179,14 @@ private def doOutput (s : State) : Except String State :=
                 reserved, and only ...22 and ...21 have meanings so far"
 
 /-- The input instruction. -/
-private def doInput (s : State) : Except String State := do
+def doInput (s : State) : Except String State := do
   match ← readChar? s.input with
   | none => .ok { s with a := Value.eof }
   | some (ch, i) =>
     .ok { s with a := if ch == '\n' then Value.eol else Value.ofChar ch, input := i }
 
 /-- Execute one instruction other than `halt` and `outOfBounds`. -/
-private def step (instr : Instr) (s : State) : Except String State :=
+def step (instr : Instr) (s : State) : Except String State :=
   match instr with
   | .jmp => .ok { s with c := s.mem.get s.d }
   | .out => doOutput s

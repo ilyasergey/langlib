@@ -33,6 +33,7 @@ import Langlib.Computability.Brainloller
 import Langlib.Computability.Piet
 import Langlib.Computability.Fractran
 import Langlib.Computability.BespokeSubleq
+import Langlib.Computability.MalbolgeUnshackled
 import Langlib.Computability.Unlambda
 import Langlib.Computability.Ski
 
@@ -485,6 +486,62 @@ open Langlib.Turpentine.Compile
 #print axioms URMFractran.decodeOutput_encode
 #print axioms URMFractran.simulation
 #print axioms fractranComplete
+
+
+-- MALBOLGE UNSHACKLED: no completeness witness yet. What is proved is the
+-- ground floor a witness has to be built on: the arithmetic of natural
+-- addresses, the two obstructions a compiler must get past, the fact that
+-- `jmp` alone does not overwrite its own cell (which is what lets anything
+-- loop), the jump-table spacing law, a program that provably never halts,
+-- and the algebra of the crazy operation.
+-- See docs/computability-malbolge-unshackled.md.
+
+-- Addresses, decoding, and the step-level reading of `exec`.
+#print axioms Unshackled.toNat?_ofNat
+#print axioms Unshackled.modClass_ofNat
+#print axioms Unshackled.succ_ofNat
+#print axioms Unshackled.decode_at_ofNat
+#print axioms Unshackled.exec_hang
+#print axioms Unshackled.exec_halt
+#print axioms Unshackled.exec_step
+#print axioms Unshackled.exec_of_hang
+#print axioms Unshackled.step1_sound
+#print axioms Unshackled.exec_of_run?
+
+-- The two obstructions, and the alternating cells a loop can use.
+#print axioms Unshackled.opcode_ne_encrypt
+#print axioms Unshackled.decode_encrypt_ne
+#print axioms Unshackled.restTable_not_printable
+#print axioms Unshackled.alternatingCell_spec
+
+-- `jmp` is the only self-preserving instruction, and memory is a function.
+#print axioms Unshackled.get_set_self
+#print axioms Unshackled.get_set_ne
+#print axioms Unshackled.exec_jmp
+#print axioms Unshackled.jmp_cell_stable
+#print axioms Unshackled.exec_nonjmp_encrypts_self
+
+-- What a loadable jump table may look like.
+#print axioms Unshackled.gap_of_repeated_word
+#print axioms Unshackled.no_repeated_word_gap_two
+
+-- The loop gadget, and the three-step loop that instantiates it.
+#print axioms Unshackled.neverHalts_of_invariant
+#print axioms Unshackled.image_neverHalts
+#print axioms Unshackled.not_halts_of_invariant
+#print axioms Unshackled.Loop.step_phase₀
+#print axioms Unshackled.Loop.step_phase₁
+#print axioms Unshackled.Loop.step_phase₂
+#print axioms Unshackled.Loop.looping_step
+#print axioms Unshackled.Loop.neverHalts
+
+-- The algebra of the crazy operation: what a rot-free backend can compute.
+#print axioms Unshackled.crz_trit
+#print axioms Unshackled.ext_of_trits
+#print axioms Unshackled.crzTrit_zero_ne_zero
+#print axioms Unshackled.crz_toTwoConst
+#print axioms Unshackled.crz_fromTwoConst
+#print axioms Unshackled.crz_two_steps
 
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine

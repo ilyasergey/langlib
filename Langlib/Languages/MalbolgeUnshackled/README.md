@@ -53,6 +53,7 @@ instruction — so attribution lives here.
 | `truth.mu` | truth machine: prints `0` and halts, or prints `1` forever | provenance not recorded |
 | `cat.mu` | copies stdin to stdout, then never halts | provenance not recorded |
 | `rotcrash.mu` | `'bO`: rotates a word, then dies because the rotated word has no encryption | LangLib original |
+| `loop.mu` | runs for ever in a three-step cycle, printing nothing; the loop LangLib's completeness work proves non-halting | LangLib original |
 
 Usage, since the files cannot carry their own:
 

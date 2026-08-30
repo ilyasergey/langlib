@@ -48,6 +48,11 @@ def suite : Suite where
         input := "1", fuel := 200_000, expect := .diverges }
     , { name := "cat example never halts", source := ex "cat.mu",
         input := "x", fuel := 200_000, expect := .diverges }
+      -- The verified loop: three steps, `movd` at 154 then `jmp` at 155
+      -- twice. `Langlib.Computability.Unshackled.Loop.neverHalts` proves
+      -- this cycle never halts; the test checks the interpreter agrees.
+    , { name := "loop example never halts", source := ex "loop.mu",
+        fuel := 200_000, expect := .diverges }
       -- Micro-programs.
     , { name := "halt at address 0", source := .inline "Q'",
         expect := .outputs "" }

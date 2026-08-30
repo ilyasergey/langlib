@@ -170,7 +170,7 @@ instance : Inhabited Value := ⟨zero⟩
 
 /-- Base-3 digits of a natural, least significant first, no leading zeros.
 The first argument is fuel; `natTrits` supplies enough of it. -/
-private def natTritsAux : Nat → Nat → List Trit
+def natTritsAux : Nat → Nat → List Trit
   | 0, _ => []
   | _ + 1, 0 => []
   | f + 1, n + 1 => Trit.ofResidue ((n + 1) % 3) :: natTritsAux f ((n + 1) / 3)
@@ -214,7 +214,7 @@ instance : ToString Value := ⟨toString⟩
 /-! ### Arithmetic -/
 
 /-- Pad a trit list up to length `n` with copies of the repeating trit. -/
-private def padTo (n : Nat) (t : Trit) (l : List Trit) : List Trit :=
+def padTo (n : Nat) (t : Trit) (l : List Trit) : List Trit :=
   l ++ List.replicate (n - l.length) t
 
 /-- The crazy operation, applied tritwise to two 3-adic values. The
@@ -240,7 +240,7 @@ def rot (w : Nat) (v : Value) : Value :=
 repeating trit and the new (not yet normalised) list. Carrying past the end
 of the explicit trits is where the repeating trit can change: `...222 + 1`
 is `...000`. -/
-private def succTrits (lead : Trit) : List Trit → Trit × List Trit
+def succTrits (lead : Trit) : List Trit → Trit × List Trit
   | [] =>
     match lead with
     | .t0 => (.t0, [.t1])
