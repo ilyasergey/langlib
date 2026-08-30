@@ -333,8 +333,75 @@ pairs of `divmod.turp` come out right.
 ## Output format
 
 P3 (ASCII) PPM at codel size 1, matching what `lake exe piet` reads and what
-the examples use. The derived route already emits it: `--to piet` renders
-the grid with
+the examples use. Both routes emit it: `--to piet` renders the grid with
 [`Grid.toImage`](../../Langlib/Languages/Piet/Syntax.lean#L164) and
-`Image.toPpm3`, one line of the file per image row. A bespoke backend
-should do the same.
+`Image.toPpm3`, one line of the file per image row.
+
+PPM is a fine format for a program and a poor one for looking at, so the
+rest of this section is how to turn one into a picture. All of it starts
+from a compiled program:
+
+```
+lake exe turpentine compile --to piet --bespoke -o /tmp/tri.ppm Langlib/Examples/Turpentine/suite/triangle.turp
+```
+
+Output, on stderr:
+
+```
+turpentine: wrote 43787 bytes to /tmp/tri.ppm [bespoke, hand-written and unverified]
+```
+
+### An SVG, through the interpreter itself
+
+The best answer needs nothing installed, because `lake exe piet` will draw
+a program instead of running it. `--scale` sets the pixels per codel and
+`--grid` outlines each one:
+
+```
+lake exe piet --svg /tmp/tri.svg --scale 8 /tmp/tri.ppm
+```
+
+Output:
+
+```
+piet: wrote 88x42 codels to /tmp/tri.svg
+```
+
+This is the route [`scripts/render-docs-images.sh`](../../scripts/render-docs-images.sh)
+uses for every picture in `docs/piet/img/`, and the reason is worth stating:
+rendering through the language's own runner means the picture cannot drift
+from what the interpreter reads. It is also scalable, so one file looks
+right at any size.
+
+### A PNG
+
+For a PNG you need a converter. On macOS `sips` is already there:
+
+```
+sips -s format png /tmp/tri.ppm --out /tmp/tri.png
+```
+
+Output:
+
+```
+/private/tmp/tri.ppm
+  /private/tmp/tri.png
+```
+
+That is one pixel per codel — 88 x 42 for this program, which is a
+thumbnail. `sips -z <height> <width>` will enlarge it, and elsewhere
+ImageMagick does the same job with `magick /tmp/tri.ppm /tmp/tri.png`.
+(The `--svg` and `sips` commands above were run to produce the output
+quoted; the ImageMagick one is the equivalent on machines that have it.)
+
+**Enlarge with nearest-neighbour, or not at all.** Any smooth resampling
+blends adjacent codels, and a blended pixel is not one of Piet's twenty
+colours, so the picture stops being a program: `lake exe piet` rejects it
+and `--unknown-white` would read the seams as white. ImageMagick's
+`-scale` does nearest-neighbour and its `-resize` does not. If what you
+want is a large picture that still runs, the honest way is
+`--codel-size N` at the other end — enlarge each codel to an `N x N`
+block and tell the interpreter you did.
+
+Note also that the runner reads its programs as *text*, so it takes ASCII
+P3 only. A PNG is for looking at and sharing; keep the PPM to run.
