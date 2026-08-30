@@ -360,13 +360,37 @@ The steps, in order:
    that makes the answer observable belongs to the *compiler*'s
    `answerProgram`, so step 4 will instantiate `spec` at `answerProgram p`
    and `encodeTrace` stays the identity.
-3. **The fragment and the emitter lemmas.** Widen `checkFragment`, and add
-   the print cases to the `Emits` algebra and to `simStmt`, each
-   discharging the trace increment as well as the state relation.
+3. **The fragment and the emitter lemmas** `[x]`. `SimS` now says that a
+   statement's code reaches the same heap *and performs the same I/O
+   events*, with one witness shared by the two sides, and that what it
+   appended to the output is the encoding of a string — carrying the string
+   rather than raw bytes is what keeps the whole output decodable, since
+   `String.toUTF8` distributes over append. `print("...")`, `print(e)` and
+   `println(e)` for an `int` or a `bool` are in the fragment;
+   `printByte` is not, because `e mod 256` carries the same Euclidean
+   obligation that keeps `%` out.
+
+   Two things this cost that were not in the estimate. The epilogue had to
+   become `println(""); print(answer);` with a decoder that reads the
+   digits after the *last* newline, because a program that prints for
+   itself cannot have its answer read by parsing the whole output; that is
+   sound with no extra restriction, since `toString (answer : Nat)` is all
+   digits. And the fragment had to become **type-checked**: `print` is
+   compiled from an expression's static type and interpreted from its
+   runtime value, so `Agrees` now carries the typing as well as the value,
+   `checkFragment` rejects an ill-typed assignment, and `evalExpr_hasTy`
+   proves the two agree. Most of that is discharged by the reference
+   semantics itself, which throws on operands of the wrong shape; only a
+   variable, `&&` and `||` need more.
 4. **The instance**, `bespokeWhitespaceIO : IOCertifiedCompiler spec
    WhitespaceLang`, in `Langlib/Languages/Turpentine/Certified/`, plus
    `toCertifiedOf` back to the answer-only statement.
-5. **Tests and docs.** A golden suite over I/O-bearing sources; then
+5. **Tests and docs** `[~]`. The golden suite over I/O-bearing sources is
+   done: thirteen cases print strings, integers and booleans before, inside
+   and around the work, and the differential half of it runs the reference
+   interpreter with the *same* epilogue and compares raw output strings, so
+   a byte of disagreement fails the build. `docs/whitespace/compiler.md`
+   and both scoreboards are current. What is left is
    §1.4 of `certified-compilation.md` (whose table says "nothing, yet"),
    `docs/whitespace/compiler.md`, and the `verification.md` scoreboard.
 

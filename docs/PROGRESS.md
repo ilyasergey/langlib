@@ -2,7 +2,58 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-31 (latest): Turpentine compiles to Malbolge Unshackled
+## 2026-08-31 (latest): the compiled program says what the source says
+
+The hand-written whitespace backend's simulation used to say that a
+statement's code reaches the same heap. It now says that it reaches the
+same heap *and performs the same I/O events*, and the witness is one list
+used on both sides: not "the target's output re-encodes the source's" but
+*the compiled program prints the bytes the source prints, in that order*.
+`print("...")`, `print(e)` and `println(e)` for an `int` or a `bool` are in
+the verified fragment, and thirteen new tests run each of them through the
+reference interpreter and through the backend and fail unless the two agree
+byte for byte.
+
+Two things fell out of it that were not in the plan.
+
+The **epilogue had to move**. `bespokeCompile` appends a statement to make
+the specification's single `Nat` observable, and reading it back used to be
+"parse the whole output as a decimal numeral". A program that prints for
+itself breaks that, so the epilogue is now `println(""); print(answer);`
+and `decodeAnswer` reads the digits after the *last* newline. No extra
+restriction on the fragment is needed to justify it: `toString (answer :
+Nat)` is all digits, so the epilogue's newline is provably the last one in
+the output, whatever the program said first.
+
+The **fragment had to become type-checked**. `print(e)` is the first
+construct whose code depends on the expression's static type — `outnum` for
+an `int`, a `jz` between two string constants for a `bool` — while the
+reference interpreter renders the runtime value. A program that stored a
+boolean in an `int` variable would print `true` where its compilation
+prints `1`, and nothing ruled that out, because the encoding erases the
+difference: a `bool` and the integers `0`/`1` are the same whitespace cell.
+So `Agrees` carries the typing as well as the value, `checkFragment`
+rejects an assignment whose right-hand side has the wrong type, and
+`evalExpr_hasTy` proves static and runtime types agree. That proof is
+shorter than it sounds, because the reference semantics does most of it:
+`evalBin` throws on operands of the wrong shape, so an addition that
+produced a value at all produced an integer. Only three forms need more —
+a variable, whose type comes from `Agrees`, and `&&` and `||`, which return
+their right operand and so need the induction hypothesis.
+
+Also worth recording: the output is carried through the simulation as the
+*string* that was appended, not as raw bytes. That is what keeps the whole
+output decodable, since `String.toUTF8` distributes over append, so a run's
+output stays the encoding of one string rather than a byte array nobody can
+parse. `reaches_bytesCode`, by contrast, deliberately does not name the
+bytes it wrote; `Whitespace/Trace.lean` recovers them from the trace.
+
+What is left in Stage 6 milestone 1 is the packaging: `bespokeWhitespaceIO
+: IOCertifiedCompiler`, with `spec` at `answerProgram p` and `encodeTrace`
+the identity. `docs/certified-compilation.md` §1.4 still says "nothing,
+yet", and will until that instance exists.
+
+## 2026-08-31: Turpentine compiles to Malbolge Unshackled
 
 The library's hardest target has a backend:
 `Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean`, over the

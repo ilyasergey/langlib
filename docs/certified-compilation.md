@@ -280,7 +280,7 @@ bespoke backends of section 3, which do compile Turpentine's `read` and
 
 | Backend | Proved today | What the upgrade needs |
 |---|---|---|
-| [Whitespace](../Langlib/Languages/Turpentine/Compile/Whitespace.lean) | `CertifiedCompiler`, scalar fragment | **both trace semantics done**; the print cases of the simulation, and the instance |
+| [Whitespace](../Langlib/Languages/Turpentine/Compile/Whitespace.lean) | `CertifiedCompiler`, scalars and output | **both trace semantics done, and the simulation now carries the trace**: `simStmt` says the compiled code performs the source statement's events, in order. What is left is the instance itself |
 | [Subleq](../Langlib/Languages/Turpentine/Compile/Subleq.lean) | `CertifiedCompiler`, two shapes | **`TraceLang` done**; `encodeTrace` is the identity, now checked |
 | [Brainfuck](../Langlib/Languages/Turpentine/Compile/Brainfuck.lean) | tested, not proved | the correctness proof first |
 | [Ook!](../Langlib/Languages/Turpentine/Compile/Ook.lean), [Brainloller](../Langlib/Languages/Turpentine/Compile/Brainloller.lean) | tested, not proved | Brainfuck's, then re-encoding |
@@ -289,6 +289,14 @@ Every row starts with the same piece of work: the interpreter has to record
 its events. That is a change to the shape of a small-step semantics, not a
 proof, and it is scheduled in [PLAN.md](PLAN.md) Stage 6. Whitespace's row
 has had it done; the rest have not.
+
+Whitespace's row has since had the next piece too. Its simulation relation
+carries a trace as well as a heap, and the same list of events appears on
+both sides of it, so what remains for `IOCertifiedCompiler` is packaging
+rather than proof: `spec` instantiated at `answerProgram p`, `encodeTrace`
+the identity, and the epilogue's own two events accounted for. The
+correctness statement in force today is still the answer-only one, and this
+section will keep saying "nothing, yet" until the instance exists.
 
 One expectation from when this section was written has since been
 corrected. `encodeTrace` for whitespace was going to have "real content",

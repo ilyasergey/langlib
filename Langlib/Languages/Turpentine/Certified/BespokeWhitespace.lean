@@ -518,6 +518,51 @@ def okExpr (ns : List String) : Expr → Bool
   | .un _ e => okExpr ns e
   | .bin op a b => okOp op && okExpr ns a && okExpr ns b
 
+/-- Does a runtime value have the type the declarations gave it? -/
+def valHasTy : Value → Ty → Bool
+  | .int _, .int => true
+  | .bool _, .bool => true
+  | .arr _, .array _ _ => true
+  | _, _ => false
+
+theorem valHasTy_default (t : Ty) : valHasTy (Turpentine.initEnv.default t) t = true := by
+  cases t <;> rfl
+
+/-- Type equality as a `Bool` the fragment check can use. `Ty` derives
+`BEq` but no `LawfulBEq`, so this is a plain predicate that inverts. -/
+def tyEq : Ty → Ty → Bool
+  | .int, .int => true
+  | .bool, .bool => true
+  | _, _ => false
+
+theorem tyEq_eq {a b : Ty} (h : tyEq a b = true) : a = b := by
+  cases a <;> cases b <;> first | rfl | simp [tyEq] at h
+
+/-- An assignment is in the fragment when its right-hand side has the
+declared type of the variable.
+
+This is the one place the fragment became *smaller* when `print` was
+admitted, and it had to. The backend chooses between `outnum` and the
+`true`/`false` branch from the expression's **static** type, while the
+reference interpreter renders the **runtime** value; a program that stored
+a bool in an `int` variable would print `true` where its compilation prints
+`1`. Turpentine's own type checker rejects such a program, and now so does
+this fragment, which is what lets the simulation carry the invariant that
+the two types agree. -/
+def okAssignTy (tys : Types) (x : String) (e : Expr) : Bool :=
+  match tys[x]?, inferExpr tys e with
+  | some tx, .ok te => tyEq tx te
+  | _, _ => false
+
+theorem okAssignTy_inv {tys : Types} {x : String} {e : Expr}
+    (h : okAssignTy tys x e = true) :
+    ∃ t, tys[x]? = some t ∧ inferExpr tys e = .ok t := by
+  rw [okAssignTy] at h
+  split at h
+  · rename_i tx te hx he
+    exact ⟨tx, hx, by rw [he, tyEq_eq h]⟩
+  · simp at h
+
 /-- The printed types the backend has code for. `print` is the one
 construct whose compilation consults the typing context — it chooses
 between `outnum` and the `true`/`false` branch — so the fragment check has
@@ -540,10 +585,11 @@ theorem okPrintTy_cases {tys : Types} {e : Expr} (h : okPrintTy tys e = true) :
 def okStmt (ns : List String) (tys : Types) : Stmt → Bool
   | .skip => true
   | .seq a b => okStmt ns tys a && okStmt ns tys b
-  | .assign x e => ns.contains x && okExpr ns e
+  | .assign x e => ns.contains x && okExpr ns e && okAssignTy tys x e
   | .ite c a b => okExpr ns c && okStmt ns tys a && okStmt ns tys b
   | .while c b => okExpr ns c && okStmt ns tys b
   | .assert e => okExpr ns e
+  | .printExpr e _ => okExpr ns e && okPrintTy tys e
   | .printStr _ _ => true
   | _ => false
 
@@ -560,11 +606,21 @@ def encV : Value → Int
   | .bool b => if b then 1 else 0
   | .arr _ => 0
 
-/-- Every declared variable's cell holds its value. -/
+/-- Every declared variable's cell holds its value, and the value has the
+type the declaration gave it.
+
+The second half is not about representation — `encV` erases it, since a
+`bool` and the integers `0`/`1` are the same cell. It is there for `print`,
+whose code the backend picks from the static type while the reference
+interpreter renders the runtime value. Carrying it in `Agrees` rather than
+in a second invariant is what keeps the simulation's shape: the only
+statement that can break it is the one that already had to re-establish
+`Agrees`. -/
 def Agrees (ctx : Frame) (env : Std.HashMap String Value)
     (heap : Std.HashMap Int Int) : Prop :=
   ∀ (x : String) (a : Int), ctx.addrs[x]? = some a →
-    ∀ v, env[x]? = some v → heap.getD a 0 = encV v
+    ∀ v, env[x]? = some v →
+      heap.getD a 0 = encV v ∧ ∀ t, ctx.types[x]? = some t → valHasTy v t = true
 
 /-- The layout facts the proof needs: addresses are non-negative (whitespace
 rejects negative ones) and distinct variables get distinct cells. -/
@@ -574,7 +630,8 @@ structure GoodFrame (ctx : Frame) : Prop where
 
 theorem Agrees.update {ctx : Frame} {env : Std.HashMap String Value}
     {heap : Std.HashMap Int Int} {x : String} {a : Int} {v : Value}
-    (hg : GoodFrame ctx) (hA : Agrees ctx env heap) (hx : ctx.addrs[x]? = some a) :
+    (hg : GoodFrame ctx) (hA : Agrees ctx env heap) (hx : ctx.addrs[x]? = some a)
+    (hv : ∀ t, ctx.types[x]? = some t → valHasTy v t = true) :
     Agrees ctx (env.insert x v) (heap.insert a (encV v)) := by
   intro y b hy w hw
   by_cases hxy : y = x
@@ -582,7 +639,8 @@ theorem Agrees.update {ctx : Frame} {env : Std.HashMap String Value}
     rw [hx, Option.some.injEq] at hy
     subst hy
     rw [Std.HashMap.getElem?_insert, if_pos (by simp)] at hw
-    rw [Std.HashMap.getD_insert, if_pos (by simp), Option.some.inj hw]
+    rw [Std.HashMap.getD_insert, if_pos (by simp)]
+    exact ⟨by rw [Option.some.inj hw], fun t ht => Option.some.inj hw ▸ hv t ht⟩
   · have hab : b ≠ a := by
       intro hc
       exact hxy (hg.inj y x a (hc ▸ hy) hx)
@@ -818,8 +876,18 @@ theorem outBytes_eq (str : String) (nl : Bool) :
     rw [toUTF8_toList_append, newline_bytes]
     simp
 
-/-- The trailing newline, as code. -/
+/-- The trailing newline, as bytes and as code. Keeping them the same shape
+lets `print` and `println` run through one lemma instead of two. -/
+def nlBytes (nl : Bool) : List UInt8 := if nl then [10] else []
+
 def nlCode (nl : Bool) : List Instr := if nl then bytesCode [10] else []
+
+theorem nlCode_eq (nl : Bool) : nlCode nl = bytesCode (nlBytes nl) := by
+  cases nl <;> rfl
+
+theorem outBytes_split (str : String) (nl : Bool) :
+    outBytes str nl = str.toUTF8.toList ++ nlBytes nl := by
+  rw [outBytes_eq]; cases nl <;> rfl
 
 theorem bytesCode_outBytes (str : String) (nl : Bool) :
     bytesCode (outBytes str nl) = bytesCode str.toUTF8.toList ++ nlCode nl := by
@@ -892,9 +960,14 @@ theorem emitsS_printExpr_int {ctx : Frame} {e : Expr} {c c' : Nat} {ce : List In
   rw [he]
   exact Emits.seq hE (Emits.seq (emits_emit _ c') (emits_nl nl c'))
 
-/-- The `true`/`false` code, as bytes. -/
+/-- The `true`/`false` code, as bytes. These are the bytes the *source*
+renders a boolean to as well, which is the whole content of the `print`
+case for booleans. -/
 def trueBytes : List UInt8 := "true".toUTF8.toList
 def falseBytes : List UInt8 := "false".toUTF8.toList
+
+theorem toString_true : toString true = "true" := rfl
+theorem toString_false : toString false = "false" := rfl
 
 theorem emitsS_printExpr_bool {ctx : Frame} {e : Expr} {c c' : Nat} {ce : List Instr}
     (ht : inferExpr ctx.types e = .ok Ty.bool) (nl : Bool)
@@ -1572,6 +1645,173 @@ theorem evalBin_ne_enc {v₁ v₂ v : Value} (h : evalBin .ne v₁ v₂ = .ok v)
 
 
 
+/-! ### The static type is the runtime type
+
+`print` is compiled from the expression's *static* type and interpreted
+from the *runtime* value, so the two have to agree. On this fragment they
+do, and for two different reasons depending on the expression.
+
+Most of the work is done by the reference semantics itself: `evalBin`
+throws on operands of the wrong shape, so an addition that produced a value
+at all produced an integer, and a comparison a boolean, whatever the
+context said. Only three forms need more. A variable's runtime type comes
+from `Agrees`, which is why the invariant carries it; `&&` and `||` return
+their right operand, so they need the induction hypothesis; and everything
+else the fragment admits is a literal. -/
+
+/-- `Ty`'s derived `BEq` is sound. It has no `LawfulBEq` instance, and
+`inferExpr` compares types with `==`, so this is what lets a successful
+inference be read as an equation. -/
+theorem ty_of_beq : ∀ {a b : Ty}, (a == b) = true → a = b := by
+  intro a
+  induction a with
+  | int => intro b h; cases b <;> first | rfl | exact Bool.noConfusion h
+  | bool => intro b h; cases b <;> first | rfl | exact Bool.noConfusion h
+  | array e n ih =>
+    intro b h
+    cases b
+    · exact Bool.noConfusion h
+    · exact Bool.noConfusion h
+    · rename_i e' n'
+      have h' : ((e == e') && (n == n')) = true := h
+      rw [Bool.and_eq_true] at h'
+      rw [ih h'.1, show n = n' from by simpa using h'.2]
+
+/-- The type an operator's result has, when it has one. -/
+def binResultTy : BinOp → Ty
+  | .add | .sub | .mul | .div | .mod => .int
+  | _ => .bool
+
+theorem evalBin_hasTy {op : BinOp} {v₁ v₂ w : Value} (h : evalBin op v₁ v₂ = .ok w) :
+    valHasTy w (binResultTy op) = true := by
+  have close : ∀ {u : Value}, (Pure.pure u : Except String Value) = .ok w →
+      valHasTy u (binResultTy op) = valHasTy w (binResultTy op) := by
+    intro u hu; rw [exc_pure, Except.ok.injEq] at hu; rw [hu]
+  cases v₁ <;> cases v₂ <;> cases op <;> (try rw [evalBin] at h) <;> (try split at h) <;>
+    first
+      | (rw [← close h]; rfl)
+      | simp at h
+      | simp
+
+theorem inferExpr_bin_ty {tys : Types} {op : BinOp} {a b : Expr} {te : Ty}
+    (h : inferExpr tys (.bin op a b) = .ok te) : te = binResultTy op := by
+  rw [inferExpr] at h
+  cases h₁ : inferExpr tys a with
+  | error m => rw [h₁, exc_bind_err] at h; simp at h
+  | ok t₁ =>
+    cases h₂ : inferExpr tys b with
+    | error m => rw [h₁, h₂, exc_bind_ok, exc_bind_err] at h; simp at h
+    | ok t₂ =>
+      rw [h₁, h₂, exc_bind_ok, exc_bind_ok] at h
+      cases op <;> simp_all [binResultTy, exc_pure, ite_eq_iff]
+
+theorem inferExpr_un_ty {tys : Types} {op : UnOp} {e : Expr} {te : Ty}
+    (h : inferExpr tys (.un op e) = .ok te) :
+    (op = .neg ∧ te = .int) ∨ (op = .not ∧ te = .bool) := by
+  rw [inferExpr] at h
+  cases h₁ : inferExpr tys e with
+  | error m => rw [h₁, exc_bind_err] at h; simp at h
+  | ok t =>
+    rw [h₁, exc_bind_ok] at h
+    cases op <;> cases t <;> simp_all [exc_pure]
+
+/-- **The static type is the runtime type.** -/
+theorem evalExpr_hasTy {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
+    {env : Std.HashMap String Value} {heap : Std.HashMap Int Int}
+    (hag : Agrees ctx env heap) :
+    ∀ (e : Expr) (te : Ty) (w : Value), okExpr ns e = true →
+      inferExpr ctx.types e = .ok te → Turpentine.evalExpr env e = .ok w →
+        valHasTy w te = true := by
+  have pure_eq : ∀ {u v : Value}, (Pure.pure u : Except String Value) = .ok v → u = v := by
+    intro u v hu; rw [exc_pure, Except.ok.injEq] at hu; exact hu
+  intro e
+  induction e with
+  | intLit n =>
+    intro te w _ hi he
+    rw [show inferExpr ctx.types (.intLit n) = .ok Ty.int from rfl] at hi
+    rw [show Turpentine.evalExpr env (.intLit n) = .ok (Value.int n) from rfl] at he
+    rw [← Except.ok.inj hi, ← Except.ok.inj he]
+    rfl
+  | boolLit b =>
+    intro te w _ hi he
+    rw [show inferExpr ctx.types (.boolLit b) = .ok Ty.bool from rfl] at hi
+    rw [show Turpentine.evalExpr env (.boolLit b) = .ok (Value.bool b) from rfl] at he
+    rw [← Except.ok.inj hi, ← Except.ok.inj he]
+    rfl
+  | var x =>
+    intro te w hok hi he
+    obtain ⟨a, ha⟩ := hcov x (mem_of_contains (by simpa [okExpr] using hok))
+    have hw : env[x]? = some w := evalExpr_var_inv he
+    have hty : ctx.types[x]? = some te := by
+      rw [inferExpr] at hi
+      cases hx : ctx.types[x]? with
+      | none => rw [hx] at hi; simp at hi
+      | some tt => cases tt <;> simp_all [exc_pure]
+    exact (hag x a ha w hw).2 te hty
+  | index x i _ => intro _ _ hok _ _; simp [okExpr] at hok
+  | len x => intro _ _ hok _ _; simp [okExpr] at hok
+  | un op e _ =>
+    intro te w _ hi he
+    rcases inferExpr_un_ty hi with ⟨hop, hte⟩ | ⟨hop, hte⟩ <;> subst hop <;> subst hte <;>
+      (rw [Turpentine.evalExpr] at he
+       cases h₁ : Turpentine.evalExpr env e with
+       | error m => rw [h₁, exc_bind_err] at he; simp at he
+       | ok u =>
+         rw [h₁, exc_bind_ok] at he
+         cases u <;> first | (rw [← pure_eq he]; rfl) | simp at he)
+  | bin op a b iha ihb =>
+    intro te w hok hi he
+    have hte : te = binResultTy op := inferExpr_bin_ty hi
+    subst hte
+    cases hst : straightOp op with
+    | true =>
+      obtain ⟨v₁, v₂, -, -, hb⟩ := evalExpr_bin_inv hst he
+      exact evalBin_hasTy hb
+    | false =>
+      have hoo : op = .and ∨ op = .or := by
+        cases op <;> simp_all [straightOp]
+      have hokb : okExpr ns b = true := by
+        revert hok; simp only [okExpr, Bool.and_eq_true]; tauto
+      have hib : inferExpr ctx.types b = .ok Ty.bool := by
+        rw [inferExpr] at hi
+        cases h₁ : inferExpr ctx.types a with
+        | error m => rw [h₁, exc_bind_err] at hi; simp at hi
+        | ok t₁ =>
+          cases h₂ : inferExpr ctx.types b with
+          | error m => rw [h₁, h₂, exc_bind_ok, exc_bind_err] at hi; simp at hi
+          | ok t₂ =>
+            rw [h₁, h₂, exc_bind_ok, exc_bind_ok] at hi
+            rcases hoo with hop | hop <;> subst hop <;>
+              (simp only [exc_pure, ite_eq_iff, Bool.and_eq_true] at hi
+               rcases hi with ⟨⟨hc₁, hc₂⟩, -⟩ | ⟨-, hc⟩
+               · rw [ty_of_beq hc₂]
+               · exact absurd hc (by simp))
+      rcases hoo with hop | hop <;> subst hop
+      · rw [evalExpr_and_eq] at he
+        cases h₁ : Turpentine.evalExpr env a with
+        | error m => rw [h₁, exc_bind_err] at he; simp at he
+        | ok v₁ =>
+          rw [h₁, exc_bind_ok] at he
+          cases v₁ with
+          | int m => simp at he
+          | arr m => simp at he
+          | bool b₁ =>
+            cases b₁ with
+            | false => simp only [] at he; rw [← Except.ok.inj he]; rfl
+            | true => exact ihb _ w hokb hib he
+      · rw [evalExpr_or_eq] at he
+        cases h₁ : Turpentine.evalExpr env a with
+        | error m => rw [h₁, exc_bind_err] at he; simp at he
+        | ok v₁ =>
+          rw [h₁, exc_bind_ok] at he
+          cases v₁ with
+          | int m => simp at he
+          | arr m => simp at he
+          | bool b₁ =>
+            cases b₁ with
+            | true => simp only [] at he; rw [← Except.ok.inj he]; rfl
+            | false => exact ihb _ w hokb hib he
+
 /-! ## Reading the compiler's own front matter
 
 `compileChecked` computes the address map with a `for` loop and then runs the
@@ -1936,10 +2176,37 @@ theorem initGo_zero (l : List (String × Ty × Option Expr)) :
     · exact h y w hy
 
 theorem agrees_of_zero {ctx : Frame} {env : Std.HashMap String Value}
-    {heap : Std.HashMap Int Int} (hz : ZeroHeap heap) (he : AllZeroEnv env) :
+    {heap : Std.HashMap Int Int} (hz : ZeroHeap heap) (he : AllZeroEnv env)
+    (ht : ∀ (x : String) (t : Ty) (v : Value),
+      ctx.types[x]? = some t → env[x]? = some v → valHasTy v t = true) :
     Agrees ctx env heap := by
   intro x a _ v hv
-  rw [hz a, he x v hv]
+  exact ⟨by rw [hz a, he x v hv], fun t htx => ht x t v htx hv⟩
+
+/-- The declarations set every variable to the default of its declared
+type, so the environment the prologue leaves behind is well typed. Both
+folds walk the same list in the same order, which is the whole content of
+the induction. -/
+theorem initGo_typesGo (l : List (String × Ty × Option Expr)) :
+    ∀ (env : Std.HashMap String Value) (tys : Types),
+      (∀ (x : String) (t : Ty) (v : Value),
+        tys[x]? = some t → env[x]? = some v → valHasTy v t = true) →
+      ∀ (x : String) (t : Ty) (v : Value),
+        (typesGo l tys)[x]? = some t → (initGo l env)[x]? = some v →
+          valHasTy v t = true := by
+  induction l with
+  | nil => intro env tys h x t v ht hv; exact h x t v ht hv
+  | cons d rest ih =>
+    intro env tys h
+    refine ih _ _ ?_
+    intro x t v ht hv
+    by_cases hx : x = d.1
+    · subst hx
+      rw [Std.HashMap.getElem?_insert, if_pos (by simp)] at ht hv
+      rw [← Option.some.inj ht, ← Option.some.inj hv]
+      exact valHasTy_default _
+    · rw [Std.HashMap.getElem?_insert, if_neg (by simpa using Ne.symm hx)] at ht hv
+      exact h x t v ht hv
 
 /-! ## The simulation, for expressions
 
@@ -2465,7 +2732,7 @@ theorem simExpr {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
     obtain ⟨hcd, -, -⟩ := Emits.det hem (emitsE_var ha c)
     subst hcd
     have hx := evalExpr_var_inv heval
-    have hval : s.heap.getD a 0 = encV v := hag x a ha v hx
+    have hval : s.heap.getD a 0 = encV v := (hag x a ha v hx).1
     have h1 : prog[s.pc + 1]? = some Instr.retrieve := by
       have := hcode.get 1 (by simp); simpa using this
     have step1 := reaches_push (prog := prog) (labels := labels) s a hcode.head
@@ -2803,7 +3070,38 @@ theorem emitsStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns) (st : 
   | readByte x => intro hok _; simp [okStmt] at hok
   | readIntIndex x i => intro hok _; simp [okStmt] at hok
   | readByteIndex x i => intro hok _; simp [okStmt] at hok
-  | printExpr e nl => intro hok _; simp [okStmt] at hok
+  | printExpr e nl =>
+    intro hok c
+    have hoke : okExpr ns e = true := by
+      revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
+    have hty : okPrintTy ctx.types e = true := by
+      revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
+    rcases okPrintTy_cases hty with hint | hbool
+    · obtain ⟨ce, c', hE, hle, hcl⟩ := emitsExpr hcov e hoke c
+      refine ⟨_, c', emitsS_printExpr_int hint nl hE, hle, ?_⟩
+      refine Clean.appendUp hle (Nat.le_refl c') hcl ?_
+      exact Clean.ofNoLabels (by cases nl <;> rfl)
+    · obtain ⟨ce, c', hE, hle, hcl⟩ := emitsExpr hcov e hoke (c + 2)
+      refine ⟨_, c', emitsS_printExpr_bool hbool nl hE, by omega, ?_⟩
+      have hmid : labelIdxs [Instr.jump (labelOf (c + 1)), Instr.label (labelOf c)] = [c] := by
+        simp [labelIdxs, labelsOf, unlabel_labelOf]
+      refine Clean.ofEq (ks := labelIdxs ce ++ ([c] ++ [c + 1])) ?_ ?_ ?_
+      · simp only [labelIdxs_append, labelIdxs_label, hmid, labelIdxs_bytesCode,
+          labelIdxs_nlCode, List.append_nil, List.nil_append]
+        rfl
+      · intro k hk
+        rcases List.mem_append.mp hk with hm | hm
+        · have := hcl.bounds k hm; omega
+        · rcases List.mem_append.mp hm with hm | hm <;>
+            simp only [List.mem_cons, List.not_mem_nil, or_false] at hm <;> omega
+      · refine nodup_app hcl.nodup (nodup_app (by simp) (by simp) ?_) ?_
+        · intro k h1 h2
+          simp only [List.mem_cons, List.not_mem_nil, or_false] at h1 h2
+          omega
+        · intro k h1 h2
+          have := hcl.bounds k h1
+          rcases List.mem_append.mp h2 with hm | hm <;>
+            simp only [List.mem_cons, List.not_mem_nil, or_false] at hm <;> omega
   | printStr s nl =>
     intro _ c
     exact ⟨_, c, emitsS_printStr ctx s nl c, Nat.le_refl c,
@@ -2951,7 +3249,13 @@ theorem simStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
                 List.nil_append]; omega] at chain
             exact chain
           · rw [← hσ]
-            exact Agrees.update hg hag ha
+            have hoka : okAssignTy ctx.types x e = true := by
+              revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
+            obtain ⟨tx, htx, hte⟩ := okAssignTy_inv hoka
+            refine Agrees.update hg hag ha (fun u hu => ?_)
+            rw [htx, Option.some.injEq] at hu
+            subst hu
+            exact evalExpr_hasTy hcov hag e tx w hoke hte hv
       | ite cnd t f iht ihf =>
         intro hok c code c' hem s hcode hlab σ σ' hex hag
         have hokc : okExpr ns cnd = true := by
@@ -3228,7 +3532,215 @@ theorem simStmt {ctx : Frame} {ns : List String} (hcov : Covers ctx ns)
       | readByte x => intro hok; simp [okStmt] at hok
       | readIntIndex x i => intro hok; simp [okStmt] at hok
       | readByteIndex x i => intro hok; simp [okStmt] at hok
-      | printExpr e nl => intro hok; simp [okStmt] at hok
+      | printExpr e nl =>
+        intro hok c code c' hem s hcode hlab σ σ' hex hag
+        have hoke : okExpr ns e = true := by
+          revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
+        have hpt : okPrintTy ctx.types e = true := by
+          revert hok; simp only [okStmt, Bool.and_eq_true]; tauto
+        rw [Turpentine.exec] at hex
+        cases hv : Turpentine.evalExpr σ.env e with
+        | error m => rw [hv] at hex; simp at hex
+        | ok w =>
+          rw [hv] at hex
+          simp only [Prod.mk.injEq] at hex
+          obtain ⟨hσ, -⟩ := hex
+          rcases okPrintTy_cases hpt with hint | hbool
+          · -- `outnum`, then the newline if this was `println`
+            obtain ⟨ce, ce', hE, -, -⟩ := emitsExpr hcov e hoke c
+            obtain ⟨hcd, -, -⟩ := Emits.det hem (emitsS_printExpr_int hint nl hE)
+            subst hcd
+            have hwt : valHasTy w Ty.int = true :=
+              evalExpr_hasTy hcov hag e Ty.int w hoke hint hv
+            cases w with
+            | bool b => simp [valHasTy] at hwt
+            | arr a => simp [valHasTy] at hwt
+            | int m =>
+              have hcode' : CodeAt prog s.pc (ce ++ ([Instr.outNum] ++ nlCode nl)) := hcode
+              have hstepE := simExpr hcov hg e hoke c ce ce' hE s
+                hcode'.left hlab.left σ.env (.int m) hv hag
+              have hnum : prog[s.pc + ce.length]? = some Instr.outNum :=
+                ((hcode'.right' (c₁ := ce) rfl).left).head
+              have hstepN := reaches_outNum (prog := prog) (labels := labels)
+                { s with pc := s.pc + ce.length, stack := (m : Int) :: s.stack }
+                m s.stack rfl (by simpa using hnum)
+              have hcodeNL : CodeAt prog (s.pc + ce.length + 1) (bytesCode (nlBytes nl)) := by
+                have := (hcode'.right' (c₁ := ce) rfl).right' (c₁ := [Instr.outNum]) rfl
+                rw [← nlCode_eq]
+                simpa using this
+              obtain ⟨out', hout', hstepNL⟩ :=
+                reaches_bytesCode (prog := prog) (labels := labels) (nlBytes nl)
+                  ({ s with pc := s.pc + ce.length + 1 }.emitBytes (toString (m : Int)).toUTF8)
+                  (by simpa [Whitespace.State.emitBytes] using hcodeNL)
+              refine ⟨s.heap, Value.render (.int m) ++ (if nl then "\n" else ""),
+                (Trace.ofOutput (outBytes (toString (m : Int)) nl)).reverse, ?_, ?_, ?_⟩
+              · refine reaches_cast (Reaches.trans hstepE
+                  (Reaches.trans (reaches_cast hstepN (by simp [Whitespace.State.emitBytes]))
+                    hstepNL)) ?_
+                have hout : out' = s.output
+                    ++ (Value.render (Value.int m) ++ (if nl then "\n" else "")).toUTF8 :=
+                  bytes_ext (by
+                    rw [hout', ByteArray.toList_append]
+                    simp only [Whitespace.State.emitBytes, ByteArray.toList_append]
+                    rw [show (Value.render (Value.int m) ++ (if nl then "\n" else "")).toUTF8.toList
+                        = outBytes (toString (m : Int)) nl from rfl, outBytes_split]
+                    simp)
+                rw [hout]
+                simp only [Whitespace.State.emitBytes, Whitespace.State.mk.injEq,
+                  recOut_eq_append, nlCode_eq]
+                and_intros <;>
+                  first
+                    | trivial
+                    | (simp only [List.length_append, List.length_cons, List.length_nil,
+                        bytesCode_length]; omega)
+                    | (rw [outBytes_split]; simp [Trace.ofOutput])
+              · rw [← hσ]; exact hag
+              · rw [← hσ]
+                show Trace.recOut σ.events _ = _
+                rw [recOut_eq_append]
+                rfl
+          · -- the `true`/`false` branch, then the newline
+            obtain ⟨ce, ce', hE, -, -⟩ := emitsExpr hcov e hoke (c + 2)
+            obtain ⟨hcd, -, -⟩ := Emits.det hem (emitsS_printExpr_bool hbool nl hE)
+            subst hcd
+            have hwt : valHasTy w Ty.bool = true :=
+              evalExpr_hasTy hcov hag e Ty.bool w hoke hbool hv
+            cases w with
+            | int m => simp [valHasTy] at hwt
+            | arr a => simp [valHasTy] at hwt
+            | bool b =>
+              have h2 := hcode.right' (c₁ := ce) rfl
+              have hl2 := hlab.right' (c₁ := ce) rfl
+              have hjz : prog[s.pc + ce.length]? = some (Instr.jz (labelOf c)) := h2.left.head
+              have h3 := h2.right' (c₁ := [Instr.jz (labelOf c)])
+                (q := s.pc + ce.length + 1) (by simp)
+              have hl3 := hl2.right' (c₁ := [Instr.jz (labelOf c)])
+                (q := s.pc + ce.length + 1) (by simp)
+              have h4 := h3.right' (c₁ := bytesCode trueBytes)
+                (q := s.pc + ce.length + 1 + 2 * trueBytes.length) (by rw [bytesCode_length])
+              have hl4 := hl3.right' (c₁ := bytesCode trueBytes)
+                (q := s.pc + ce.length + 1 + 2 * trueBytes.length) (by rw [bytesCode_length])
+              have hjump : prog[s.pc + ce.length + 1 + 2 * trueBytes.length]? =
+                  some (Instr.jump (labelOf (c + 1))) := h4.left.head
+              have hlf : labels[labelOf c]? =
+                  some (s.pc + ce.length + 1 + 2 * trueBytes.length + 2) := by
+                have := hl4.left 1 (labelOf c) rfl; simpa using this
+              have h5 := h4.right' (c₁ := [Instr.jump (labelOf (c + 1)), Instr.label (labelOf c)])
+                (q := s.pc + ce.length + 1 + 2 * trueBytes.length + 2) (by simp)
+              have hl5 := hl4.right' (c₁ := [Instr.jump (labelOf (c + 1)), Instr.label (labelOf c)])
+                (q := s.pc + ce.length + 1 + 2 * trueBytes.length + 2) (by simp)
+              have h6 := h5.right' (c₁ := bytesCode falseBytes)
+                (q := s.pc + ce.length + 1 + 2 * trueBytes.length + 2 + 2 * falseBytes.length)
+                (by rw [bytesCode_length])
+              have hl6 := hl5.right' (c₁ := bytesCode falseBytes)
+                (q := s.pc + ce.length + 1 + 2 * trueBytes.length + 2 + 2 * falseBytes.length)
+                (by rw [bytesCode_length])
+              have hlbl : prog[s.pc + ce.length + 1 + 2 * trueBytes.length + 2
+                    + 2 * falseBytes.length]? = some (Instr.label (labelOf (c + 1))) :=
+                h6.left.head
+              have hend : labels[labelOf (c + 1)]? =
+                  some (s.pc + ce.length + 1 + 2 * trueBytes.length + 2
+                    + 2 * falseBytes.length + 1) := hl6.left.single
+              have hcodeNL : CodeAt prog (s.pc + ce.length + 1 + 2 * trueBytes.length + 2
+                  + 2 * falseBytes.length + 1) (bytesCode (nlBytes nl)) := by
+                have := h6.right' (c₁ := [Instr.label (labelOf (c + 1))])
+                  (q := s.pc + ce.length + 1 + 2 * trueBytes.length + 2
+                    + 2 * falseBytes.length + 1) (by simp)
+                rw [← nlCode_eq]; simpa using this
+              have hstepE := simExpr hcov hg e hoke (c + 2) ce ce' hE s
+                hcode.left hlab.left σ.env (.bool b) hv hag
+              have hpcend : s.pc + ce.length + 1 + 2 * trueBytes.length + 2
+                    + 2 * falseBytes.length + 1 + 2 * (nlBytes nl).length
+                  = s.pc + (ce ++ ([Instr.jz (labelOf c)] ++ (bytesCode trueBytes ++
+                      ([Instr.jump (labelOf (c + 1)), Instr.label (labelOf c)] ++
+                        (bytesCode falseBytes ++
+                          ([Instr.label (labelOf (c + 1))] ++ nlCode nl)))))).length := by
+                simp only [List.length_append, List.length_cons, List.length_nil,
+                  bytesCode_length, nlCode_eq]
+                omega
+              refine ⟨s.heap, Value.render (.bool b) ++ (if nl then "\n" else ""),
+                (Trace.ofOutput (outBytes (toString b) nl)).reverse, ?_, ?_, ?_⟩
+              · cases b with
+                | true =>
+                  obtain ⟨o₁, ho₁, r₁⟩ :=
+                    reaches_bytesCode (prog := prog) (labels := labels) trueBytes
+                      { s with pc := s.pc + ce.length + 1 } (by simpa using h3.left)
+                  obtain ⟨o₂, ho₂, r₂⟩ :=
+                    reaches_bytesCode (prog := prog) (labels := labels) (nlBytes nl)
+                      { s with pc := s.pc + ce.length + 1 + 2 * trueBytes.length + 2
+                                 + 2 * falseBytes.length + 1,
+                               output := o₁,
+                               events := Trace.recOut s.events trueBytes } hcodeNL
+                  have step2 := reaches_jz_untaken (prog := prog) (labels := labels)
+                    { s with pc := s.pc + ce.length, stack := (1 : Int) :: s.stack }
+                    s.stack (labelOf c) 1 (by decide) rfl hjz
+                  have step4 := reaches_jump (prog := prog) (labels := labels)
+                    { s with pc := s.pc + ce.length + 1 + 2 * trueBytes.length,
+                             output := o₁, events := Trace.recOut s.events trueBytes }
+                    (labelOf (c + 1))
+                    (s.pc + ce.length + 1 + 2 * trueBytes.length + 2
+                      + 2 * falseBytes.length + 1) hend (by simpa using hjump)
+                  refine reaches_cast (Reaches.trans hstepE (Reaches.trans step2
+                    (Reaches.trans r₁ (Reaches.trans step4 r₂)))) ?_
+                  have hout : o₂ = s.output
+                      ++ (Value.render (Value.bool true) ++ (if nl then "\n" else "")).toUTF8 :=
+                    bytes_ext (by
+                      rw [ho₂, ho₁, ByteArray.toList_append,
+                        show (Value.render (Value.bool true)
+                            ++ (if nl then "\n" else "")).toUTF8.toList
+                          = outBytes (toString true) nl from rfl, outBytes_split]
+                      simp [trueBytes, toString_true])
+                  rw [hout]
+                  simp only [Whitespace.State.mk.injEq, recOut_eq_append]
+                  and_intros <;>
+                    first
+                      | trivial
+                      | omega
+                      | (rw [outBytes_split]
+                         simp [Trace.ofOutput, trueBytes, toString_true])
+                | false =>
+                  obtain ⟨o₁, ho₁, r₁⟩ :=
+                    reaches_bytesCode (prog := prog) (labels := labels) falseBytes
+                      { s with pc := s.pc + ce.length + 1 + 2 * trueBytes.length + 2 }
+                      (by simpa using h5.left)
+                  obtain ⟨o₂, ho₂, r₂⟩ :=
+                    reaches_bytesCode (prog := prog) (labels := labels) (nlBytes nl)
+                      { s with pc := s.pc + ce.length + 1 + 2 * trueBytes.length + 2
+                                 + 2 * falseBytes.length + 1,
+                               output := o₁,
+                               events := Trace.recOut s.events falseBytes } hcodeNL
+                  have step2 := reaches_jz_taken (prog := prog) (labels := labels)
+                    { s with pc := s.pc + ce.length, stack := (0 : Int) :: s.stack }
+                    s.stack (labelOf c)
+                    (s.pc + ce.length + 1 + 2 * trueBytes.length + 2) rfl hlf hjz
+                  have step4 := reaches_label (prog := prog) (labels := labels)
+                    { s with pc := s.pc + ce.length + 1 + 2 * trueBytes.length + 2
+                               + 2 * falseBytes.length,
+                             output := o₁, events := Trace.recOut s.events falseBytes }
+                    (labelOf (c + 1)) (by simpa using hlbl)
+                  refine reaches_cast (Reaches.trans hstepE (Reaches.trans step2
+                    (Reaches.trans r₁ (Reaches.trans step4 r₂)))) ?_
+                  have hout : o₂ = s.output
+                      ++ (Value.render (Value.bool false) ++ (if nl then "\n" else "")).toUTF8 :=
+                    bytes_ext (by
+                      rw [ho₂, ho₁, ByteArray.toList_append,
+                        show (Value.render (Value.bool false)
+                            ++ (if nl then "\n" else "")).toUTF8.toList
+                          = outBytes (toString false) nl from rfl, outBytes_split]
+                      simp [falseBytes, toString_false])
+                  rw [hout]
+                  simp only [Whitespace.State.mk.injEq, recOut_eq_append]
+                  and_intros <;>
+                    first
+                      | trivial
+                      | omega
+                      | (rw [outBytes_split]
+                         simp [Trace.ofOutput, falseBytes, toString_false])
+              · rw [← hσ]; exact hag
+              · rw [← hσ]
+                show Trace.recOut σ.events _ = _
+                rw [recOut_eq_append]
+                rfl
       | printStr str nl =>
         intro _ c code c' hem s hcode hlab σ σ' hex hag
         obtain ⟨hcd, -, -⟩ := Emits.det hem (emitsS_printStr ctx str nl c)
@@ -3315,8 +3827,8 @@ def checkFragment (p : Program) : Except String Unit :=
     .error "the verified whitespace fragment needs a declaration 'var answer : int;': \
       the specification names the answer by that variable"
   else if !okStmt (declNames p) (typesOf p) p.body then
-    .error "outside the verified whitespace fragment: the body uses I/O, an array, \
-      '/' or '%'"
+    .error "outside the verified whitespace fragment: the body reads input, prints a \
+      byte, uses an array, '/' or '%', or assigns a value of the wrong type"
   else .ok ()
 
 /-! ### Reading the answer back, from a program that prints for itself
@@ -3544,8 +4056,8 @@ theorem compileChecked_of_gen (p : Program) (types : Types) (W : List Instr) (cf
 
 /-- **The theorem.** On a program the fragment check accepts, whenever the
 source halts within some fuel bound with `result` in `answer`, the compiled
-whitespace program halts, for some fuel bound, having printed `result` in
-decimal. -/
+whitespace program halts, for some fuel bound, having printed whatever the
+source printed and then `result` in decimal on a line of its own. -/
 theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
     (hc : bespokeCompile p = .ok prog) (hp : HaltsWithAnswer p n result) :
     ∃ m, (Whitespace.evalProg prog (Input.ofString "") m).exit = Exit.halted ∧
@@ -3642,6 +4154,8 @@ theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
     exact Except.ok.inj hinit
   have hag : Agrees ctx env₀ heap₁ :=
     agrees_of_zero hz₁ (henv ▸ initGo_zero p.decls ∅ allZeroEnv_empty)
+      (fun x t v ht hv => initGo_typesGo p.decls ∅ ∅
+        (by intro y u w hu _; simp at hu) x t v ht (henv ▸ hv))
   -- the body
   have hcodeB : CodeAt W.toArray (0 + dcode.length) bcode :=
     ((hcodeW.right' (c₁ := dcode) rfl).left).left
@@ -3651,7 +4165,7 @@ theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
     { s₀ with pc := 0 + dcode.length, heap := heap₁ } hcodeB hlabB
     { env := env₀, input := Input.ofString "" } st hex hag
   -- the answer, printed
-  have hval : heap₂.getD aA 0 = (result : Int) := hag₂ answerVar aA haA _ hans
+  have hval : heap₂.getD aA 0 = (result : Int) := (hag₂ answerVar aA haA _ hans).1
   -- the epilogue: first its newline, which is what makes the answer findable
   have hcodeX : CodeAt W.toArray (0 + dcode.length + bcode.length) (bytesCode [10] ++ pcode) :=
     ((hcodeW.right' (c₁ := dcode) rfl).left).right' (c₁ := bcode) rfl

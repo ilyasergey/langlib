@@ -239,6 +239,33 @@ def differential : Suite where
         source := .inline ("var answer : int; var i : int; " ++
           "while i < 3 { i := i + 1; print(\".\"); } answer := 9;"),
         expect := .outputs "...\n9" }
+    , { name := "printing an integer variable",
+        source := .inline "var answer : int; answer := 7; print(answer);",
+        expect := .outputs "7\n7" }
+    , { name := "println of an integer expression",
+        source := .inline "var answer : int; println(2 * 3 + 1); answer := 0;",
+        expect := .outputs "7\n\n0" }
+    , { name := "printing a boolean, true",
+        source := .inline "var answer : int; var b : bool; b := 2 < 3; print(b); answer := 1;",
+        expect := .outputs "true\n1" }
+    , { name := "printing a boolean, false",
+        source := .inline "var answer : int; var b : bool; b := 3 < 2; print(b); answer := 1;",
+        expect := .outputs "false\n1" }
+    , { name := "println of a boolean",
+        source := .inline "var answer : int; println(1 == 1); answer := 5;",
+        expect := .outputs "true\n\n5" }
+    , { name := "a negative integer printed",
+        source := .inline "var answer : int; print(0 - 42); answer := 1;",
+        expect := .outputs "-42\n1" }
+    , { name := "strings and values interleaved",
+        source := .inline ("var answer : int; var i : int; " ++
+          "while i < 3 { i := i + 1; print(\"i=\"); print(i); print(\" \"); } " ++
+          "answer := i;"),
+        expect := .outputs "i=1 i=2 i=3 \n3" }
+    , { name := "printing inside a loop, one line each",
+        source := .inline ("var answer : int; var i : int; " ++
+          "while i < 3 { i := i + 1; println(i * i); } answer := 0;"),
+        expect := .outputs "1\n4\n9\n\n0" }
     , { name := "a string printed in one branch only",
         source := .inline ("var answer : int; if 1 < 2 { print(\"yes\"); } " ++
           "else { print(\"no\"); } answer := 2;"),
@@ -273,16 +300,12 @@ def rejections : Suite where
   name := "turpentine constructs outside the verified whitespace fragment"
   run := run
   cases :=
-    [ { name := "print", source := .inline "var answer : int; print(answer);",
-        expect := .parseError "the body uses I/O" }
-    , { name := "println", source := .inline "var answer : int; println(answer);",
-        expect := .parseError "the body uses I/O" }
-    , { name := "printByte", source := .inline "var answer : int; printByte(65);",
-        expect := .parseError "the body uses I/O" }
+    [ { name := "printByte", source := .inline "var answer : int; printByte(65);",
+        expect := .parseError "the body reads input" }
     , { name := "readInt", source := .inline "var answer : int; answer := readInt();",
-        expect := .parseError "the body uses I/O" }
+        expect := .parseError "the body reads input" }
     , { name := "readByte", source := .inline "var answer : int; answer := readByte();",
-        expect := .parseError "the body uses I/O" }
+        expect := .parseError "the body reads input" }
     , { name := "division", source := .inline "var answer : int; answer := 8 / 2;",
         expect := .parseError "'/' or '%'" }
     , { name := "modulo", source := .inline "var answer : int; answer := 8 % 3;",

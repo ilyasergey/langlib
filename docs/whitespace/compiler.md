@@ -328,7 +328,7 @@ it reasons about the code generator in
 theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
     (hc : bespokeCompile p = .ok prog) (hp : HaltsWithAnswer p n result) :
     ∃ m, (Whitespace.evalProg prog (Input.ofString "") m).exit = Exit.halted ∧
-      URMWhitespace.decodeOutput
+      decodeAnswer
         (Whitespace.evalProg prog (Input.ofString "") m).output = some result
 ```
 
@@ -343,10 +343,18 @@ is universally quantified and target fuel existentially, so the two cost
 models stay unrelated.
 
 `bespokeCompile` is a fragment check followed by the backend's own
-`compileChecked`, applied to the source program with one statement appended,
-`print(answer)`. The appended statement is what makes the specification's
-single `Nat` observable: a program in the covered fragment prints nothing of
-its own.
+`compileChecked`, applied to the source program with an epilogue appended:
+`println(""); print(answer);`. The epilogue is what makes the
+specification's single `Nat` observable.
+
+The newline in it is not decoration. Since the fragment admits `print`, a
+program in it can write to the output before the epilogue does, so reading
+the answer by parsing the *whole* output — which is what the derived
+compilers do, and what this proof used to do — would read the program's own
+words as digits. `decodeAnswer` therefore takes the digits after the
+**last** newline, and that is sound with no extra restriction on the
+fragment: `toString (answer : Nat)` is all digits, so the epilogue's
+newline is provably the last one in the output, whatever came before it.
 
 Packaged as a `TurpentineCompiler WhitespaceLang`:
 
@@ -354,7 +362,7 @@ Packaged as a `TurpentineCompiler WhitespaceLang`:
 def bespokeWhitespace : TurpentineCompiler WhitespaceLang where
   compile := BespokeWhitespace.bespokeCompile
   encodeInput := Input.ofString ""
-  decodeOutput := Langlib.Computability.URMWhitespace.decodeOutput
+  decodeOutput := BespokeWhitespace.decodeAnswer
   correct := …
 ```
 
@@ -371,7 +379,13 @@ The fragment is:
   literals, variables, unary `-` and `!`, and
   `+  -  *  ==  !=  <  <=  >  >=  &&  ||`, with `&&` and `||`
   short-circuiting exactly as the reference semantics does;
-* **statements**: `skip`, sequencing, assignment, `if`, `while`, `assert`.
+* **statements**: `skip`, sequencing, assignment, `if`, `while`, `assert`,
+  and output: `print(e)` / `println(e)` for an `int` or a `bool`, and
+  `print("...")` / `println("...")` for a string literal;
+* **assignments must be well typed**: `x := e` is in the fragment only when
+  `e`'s inferred type is `x`'s declared type. Turpentine's own type checker
+  demands this already, so no program anyone would write is lost, and the
+  proof cannot do without it — see below.
 
 Left out, and why:
 
@@ -379,8 +393,29 @@ Left out, and why:
 |---|---|
 | `/` and `%` | the Euclidean correction above branches on the sign of the divisor; that is a separate arithmetic obligation, not yet discharged |
 | arrays, `a[i]`, `len(a)` | a second address space and the bounds-check trap |
-| all I/O (`readInt`, `readByte`, `print`, `println`, `printByte`) | the specification names one `Nat` in `answer` and runs on an empty input stream; there is nowhere for a byte stream to go |
+| input (`readInt`, `readByte`) | the specification runs on an empty input stream, and `readByte` diverges from whitespace's `readchar` at end of input anyway (above) |
+| `printByte(e)` | it compiles to `push 256; mod; outchar`, so it carries the same Euclidean obligation that keeps `%` out |
 | declaration initialisers | they are the reference interpreter's `initEnv` loop, which the proof does not cover; write them as leading assignments instead |
+
+#### Why printing forced the fragment to be type-checked
+
+`print(e)` is the first construct whose *code* depends on the expression's
+static type: the backend emits `outnum` for an `int` and the `true`/`false`
+branch for a `bool`. The reference interpreter, meanwhile, renders the
+**runtime** value. A program that stored a boolean in an `int` variable
+would therefore print `true` where its compilation prints `1` — and nothing
+in the old fragment ruled that out, because `encV` erases the difference:
+a `bool` and the integers `0`/`1` are the same whitespace cell.
+
+So the state relation `Agrees` now carries the typing as well as the value,
+`checkFragment` rejects an assignment whose right-hand side has the wrong
+type, and `evalExpr_hasTy` proves the two agree on every expression the
+fragment admits. Most of that proof is discharged by the reference
+semantics itself — `evalBin` throws on operands of the wrong shape, so an
+addition that produced a value at all produced an integer — and only three
+forms need more: a variable, whose runtime type comes from `Agrees`; and
+`&&` and `||`, which return their right operand and so need the induction
+hypothesis.
 
 Note what is *in* and is not in the certified URM fragment
 (`docs/certified-compilation.md`): subtraction, unary minus and negative
@@ -401,8 +436,11 @@ lemmas, and a composition step. Here they are:
 
 1. **The state relation is `Agrees`**: every declared variable's heap cell
    holds the encoding of its value, an `int` as itself and a `bool` as `1` or
-   `0`. That is the whole invariant; because both languages have unbounded
-   signed integers there is no representation to prove anything about.
+   `0`, *and* the value has the type its declaration gave it. The first half
+   is the whole representation story — both languages have unbounded signed
+   integers, so there is nothing to prove about widths. The second half is
+   there for `print`, which is compiled from the static type and interpreted
+   from the runtime value; see above.
 2. **An emission algebra.** The generator is a state monad over an
    instruction array and a label counter. `Emits f c code c' a` says that
    running `f` from counter `c` appends exactly `code`, leaves the counter at
@@ -420,8 +458,14 @@ lemmas, and a composition step. Here they are:
 4. **Per-construct simulation.** `simExpr`: an expression's code leaves
    exactly one extra value on the stack, the encoding of what `evalExpr`
    returns, and changes nothing else. `simStmt`: a statement's code leaves
-   the stack as it found it and moves the heap to one that agrees with the
-   updated environment.
+   the stack as it found it, moves the heap to one that agrees with the
+   updated environment, appends a string to the output, and **performs the
+   source statement's I/O events, in order**. That last part is the same
+   list of events on both sides, not a re-encoding of one into the other:
+   the compiled program prints the bytes the source prints. The output is
+   carried as the *string* that was appended rather than as raw bytes, which
+   is what keeps it decodable — `String.toUTF8` distributes over append, so
+   the whole output stays the encoding of one string.
 5. **Composition.** `Langlib.Common.Reaches` carries the fuel exactly, so
    costs add and no monotonicity lemma is needed. The statement induction is
    strong induction on the source fuel with a structural induction inside,
