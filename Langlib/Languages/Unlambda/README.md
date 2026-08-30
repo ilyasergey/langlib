@@ -7,6 +7,15 @@ combinators, a printing function, call/cc and a delay special form. The full
 specification and the exact semantic choices are in
 [docs/unlambda/spec.md](../../../docs/unlambda/spec.md).
 
+It is **proved Turing complete**
+([`Langlib/Computability/Unlambda.lean`](../../Computability/Unlambda.lean),
+account in
+[docs/computability-unlambda.md](../../../docs/computability-unlambda.md)),
+and it is the first result in the library that is not a machine simulation.
+The proof uses `s`, `k`, `i`, `.x` and application, and nothing else: `d`
+never appears, so the delay rule never fires, and `c` never appears, so no
+continuation is reified.
+
 ## Modules
 
 * `Syntax.lean`: the AST. Leaves are builtins, `app` is the backquote, and
@@ -65,3 +74,9 @@ Golden tests live in [Langlib/Tests/Unlambda.lean](../../Tests/Unlambda.lean)
 per builtin, the three cases where the reference implementations disagree
 with each other (`d` on a value, `e` exiting, `@` at end of input), and the
 parser's five errors.
+
+[Langlib/Tests/URMUnlambda.lean](../../Tests/URMUnlambda.lean) is the
+differential suite for the certified compiler out of the completeness proof:
+small URM programs run on both the executable register machine and the
+compiled Unlambda, with their answers compared, plus a size regression. The
+compiled programs are large by design.

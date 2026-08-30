@@ -304,18 +304,26 @@ as the proof.
 
 | Backend | Effective compiler | Simulation | End-to-end theorem | Derived compiler | Behavioural (I/O) |
 |---------|--------------------|------------|--------------------|------------------|-------------------|
-| whitespace | yes | [yes](../Langlib/Computability/BespokeWhitespace.lean#L3247) | [yes, scalar fragment](../Langlib/Computability/BespokeWhitespace.lean#L3247) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L112) | - |
-| subleq | yes | [yes](../Langlib/Computability/BespokeSubleq.lean#L630) | [yes, two shapes](../Langlib/Computability/BespokeSubleq.lean#L630) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L116) | - |
-| brainfuck | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L120) | - |
-| fractran | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L125) | n/a (no I/O) |
-| thue | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L131) | - |
-| piet | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L137) | - |
-| ook | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L143) | - |
-| brainloller | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L148) | - |
+| whitespace | yes | [yes](../Langlib/Computability/BespokeWhitespace.lean#L3247) | [yes, scalar fragment](../Langlib/Computability/BespokeWhitespace.lean#L3247) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | - |
+| subleq | yes | [yes](../Langlib/Computability/BespokeSubleq.lean#L630) | [yes, two shapes](../Langlib/Computability/BespokeSubleq.lean#L630) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118) | - |
+| brainfuck | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L122) | - |
+| fractran | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L127) | n/a (no I/O) |
+| thue | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L133) | - |
+| piet | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L139) | - |
+| ook | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L145) | - |
+| brainloller | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L150) | - |
+| unlambda | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L156) | - |
+| ski | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L163) | n/a (no I/O) |
 | deadfish | - | - | - | n/a (not complete) | - |
 | malbolge | - | - | - | n/a (not complete) | - |
 
-The last column is empty on purpose. Nothing inhabits
+`ski` says `n/a` in the last column for a reason no other row has: the
+language has no output instruction at all, so there are no events to record
+and a `TraceLang` instance would have nothing to say. Its answer is the
+normal form the interpreter prints, which is a property of the final state
+rather than of the run.
+
+The last column is otherwise empty on purpose. Nothing inhabits
 `IOCertifiedCompiler` yet, and the first step for any row is not a proof
 but a `TraceLang` instance: the interpreter has to record its events.
 FRACTRAN has one already, for free, because its `run` provably ignores the

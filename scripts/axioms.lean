@@ -85,6 +85,10 @@ open Langlib.Turpentine.Compile
 #print axioms derivedFractran
 #print axioms derivedThue
 #print axioms derivedPiet
+#print axioms derivedOok
+#print axioms derivedBrainloller
+#print axioms derivedUnlambda
+#print axioms derivedSki
 #print axioms agree
 #print axioms Langlib.Common.CertifiedCompiler.agree
 

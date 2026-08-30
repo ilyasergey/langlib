@@ -2,10 +2,18 @@
 
 Schönfinkel (1924) and Curry (1930): three constants, one operation, and
 every computable function. SKI is not an esoteric language and makes no
-attempt to be one; it is here because it is the language Unlambda's
-completeness argument goes through, and because every other proof in the
-library is a register-machine simulation. The specification is in
+attempt to be one; it is here because it is the combinator calculus
+underneath Unlambda, and because every proof in the library that is not one
+of these two is a register-machine simulation. The specification is in
 [docs/ski/spec.md](../../../docs/ski/spec.md).
+
+It is **proved Turing complete**
+([`Langlib/Computability/Ski.lean`](../../Computability/Ski.lean), account in
+[docs/computability-ski.md](../../../docs/computability-ski.md)), and the
+proof is its own: Unlambda's does not carry over, because that language is
+call by value and has an output instruction, while this one is normal order
+and has neither. A run's answer here is a term, a tower of `K`s ending in
+`I`, one `K` per unit.
 
 ## Modules
 
@@ -46,3 +54,12 @@ Golden tests live in [Langlib/Tests/Ski.lean](../../Tests/Ski.lean) (run
 with `lake test` from the repository root): every example, the three
 reduction rules, left association, bracketing, a term whose argument never
 runs, and the parser's five errors.
+
+[Langlib/Tests/URMSki.lean](../../Tests/URMSki.lean) tests the certified
+compiler out of the completeness proof, in two suites. The reference
+interpreter rescans the whole term to find each leftmost redex, so a run
+costs the size of the term times the number of steps: the empty URM program
+finishes in 50 ms, and a URM program with one instruction does not finish in
+twelve million steps. The URM suite therefore covers what runs end to end,
+and a counter-machine suite covers the half of the compiler that is specific
+to this target, against an executable counter interpreter.

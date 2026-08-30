@@ -324,8 +324,10 @@ and no new proof:
 [FRACTRAN](../Langlib/Languages/Turpentine/Compile/Derived.lean#L127),
 [Thue](../Langlib/Languages/Turpentine/Compile/Derived.lean#L133),
 [Piet](../Langlib/Languages/Turpentine/Compile/Derived.lean#L139),
-[Ook!](../Langlib/Languages/Turpentine/Compile/Derived.lean#L145) and
-[Brainloller](../Langlib/Languages/Turpentine/Compile/Derived.lean#L150).
+[Ook!](../Langlib/Languages/Turpentine/Compile/Derived.lean#L145),
+[Brainloller](../Langlib/Languages/Turpentine/Compile/Derived.lean#L150),
+[Unlambda](../Langlib/Languages/Turpentine/Compile/Derived.lean#L156) and
+[SKI](../Langlib/Languages/Turpentine/Compile/Derived.lean#L163).
 
 ### 2.1 The first hop, in detail
 
