@@ -5,7 +5,7 @@
 * **Canonical source**: J. H. Conway, "FRACTRAN: A simple universal
   programming language for arithmetic", in T. M. Cover and B. Gopinath
   (eds.), *Open Problems in Communication and Computation*, Springer, 1987,
-  pp. 4-26. Community reference: https://esolangs.org/wiki/Fractran
+  pp. 4-26. Community reference: https://esolangs.org/wiki/Fractran. Wikipedia: https://en.wikipedia.org/wiki/FRACTRAN. 
 * **In LangLib**: `Langlib/Languages/Fractran/`, runner `lake exe fractran`,
   examples in `Langlib/Examples/Fractran/`
 

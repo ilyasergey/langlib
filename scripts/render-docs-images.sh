@@ -48,12 +48,17 @@ fi
 # same-coloured blocks countable. hello.ppm is 166 codels wide, so it gets
 # the smaller scale and no grid: at that width the lines are all a reader
 # would see.
-for prog in add square hi hi-stacked; do
+for prog in add square hi hi-stacked count truth collatz; do
   lake exe piet --svg "$piet_dir/$prog.svg" --grid --scale 16 \
     "Langlib/Examples/Piet/$prog.ppm"
 done
 lake exe piet --svg "$piet_dir/hello.svg" --scale 8 \
   Langlib/Examples/Piet/hello.ppm
+# mondrian.ppm is a painting with a program along its top edge; grid lines
+# would draw a mesh over the painting, which is the one thing it is trying
+# not to look like.
+lake exe piet --svg "$piet_dir/mondrian.svg" --scale 12 \
+  Langlib/Examples/Piet/mondrian.ppm
 
 # --- Brainloller: one PNG block per codel ---------------------------------
 #

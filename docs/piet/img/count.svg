@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="48" viewBox="0 0 40 3" shape-rendering="crispEdges">
+<rect x="0" y="0" width="1" height="1" fill="#ffffff"/>
+<rect x="1" y="0" width="1" height="1" fill="#ff0000"/>
+<rect x="2" y="0" width="1" height="1" fill="#c00000"/>
+<rect x="3" y="0" width="1" height="1" fill="#00ff00"/>
+<rect x="4" y="0" width="1" height="1" fill="#ffffff"/>
+<rect x="5" y="0" width="1" height="1" fill="#ff0000"/>
+<rect x="6" y="0" width="1" height="1" fill="#c00000"/>
+<rect x="7" y="0" width="1" height="1" fill="#c0c000"/>
+<rect x="8" y="0" width="1" height="1" fill="#c000c0"/>
+<rect x="9" y="0" width="10" height="1" fill="#c0c0ff"/>
+<rect x="19" y="0" width="1" height="1" fill="#0000ff"/>
+<rect x="20" y="0" width="1" height="1" fill="#c0ffff"/>
+<rect x="21" y="0" width="10" height="1" fill="#ffffc0"/>
+<rect x="31" y="0" width="1" height="1" fill="#ffff00"/>
+<rect x="32" y="0" width="1" height="1" fill="#00c000"/>
+<rect x="33" y="0" width="1" height="1" fill="#0000ff"/>
+<rect x="34" y="0" width="1" height="1" fill="#ffc0c0"/>
+<rect x="35" y="0" width="1" height="1" fill="#c0c0ff"/>
+<rect x="36" y="0" width="1" height="1" fill="#ffff00"/>
+<rect x="37" y="0" width="1" height="1" fill="#ffffc0"/>
+<rect x="38" y="0" width="1" height="1" fill="#ffffff"/>
+<rect x="39" y="0" width="1" height="1" fill="#c0c000"/>
+<rect x="0" y="1" width="4" height="1" fill="#000000"/>
+<rect x="4" y="1" width="1" height="1" fill="#ffffff"/>
+<rect x="5" y="1" width="31" height="1" fill="#000000"/>
+<rect x="36" y="1" width="1" height="1" fill="#ffffc0"/>
+<rect x="37" y="1" width="1" height="1" fill="#000000"/>
+<rect x="38" y="1" width="2" height="1" fill="#c0c000"/>
+<rect x="0" y="2" width="4" height="1" fill="#000000"/>
+<rect x="4" y="2" width="33" height="1" fill="#ffffff"/>
+<rect x="37" y="2" width="3" height="1" fill="#000000"/>
+<line x1="0" y1="0" x2="0" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="1" y1="0" x2="1" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="2" y1="0" x2="2" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="3" y1="0" x2="3" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="4" y1="0" x2="4" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="5" y1="0" x2="5" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="6" y1="0" x2="6" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="7" y1="0" x2="7" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="8" y1="0" x2="8" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="9" y1="0" x2="9" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="10" y1="0" x2="10" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="11" y1="0" x2="11" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="12" y1="0" x2="12" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="13" y1="0" x2="13" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="14" y1="0" x2="14" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="15" y1="0" x2="15" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="16" y1="0" x2="16" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="17" y1="0" x2="17" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="18" y1="0" x2="18" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="19" y1="0" x2="19" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="20" y1="0" x2="20" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="21" y1="0" x2="21" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="22" y1="0" x2="22" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="23" y1="0" x2="23" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="24" y1="0" x2="24" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="25" y1="0" x2="25" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="26" y1="0" x2="26" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="27" y1="0" x2="27" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="28" y1="0" x2="28" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="29" y1="0" x2="29" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="30" y1="0" x2="30" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="31" y1="0" x2="31" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="32" y1="0" x2="32" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="33" y1="0" x2="33" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="34" y1="0" x2="34" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="35" y1="0" x2="35" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="36" y1="0" x2="36" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="37" y1="0" x2="37" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="38" y1="0" x2="38" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="39" y1="0" x2="39" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="40" y1="0" x2="40" y2="3" stroke="#00000022" stroke-width="0.04"/>
+<line x1="0" y1="0" x2="40" y2="0" stroke="#00000022" stroke-width="0.04"/>
+<line x1="0" y1="1" x2="40" y2="1" stroke="#00000022" stroke-width="0.04"/>
+<line x1="0" y1="2" x2="40" y2="2" stroke="#00000022" stroke-width="0.04"/>
+<line x1="0" y1="3" x2="40" y2="3" stroke="#00000022" stroke-width="0.04"/>
+</svg>

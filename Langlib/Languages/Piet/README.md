@@ -38,8 +38,13 @@ is available to API users via `Langlib.Common.Image.parsePpm`.
 | `add.ppm` | reads two numbers, prints their sum | LangLib original |
 | `square.ppm` | reads a number, prints its square | LangLib original |
 | `hi-stacked.ppm` | prints `Hi`, computing 72 and 105 with `dup`/`mul`/`add` | LangLib original |
+| `hello.ppm` | prints `Hello, world!`, stepping between code points | LangLib original |
+| `count.ppm` | prints 1 to 10: a loop | LangLib original, generated |
+| `truth.ppm` | truth-machine, in 13 by 3 codels | LangLib original, generated |
+| `collatz.ppm` | reads n, prints its hailstone sequence | LangLib original, generated |
+| `mondrian.ppm` | prints `Piet`; the rest of the image is a painting | LangLib original, generated |
 
-The first three are drawn in the same honest, unpainterly style: a
+The straight-line ones are drawn in the same honest, unpainterly style: a
 corridor of colour blocks along the middle row between black walls, then a
 white codel sliding into a full-height bar that no (DP, CC) attempt can
 leave, which is how a Piet program halts. They are P3 text, so they diff
@@ -56,6 +61,23 @@ is its width, and the colour change into the bar below is the command.
 The three-codel bar at the bottom is the terminator, entered at its middle
 so that its left and right codels face black upwards and all eight exits
 fail.
+
+The last four are written by `scripts/gen-piet-examples.py`, because
+nobody lays out a loop by hand. A loop is a closed circuit: commands along
+the top row, a white return corridor along the bottom, and a `pointer` at
+the far end whose popped value turns the DP south to go round again or
+leaves it pointing east at the terminator. `mondrian.ppm` makes the other
+point the language exists for — blocks the pointer never enters cost
+nothing — by hanging a painting under the program.
+
+Regenerate them with
+
+```
+python3 scripts/gen-piet-examples.py
+```
+
+and re-render the spec page's pictures afterwards with
+`scripts/render-docs-images.sh`.
 
 ## Tests
 
