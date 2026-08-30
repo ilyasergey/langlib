@@ -288,13 +288,44 @@ def Slot.width : Slot → Nat
   | .out => 1
   | .halt => 1
 
-/-- The code row for an output byte string. The accumulator starts at zero,
-which is what `Value.zero` is. -/
-def plan (bytes : List Nat) : List Slot :=
+/-- The code row for an output byte string, given what the accumulator holds
+on entry. -/
+def planFrom (acc : Nat) (bytes : List Nat) : List Slot :=
   let rec go (acc : Nat) : List Nat → List Slot
     | [] => [.halt]
     | b :: bs => if b == acc then .out :: go acc bs else .pair acc b :: .out :: go b bs
-  go 0 bytes
+  go acc bytes
+
+/-- The code row for a program run from the start: the accumulator is zero
+there, which is what `Value.zero` is. -/
+def plan (bytes : List Nat) : List Slot := planFrom 0 bytes
+
+/-- How many cells a plan occupies. -/
+def planWidth (slots : List Slot) : Nat := slots.foldl (fun n s => n + s.width) 0
+
+/-- Lay a plan into an image: code row from `ca`, data row from `da`, in
+lockstep, so that code cell `ca + j` executes with `d` on `da + j`. This is
+the whole code generator; `build` wraps it in a prologue and the probe below
+reuses it for a branch. -/
+def emitPlan (asm : Asm) (ca da : Nat) (slots : List Slot) : Except String Asm := do
+  let mut m := asm
+  let mut j : Nat := 0
+  for s in slots do
+    match s with
+    | .pair a t =>
+      match twoStep (Word.ofNat a) (Word.ofNat t) (da + j) (da + j + 1) with
+      | none =>
+        throw s!"no loadable pair of constants takes the accumulator from \
+                 {a} to {t} at addresses {da + j} and {da + j + 1}"
+      | some (k₁, k₂) =>
+        m := m.put (ca + j) (wordFor opCrazy (ca + j))
+        m := m.put (ca + j + 1) (wordFor opCrazy (ca + j + 1))
+        m := m.put (da + j) k₁
+        m := m.put (da + j + 1) k₂
+    | .out => m := m.put (ca + j) (wordFor opOut (ca + j))
+    | .halt => m := m.put (ca + j) (wordFor opHalt (ca + j))
+    j := j + s.width
+  return m
 
 /-! ## The layout -/
 
@@ -319,7 +350,7 @@ def rowGap : Nat := 64
 /-- Assemble a plan into Unshackled source. -/
 def build (bytes : List Nat) : Except String String := do
   let slots := plan bytes
-  let len := slots.foldl (fun n s => n + s.width) 0
+  let len := planWidth slots
   -- The jump cell holds an address as a *character*, so widen the gap if
   -- that address would be a surrogate. Only a program with tens of
   -- thousands of output bytes can get there.
@@ -338,26 +369,116 @@ def build (bytes : List Nat) : Except String String := do
   asm := asm.put 2 (wordFor opJmp 2)
   asm := asm.put ptrCell (dataBase - 2)
   asm := asm.put jumpCell (codeBase - 1)
-  -- The two rows, in lockstep: code cell `codeBase + j` executes with `d`
-  -- on data cell `dataBase + j`.
-  let mut j : Nat := 0
-  for s in slots do
-    let ca := codeBase + j
-    let da := dataBase + j
-    match s with
-    | .pair a t =>
-      match twoStep (Word.ofNat a) (Word.ofNat t) da (da + 1) with
-      | none =>
-        throw s!"no loadable pair of constants takes the accumulator from \
-                 {a} to {t} at addresses {da} and {da + 1}"
-      | some (k₁, k₂) =>
-        asm := asm.put ca (wordFor opCrazy ca)
-        asm := asm.put (ca + 1) (wordFor opCrazy (ca + 1))
-        asm := asm.put da k₁
-        asm := asm.put (da + 1) k₂
-    | .out => asm := asm.put ca (wordFor opOut ca)
-    | .halt => asm := asm.put ca (wordFor opHalt ca)
-    j := j + s.width
+  -- The two rows, in lockstep.
+  asm ← emitPlan asm codeBase dataBase slots
+  asm.render
+
+/-! ## A probe: dispatching on a character the compiler does not know
+
+Not used by `compile`, and deliberately kept: it is the mechanism the input
+half of this backend will need, checked by running rather than sketched in
+prose.
+
+The obstacle is that no chain of crazy operations against compiled-in
+constants can produce a flag that *depends* on the accumulator — `crz` is
+tritwise, so each output trit sees only the input trit at its own position,
+while `...000` and `...222` differ at every position.
+`docs/malbolge-unshackled/compiler.md` works that through. But a jump does
+not need a flag. It needs an *address*, and one of the nine compositions of
+two crazy columns is the identity:
+
+* column `k = 1` is the transposition `0 ↔ 1`, so applying it twice is the
+  identity, and `crz (crz a k) k` with `k` all ones below the width of `a`
+  **copies the accumulator into `mem[d]` unchanged**;
+* a `movd` through that cell then sets `d` to the value read, so `d` becomes
+  the character;
+* and a `jmp` one step later reads `mem[v + 1]`, a 128-entry table indexed by
+  the character.
+
+`hop`/`hop_hop_hop` in the completeness development is the proved copy, at
+three operations and with constants no source file can hold; this one is two
+operations and one loadable natural.
+
+`inputProbe` assembles that into a program that reads one character, prints
+`AAA` for `a`, `CCC` for `c`, and echoes anything else. Three details are the
+whole design.
+
+**Each branch owns its `d`.** After the `jmp`, `d` is `v + 2`, which depends
+on the character, so a branch that reads memory has to relocate `d` first. It
+does it with `n` no-ops followed by a `movd`: no-ops advance `d` by one each,
+so `n = B - v - 2` lands `d` exactly on a chosen pointer cell `B`, and the
+`movd` there sends it wherever the compiler likes. `n` is per-character and
+known, so the arithmetic is a subtraction.
+
+**The default branch needs no `d` at all.** At branch entry the accumulator
+still holds the character, and neither `out` nor `halt` reads memory. So
+`out; halt` echoes the character, from any `d`, and can be shared by all 128
+table entries.
+
+**Three entries are not free.** The table lives at addresses `v + 1`, and the
+prologue owns addresses 1, 2 and 41, so characters 0, 1 and 40 jump wherever
+the prologue's own words point. End of input is worse and more interesting:
+above the width of `k` the column applied is `k`'s lead twice, which sends
+`2` to `1`, so `...22` copies to `...1222…2`, whose leading trit is 1 — an
+address no loader ever wrote, where the run dies on an unprintable word. -/
+
+/-- All ones below width `w`: the copy constant, `(3 ^ w - 1) / 2`. Width 8
+covers every character below 128 and is above 126, so it is a legal data cell
+at any address. -/
+def onesBelow (w : Nat) : Nat := (3 ^ w - 1) / 2
+
+/-- Fill a run of addresses with no-ops. -/
+def Asm.pad (m : Asm) (from_ count : Nat) : Asm :=
+  (List.range count).foldl (fun m i => m.put (from_ + i) (wordFor opNop (from_ + i))) m
+
+/-- One branch of the probe: `n` no-ops walk `d` from `v + 2` to the pointer
+cell `ptr`, a `movd` sends `d` to `mem[ptr]`, and then the bytes are printed
+from an accumulator that still holds `v`. -/
+def emitBranch (asm : Asm) (entry v ptr dst : Nat) (bytes : List Nat) :
+    Except String Asm := do
+  let n := ptr - (v + 2)
+  let asm := asm.pad entry n
+  let asm := asm.put (entry + n) (wordFor opMovd (entry + n))
+  emitPlan asm (entry + n + 1) (dst + 1) (planFrom v bytes)
+
+/-- The probe, as Unshackled source: read one character, print `AAA` for
+`a`, `CCC` for `c`, echo anything else. 2207 cells, no `rotr` anywhere. -/
+def inputProbe : Except String String := do
+  let k := onesBelow 8
+  let dataBase := 200
+  let codeBase := 500
+  let deflt := 700          -- the shared branch: 701 out, 702 halt
+  let mut asm : Asm := {}
+  -- the prologue, exactly as `build`'s
+  asm := asm.put 0 (wordFor opMovd 0)
+  asm := asm.put 1 (wordFor opMovd 1)
+  asm := asm.put 2 (wordFor opJmp 2)
+  asm := asm.put ptrCell (dataBase - 2)
+  asm := asm.put (dataBase - 1) (codeBase - 1)
+  -- the jump table at addresses v+1, minus the three the prologue pins
+  for v in [0 : 128] do
+    if v != 0 && v != 1 && v != ptrCell - 1 then
+      asm := asm.put (v + 1) deflt
+  asm := asm.put (Char.toNat 'a' + 1) 999
+  asm := asm.put (Char.toNat 'c' + 1) 1999
+  -- the pointer cells the two interesting branches relocate `d` through
+  asm := asm.put 300 400
+  asm := asm.put 301 600
+  -- the dispatch row: inp, crazy, crazy, movd, movd, jmp
+  asm := asm.put (codeBase + 0) (wordFor opInp (codeBase + 0))
+  asm := asm.put (codeBase + 1) (wordFor opCrazy (codeBase + 1))
+  asm := asm.put (codeBase + 2) (wordFor opCrazy (codeBase + 2))
+  asm := asm.put (codeBase + 3) (wordFor opMovd (codeBase + 3))
+  asm := asm.put (codeBase + 4) (wordFor opMovd (codeBase + 4))
+  asm := asm.put (codeBase + 5) (wordFor opJmp (codeBase + 5))
+  asm := asm.put (dataBase + 1) k
+  asm := asm.put (dataBase + 2) k
+  asm := asm.put (dataBase + 3) (dataBase + 1)
+  -- the shared echo branch, which reads no memory at all
+  asm := asm.put (deflt + 1) (wordFor opOut (deflt + 1))
+  asm := asm.put (deflt + 2) (wordFor opHalt (deflt + 2))
+  asm ← emitBranch asm 1000 (Char.toNat 'a') 300 400 [65, 65, 65]
+  asm ← emitBranch asm 2000 (Char.toNat 'c') 301 600 [67, 67, 67]
   asm.render
 
 /-! ## The front end -/

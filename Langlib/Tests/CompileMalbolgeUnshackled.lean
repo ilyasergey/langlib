@@ -33,7 +33,7 @@ namespace Langlib.Tests.CompileMalbolgeUnshackled
 
 open Langlib.Common
 open Langlib.Turpentine.Compile.MalbolgeUnshackled
-  (compileSource compileSourceWith legalCell)
+  (compileSource compileSourceWith legalCell inputProbe)
 
 /-- Compile, then load and run on Unshackled's reference interpreter. -/
 def run (src : String) (input : Input) (fuel : Nat) : Except String RunResult := do
@@ -291,8 +291,51 @@ def refusalSuite : Suite where
         expect := .parseError "expected ';'" }
     ]
 
+/-- The probe ignores its source argument: it is a fixed hand-built image,
+and what varies is the input it reads. Run at three rotation widths at once,
+since it uses no `rotr` either. -/
+def probe (_src : String) (input : Input) (fuel : Nat) :
+    Except String RunResult := do
+  let text ← inputProbe
+  let first := Langlib.MalbolgeUnshackled.evalImage
+    { rotWidth := 10 } (← Langlib.MalbolgeUnshackled.load text) input fuel
+  for w in [11, 15, 64] do
+    let img ← Langlib.MalbolgeUnshackled.load text
+    let r := Langlib.MalbolgeUnshackled.evalImage { rotWidth := w } img input fuel
+    if r.exit != first.exit || r.output != first.output then
+      throw s!"rotation width {w} changes what the probe does"
+  return first
+
+/-- `inputProbe` is not part of `compile`; it is the checked version of the
+mechanism the input half will need. A 128-way dispatch on a character the
+compiler does not know, with no rotation: `a` prints `AAA`, `c` prints `CCC`,
+anything else is echoed by a branch shared by all 128 table entries. End of
+input is the documented failure — `...22` copies to an address outside the
+loaded image — and the source argument is ignored. -/
+def probeSuite : Suite where
+  name := "malbolge-unshackled input probe (dispatch without rotation)"
+  run := probe
+  cases :=
+    [ { name := "'a' takes its own branch", source := .inline "", input := "a",
+        expect := .outputs "AAA" }
+    , { name := "'c' takes its own branch", source := .inline "", input := "c",
+        expect := .outputs "CCC" }
+    , { name := "'b' falls through to the shared branch", source := .inline "",
+        input := "b", expect := .outputs "b" }
+    , { name := "a letter", source := .inline "", input := "Z",
+        expect := .outputs "Z" }
+    , { name := "punctuation", source := .inline "", input := "!",
+        expect := .outputs "!" }
+    , { name := "the top of the printable range", source := .inline "",
+        input := "~", expect := .outputs "~" }
+    , { name := "only the first character is read", source := .inline "",
+        input := "a!!!", expect := .outputs "AAA" }
+    , { name := "end of input lands outside the image", source := .inline "",
+        input := "", expect := .runtimeError "has no encryption" }
+    ]
+
 def suites : List Suite :=
   [suite, widthSuite, structureSuite, cellCountSuite, tightSuite, strictSuite,
-   refusalSuite]
+   refusalSuite, probeSuite]
 
 end Langlib.Tests.CompileMalbolgeUnshackled

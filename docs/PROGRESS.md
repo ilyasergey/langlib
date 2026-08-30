@@ -53,16 +53,35 @@ matter, and it does not), an audit of every emitted cell read back the way
 the loader reads it, pinned cell counts, a straight-line check at a fuel
 bound of `n + 4`, and ten refusals.
 
-The gap is input, and it is not more code generation. `crz` is tritwise and
-its table has no constant column, so no chain of crazy operations against
-compiled-in constants can turn an unknown value into a *uniform* one — and
-uniform is exactly what the verified branch pipeline's flag has to be. So a
-comparison cannot be collapsed into a flag without `*`, `*` drags in the
-rotation width, and that is Stage 8's unary-register route. One consolation
-prize, checked: `crz (crz a k) k` with `k` all ones is the identity, so two
-crazy operations copy the accumulator into memory unchanged and a `movd`
-after them is a computed jump indexed by an input character, with no
-rotation anywhere. Nobody has built the dispatch on it yet.
+The gap is input, and it is not more code generation. The first version of
+this paragraph got the reason wrong and a parallel session caught it, which
+is worth recording because the correct version is sharper. Two crazy
+operations against compiled-in constants *can* turn an unknown value into a
+uniform one: `crz (crz a ...222) ...000 = ...000`, which is `crz_absorb`
+and is the first step of the verified branch pipeline. Individual columns of
+the table are non-constant, but two of the nine compositions are. What a
+chain of crazy operations cannot produce is a uniform value that *depends*
+on the accumulator: `crz` is tritwise, so each output trit sees only the
+input trit at its own position, and two inputs differing at one position
+agree at every other, while `...000` and `...222` differ everywhere. So a
+comparison still cannot be collapsed into a flag without `*` — and `*` is
+mandatory anyway for addressing, which is the argument
+`widthBounded_step1` actually proves.
+
+One consolation prize, and it works: `crz (crz a k) k` with `k` all ones
+below the width of `a` is the identity (the `0 ↔ 1` transposition twice),
+and `k` is a plain natural, so it loads. Two crazy operations therefore copy
+an unknown accumulator into a memory cell, and a `movd` through that cell
+turns the copy into an address. `inputProbe` in the backend is a 2207-cell
+hand-built image that does it: it reads one character, dispatches 128 ways
+through a table at addresses `v+1`, prints `AAA` for `a` and `CCC` for `c`,
+and echoes anything else — with no rotation anywhere, at every rotation
+width. It is not wired into `compile`, because one dispatch is not a machine;
+it is there so the mechanism the input half needs is checked rather than
+sketched. End of input is the interesting failure: above the width of `k` the
+column applied is `k`'s lead twice, which sends `2` to `1`, so `...22`
+copies to `...1222…2`, whose leading trit is 1, and the jump lands where no
+loader ever wrote.
 
 ## 2026-08-31: subleq reports its events, and printint is honest
 

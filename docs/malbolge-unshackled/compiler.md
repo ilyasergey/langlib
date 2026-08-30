@@ -261,41 +261,79 @@ newline.
 ### Why input is the hard half, and not just the next half
 
 It would be nice to say that reading input is more of the same. It is not,
-and the reason is a fact about the crazy operation worth stating on its own.
+and the reason is a fact about the crazy operation worth stating carefully,
+because the careless version of it is false.
 
-`crz` is tritwise, so every trit of its result depends only on the trits of
-its operands at the *same* position. A chain of crazy operations against
-compiled-in constants therefore computes a **tritwise** function of the
-accumulator, and no tritwise function can broadcast: there is no constant
-column in the table (`k = 0` sends `0,1,2` to `1,0,0`; `k = 1` to `1,0,2`;
-`k = 2` to `2,2,1`; none is constant), so no chain can turn an unknown value
-into a *uniform* one. And uniform is exactly what the verified branch
-pipeline consumes: `branch_arith` needs a flag holding `...000` or `...222`.
+The careless version: no chain of crazy operations against compiled-in
+constants can turn an unknown value into a *uniform* one. That is wrong, and
+`crz_absorb` is the counterexample —
+`crz (crz a ...222) ...000 = ...000` for every `a`. Individual columns of
+the table are non-constant (`k = 0` sends `0,1,2` to `1,0,0`; `k = 1` to
+`1,0,2`; `k = 2` to `2,2,1`), but two of the nine *compositions* are
+constant: `k = 2` then `k = 0` sends every trit to 0, and `k = 0` then
+`k = 2` sends every trit to 2. That is exactly why the verified branch
+pipeline opens with an absorber.
 
-So a comparison cannot be collapsed into a flag by crazy operations alone.
-Collapsing needs to move a trit from one position to another, the only
-instruction that does is `*`, and `*` is where the rotation width lives —
-which is why the completeness route goes through unary registers and the
-escalator rather than through arithmetic, and why the input half of this
-backend is the counter machine rather than a bigger code generator. See
+The true version. `crz` is tritwise, so a chain against compiled-in
+constants computes `resultᵢ = fᵢ(aᵢ)`: each output trit sees only the input
+trit at its own position. Let `a` and `a'` differ only at position `i`, and
+take any other position `j`; then `resultⱼ` is the same for both, since
+`aⱼ = a'ⱼ`. But `...000` and `...222` differ at *every* position, `j`
+included. So no chain can send `a` to one and `a'` to the other: **a chain
+of crazy operations can produce a uniform value, but not one that depends on
+the accumulator.** The absorber is the degenerate case, uniform and
+constant, which is why `branch_arith` needs the flag handed to it in a cell
+rather than computed from the value being tested.
+
+Collapsing a comparison therefore needs an instruction that moves a trit
+from one position to another, and `*` is the only one. And rotation is
+mandatory for a second, independent reason, which is the one the development
+actually proves: `widthBounded_step1` says a rot-free run keeps every
+storable value inside a finite alphabet, so every `j` and `i` teleports into
+a fixed finite set of addresses, for ever. Unbounded storage needs `*` for
+**addressing**, whatever happens to flags. Either way the input half of this
+backend is the counter machine rather than a bigger code generator; see
 [completeness-progress.md](completeness-progress.md).
 
 There is one thing the straight-line world can do with an unknown value,
-and it is worth recording because it is cheaper than the branch pipeline.
+and it is cheaper than the branch pipeline, because a jump does not need a
+flag — it needs an *address*.
+
 The tritwise map `crz (crz a k) k` with `k` all ones below the width of `a`
-is the **identity** — the transposition `0 ↔ 1` applied twice — so two crazy
-operations against a single loadable constant *copy the accumulator into a
-memory cell*, and a `movd` through that cell then sets `d` to the value
-read. That is a computed jump indexed by an input character, with no
-rotation anywhere: `inp`, two crazy cells, two `movd`s and a `jmp` land `c`
-wherever a table at addresses `v+1` says, where `v` is the character read.
-The copy is checked (every scalar below 1114112 at width 13, and every value
-exhaustively at widths 5, 7 and 8); the dispatch built on it is not, and is
-not in the compiler. Two things to know before building it: the entries for
-characters 0, 1 and 40 are pinned by the prologue, which occupies addresses
-1, 2 and 41; and end of input, `...22`, copies to `...1222…2`, whose leading
-trit is 1, so it lands in memory no loader ever touched and its target is
-whichever of the six fill values the residue selects.
+is the **identity**: column `k = 1` is the transposition `0 ↔ 1`, and
+applying it twice is the identity. So two crazy operations against a single
+*loadable* constant copy the accumulator into a memory cell, and a `movd`
+through that cell sets `d` to the value read. (`hop`/`hop_hop_hop` in the
+completeness development is the proved copy, at three operations and with
+constants no source file can hold.) A `jmp` one step later reads
+`mem[v + 1]`, which is a 128-entry table indexed by the character.
+
+`inputProbe`, in the backend but deliberately not used by `compile`, is that
+built: 2207 cells that read one character, print `AAA` for `a`, `CCC` for
+`c`, and echo anything else. Three details are the whole design.
+
+* **Each branch owns its `d`.** After the jump `d` is `v + 2`, which depends
+  on the character, so a branch that reads memory relocates `d` first: `n`
+  no-ops advance `d` by one each, so `n = B - v - 2` lands it exactly on a
+  chosen pointer cell `B`, and a `movd` there sends it anywhere. `n` is
+  per-character and known, so the arithmetic is a subtraction.
+* **The default branch needs no `d` at all.** At branch entry the
+  accumulator still holds the character, and neither `out` nor `halt` reads
+  memory, so `out; halt` echoes it from any `d` and is shared by all 128
+  table entries.
+* **Three entries are not free**, and end of input is a fourth problem. The
+  table is at addresses `v + 1`, and the prologue owns 1, 2 and 41, so
+  characters 0, 1 and 40 jump wherever the prologue's own words point. And
+  above the width of `k` the column applied is `k`'s lead twice, which sends
+  `2` to `1`, so `...22` copies to `...1222…2`, whose leading trit is 1: an
+  address no loader ever wrote, where the run dies on an unprintable word.
+  The probe's test suite pins that as the expected failure.
+
+Checked, not argued: the copy over every value at widths 5, 7 and 8 and a
+sample of every scalar at width 13, and the probe at four rotation widths on
+seven inputs plus end of input. What it is not is a machine — one dispatch
+with no way back is not a loop — which is why the input half is still the
+counter machine.
 
 ## The three obstacles, and what is now proved about each
 
@@ -721,13 +759,13 @@ short arithmetic one.
 4. ~~The prologue.~~ **Written**, three cells, and traced against the
    interpreter in the worked example above. Proving it symbolically is
    still open; `enter_chain` is the shape the proof should take.
-5. **The accumulator, when its value is unknown.** The finding above —
-   `crz (crz a k) k` is the identity for `k` all ones, so two crazy
-   operations copy `a` into memory and a `movd` turns it into an address —
-   gives a computed jump on an input character without rotating. Building
-   the dispatch table on it, and deciding what to do about end of input
-   landing outside the loaded image, is the cheapest next experiment on
-   this page.
+5. ~~The accumulator, when its value is unknown.~~ **Built and tested**, as
+   `inputProbe`: `crz (crz a k) k` is the identity for a loadable `k`, so
+   two crazy operations copy `a` into memory and a `movd` turns it into an
+   address, giving a 128-way dispatch on an input character with no
+   rotation. What it does not give is a way *back*, so the loop is still
+   the missing piece, and end of input still lands outside the loaded
+   image. Both are noted above.
 
 ## Tests
 
@@ -761,6 +799,11 @@ target checks its own program at load time can fail in four different ways.
 * **The fragment boundary**, 10 cases, one per reason to refuse: each of the
   four reading statements, non-termination, a byte above 127, a trap, a
   failed assertion, a type error and a parse error.
+* **The input probe**, 8 cases. `inputProbe` is not part of `compile`, so
+  these check the mechanism rather than the compiler: `a` and `c` take their
+  own branches, four other characters fall through to the shared echo
+  branch, only the first character is read, and end of input fails the way
+  the design says it must. Each case runs at four rotation widths.
 
 Two checks are run by hand rather than by `lake test`, because they are
 sweeps rather than cases: `twoStep` over all 16384 accumulator/target pairs

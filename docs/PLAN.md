@@ -109,12 +109,16 @@ state first-order, I/O explicit.
   cell ever runs twice and self-encryption never bites.
 
   What is left is exactly the input half, and it is the completeness work
-  rather than more code generation. A comparison cannot be turned into a
-  flag by crazy operations alone: `crz` is tritwise and its table has no
-  constant column, so no chain of crazy operations against compiled-in
-  constants can make an unknown value uniform, which is what
-  `branch_arith`'s flag has to be. Collapsing needs `*`, `*` needs the
-  rotation width, and that is the unary-register route of Stage 8. Two
+  rather than more code generation. A chain of crazy operations against
+  compiled-in constants *can* make an unknown value uniform — that is
+  `crz_absorb`, the first step of the verified branch pipeline — but it
+  cannot make a uniform value that **depends** on the accumulator, because
+  `crz` is tritwise and so each output trit sees only the input trit at its
+  own position, while `...000` and `...222` differ at every position.
+  Collapsing a comparison therefore needs `*`, and `*` is mandatory anyway
+  for addressing (`widthBounded_step1`: a rot-free run keeps every storable
+  value in a finite alphabet, so every teleport lands in a finite set of
+  addresses). That is the unary-register route of Stage 8. Two
   findings of that stage still bind: the VM's own loop is code, so it has
   to be a cycle through `xlat2`'s orbits (`decode_encrypt_ne`), and it
   cannot escape by running forward into untouched memory
