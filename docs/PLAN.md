@@ -115,11 +115,13 @@ state first-order, I/O explicit.
   (`derivedThue`, `derivedFractran`, `derivedPiet`), all three are
   reachable from the CLI as `--to <lang> --tc`, so what a bespoke backend
   adds is readable output and I/O, not correctness.
-* Turpentine -> piet, arrays `[ ]`: the one thing the Piet backend refuses.
-  Variables live on the stack and are reached with `roll`, so an array
-  would too — but a *computed* index needs the roll depth itself computed
-  at run time, turning the constants in the read and write sequences into
-  stack expressions. Six conformance programs are waiting on it.
+* Turpentine -> piet, arrays `[x]`: **done**. Arrays live on the stack like
+  the scalars and are reached with `roll`; a *computed* index is parked in
+  a scratch slot placed below every variable, which is deeper than any
+  rotation that reaches an element can reach and so still has a known index
+  afterwards. Every access is bounds-checked in one lane. The Piet backend
+  now takes the whole language, and all twenty conformance programs run
+  through it.
 
 ### Intermediate representations, and why
 
@@ -310,10 +312,27 @@ The steps, in order:
    builds states with positional `⟨…⟩` literals, so a seventh field meant
    threading an `es` parameter through every block lemma; the payoff is
    that those lemmas are now stated for an arbitrary prior trace.
-2. **Traces in the Turpentine interpreter**, and a
-   `TurpentineBehavesWith p σ n τ result` stated over `answerProgram p` —
-   the source *with* the epilogue — which is what lets `encodeTrace` be
-   the identity.
+2. **Traces in the Turpentine interpreter** `[x]`. The same `events` field,
+   the same four recorders, and the same invariant in
+   `Langlib/Languages/Turpentine/Trace.lean`. Turpentine is not a `ProgLang`, so
+   it gets no `TraceLang` instance; what it gets is
+   `TurpentineBehavesWith p σ n τ result`, the I/O-aware refinement of
+   `TurpentineHaltsWith`, plus `behavesWith_wf`, which says the specified
+   behaviour is a real run's — a compiler proved against it is constrained
+   by what the program does, not by a trace invented to make the proof go
+   through.
+
+   Two wrinkles. The induction is on fuel and *then* on the statement,
+   because `seq` consumes no fuel and runs its first half at the same
+   bound. And `a[i] := readByte()` had to be rewritten from a shared `let`
+   into two branches so that a proof can case on the read; the semantics
+   is unchanged, including that a failed store rolls the read back — and
+   now the trace rolls back with it.
+
+   `TurpentineBehavesWith` is stated over `p.body` directly. The epilogue
+   that makes the answer observable belongs to the *compiler*'s
+   `answerProgram`, so step 4 will instantiate `spec` at `answerProgram p`
+   and `encodeTrace` stays the identity.
 3. **The fragment and the emitter lemmas.** Widen `checkFragment`, and add
    the print cases to the `Emits` algebra and to `simStmt`, each
    discharging the trace increment as well as the state relation.

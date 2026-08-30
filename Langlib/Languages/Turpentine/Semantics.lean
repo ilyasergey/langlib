@@ -46,6 +46,32 @@ structure State where
   env : Std.HashMap String Value := {}
   input : Input
   output : ByteArray := .empty
+  /-- The run's I/O events, **most recent first**; `State.trace` turns them
+  over. Keeping them reversed makes recording a byte O(1). Only the seven
+  I/O statements touch this field, and a statement that fails after reading
+  does not record the read, because it does not keep it either. -/
+  events : List Event := []
+
+/-- The observable behaviour of the run so far: the bytes it consumed and
+emitted, in the order they happened. -/
+def State.trace (s : State) : Trace := s.events.reverse
+
+/-- Emit one byte: to the output, and to the trace. -/
+def State.emit (s : State) (b : UInt8) : State :=
+  { s with output := s.output.push b, events := .out b :: s.events }
+
+/-- Emit a run of bytes (`print` writes a whole rendering at once). -/
+def State.emitBytes (s : State) (bs : ByteArray) : State :=
+  { s with output := s.output ++ bs, events := Trace.recOut s.events bs.toList }
+
+/-- Consume the bytes between two cursors, recording each one: what
+`readInt` does, since it takes a whole line. -/
+def State.consume (s : State) (input' : Input) : State :=
+  { s with input := input', events := Trace.recInp s.events (Input.between s.input input') }
+
+/-- Consume one byte, recording it: what `readByte` does. -/
+def State.consumeByte (s : State) (b : UInt8) (input' : Input) : State :=
+  { s with input := input', events := .inp b :: s.events }
 
 /-- Evaluate a pure expression. The type checker rules out type confusion,
 so the `panic`-free fallbacks here only defend against unchecked ASTs. -/
@@ -128,7 +154,7 @@ private def parseIntLine (line : String) : Option Int :=
       some (if neg then -n else n)
 
 private def pushStr (s : State) (str : String) : State :=
-  { s with output := s.output ++ str.toUTF8 }
+  s.emitBytes str.toUTF8
 
 /-- Resolve an array element write: evaluate the index, bounds-check it,
 and return the updated environment. Shared by the three indexed
@@ -190,13 +216,13 @@ def exec : Nat → Stmt → State → State × Exit
       | some (line, input') =>
         match parseIntLine line with
         | some n =>
-          ({ s with env := s.env.insert x (.int n), input := input' }, .halted)
+          ({ s.consume input' with env := s.env.insert x (.int n) }, .halted)
         | none => (s, .error s!"readInt: not an integer: '{line.trimAscii.toString}'")
     | .readByte x =>
       match s.input.read? with
       | some (b, input') =>
-        ({ s with env := s.env.insert x (.int (Int.ofNat b.toNat)),
-                  input := input' }, .halted)
+        ({ s.consumeByte b input' with
+            env := s.env.insert x (.int (Int.ofNat b.toNat)) }, .halted)
       | none => ({ s with env := s.env.insert x (.int (-1)) }, .halted)
     | .assignIndex x i e =>
       match evalExpr s.env e with
@@ -213,15 +239,22 @@ def exec : Nat → Stmt → State → State × Exit
         | none => (s, .error s!"readInt: not an integer: '{line.trimAscii.toString}'")
         | some n =>
           match storeIndex s.env x i (.int n) with
-          | .ok env' => ({ s with env := env', input := input' }, .halted)
+          | .ok env' => ({ s.consume input' with env := env' }, .halted)
           | .error m => (s, .error m)
     | .readByteIndex x i =>
-      let (b, input') := match s.input.read? with
-        | some (b, inp) => (Int.ofNat b.toNat, inp)
-        | none => ((-1 : Int), s.input)
-      match storeIndex s.env x i (.int b) with
-      | .ok env' => ({ s with env := env', input := input' }, .halted)
-      | .error m => (s, .error m)
+      -- The two ends of input are written out rather than shared through a
+      -- `let`, so that a proof can case on the read. A failed store rolls
+      -- the read back, and the trace rolls back with it: the run that
+      -- reports the error is the run that did not keep the byte.
+      match s.input.read? with
+      | some (b, inp) =>
+        match storeIndex s.env x i (.int (Int.ofNat b.toNat)) with
+        | .ok env' => ({ s.consumeByte b inp with env := env' }, .halted)
+        | .error m => (s, .error m)
+      | none =>
+        match storeIndex s.env x i (.int (-1)) with
+        | .ok env' => ({ s with env := env' }, .halted)
+        | .error m => (s, .error m)
     | .printExpr e nl =>
       match evalExpr s.env e with
       | .ok v => (pushStr s (v.render ++ if nl then "\n" else ""), .halted)
@@ -230,9 +263,7 @@ def exec : Nat → Stmt → State → State × Exit
       (pushStr s (str ++ if nl then "\n" else ""), .halted)
     | .printByte e =>
       match evalExpr s.env e with
-      | .ok (.int n) =>
-        ({ s with output := s.output.push (UInt8.ofNat (n.emod 256).toNat) },
-         .halted)
+      | .ok (.int n) => (s.emit (UInt8.ofNat (n.emod 256).toNat), .halted)
       | .ok _ => (s, .error "ill-typed 'printByte'")
       | .error m => (s, .error m)
 
@@ -259,6 +290,16 @@ def evalProgram (p : Program) (input : Input) (fuel : Nat) : RunResult :=
   | .ok env =>
     let (s, exit) := exec fuel p.body { env, input }
     { output := s.output, exit }
+
+/-- The observable behaviour of a run: the same run as `evalProgram`,
+reporting its I/O events rather than only its output bytes.
+`Langlib/Languages/Turpentine/Trace.lean` proves that the report is honest. A
+program whose declarations fail to initialise never runs, so its behaviour
+is the empty trace. -/
+def evalTrace (p : Program) (input : Input) (fuel : Nat) : Trace :=
+  match initEnv p with
+  | .error _ => []
+  | .ok env => (exec fuel p.body { env, input }).1.trace
 
 /-- Parse, type-check, and run: the entry point for runner and tests. -/
 def run (src : String) (input : Input) (fuel : Nat) :

@@ -275,7 +275,7 @@ bespoke backends of section 3, which do compile Turpentine's `read` and
 
 | Backend | Proved today | What the upgrade needs |
 |---|---|---|
-| [Whitespace](../Langlib/Languages/Turpentine/Compile/Whitespace.lean) | `CertifiedCompiler`, scalar fragment | **`TraceLang` done**; a Turpentine-side trace semantics, and the print cases of the simulation |
+| [Whitespace](../Langlib/Languages/Turpentine/Compile/Whitespace.lean) | `CertifiedCompiler`, scalar fragment | **both trace semantics done**; the print cases of the simulation, and the instance |
 | [Subleq](../Langlib/Languages/Turpentine/Compile/Subleq.lean) | `CertifiedCompiler`, two shapes | a `TraceLang` instance; `encodeTrace` is the identity |
 | [Brainfuck](../Langlib/Languages/Turpentine/Compile/Brainfuck.lean) | tested, not proved | the correctness proof first |
 | [Ook!](../Langlib/Languages/Turpentine/Compile/Ook.lean), [Brainloller](../Langlib/Languages/Turpentine/Compile/Brainloller.lean) | tested, not proved | Brainfuck's, then re-encoding |
@@ -295,6 +295,14 @@ what the backend emits through `outnum` and through its `jz`/`emitStr`
 pair. Barring `readByte` at end of input, which diverges for reasons
 `docs/whitespace/compiler.md` records, `encodeTrace` is the identity and
 the theorem to aim at is byte-for-byte event equality.
+
+That is no longer only an expectation. Both interpreters now report their
+events, so the claim is *executable*, and
+[`Langlib/Tests/TurpentineTrace.lean`](../Langlib/Tests/TurpentineTrace.lean)
+runs a program through the reference interpreter and through the
+hand-written whitespace backend and fails unless the two performed the same
+events in the same order. The proof is still to write; the claim it will
+make is already being checked on every `lake test`.
 
 ## 2. Route one: derived, via the URM
 

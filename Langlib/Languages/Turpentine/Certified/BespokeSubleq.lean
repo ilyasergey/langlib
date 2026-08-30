@@ -556,7 +556,7 @@ theorem haltsWith_progPrint {k : Int} {n result : Nat}
   | succ n =>
     subst henv
     simp only [progOf, Turpentine.exec, Turpentine.evalExpr, Std.HashMap.getElem?_insert,
-      BEq.rfl, if_true, pure, Except.pure, Prod.mk.injEq] at hex
+      BEq.rfl, if_true, pure, Except.pure, Prod.mk.injEq, Turpentine.State.emit] at hex
     rw [← hex.1] at hans
     simp [answerVar] at hans
     omega
