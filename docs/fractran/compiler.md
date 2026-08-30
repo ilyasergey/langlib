@@ -39,9 +39,8 @@ state prime and only one state prime divides the state at a time.
 
 ## Reading the answer, without decoding it
 
-FRACTRAN has no output. The certified route answers that by leaving the
-result as the exponent of two in the final value, which the caller has to
-factorise. The bespoke route makes the number readable instead:
+FRACTRAN has no output, so the answer is the number the run ends on. The
+bespoke route arranges for that number to be readable:
 
 * register 0 is the variable **`answer`**, so it gets the prime **2**;
 * every other register and every state gets an **odd** prime;
@@ -52,6 +51,21 @@ The run therefore ends on exactly `2 ^ answer`, and no earlier state is a
 power of two, because until the last step an odd state prime always divides
 it. `--out pow2` prints `k` whenever a step produces `2 ^ k`, so it prints
 the answer, once, in decimal, and nothing else.
+
+**The certified route ends the same way**, and it is worth being exact
+about this, because it is easy to oversell the difference. Its cleanup
+phase reduces a halting store to `2 ^ R₀` too — that is what
+`cleanupFrom` in
+[`Langlib/Computability/Fractran.lean`](../../Langlib/Computability/Fractran.lean#L3177)
+is for, and its own comment says "pow2 observation then emits `R₀`" —
+and it keeps a unique control marker on an odd prime at every instruction
+boundary, so its intermediate states are not powers of two either. Running
+certified output under `--out pow2` therefore prints the answer in decimal,
+exactly as the bespoke route's does; the runner's suggested command just
+says `--out final` because that is the mode the derived compiler's note was
+written with. What the bespoke route actually buys is **size and
+legibility** (see the table below), not a decodable answer. Both routes
+give you one.
 
 ## Two things that are checked rather than assumed
 
@@ -173,11 +187,12 @@ getting a number right, which is why the compiler prints it twice.
 And if you skip the whole business, `exec --via fractran --bespoke`
 compiles and runs in one step, supplying the starting value itself.
 
-## Running a program that will not finish
+## Running the largest thing that runs
 
-`primes-tc.turp` counts the primes below thirty. It compiles fine, and it
-is a good illustration of what this backend costs, so it is worth walking
-through even though the run does not end.
+`primes-tc.turp` counts the primes below thirty by trial division. It is
+the biggest program this backend has been pointed at, and it does finish,
+which is worth showing because the arithmetic makes it look like it should
+not.
 
 Compile it like any other:
 
@@ -185,35 +200,44 @@ Compile it like any other:
 lake exe turpentine compile --to fractran --bespoke -o /tmp/primes.ft Langlib/Examples/Turpentine/primes-tc.turp
 ```
 
-It prints the size it wrote and, on the next line, the command to run it.
-For this program the machine needs 514 fractions and its entry state is the
-prime 2203, so that command is
-`lake exe fractran --out pow2 --n 2203 /tmp/primes.ft`.
-
-Run it with a fuel bound you are willing to wait for. Without one the
-runner uses its default of 200 million steps, which on this program is
-several minutes of no output:
+Output, on stderr:
 
 ```
-lake exe fractran --out pow2 --n 2203 --fuel 5000000 /tmp/primes.ft
+turpentine: wrote 5241 bytes to /tmp/primes.ft [bespoke, hand-written and unverified]
+turpentine: run it with: lake exe fractran --out pow2 --n 2203 /tmp/primes.ft
 ```
 
-It prints nothing and then reports that it ran out of fuel, in the same
-form as any other over-long run: `fractran: out of fuel after 5000000
-steps (raise with --fuel)`.
+That is 514 fractions, and an entry state of 2203. Run it exactly as the
+note says:
+
+```
+lake exe fractran --out pow2 --n 2203 /tmp/primes.ft
+```
+
+Output:
+
+```
+10
+```
+
+Ten primes below thirty, and the reference interpreter agrees — it just
+has no way to say so, since `primes-tc.turp` is in the certified fragment
+and prints nothing at all. The run halts after **60,872 steps**, so any
+fuel bound above that does; it takes about three seconds.
+
+Three seconds for sixty thousand steps is four hundred times slower than
+`sum.turp`, and the reason is arithmetic rather than the step count. Trial
+division runs `candidate % d` for every pair, each `%` is a counting loop
+in the Minsky machine, and every step of that loop multiplies or divides a
+state whose size grows with the values in the registers. The step count
+stays modest; the integers do not.
 
 Nothing is printed before the answer, by construction: `--out pow2` speaks
 only when the state is exactly a power of two, and that happens once, at
-the end. So a run that has not finished looks exactly like a run that has
-nothing to say. Use `--out trajectory` if you want to watch it think, and
-be ready for the numbers to be thousands of digits long.
-
-The reason it is hopeless is arithmetic, not the compiler. Trial division
-runs `n % d` for every candidate pair, each `%` is a counting loop in the
-Minsky machine, and each step of that loop multiplies or divides an integer
-whose size grows with the values held in the registers. `docs/fractran/spec.md`
-lists the three examples in this category and what makes each of them
-expensive.
+the end. So a run still thinking looks exactly like a run with nothing to
+say. Use `--out trajectory` to watch it work, and be ready for the numbers
+to be hundreds of digits long. `docs/fractran/spec.md` lists the examples
+that genuinely do not finish, and what makes each of them expensive.
 
 ## Trying it
 
@@ -230,9 +254,9 @@ Output:
 30
 ```
 
-The same program through the certified route, for contrast. It prints the
-final *state*, and the caller is left to notice that this is two to the
-thirtieth:
+The same program through the certified route. `exec` follows that
+compiler's note and asks for the final *state*, so the answer arrives as
+two to the thirtieth and the caller is left to notice:
 
 ```
 lake exe turpentine exec --via fractran --tc Langlib/Examples/Turpentine/sumsq.turp
@@ -243,6 +267,36 @@ Output:
 ```
 1073741824
 ```
+
+That is a choice of output mode, not a property of the fractions. Emit the
+same certified program to a file and read it with `--out pow2` and the
+answer comes back in decimal, just as the bespoke route's does:
+
+```
+lake exe turpentine compile --to fractran --tc -o /tmp/sumsq-tc.ft Langlib/Examples/Turpentine/sumsq.turp
+```
+
+Output, on stderr:
+
+```
+turpentine: wrote 5074 bytes to /tmp/sumsq-tc.ft [certified, derived from the Turing-completeness proof]
+turpentine: run it with: lake exe fractran --out final --n 31 /tmp/sumsq-tc.ft
+```
+
+Then read it as a power of two instead:
+
+```
+lake exe fractran --out pow2 --n 31 /tmp/sumsq-tc.ft
+```
+
+Output:
+
+```
+30
+```
+
+The certified file is 5074 bytes against the bespoke one's 2125, which is
+the difference that survives the comparison.
 
 Emit the fractions to a file. The starting value is not part of the file,
 so the compiler prints the command that supplies it:

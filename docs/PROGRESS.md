@@ -32,6 +32,55 @@ Remaining after that, toward `TuringComplete`: the register
 representation, the dispatcher itself, an assembler for the mod-94
 layout, and the URM simulation induction.
 
+## 2026-08-30: a hand-written FRACTRAN backend
+
+`Langlib/Languages/Turpentine/Compile/Fractran.lean`: Turpentine to a
+Minsky machine to fractions, reachable as `--to fractran --bespoke` and
+tested in `Langlib/Tests/CompileFractran.lean`. FRACTRAN already had a
+certified compiler derived from its completeness witness; what the
+hand-written one buys is a fraction list short enough to read — 160
+fractions for `sum.turp` where the derived route needs about 3,550 bytes
+of them.
+
+Three things the construction turns on, all recorded in
+[fractran/compiler.md](fractran/compiler.md).
+
+**No instruction may name its own state.** `inc r; goto s` at state `s`
+lowers to `p_r * q_s / q_s`, which reduces to `p_r / 1`, and a denominator
+of one divides every state — the rule would fire everywhere. The two
+macros that want a self-loop (clearing a register, and the infinite loop a
+failed `assert` becomes) use two-state cycles instead, and `toFractions`
+rejects a self-reference rather than emitting one.
+
+**The epilogue is measured, not guessed.** A layout reserves scratch for an
+expression nesting the program may never reach, and every register the
+epilogue clears costs a prime and two states. Compilation runs twice: the
+first pass only to learn the highest register the code mentions, the
+second to clear exactly those. It halved the output.
+
+**The answer needs no decoding.** `answer` is register zero and gets the
+prime two; every other register and every state gets an odd prime; the
+final `1 / q_s` consumes the state prime. So the run ends on exactly
+`2 ^ answer`, no earlier state is a power of two, and `--out pow2` prints
+the answer once, in decimal.
+
+**A correction to that last claim's framing.** The page had said the
+certified route leaves the caller to factorise, and that is not true: its
+cleanup phase reduces a halting store to `2 ^ R₀` as well, and it keeps a
+control marker on an odd prime at every instruction boundary, so
+`--out pow2` reads certified output too. Checked rather than reasoned
+about — the derived `sumsq.turp` prints `30` under it. What separates the
+routes is size (5074 bytes against 2125 on that program), not
+decodability, and the page now says so.
+
+**And `primes-tc.turp` finishes.** The page had it filed under "a program
+that will not finish"; it halts after 60,872 steps, in about three
+seconds, printing `10`. What is expensive there is the size of the
+integers, not the number of steps — trial division makes every `%` a
+counting loop over a state whose digits grow with the register values. The
+section is rewritten around the run that actually happens.
+
+
 ## 2026-08-30: the branch arithmetic, in seven crazy operations
 
 A branch in Malbolge Unshackled is a `jmp` whose target cell holds a
