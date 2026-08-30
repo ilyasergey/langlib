@@ -119,62 +119,107 @@ keeps both kinds.
 The full matrix, with per-stage columns and links to every theorem, is in
 [docs/README.md](docs/README.md).
 
+## What a language is
+
+One definition carries the whole library: running a program, proving a
+compiler correct, and claiming a language is or is not Turing complete are
+all stated against it.
+
+**[`ProgLang L`](Langlib/Common/Compilation.lean#L71)** is what every
+language here supplies.
+
+```lean
+class ProgLang (L : Type) where
+  Prog  : Type                              -- abstract syntax
+  parse : String → Except String Prog
+  run   : Prog → Input → Nat → RunResult    -- program, input, fuel
+```
+
+`L` is an empty tag type that *names* the language rather than being its
+program type, so `Befunge93` and `BoundedByteBefunge93` can be two
+languages with two different answers.
+[`Input` and `RunResult`](Langlib/Common/Io.lean#L28) are the shared
+execution model: a byte stream with a read cursor, and the bytes a run
+emitted together with how it ended. The `Nat` is **fuel**, a step budget,
+which is what makes `run` a total function even of a program that never
+terminates — it returns `outOfFuel` instead of diverging.
+
+It is a class, not bundled data, because there is only ever one way to run
+a given language. It lives in
+[`Langlib/Common/Compilation.lean`](Langlib/Common/Compilation.lean)
+alongside the compiler-correctness definitions, which need it.
+
 ## Computability
 
-Esolang folklore is full of claims nobody has checked. Every language here
-gets a claim about its computational class and a machine-checked proof of
-it. Completeness is proved by compiling a universal machine into the
-language; incompleteness by bounding the machine's state space and deciding
-its halting problem. Per-language status is in the
+Esoteric-language folklore is full of claims nobody has checked. Every
+language here gets a claim about its computational class and a
+machine-checked proof of it. Per-language status is in the
 [status matrix](docs/README.md), and every result is audited by
 [`scripts/axioms.lean`](scripts/axioms.lean), because a proof resting on
 `sorry` type-checks exactly like a real one.
 
-### The four definitions everything is stated with
+### The yardstick: the URM
 
-`ProgLang` lives in
-[`Common/Compilation.lean`](Langlib/Common/Compilation.lean) with the
-compiler-correctness definitions; the other three live in
-[`Common/Computability.lean`](Langlib/Common/Computability.lean). Both are
+An **unlimited register machine** (URM), as Shepherdson and Sturgis defined
+it: countably many registers holding natural numbers, and four instructions
+— zero a register, increment it, copy one register to another, and jump to
+an instruction when two registers hold the same value. That is enough to
+compute every computable function, and small enough that simulating it
+inside a toy language is a day's work rather than a career.
+
+LangLib does not define it. It comes from
+[cslib](https://github.com/leanprover/cslib), Lean's library of
+computer-science formalisations, so the claims are phrased in a vocabulary
+other people already use: [`Instr` and `Program`][cslib-defs], the step
+relation [`Step`][cslib-step], and [`HaltsWithResult`][cslib-halts], which
+says a program run on an input vector halts with a given number in
+register 0.
+
+[cslib-defs]: https://github.com/leanprover/cslib/blob/3951377e5a3f5772737f11cd62bc5bb6a72f95d1/Cslib/Computability/URM/Defs.lean#L44
+[cslib-step]: https://github.com/leanprover/cslib/blob/3951377e5a3f5772737f11cd62bc5bb6a72f95d1/Cslib/Computability/URM/Execution.lean#L59
+[cslib-halts]: https://github.com/leanprover/cslib/blob/3951377e5a3f5772737f11cd62bc5bb6a72f95d1/Cslib/Computability/URM/Execution.lean#L186
+
+[Our additions](Langlib/Computability/URM.lean) are an *executable*
+interpreter — [`step`](Langlib/Computability/URM.lean#L61) and
+[`run`](Langlib/Computability/URM.lean#L72) — which cslib's relational
+semantics deliberately is not, plus the lemmas
+([`step_eq_some_iff_Step`](Langlib/Computability/URM.lean#L111),
+[`steps_run`](Langlib/Computability/URM.lean#L142),
+[`haltsWithResult_of_haltsIn`](Langlib/Computability/URM.lean#L188)) tying
+the two together, so differential tests can run a URM program while every
+theorem is still stated against cslib's relation.
+
+### The three claims
+
+All three live in
+[`Langlib/Common/Computability.lean`](Langlib/Common/Computability.lean),
 shared infrastructure rather than per-language files, so a claim means the
 same thing for every language.
 
-**The URM** is the yardstick, and it comes from
-[cslib](https://github.com/leanprover/cslib) rather than being defined here,
-so the claims are phrased in a vocabulary others already use. It is
-Shepherdson and Sturgis's unlimited register machine: countably many
-registers holding natural numbers, and four instructions — zero a register,
-increment it, copy one to another, and jump if two are equal. That is
-enough to compute every computable function, and it is small enough that
-simulating it inside a toy language is a day's work rather than a career.
-[Our additions](Langlib/Computability/URM.lean) are an executable
-interpreter, which cslib's relational semantics deliberately is not, and
-the lemmas tying the two together.
+**[`TuringComplete L`](Langlib/Common/Computability.lean#L84)** is the
+positive claim, and it is a *witness* rather than a proposition: a compiler
+from URM programs into `L`, an encoding of the machine's input, a decoding
+of its answer, and a proof that a compiled program halts with the right
+answer whenever the machine does. Writing that term down is what "we proved
+it complete" means here.
+[`computes_of_turingComplete`](Langlib/Common/Computability.lean#L135)
+translates it into cslib's own vocabulary: such an `L` computes every
+URM-computable partial function, wherever that function is defined. The
+witness also pays for itself, because a compiler from a register machine is
+exactly what a certified Turpentine backend needs (see below).
 
-**`ProgLang L`** is what every language in the library supplies: a program
-type, a parser, and a pure fuel-based interpreter. `L` is an empty tag type
-that names the language, so `BoundedByteBefunge93` and `Befunge93` can be
-two languages with two different answers.
-
-**`TuringComplete L`** is the positive claim, and it is a *witness* rather
-than a proposition: a compiler from URM programs into `L`, an encoding of
-the machine's input, a decoding of its answer, and the proof that a
-compiled program halts with the right answer whenever the machine does.
-Writing that term down is what "we proved it complete" means here. It also
-pays for itself, because a compiler from a register machine is exactly what
-a certified Turpentine backend needs (see below).
-
-**`BoundedStorage L`** is the negative claim: a configuration type, a bound
-on it per program and input, an injection into `{0, …, bound - 1}`, and two
-laws saying the machine is deterministic and that halting depends only on
-the configuration. From those, `halting_decidable` derives once and for all
-that halting is decidable — a run that has not halted within `bound` steps
+**[`BoundedStorage L`](Langlib/Common/Computability.lean#L187)** is the
+negative claim: a configuration type, a bound on it per program and input,
+an injection into `{0, …, bound - 1}`, and two laws saying the machine is
+deterministic and that halting depends only on the configuration. From
+those, [`halting_decidable`](Langlib/Common/Computability.lean#L341)
+follows once and for all — a run that has not halted within `bound` steps
 has repeated a configuration and never will. A language with this witness
 cannot be Turing complete.
 
-**`BoundedRun L`** asks for the same laws only where the pigeonhole
-argument uses them: at configurations a run actually reaches. That is the
-weaker form, and every `BoundedStorage` gives one. It exists because a
+**[`BoundedRun L`](Langlib/Common/Computability.lean#L219)** asks for the
+same laws only where the pigeonhole argument uses them: at configurations a
+run actually reaches. Every `BoundedStorage` gives one. It exists because a
 language can have a state *type* that is wide (an unbounded array, an
 output that grows, an input cursor whose range depends on the input) while
 its reachable states are few, which is exactly Malbolge's situation.
@@ -182,8 +227,9 @@ its reachable states are few, which is exactly Malbolge's situation.
 [Befunge-93](docs/befunge93/spec.md) shows why this is worth doing. It is
 usually called incomplete because of its 80 by 25 playfield, but the real
 argument is that the reference implementation gives it byte-sized cells,
-making it a pushdown automaton. Our cells hold unbounded integers, so the
-language we implement *is* complete. Same name, two languages, and nobody
+making it a pushdown automaton — a stack machine, strictly weaker than a
+Turing machine. Our cells hold unbounded integers, so the language we
+implement *is* complete. Same name, two languages, and nobody
 noticed until the claim had to be written down precisely enough to prove.
 
 ## Verified compilers
@@ -198,7 +244,7 @@ Turpentine, produce compact output, and are what
 [subleq](Langlib/Languages/Turpentine/Compile/Subleq.lean). None is verified yet;
 verifying one is per-language proof work.
 
-**Via the URM**, a compiler costs nothing to write. A `TuringComplete`
+**Derived via the URM**, a compiler costs nothing to write. A `TuringComplete`
 witness already contains a verified compiler from a register machine, so
 composing it with one shared Turpentine-to-register-machine pass,
 [`Compile/URM.lean`](Langlib/Languages/Turpentine/Compile/URM.lean), gives a
@@ -206,12 +252,6 @@ correct-by-construction compiler into any language proved complete. The
 composition is proved once for an arbitrary target, so a new language costs
 one line. The catch is that everything runs through a machine simulation:
 the output is enormous, and the fragment is I/O-free.
-
-Both are inhabitants of one `CertifiedCompiler` interface, which pays off
-where a target has both: `agree` proves that any two verified compilers for
-one target decode the same answer out of every program both accept. Until a
-bespoke compiler is verified, the derived one is the strongest available
-check on it.
 
 ### Two notions of correct
 
@@ -223,15 +263,23 @@ decodes to the number the source computed. That is exactly right for the
 derived compilers, whose fragment has no I/O, and much too weak for a
 backend that compiles `read` and `print`.
 [`IOCertifiedCompiler`](Langlib/Common/Compilation.lean#L212) is the
-behavioural one: a run's observable behaviour is the `Trace` of bytes it
-consumed and emitted, in order, and the compiled program has to reproduce
-the source's trace under an encoding the compiler declares up front, as
-well as its answer.
+behavioural one: a run's observable behaviour is a
+[`Trace`](Langlib/Common/Io.lean#L107) of the bytes it consumed and
+emitted, in order, and the compiled program has to reproduce the source's
+trace under an encoding the compiler declares up front, as well as its
+answer.
 [`toCertified`](Langlib/Common/Compilation.lean#L253) proves the second
 implies the first, so upgrading a backend loses none of what was already
 proved about it. Nothing is proved behaviourally yet; the candidates and
 what each one needs are tabulated in
 [certified-compilation.md](docs/certified-compilation.md).
+
+Both compilation schemes are inhabitants of the same `CertifiedCompiler`
+interface, which pays off where a target has both:
+[`agree`](Langlib/Common/Compilation.lean#L126) proves that any two
+verified compilers for one target decode the same answer out of every
+program both accept. Until a bespoke compiler is verified, the derived one
+is the strongest available check on it.
 
 Choose explicitly. `compile` and `exec` each take `--bespoke` or `--tc`,
 refuse both at once, and name the scheme they used, so a build log says

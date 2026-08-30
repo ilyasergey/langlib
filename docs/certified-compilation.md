@@ -1,4 +1,4 @@
-# Certified compilation via the URM
+# Certified compilation
 
 How LangLib gets verified compilers from Turpentine into esoteric
 languages without writing a verified backend for each one, and the order
