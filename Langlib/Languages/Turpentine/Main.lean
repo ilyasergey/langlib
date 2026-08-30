@@ -14,6 +14,7 @@ import Langlib.Languages.Brainloller.Semantics
 import Langlib.Languages.Fractran.Semantics
 import Langlib.Languages.Piet.Semantics
 import Langlib.Languages.Thue.Semantics
+import Langlib.Languages.Unlambda.Semantics
 import Langlib.Languages.Turpentine.Compile.Derived
 
 /-!
@@ -205,7 +206,15 @@ def backends : List Backend :=
     , certified := some (compilerOfCertified
         Langlib.Turpentine.Compile.derivedThue.compileSource
         Langlib.Thue.Prog.render
-        (Langlib.Thue.run { finalState := true })) } ]
+        (Langlib.Thue.run { finalState := true })) }
+  , { name := "unlambda"
+      -- The emitted term uses only `s`, `k`, `i`, `.x` and application, all
+      -- of them ASCII, so `Term.render` round-trips through the parser. The
+      -- answer is printed in unary, one `*` per unit.
+    , certified := some (compilerOfCertified
+        Langlib.Turpentine.Compile.derivedUnlambda.compileSource
+        Langlib.Unlambda.Term.render
+        Langlib.Unlambda.run) } ]
 
 /-- Which compilers a target has, for the help text and for the message a
 refused `--bespoke` or `--tc` prints. -/

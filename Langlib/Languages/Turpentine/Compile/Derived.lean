@@ -6,6 +6,7 @@ import Langlib.Computability.Thue
 import Langlib.Computability.Piet
 import Langlib.Computability.Ook
 import Langlib.Computability.Brainloller
+import Langlib.Computability.Unlambda
 import Langlib.Languages.Turpentine.Compile.URM
 
 /-!
@@ -146,6 +147,12 @@ def derivedOok : TurpentineCompiler OokLang := derived ookComplete
 as an image is `Langlib.Brainloller.encode`, and that the walk reads it back
 is carried by test rather than by proof (`docs/brainloller/compiler.md`). -/
 def derivedBrainloller : TurpentineCompiler BrainlollerLang := derived brainlollerComplete
+
+/-- The certified Turpentine-to-Unlambda compiler obtained by composing the
+shared URM pass with the combinator completeness witness. The emitted program
+is a single application of the compiled counter machine to a register file of
+Scott numerals, and the answer comes back in unary, one `*` per unit. -/
+def derivedUnlambda : TurpentineCompiler UnlambdaLang := derived unlambdaComplete
 
 /-- **Two verified Turpentine compilers for one target agree**:
 `Langlib.Common.CertifiedCompiler.agree` at Turpentine's specification. On a
