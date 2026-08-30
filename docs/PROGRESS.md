@@ -2,7 +2,38 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-30 (latest): the width algebra, and a correction
+## 2026-08-30 (latest): the branch arithmetic, in seven crazy operations
+
+A branch in Malbolge Unshackled is a `jmp` whose target cell holds a
+computed address, so the whole difficulty of branching is arithmetic: turn
+a data value into one of two chosen targets using only `p`, and do it with
+the *same* instruction sequence in both cases, because this language
+cannot choose code per-case at runtime. `branch_arith` settles it: seven
+crazy operations against constants computed from the two targets send any
+accumulator to `t₀` when a flag cell holds `...000` and to `t₁` when it
+holds `...222`.
+
+The pipeline is absorb, load, shape. Absorb: `crzTrit (crzTrit x 2) 0 = 0`
+for every trit `x`, so two operations against `...222` then `...000`
+forget the accumulator entirely (`crz_absorb`), and the second constant is
+self-restoring, since the operation writes `...000` over the cell that
+held `...000`. Load: one operation, `crz 0 flag`, gives the uniform value
+`...111` or `...222`. Shape: the three columns of the crazy table, as maps
+of the accumulator trit, compose to every function `{1 ↦ p, 2 ↦ q}` at
+depth four, and to only eight of the nine at depth three, missing
+`(1, 0)`; the `cols` table holds a kernel-checked witness for each pair,
+and the four constants `k1Of` … `k4Of` are built from it per trit
+position (`map2`, the tritwise combinator that `crz` itself is an
+instance of).
+
+Everything is constructive and runs: for targets 100 and 200 the four
+shaping constants evaluate to ordinary naturals (118, 145, …), and `#eval`
+confirms the chain from arbitrary accumulators. What remains for a working
+branch is the machine half, laying the seven constants along `d`'s walk
+and jumping through the written target, which is sequencing of the kind
+`loop.mu`'s proof already demonstrates.
+
+## 2026-08-30: the width algebra, and a correction
 
 The Malbolge Unshackled docs said a backend should avoid `*` entirely,
 since the rotation width is read by exactly one instruction and dodging it

@@ -303,10 +303,18 @@ normal form.
 
 ## What a backend still has to solve
 
-1. **A data-driven branch.** The verified loop is unconditional. A virtual
-   machine needs the jump table's entry to be *computed*, so that a data
-   cell selects between "dispatch again" and "leave", which means writing
-   an address with the crazy operation.
+1. ~~A data-driven branch.~~ The **arithmetic half is done**:
+   `branch_arith` proves that seven crazy operations against constants
+   computed from the two targets (`k1Of` … `k4Of`, plus `...222`, `...000`
+   and the flag cell) turn *any* accumulator into target `t₀` when the
+   flag holds `...000` and `t₁` when it holds `...222`. The pipeline is
+   absorb (2 ops, works from any accumulator), load (1 op), shape (4 ops;
+   three provably do not suffice, the pair `(1,0)` of trit images needs
+   four). Both cases execute the same instructions, which is what this
+   language requires, since code cannot be chosen per-case at runtime.
+   What remains is the machine half: lay the seven constants along `d`'s
+   walk, execute seven `p` cells, write the result into a jump table, and
+   `jmp` through it — sequencing, in the style of the verified loop.
 2. ~~The value algebra.~~ **Done**: `crz_two_steps` says any value reaches
    any other in two operations, and `crzTrit_zero_ne_zero` says one will
    not do. What remains is the *sequencing*: `p` writes to `mem[d]`, so the

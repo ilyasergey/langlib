@@ -452,6 +452,40 @@ position are equal. Without it a tritwise argument cannot conclude an
 equation between values, and with it every `crz` fact reduces to nine
 cases of `crzTrit`.
 
+## The branch arithmetic
+
+A branch is a `jmp` whose target cell holds a computed address, so the
+whole difficulty of branching is arithmetic: turn a data value into one of
+two chosen targets with the crazy operation alone, running the *same*
+instructions in both cases (the language cannot choose code per-case at
+runtime). Seven operations do it:
+
+```lean
+theorem branch_arith (t₀ t₁ : Value) (h₀ : t₀.Normalized) (h₁ : t₁.Normalized)
+    (a : Value) :
+    branchChain t₀ t₁ a Value.zero = t₀ ∧ branchChain t₀ t₁ a Value.eof = t₁
+```
+
+The pipeline: **absorb** — `crzTrit (crzTrit x 2) 0 = 0` in all three
+cases, so two operations against `...222` then `...000` force the
+accumulator to zero from any value (`crz_absorb`), and the second constant
+is self-restoring since the operation writes `...000` over the cell that
+held it; **load** — one operation reads the flag cell, `crz 0 flag`,
+giving `...111` or `...222` (`crz_zero_zero`, `crz_zero_eof`); **shape** —
+four operations against constants built per trit position from the two
+targets (`cols`, `k1Of` … `k4Of`) send `...111` to `t₀` and `...222` to
+`t₁` (`shape_uniform₁`, `shape_uniform₂`). Three shaping operations
+provably do not suffice: the columns of the crazy table compose to only
+eight of the nine functions `{1 ↦ p, 2 ↦ q}` at depth three, missing
+`(1, 0)`.
+
+Everything is constructive: the constants are computed by `map2` from the
+targets' trits, and for natural-number targets they come out as ordinary
+naturals an image can hold. The machine-level half, sequencing `d` past
+the seven constants and jumping through the written target, is the
+remaining step, and it is sequencing of the kind the verified loop already
+demonstrates.
+
 ## What is proved, what is cited, what is open
 
 **Proved, axiom-clean**: the `ProgLang` instance; the memory laws

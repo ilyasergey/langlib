@@ -562,6 +562,17 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.width_rot_one
 #print axioms Unshackled.growRotWidth_double
 
+-- The branch arithmetic: seven crazy operations turn any accumulator into
+-- either of two chosen jump targets, decided by a flag cell.
+#print axioms Unshackled.trit_map2
+#print axioms Unshackled.crz_absorb
+#print axioms Unshackled.crz_zero_zero
+#print axioms Unshackled.crz_zero_eof
+#print axioms Unshackled.cols_spec
+#print axioms Unshackled.shape_uniform₁
+#print axioms Unshackled.shape_uniform₂
+#print axioms Unshackled.branch_arith
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

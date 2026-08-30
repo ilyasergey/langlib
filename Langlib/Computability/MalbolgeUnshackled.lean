@@ -1779,6 +1779,198 @@ theorem growRotWidth_double (w : Nat) : growRotWidth w w = 2 * w := by
   unfold growRotWidth
   omega
 
+/-! ## The branch arithmetic
+
+A branch in this language is a `jmp` whose target cell holds a *computed*
+address, so the whole difficulty of branching is arithmetic: turn a data
+value into one of two chosen targets using only the crazy operation. This
+section solves that in seven `p` operations against constants an assembler
+can compute.
+
+The pipeline, per trit position (the crazy operation is tritwise, so the
+whole design is per-position):
+
+1. **Absorb** (2 ops). `crzTrit (crzTrit x 2) 0 = 0` for every `x`, so two
+   operations against the constants `...222` and `...000` force the
+   accumulator to zero from any starting value. No knowledge of `a` needed.
+2. **Load** (1 op). With the flag cell holding `...000` or `...222`, one
+   operation gives `crz 0 flag = ...111` or `...222`: two uniform values.
+3. **Shape** (4 ops). The three columns of the crazy table, as maps of the
+   accumulator trit, are `[1,0,0]`, `[1,0,2]` and `[2,2,1]`. Compositions
+   of four of them realise **every** function `{1 ↦ p, 2 ↦ q}` (three do
+   not: `(1,0)` needs four), and `cols` tabulates a witness for each of
+   the nine pairs. Four constants, built per-position from the two
+   targets' trits, then send `...111` to `t₀` and `...222` to `t₁`.
+
+Both branch cases execute the *same seven instructions*; only the data
+differs, which is what a Malbolge Unshackled control flow graph needs,
+since instructions cannot be chosen per-case at runtime. -/
+
+/-- Tritwise combination of two values, the shape shared by the crazy
+operation and by the constant-builders below. -/
+def map2 (f : Trit → Trit → Trit) (a b : Value) : Value :=
+  let n := max a.low.length b.low.length
+  Value.mk' (f a.lead b.lead)
+    ((Value.padTo n a.lead a.low).zipWith f (Value.padTo n b.lead b.low))
+
+theorem crz_eq_map2 (a b : Value) : Value.crz a b = map2 crzTrit a b := rfl
+
+/-- `map2` really is tritwise: the generalisation of `crz_trit`, proved the
+same way. -/
+theorem trit_map2 (f : Trit → Trit → Trit) (a b : Value) (i : Nat) :
+    (map2 f a b).trit i = f (a.trit i) (b.trit i) := by
+  have hla : a.low.length ≤ max a.low.length b.low.length := Nat.le_max_left _ _
+  have hlb : b.low.length ≤ max a.low.length b.low.length := Nat.le_max_right _ _
+  rw [map2, trit_mk']
+  have hAlen : (Value.padTo (max a.low.length b.low.length) a.lead a.low).length
+      = max a.low.length b.low.length := length_padTo _ _ _ hla
+  have hBlen : (Value.padTo (max a.low.length b.low.length) b.lead b.low).length
+      = max a.low.length b.low.length := length_padTo _ _ _ hlb
+  rcases Nat.lt_or_ge i (max a.low.length b.low.length) with h | h
+  · rw [getD_lt (by simp [hAlen, hBlen]; omega), List.getElem_zipWith]
+    rw [← getD_lt (l := Value.padTo _ a.lead a.low) (by omega) a.lead,
+      ← getD_lt (l := Value.padTo _ b.lead b.low) (by omega) b.lead,
+      getD_padTo, getD_padTo]
+    rfl
+  · rw [getD_ge (by simp [hAlen, hBlen]; omega)]
+    rw [Value.trit, Value.trit, getD_ge (by omega), getD_ge (by omega)]
+
+theorem map2_normalized (f : Trit → Trit → Trit) (a b : Value) :
+    (map2 f a b).Normalized := Value.normalized_mk' _ _
+
+theorem crz_normalized (a b : Value) : (Value.crz a b).Normalized :=
+  Value.normalized_mk' _ _
+
+/-- The value whose every trit is `t`. `uniform .t0` is zero and
+`uniform .t2` is `...222`, the end-of-file value. -/
+def uniform (t : Trit) : Value := ⟨t, []⟩
+
+theorem trit_uniform (t : Trit) (i : Nat) : (uniform t).trit i = t := rfl
+
+theorem uniform_normalized (t : Trit) : (uniform t).Normalized := by
+  simp [uniform, Value.Normalized, lastTrit?]
+
+/-! ### Step 1: the absorber -/
+
+/-- **Two crazy operations forget the accumulator**: against `...222` and
+then `...000`, every starting value becomes zero. Per trit this is
+`crzTrit (crzTrit x 2) 0 = 0` in all three cases. The second constant is
+also self-restoring: the operation writes `...000` over the cell that
+held `...000`. -/
+theorem crz_absorb (a : Value) :
+    Value.crz (Value.crz a Value.eof) Value.zero = Value.zero := by
+  refine ext_of_trits (crz_normalized _ _) (uniform_normalized .t0) ?_ ?_
+  · show crzTrit (crzTrit a.lead (Value.eof).lead) (Value.zero).lead = Trit.t0
+    cases a.lead <;> rfl
+  · intro i
+    rw [crz_trit, crz_trit]
+    show crzTrit (crzTrit (a.trit i) Trit.t2) Trit.t0 = Trit.t0
+    cases a.trit i <;> rfl
+
+/-! ### Step 2: loading the flag -/
+
+theorem crz_zero_zero : Value.crz Value.zero Value.zero = uniform .t1 := by decide
+
+theorem crz_zero_eof : Value.crz Value.zero Value.eof = uniform .t2 := by decide
+
+/-! ### Step 3: the shaper -/
+
+/-- For each target pair `(p, q)`, four columns of the crazy table whose
+composition sends the trit `1` to `p` and the trit `2` to `q`. The table
+was found by enumeration; `cols_spec` checks it in the kernel. Three
+columns do not suffice: the pair `(1, 0)` is not reachable at depth
+three. -/
+def cols : Trit → Trit → Trit × Trit × Trit × Trit
+  | .t0, .t0 => (.t0, .t0, .t2, .t0)
+  | .t0, .t1 => (.t1, .t2, .t1, .t0)
+  | .t0, .t2 => (.t1, .t2, .t2, .t1)
+  | .t1, .t0 => (.t1, .t0, .t0, .t0)
+  | .t1, .t1 => (.t0, .t0, .t0, .t0)
+  | .t1, .t2 => (.t1, .t1, .t1, .t1)
+  | .t2, .t0 => (.t1, .t1, .t2, .t1)
+  | .t2, .t1 => (.t1, .t1, .t1, .t2)
+  | .t2, .t2 => (.t0, .t0, .t0, .t2)
+
+theorem cols_spec : ∀ p q : Trit,
+    crzTrit (crzTrit (crzTrit (crzTrit .t1 (cols p q).1) (cols p q).2.1)
+        (cols p q).2.2.1) (cols p q).2.2.2 = p
+  ∧ crzTrit (crzTrit (crzTrit (crzTrit .t2 (cols p q).1) (cols p q).2.1)
+        (cols p q).2.2.1) (cols p q).2.2.2 = q := by
+  intro p q
+  cases p <;> cases q <;> exact ⟨rfl, rfl⟩
+
+/-- The four shaping constants, built per trit position from the two
+targets. These are what an assembler computes and lays out in memory. -/
+def k1Of (t₀ t₁ : Value) : Value := map2 (fun p q => (cols p q).1) t₀ t₁
+def k2Of (t₀ t₁ : Value) : Value := map2 (fun p q => (cols p q).2.1) t₀ t₁
+def k3Of (t₀ t₁ : Value) : Value := map2 (fun p q => (cols p q).2.2.1) t₀ t₁
+def k4Of (t₀ t₁ : Value) : Value := map2 (fun p q => (cols p q).2.2.2) t₀ t₁
+
+/-- The shaper: four crazy operations against the four constants. -/
+def shape (t₀ t₁ v : Value) : Value :=
+  Value.crz (Value.crz (Value.crz (Value.crz v (k1Of t₀ t₁)) (k2Of t₀ t₁))
+    (k3Of t₀ t₁)) (k4Of t₀ t₁)
+
+theorem shape_uniform₁ {t₀ : Value} (t₁ : Value) (h₀ : t₀.Normalized) :
+    shape t₀ t₁ (uniform .t1) = t₀ := by
+  refine ext_of_trits (crz_normalized _ _) h₀ ?_ ?_
+  · show crzTrit (crzTrit (crzTrit (crzTrit (uniform Trit.t1).lead
+        (cols t₀.lead t₁.lead).1) (cols t₀.lead t₁.lead).2.1)
+        (cols t₀.lead t₁.lead).2.2.1) (cols t₀.lead t₁.lead).2.2.2 = t₀.lead
+    exact (cols_spec t₀.lead t₁.lead).1
+  · intro i
+    show (Value.crz (Value.crz (Value.crz (Value.crz (uniform .t1) (k1Of t₀ t₁))
+      (k2Of t₀ t₁)) (k3Of t₀ t₁)) (k4Of t₀ t₁)).trit i = t₀.trit i
+    rw [crz_trit, crz_trit, crz_trit, crz_trit,
+      show (k1Of t₀ t₁).trit i = (cols (t₀.trit i) (t₁.trit i)).1 from trit_map2 _ _ _ i,
+      show (k2Of t₀ t₁).trit i = (cols (t₀.trit i) (t₁.trit i)).2.1 from trit_map2 _ _ _ i,
+      show (k3Of t₀ t₁).trit i = (cols (t₀.trit i) (t₁.trit i)).2.2.1 from trit_map2 _ _ _ i,
+      show (k4Of t₀ t₁).trit i = (cols (t₀.trit i) (t₁.trit i)).2.2.2 from trit_map2 _ _ _ i,
+      trit_uniform]
+    exact (cols_spec (t₀.trit i) (t₁.trit i)).1
+
+theorem shape_uniform₂ (t₀ : Value) {t₁ : Value} (h₁ : t₁.Normalized) :
+    shape t₀ t₁ (uniform .t2) = t₁ := by
+  refine ext_of_trits (crz_normalized _ _) h₁ ?_ ?_
+  · show crzTrit (crzTrit (crzTrit (crzTrit (uniform Trit.t2).lead
+        (cols t₀.lead t₁.lead).1) (cols t₀.lead t₁.lead).2.1)
+        (cols t₀.lead t₁.lead).2.2.1) (cols t₀.lead t₁.lead).2.2.2 = t₁.lead
+    exact (cols_spec t₀.lead t₁.lead).2
+  · intro i
+    show (Value.crz (Value.crz (Value.crz (Value.crz (uniform .t2) (k1Of t₀ t₁))
+      (k2Of t₀ t₁)) (k3Of t₀ t₁)) (k4Of t₀ t₁)).trit i = t₁.trit i
+    rw [crz_trit, crz_trit, crz_trit, crz_trit,
+      show (k1Of t₀ t₁).trit i = (cols (t₀.trit i) (t₁.trit i)).1 from trit_map2 _ _ _ i,
+      show (k2Of t₀ t₁).trit i = (cols (t₀.trit i) (t₁.trit i)).2.1 from trit_map2 _ _ _ i,
+      show (k3Of t₀ t₁).trit i = (cols (t₀.trit i) (t₁.trit i)).2.2.1 from trit_map2 _ _ _ i,
+      show (k4Of t₀ t₁).trit i = (cols (t₀.trit i) (t₁.trit i)).2.2.2 from trit_map2 _ _ _ i,
+      trit_uniform]
+    exact (cols_spec (t₀.trit i) (t₁.trit i)).2
+
+/-! ### The pipeline -/
+
+/-- The full branch pipeline: seven crazy operations. The first six
+constants (`...222`, `...000`, the flag cell, `k₁`, `k₂`, `k₃`) are read
+where `d` happens to be, the seventh produces the target. -/
+def branchChain (t₀ t₁ a flag : Value) : Value :=
+  shape t₀ t₁ (Value.crz (Value.crz (Value.crz a Value.eof) Value.zero) flag)
+
+/-- **The branch arithmetic.** For any two normalised targets there are
+seven constants, computed from the targets alone, such that seven crazy
+operations turn *any* accumulator into `t₀` when the flag cell holds
+`...000` and into `t₁` when it holds `...222`. Both cases run the same
+instructions; only the flag differs. Together with `exec_jmp` this is a
+data-driven two-way branch: write the result into a jump table and jump
+through it. -/
+theorem branch_arith (t₀ t₁ : Value) (h₀ : t₀.Normalized) (h₁ : t₁.Normalized)
+    (a : Value) :
+    branchChain t₀ t₁ a Value.zero = t₀ ∧ branchChain t₀ t₁ a Value.eof = t₁ := by
+  constructor
+  · rw [branchChain, crz_absorb, crz_zero_zero]
+    exact shape_uniform₁ t₁ h₀
+  · rw [branchChain, crz_absorb, crz_zero_eof]
+    exact shape_uniform₂ t₀ h₁
+
 end Unshackled
 
 end Langlib.Computability
