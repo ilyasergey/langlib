@@ -187,14 +187,24 @@ test asserts that it does.
 
 And the channel is a necessity, not a convenience. A program whose data cells
 are all printable can output **only the bytes below 81**, and the reason is a
-single trit. A printable word is at most `126 = 11200₃`, so its trit 4 is 0
-or 1, never 2; and the crazy table has `crz 0 0 = crz 0 1` and
-`crz 1 0 = crz 1 1`, so while no operand carries a 2 there, the
-accumulator's trit 4 evolves *identically to its repeating trit*. Output
-demands a repeating trit of 0 — that is what makes a value a natural — so
-trit 4 is 0 too, and the value is below `3⁴ = 81`. Breadth-first search over
-chains against all 94 printable words agrees exactly: from an accumulator of
-0 the reachable naturals are precisely `0..80`, and length does not help.
+single trit.
+
+A printable word is at most `126 = 11200₃`, so its trit 4 is 0 or 1, never 2.
+The crazy table has `crz 0 0 = crz 0 1` and `crz 1 0 = crz 1 1`, so in rows 0
+and 1 an operand trit of 0 and one of 1 are indistinguishable — and the
+invariant to carry is therefore **trit 4 equals the repeating trit**. It
+holds at the start, where both are 0, and it is preserved because both stay
+inside `{0, 1}`: a printable operand has repeating trit 0, so the
+accumulator's alternates `0, 1, 0, 1, …` and row 2 is never the row in play.
+That last step is load-bearing, because the two columns do *not* agree in row
+2 — `crz 2 0 = 0` against `crz 2 1 = 2` — so without it the invariant is not
+established.
+
+Output demands a repeating trit of 0, since that is what makes a value a
+natural. By the invariant trit 4 is then 0 too, and the value is below
+`3⁴ = 81`. Breadth-first search over chains against all 94 printable words
+agrees exactly: from an accumulator of 0 the reachable naturals are precisely
+`0..80`, the repeating trit never reaches 2, and length does not help.
 
 So `Hello` is unreachable with printable data and `HELLO` is not. The escape
 is one data cell whose trit 4 is 2 — a code point in `162..242` modulo
