@@ -2,7 +2,86 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-31 (latest): Piet programs as PNG, both directions
+## 2026-08-31 (latest): a Turpentine backend for Malbolge itself
+
+`docs/malbolge/compiler.md` used to say **not planned**, and gave a good
+reason: Malbolge is 59049 words of 59049 values, so it is not Turing
+complete, so no total backend from a Turing-complete source can exist and
+any backend would be bounded by the machine rather than by our effort.
+That reasoning is still correct. What it got wrong was the conclusion —
+the demonstration turns out to be cheap, and it fits more than expected.
+
+`Langlib/Languages/Turpentine/Compile/Malbolge.lean` compiles every
+input-free Turpentine program whose output fits. The trick is to give up
+on looping in the target: **nothing it emits is executed twice**, so
+self-encrypting cells cost nothing (nothing reads them again) and
+position-dependent opcodes cost nothing (the assembler picks each cell
+after it knows the address). Control flow — loops, `if`, arrays,
+arithmetic — is resolved by running the source on Turpentine's own
+interpreter at compile time, exactly as the Unshackled backend does.
+
+Three things had to be worked out that Unshackled did not need.
+
+*Getting `c` and `d` apart.* `movd` reads a loaded cell, and a loaded cell
+is a **byte**, so nothing in the image can name an address in the data
+row. `rotR` is the way out: it is a *cyclic* rotation of the ten-trit
+word, so rotating a byte carries its low trits over the top and
+manufactures a large value from a small one. The prologue rotates one
+cell as many times as the layout needs, and `seeds` tabulates every
+address reachable that way. A `jmp` at address 2 skips `c` past addresses
+3..125, which is what frees them to hold the pointers at all.
+
+*The cost of a byte.* Constants come from Olmstead's loader oversight —
+characters outside `33..126` are stored unchecked — which leaves 163
+usable values at every address. Because they are bytes, their top four
+trits are zero, and against a zero trit the crazy operation is a fixed
+map, so the accumulator's top four trits are not steerable. That would be
+fatal if the target were a value; it is not, because `<` writes
+`a mod 256` and some 230 of the 59049 words end in any given byte. On the song,
+9% of bytes need no operation at all, 35% need one and 56% need two:
+**about two and a half cells of code per byte**.
+
+*Where the wall is.* The two rows are the same length, because `d`
+advances whether or not the instruction reads memory. So two words go per
+word of code and the longest code row the machine has room for is
+**29157 cells** — checked in Lean, not asserted. A program that wants more
+is refused with the number of bytes that would have fitted:
+`the program prints 25592 bytes ... enough for the first 15191`.
+
+**The song fits.** `Langlib/Examples/Malbolge/compiled/99bottles.mal` is
+57514 of the 59049 words — 97.4% of the machine — and halts in 28363
+cycles, one per code cell, against about fifteen million for Iizawa et
+al.'s hand-written `99bottles.mal`, which has real loops where this has
+none. They print the same 11459 bytes;
+`Langlib/Tests/CompileMalbolge.lean` runs both and compares digests, which
+is the prettiest test in the file.
+
+Also checked in: `compiled/hello.mal` (247 cells), `sort.mal` (197),
+`primes.mal` (251) and `sieve.mal` (308), all derived files written only
+by `scripts/gen-mal-examples.sh`, which verifies each against its source's
+output and whose `--check` catches a stale one. `sort.mal` is quoted in
+full on the spec page in a stated transliteration and read line by line,
+because at 197 cells the whole layout is visible: the descending no-op
+ramp, the doubled letters of the rotation loop (`rotr` and `movd` are
+adjacent opcodes, so the same character at consecutive addresses means one
+then the other), the alternating code row, and the data row of constants
+with padding under every `out`. That program never uses the crazy
+operation at all — every byte it prints is one ASCII character, and
+rotating right is division by three when the low trit is zero, so it
+prints `1` by rotating 147.
+
+Input stays out, and not for want of room: `crz` is tritwise, so no chain
+of crazy operations against compiled-in constants can produce a value that
+*depends* on a byte the compiler has not seen. That is the same
+obstruction that stops the Unshackled backend, where there is no size
+bound at all.
+
+Registered as the `malbolge` target of `turpentine compile --to` and
+`exec --via`; 50 new tests in `Langlib/Tests/CompileMalbolge.lean`;
+`docs/malbolge/spec.md`, `docs/README.md`, `docs/PLAN.md`,
+`docs/TESTING.md` and the language README updated to match.
+
+## 2026-08-31: Piet programs as PNG, both directions
 
 `docs/piet/spec.md` gained a **Programs as PNG** section. PPM is what the
 runner reads and PNG is what everyone else trades, so the section works the

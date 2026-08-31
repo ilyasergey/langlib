@@ -59,6 +59,58 @@ byte values as UTF-8 code points (the loaded memory image is identical,
 but the file is not byte-for-byte Scheffer's, and the C reference
 interpreter reads it differently).
 
+## Compiled examples ([compiled/](../../Examples/Malbolge/compiled/))
+
+Nobody writes Malbolge by hand -- the examples above are search output or
+the product of an assembler -- so LangLib has a compiler:
+`Langlib/Languages/Turpentine/Compile/Malbolge.lean` translates Turpentine,
+the library's front end, into Malbolge source.
+
+```
+lake exe turpentine compile --to malbolge -o out.mal prog.turp
+```
+
+It takes every Turpentine program that does not read input and whose
+output fits in 59049 words -- loops, arrays and arithmetic included, since
+it resolves those before the target ever runs -- and emits a straight-line
+image of two parallel rows, one that the code pointer walks and one that
+the data pointer walks beneath it. Nothing it emits is executed twice,
+which is what makes Malbolge's self-encrypting cells and position-dependent
+opcodes cost nothing. `docs/malbolge/compiler.md` is the whole design; the
+short version is that a byte of output costs about two and a half cells of
+code and the machine has room for 29157 of them.
+
+These five are **derived files**. `scripts/gen-mal-examples.sh` is the only
+thing that may write them, it verifies each against its source's output on
+the way, and `scripts/gen-mal-examples.sh --check` fails if a committed one
+is stale.
+
+| File | From | What it does | Image | Halts in |
+|------|------|--------------|-------|----------|
+| `compiled/hello.mal` | `hello.turp` | prints `Hello, Turpentine!` | 247 cells | 74 cycles |
+| `compiled/sort.mal` | `sort-mu.turp` | prints six sorted numbers | 197 cells | 45 cycles |
+| `compiled/primes.mal` | `primes-mu.turp` | prints the first ten primes | 251 cells | 72 cycles |
+| `compiled/sieve.mal` | `sieve.turp` | prints the primes below 50 | 308 cells | 102 cycles |
+| `compiled/99bottles.mal` | `99bottles.turp` | prints the whole song | 57514 cells | 28363 cycles |
+
+None takes input or flags, so `lake exe malbolge <file>` is the whole
+command for each, and none needs a fuel bound: a straight-line image
+spends one cycle per code cell.
+
+`compiled/99bottles.mal` is the one to look at. It is 57514 of the
+machine's 59049 words -- 97.4% -- and it prints the same 11459 bytes as
+the hand-written `99bottles.mal` above, which needs about fifteen million
+cycles to this one's 28363 because it has real loops and this one has none
+at all. It is also as close to the wall as this backend gets: Malbolge is
+finite, so no compiler into it can be total, and a program printing much
+more than the song is refused with the number of bytes that would have
+fitted.
+
+Like `scheffer-cat.mal`, the compiled files store data cells above code
+point 126 as UTF-8, so they are larger on disk than in memory (the song is
+63188 bytes for 57514 words) and the C reference interpreter reads them
+differently.
+
 ## Tests
 
 Golden tests live in [Langlib/Tests/Malbolge.lean](../../Tests/Malbolge.lean)
@@ -67,3 +119,13 @@ micro-programs for each word operation verified byte-for-byte against
 Olmstead's interpreter, EOF handling, the non-printable spin, divergence,
 and the loader errors. The never-halting cats are golden-tested through a
 wrapper that compares the echoed prefix of their output.
+
+Tests for the compiler and for the artifacts above live in
+[Langlib/Tests/CompileMalbolge.lean](../../Tests/CompileMalbolge.lean): a
+differential suite against Turpentine's own interpreter, a check that
+every emitted cell is loadable at its own address, pinned cell counts, a
+tight-fuel run proving the images are straight-line, the fragment
+boundary (including the refusal for output that does not fit), and the
+checked-in artifacts run with nothing from the compiler involved --
+`compiled/99bottles.mal` and the hand-written `99bottles.mal` side by
+side, agreeing on all 11459 bytes.

@@ -174,7 +174,12 @@ as part of `lake test`. The cardinality is a theorem, not a table.
 
 The fixed memory bound is the restriction removed by Malbolge Unshackled.
 See [the compiler note](malbolge/compiler.md) for the practical consequence
-for source-language compilation.
+for source-language compilation: LangLib does compile Turpentine to
+Malbolge, but the backend is bounded by this theorem rather than by
+effort, and it reports the bound in bytes of output. A code row of 29157
+cells is what 59049 words leave once the data row has its half, which is
+about 11 800 bytes — enough, as it happens, for all ninety-nine verses of
+the beer song.
 
 ## Verification
 

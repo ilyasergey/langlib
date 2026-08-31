@@ -8,6 +8,7 @@ import Langlib.Languages.Turpentine.Compile.Brainloller
 import Langlib.Languages.Turpentine.Compile.Fractran
 import Langlib.Languages.Turpentine.Compile.Piet
 import Langlib.Languages.Turpentine.Compile.MalbolgeUnshackled
+import Langlib.Languages.Turpentine.Compile.Malbolge
 import Langlib.Languages.Brainfuck.Semantics
 import Langlib.Languages.Subleq.Semantics
 import Langlib.Languages.Whitespace.Semantics
@@ -15,6 +16,7 @@ import Langlib.Languages.Ook.Semantics
 import Langlib.Languages.Brainloller.Semantics
 import Langlib.Languages.Fractran.Semantics
 import Langlib.Languages.Piet.Semantics
+import Langlib.Languages.Malbolge.Semantics
 import Langlib.Languages.Thue.Semantics
 import Langlib.Languages.Unlambda.Semantics
 import Langlib.Languages.Ski.Semantics
@@ -134,9 +136,10 @@ the compilers that reach it. Adding a target is one entry here.
 
 Neither compiler is guaranteed to exist. `bespoke` is hand-written and
 unverified, and accepts the whole language except where the target cannot
-host it: Thue has no hand-written backend at all, and Malbolge Unshackled's
-takes only the programs that do not read input, for reasons
-`docs/malbolge-unshackled/compiler.md` gives. `certified` is derived from
+host it: Thue has no hand-written backend at all, and the two Malbolges
+take only the programs that do not read input -- Malbolge itself only those
+whose output also fits in its 59049 words -- for reasons
+`docs/malbolge/compiler.md` and `docs/malbolge-unshackled/compiler.md` give. `certified` is derived from
 the target's Turing-completeness proof and accepts only the I/O-free
 fragment; a language whose completeness is still open has none. -/
 structure Backend where
@@ -203,6 +206,14 @@ def backends : List Backend :=
         Langlib.Turpentine.Compile.derivedPiet.compileSource
         (fun grid => grid.toImage.toPpm3)
         (Langlib.Piet.run {})) }
+  , { name := "malbolge"
+      -- The only backend in the library with a bound in *bytes of output*:
+      -- Malbolge is 59049 words, code row and data row both come out of
+      -- them, and a program whose output does not fit is refused with the
+      -- cell count it wanted. Data cells sit outside 33..126, which the
+      -- loader stores unchecked.
+    , bespoke := some (compilerOfSource Compile.Malbolge.compileSource
+        Langlib.Malbolge.run) }
   , { name := "malbolge-unshackled"
       -- The emitted file carries data cells outside 33..126, which the
       -- loader stores unchecked; `--strict` rejects them, so the note says
@@ -316,9 +327,11 @@ def helpText : String :=
     , "choosing a compiler (compile and exec):"
     , "  --bespoke  hand-written for that target. Accepts the whole language,"
     , "             emits compact code, and is not verified. This is the"
-    , "             default when neither flag is given. One exception:"
-    , "             malbolge-unshackled takes only programs that do not"
-    , "             read input, and says so when it refuses one."
+    , "             default when neither flag is given. Two exceptions:"
+    , "             malbolge and malbolge-unshackled take only programs"
+    , "             that do not read input, and malbolge additionally only"
+    , "             those whose output fits in its 59049 words. Both say"
+    , "             so when they refuse one."
     , "  --tc       derived from the target's Turing-completeness proof, by"
     , "             composing it with the shared Turpentine-to-URM pass."
     , "             Correct by construction. Accepts only the I/O-free"

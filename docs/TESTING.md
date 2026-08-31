@@ -46,6 +46,16 @@ naming the file that no longer matches what produced it:
    side — see the malbolge-unshackled section below — but only `--check`
    catches *staleness*, a backend change that was never regenerated.
 
+5. **Compiled Malbolge examples**
+   (`./scripts/gen-mal-examples.sh --check`): the same arrangement for
+   `Langlib/Examples/Malbolge/compiled/`, which is
+   `turpentine compile --to malbolge` applied to five `.turp` sources, and
+   likewise runs each artifact and compares against its source's output.
+   This one is quick — a compiled Malbolge image is straight-line, so even
+   `compiled/99bottles.mal` at 57514 cells runs in a hundredth of a second
+   — and `lake test` checks the artifacts too. Only `--check` catches
+   staleness.
+
 This file documents, per language, whether a reference exists and what to
 install to enable its differential section.
 
@@ -173,6 +183,15 @@ stored UTF-8 re-encoded (see the language README), so the C interpreter
 would read different bytes from it. The cats' echo behaviour, EOF handling,
 the loader oversight, and the non-printable spin are pinned by golden tests
 instead.
+
+The compiled artifacts under `Langlib/Examples/Malbolge/compiled/` are
+excluded from the reference comparison for the same reason as
+`scheffer-cat.mal`: they use data cells above code point 126 and are
+stored UTF-8 re-encoded, so `malbolge.c` would read different bytes. They
+are checked from both sides inside LangLib instead —
+`Langlib/Tests/CompileMalbolge.lean` runs each of them and recompiles four
+of the five afresh, and `scripts/gen-mal-examples.sh --check` catches a
+stale one.
 
 ## piet
 

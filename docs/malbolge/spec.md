@@ -595,22 +595,86 @@ from the eighth circle·····························
 malbolge: out of fuel after 100000 steps (raise with --fuel)
 ```
 
+LangLib compiles Turpentine to Malbolge, and the compiled song is the
+shortest way to see what that buys. It is 57 514 of the machine's 59 049
+words and halts in 28 363 cycles, against about fifteen million for the
+hand-written one above, because nothing in it runs twice.
+
+```
+lake exe malbolge Langlib/Examples/Malbolge/compiled/99bottles.mal | tail -4
+```
+
+Output:
+
+```
+1 bottle of beer,
+Take one down, pass it around,
+No more bottles of beer on the wall.
+
+```
+
+Compile a Turpentine program and run the result in one step, which is how
+the backend is differentially tested against Turpentine's own interpreter.
+
+```
+lake exe turpentine exec --via malbolge Langlib/Examples/Turpentine/sort-mu.turp
+```
+
+Output:
+
+```
+1
+2
+5
+5
+6
+9
+```
+
 See `Langlib/Languages/Malbolge/README.md` for attributions and
 `Langlib/Tests/Malbolge.lean` for the golden tests.
 
 ## Compilation from Turpentine
 
-Not planned. The pieces exist on paper: Scheffer sketched both a loader that
-bootstraps arbitrary memory contents out of the input stream and a
-brainfuck-to-Malbolge compiler built on table lookup, and Iizawa et al.'s
-method plus Ernst's HeLL/LMAO toolchain show that loops, conditionals and
-arithmetic are all reachable in practice. What nobody has built is an
-end-to-end code generator from a structured language, and doing it inside
-59049 words, where every executed instruction rewrites itself and a
-single-word store costs a dozen instructions and a scratch variable,
-remains work for somebody with more sins to atone for than we have. See
-`docs/PLAN.md`, Stage 4. LangLib does compile Turpentine to Malbolge's
-saner relatives — see `docs/certified-compilation.md`.
+**LangLib compiles Turpentine to Malbolge.** The backend is
+`Langlib/Languages/Turpentine/Compile/Malbolge.lean`, and
+[docs/malbolge/compiler.md](compiler.md) is the whole story; this is the
+summary.
+
+It compiles every Turpentine program that does not read input and whose
+output fits, by giving up on the one thing that makes Malbolge hard.
+**Nothing it emits is ever executed twice.** That makes the self-encryption
+of executed cells free (nothing reads them again) and position-dependent
+opcodes free (the assembler picks each cell after it knows the address),
+and it means all control flow -- loops, `if`, arrays, arithmetic -- is
+resolved by running the source on Turpentine's own interpreter at compile
+time. What comes out is a straight-line program that prints the resulting
+bytes and halts.
+
+The image is two rows walked in lockstep: a code row for `c` and a data
+row of constants for `d`, separated by a prologue that manufactures a large
+address out of a small one with `rotR`, since no loaded cell can hold a
+number above 255. Constants come from the loader oversight in decision 5
+above -- 163 usable byte values at every address -- and the code generator
+only ever has to reach a *residue*, because `<` writes `a mod 256` and some
+230 of the 59049 words end in any given byte. A byte therefore costs about two
+and a half cells, and a repeated byte costs one.
+
+The bound is the only refusal that matters, and no compiler can lift it:
+the two rows are the same length, so two words of memory go per word of
+code, and the longest code row Malbolge has room for is **29157 cells** --
+roughly 11 800 bytes of output, more when the text repeats. *99 bottles of
+beer* is 11 459 bytes and fits, in an image of 57 514 cells, 97.4% of the
+machine. Ask for more and the compiler says how much of the output did
+fit.
+
+Input is out, and not for want of room. `crz` is tritwise, so a chain of
+crazy operations against compiled-in constants can never produce a value
+that *depends* on a byte the compiler has not seen -- which is what
+branching on input needs. The same obstruction stops the Malbolge
+Unshackled backend, where there is no size bound at all;
+[docs/malbolge-unshackled/compiler.md](../malbolge-unshackled/compiler.md)
+works it through.
 
 ## Example programs
 
@@ -1038,6 +1102,99 @@ Output:
 
 The golden test in `Langlib/Tests/Malbolge.lean` does not quote those 11 459
 bytes; it regenerates the song from a four-line Lean function and compares.
+
+### The compiled ones — `compiled/*.mal`
+
+Everything above was written by a person or found by a search. The five
+programs in
+[`Langlib/Examples/Malbolge/compiled/`](../../Langlib/Examples/Malbolge/compiled/)
+were written by `turpentine compile --to malbolge` from the Turpentine
+sources named below, and they are **derived files**:
+[`scripts/gen-mal-examples.sh`](../../scripts/gen-mal-examples.sh) is the
+only thing that may write them, it verifies each against its source's
+output on the way, and `--check` fails if a committed one is stale. The
+backend is described in [docs/malbolge/compiler.md](compiler.md).
+
+| artifact | from | prints | code row | image | halts in |
+|---|---|---|---|---|---|
+| `compiled/hello.mal` | `hello.turp` | `Hello, Turpentine!` | 50 | 247 | 74 cycles |
+| `compiled/sort.mal` | `sort-mu.turp` | six sorted numbers | 25 | 197 | 45 cycles |
+| `compiled/primes.mal` | `primes-mu.turp` | the first ten primes | 52 | 251 | 72 cycles |
+| `compiled/sieve.mal` | `sieve.turp` | the primes below 50 | 82 | 308 | 102 cycles |
+| `compiled/99bottles.mal` | `99bottles.turp` | the whole song, 11 459 bytes | 28 351 | 57 514 | 28 363 cycles |
+
+They read differently from every other program on this page, because they
+are built rather than found, and the structure is visible once you know
+what to look for. Here is `compiled/sort.mal` in full — 197 cells,
+transliterated so it can be read at all: printable characters stand for
+themselves, and every other cell is written `\xNN` for its byte value.
+(The file on disk stores those as UTF-8, so it is 203 bytes for 197 words;
+`scheffer-cat.mal` above is stored the same way, and the note in
+[the language README](../../Langlib/Languages/Malbolge/README.md) says
+what that costs.)
+
+```
+('`A@?>=<;:9876543210/.-,+*)('&}\x13\x1f"!~}|{z\x1exwvutsrqponmlkjihgf
+edcba`_^]\[ZYXWVUTSRQPONMLKJIHGFEDCBA@?>=<;:9876543210/.-,+*)('&%eecca
+a__]][[YYWWVT1R/P-N+L)J'H%F#D!B}@{>yfXWVU\x93S\x1eQ\x96O\x1eM\x9fK\x1e
+I\x9fG\x1eE\xa2C\x1eA\xab?\x1e=<
+```
+
+Four things are worth picking out, and together they are the whole
+design.
+
+**The long descending ramp is padding, and it descends for a reason.** A
+no-op at address `a` is the word `(68 - a) mod 94`, so consecutive no-ops
+are consecutive *descending* characters and each wrap of the ramp is 94
+cells long. None of those cells is ever executed: the `` ` `` at address 2
+is a `jmp` that sends `c` straight to 126, and that is precisely what
+frees addresses 3..125 to hold data. The three places where the descent
+breaks are the prologue's pointers — `}` at address 31 is the jump target
+125, `\x13` at 32 is the rotation seed 19, and `\x1f` at 33 is the value
+31 that walks `d` back to the seed. The lone `\x1e` further along is
+address 41, holding 30, which is where the second `movd` sends `d`.
+
+**The doubled letters are the prologue's rotation loop**, at addresses
+126..141: `ee cc aa __ ]] [[ YY WW`. They are doubled because `rotr` and
+`movd` are opcodes 39 and 40 — *adjacent* — so the same character at
+consecutive addresses means one and then the other. Eight pairs, because
+this program's seed needs eight rotations: `rotR` cycles the ten trits of
+19 around until it lands on 171, which is the address the data row starts
+one above. The `V` at 142 is the `movd` that finally loads it into `d`.
+
+**The alternating run `T1R/P-N+L)J'H%F#D!B}@{>y` is the code row**, at
+143..167, and it alternates `rotr`, `out`, `rotr`, `out`. Twelve pairs for
+twelve bytes of output, and then `f` at 167 is the `halt`. This program
+never uses the crazy operation at all, which is a small joke at Malbolge's
+expense: every byte it prints is a single ASCII character, and rotating a
+ten-trit word right by one is *division by three* when the low trit is
+zero. So the compiler prints `1` by rotating 147, and 147 is 3 × 49.
+
+**The tail from 172 is the data row**, holding exactly those constants
+under `d` rather than `c`: 147, 30, 150, 30, 159, 30, 159, 30, 162, 30,
+171, 30 — that is `1 ⏎ 2 ⏎ 5 ⏎ 5 ⏎ 6 ⏎ 9 ⏎`, three times each character,
+with 30 recurring because 30 / 3 = 10 is the newline. The `S Q O M K I G
+E C A ?` interleaved with them are padding: they sit under the `out`
+instructions, which read no memory, and `d` consumes them anyway because
+it advances whether or not the instruction wants it to. That is the
+compiler's whole cost model in one line of a file — **two words of memory
+per word of code** — and it is why the ceiling is 29157 cells of code and
+not 59049.
+
+`compiled/99bottles.mal` is the same shape and 292 times longer, which is
+why it is not quoted here. It is the one to run:
+
+```
+lake exe malbolge Langlib/Examples/Malbolge/compiled/99bottles.mal | wc -lc
+```
+
+Output — the same 495 lines and 11 459 bytes as Iizawa et al.'s
+hand-written `99bottles.mal` above, from a program with no loop in it at
+all:
+
+```
+     495   11459
+```
 
 ### Falling off the end
 

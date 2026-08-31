@@ -8,7 +8,7 @@
 | [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1133) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | yes | [yes](whitespace/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530) | [**yes**, behaviourally](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401) |
 | [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118) | yes | [yes](subleq/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125) | [**yes**, two shapes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) |
 | [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | [yes, byte core](../Langlib/Computability/Befunge93.lean#L343) | n/a | no, 2000 code cells | [no](befunge93/compiler.md) | n/a |
-| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [yes, bounded storage](malbolge/spec.md) | [**no**, halting decidable](../Langlib/Computability/Malbolge.lean#L743) | n/a | no, bounded storage | [yes](malbolge/compiler.md) | n/a |
+| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [yes, bounded storage](malbolge/spec.md) | [**no**, halting decidable](../Langlib/Computability/Malbolge.lean#L743) | n/a | no, bounded storage | [yes, bounded fragment](malbolge/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Malbolge.lean) | n/a |
 | [malbolge-unshackled](malbolge-unshackled/spec.md) | yes | yes | yes | yes | `malbolge-unshackled` | yes | open | [planned](malbolge-unshackled/compiler.md) | expected yes | [yes, input-free fragment](malbolge-unshackled/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean) | [planned](malbolge-unshackled/compiler.md) |
 | [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | [**yes**](../Langlib/Computability/Fractran.lean#L4471) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L127) | no I/O at all | [yes](fractran/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Fractran.lean) | - |
 | [thue](thue/spec.md) | yes | yes | yes | yes | `thue` | yes | [**yes**](../Langlib/Computability/Thue.lean#L4026) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L133) | expected, unary output | [planned](thue/compiler.md) | [planned](thue/compiler.md) |
@@ -365,16 +365,21 @@ for it.
 Note the pattern in the compiler column: **a language cannot host a full
 compiler unless it is Turing complete.** A bounded-storage language can
 only ever accept a fragment, bounded by its storage rather than by our
-effort, so a backend for one is a demonstration and not a tool. We do not
-plan compilers for [malbolge](malbolge/compiler.md) (59049 words for code
-and data together) or [befunge93](befunge93/compiler.md) (2000 playfield
-cells, shared between code and its only storage); each page explains the
-decision. [deadfish](deadfish/compiler.md) is the exception we keep,
-because its fragment is a straight line of prints and the joke is worth
-the afternoon it costs.
+effort, so a backend for one is a demonstration and not a tool.
 
-Where the bound is what stops us, the fix is to compile to the unbounded
-relative instead: Malbolge Unshackled rather than Malbolge, and
+We keep two such demonstrations, because both are cheap and both are
+funny. [deadfish](deadfish/compiler.md) accepts a straight line of prints.
+[malbolge](malbolge/compiler.md) accepts every input-free program whose
+output fits in 59049 words, which turns out to include the whole of *99
+bottles of beer* — 11 459 bytes from an image using 97.4% of the machine,
+in a language that provably cannot loop for ever. Its refusal is the only
+one in the library that no amount of further work could lift, and it is
+reported in bytes of output. No backend is planned for
+[befunge93](befunge93/compiler.md) (2000 playfield cells, shared between
+code and its only storage); that page explains the decision.
+
+Where the bound is what stops us for real, the fix is to compile to the
+unbounded relative instead: Malbolge Unshackled rather than Malbolge, and
 Befunge-98 rather than Befunge-93.
 
 Lean code lives in `Langlib/Languages/<Langname>/` (the front end in

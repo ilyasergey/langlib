@@ -19,15 +19,29 @@
   written up in
   [computability-malbolge-unshackled.md](../computability-malbolge-unshackled.md).
 
-## Why this target and not Malbolge
+## Why this target as well as Malbolge
 
 Malbolge has 59049 words. That is a finite state space, so no total
-translation from a Turing-complete source can exist and any backend would
-be a demonstration rather than a tool; `docs/malbolge/compiler.md` works
-through the reasoning. Unshackled lifts exactly that bound — values are
-3-adic integers with an eventually constant trit sequence, so memory and
-registers are unbounded — and with it the objection. A full compiler is
-possible here.
+translation from a Turing-complete source can exist and any backend into it
+is a demonstration rather than a tool. LangLib keeps that demonstration —
+`Compile/Malbolge.lean` compiles every input-free program whose output fits,
+and `docs/malbolge/compiler.md` says exactly where "fits" stops, at a code
+row of 29157 cells. Unshackled lifts that bound — values are 3-adic
+integers with an eventually constant trit sequence, so memory and registers
+are unbounded — and with it the objection. A full compiler is possible
+here and nowhere else in the family.
+
+The two backends share their whole shape, and the Malbolge one is the
+easier read if you want the shape without the 3-adic arithmetic: same
+straight-line fragment, same two rows walked in lockstep, same reason
+input is out. Where they differ is instructive. Malbolge's data cells hold
+bytes rather than code points, so its constants have no high trits and it
+must reach a *residue* (`out` writes `a mod 256`) rather than a value —
+which makes each byte **cheaper** there, at about two and a half cells
+against this backend's three. And Malbolge cannot point `d` at its own
+data row without a rotation, because no loaded cell can hold a number
+above 255; here a cell can hold an address directly, which is why this
+prologue is five cells and that one is a rotation loop.
 
 ## The backend as written
 
