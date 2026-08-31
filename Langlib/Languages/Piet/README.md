@@ -28,7 +28,10 @@ Input is read from stdin, output written to stdout. Exit codes: 0 halt,
 1 runtime error, 2 out of fuel, 3 parse or usage error. Program images
 must be PPM, and the runner reads files as text, so use ASCII P3
 (`magick prog.png -compress none prog.ppm` converts anything); binary P6
-is available to API users via `Langlib.Common.Image.parsePpm`.
+is available to API users via `Langlib.Common.Image.parsePpm`. For the
+other direction — a program out to a PNG, and back again in a form the
+runner still executes — see
+[Programs as PNG](../../../docs/piet/spec.md#programs-as-png).
 
 ## Examples ([Langlib/Examples/Piet/](../../Examples/Piet/))
 

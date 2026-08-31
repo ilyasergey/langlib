@@ -446,4 +446,7 @@ want is a large picture that still runs, the honest way is
 block and tell the interpreter you did.
 
 Note also that the runner reads its programs as *text*, so it takes ASCII
-P3 only. A PNG is for looking at and sharing; keep the PPM to run.
+P3 only. A PNG is for looking at and sharing; keep the PPM to run. The
+spec's [Programs as PNG](spec.md#programs-as-png) works the conversion
+through in both directions, including turning a scaled PNG back into a
+program the interpreter will run.

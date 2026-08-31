@@ -177,7 +177,8 @@ out of it: a colour block of a single codel can never halt a Piet program.
 
 The runner reads program files as text, so feed it ASCII PPM (P3);
 convert anything else first, for example with
-`magick prog.png -compress none prog.ppm`. Binary P6 is handled by the
+`magick prog.png -compress none prog.ppm`. Going the other way — a program
+out of here and into a PNG — is [Programs as PNG](#programs-as-png). Binary P6 is handled by the
 library (`Langlib.Common.Image.parsePpm`) for direct API users.
 
 A painting that says hi.
@@ -350,6 +351,169 @@ Output:
 ```
 piet: wrote 8x3 codels to /tmp/add.svg
 ```
+
+## Programs as PNG
+
+The examples here are ASCII PPM because the runner reads its input as
+text, but the rest of the Piet world trades programs as PNG: npiet reads
+it, the galleries of Piet programs are full of it, and it is what survives
+being pasted into a chat window. PNG is lossless, so a PNG *is* a program — every codel
+comes back with the bytes it went in with. JPEG is not. A JPEG of a Piet
+program is a picture of a program that no longer runs: the compression
+invents colours along every block edge, and none of the invented ones are
+among the twenty.
+
+Converting is one command. The only real decision is how big a codel
+should be.
+
+### One PNG block per codel
+
+`scripts/ppm-to-png.py` writes the PNG by hand — an IHDR, one zlib IDAT of
+unfiltered scanlines, an IEND — so it needs nothing but the Python
+standard library and works on a bare checkout. It reads any ASCII PPM,
+Piet's included. The number is the scale in pixels per codel, and
+`--no-grid` leaves the blocks touching.
+
+```
+python3 scripts/ppm-to-png.py Langlib/Examples/Piet/add.ppm /tmp/add.png 24 --no-grid
+```
+
+Output:
+
+```
+/tmp/add.png: 8x3 codels -> 192x72 px (scale 24, grid False)
+```
+
+The same command with the output path under `docs/piet/img/` is what
+`scripts/render-docs-images.sh` runs, so the picture below is that file,
+byte for byte — eight codels by three, each one a 24-pixel square:
+
+![add.ppm as a PNG, twenty-four pixels per codel](img/add.png)
+
+Drop `--no-grid` and every block is fenced off by a grey line, which is
+how the Brainloller pages draw their programs and what makes a corridor of
+same-coloured codels countable.
+
+```
+python3 scripts/ppm-to-png.py Langlib/Examples/Piet/add.ppm /tmp/add-grid.png 24
+```
+
+Output:
+
+```
+/tmp/add-grid.png: 8x3 codels -> 201x76 px (scale 24, grid True)
+```
+
+That one is for looking at and not for running, twice over: mid grey is not
+one of Piet's twenty colours, and the fencing — nine lines across, four
+down — puts the image at 201 x 76, which is not a whole number of codels at
+any codel size.
+
+### One pixel per codel
+
+The smallest faithful form of a program is a PNG the size of the grid
+itself. On macOS `sips` is already installed and reads P3 directly.
+
+```
+sips -s format png Langlib/Examples/Piet/add.ppm --out /tmp/add-1x.png
+```
+
+Output:
+
+```
+/Users/ilyasergey/Work/Lean/langlib/Langlib/Examples/Piet/add.ppm
+  /private/tmp/add-1x.png
+```
+
+Elsewhere ImageMagick does the same job with
+`magick Langlib/Examples/Piet/add.ppm /tmp/add-1x.png`; every command
+whose output is quoted on this page was run to produce it, and that one is
+the equivalent for machines that have ImageMagick, which this one does
+not.
+
+Eight pixels by three is a speck on screen, but it is the honest size: one
+pixel per codel is what an interpreter wants, and anyone looking at it can
+zoom, which changes the display and not the file.
+
+### Back from PNG, and running it
+
+A PNG scaled by a whole number is still the program, so the round trip
+works: convert it back to PPM and tell the interpreter how big a codel
+became. `sips` writes ASCII PPM under the name `pbm`.
+
+```
+sips -s format pbm /tmp/add.png --out /tmp/add-back.ppm
+```
+
+Output:
+
+```
+/private/tmp/add.png
+  /private/tmp/add-back.ppm
+```
+
+That file is 192 x 72 pixels of the same eight-by-three program, so
+`--codel-size 24` samples it back down. It adds three and four, exactly as
+the original does.
+
+```
+echo -n '3 4' | lake exe piet --codel-size 24 /tmp/add-back.ppm
+```
+
+Output:
+
+```
+7
+```
+
+### What breaks it
+
+Smooth resampling. Enlarging the one-pixel-per-codel PNG with `sips -z`
+gives a picture of the right size and the wrong colours.
+
+```
+sips -z 36 96 /tmp/add-1x.png --out /tmp/add-smooth.png
+```
+
+Output:
+
+```
+/private/tmp/add-1x.png
+  /private/tmp/add-smooth.png
+```
+
+Every block edge is now a gradient, and a blended pixel is not one of
+Piet's twenty colours. Convert that back to a PPM:
+
+```
+sips -s format pbm /tmp/add-smooth.png --out /tmp/add-smooth.ppm
+```
+
+Output:
+
+```
+/private/tmp/add-smooth.png
+  /private/tmp/add-smooth.ppm
+```
+
+Running it does not get past the second codel.
+
+```
+echo -n '3 4' | lake exe piet --codel-size 12 /tmp/add-smooth.ppm
+```
+
+Output, on stderr:
+
+```
+piet: unknown colour (127,0,0) at codel (1,0); only the 20 Piet colours are allowed (rerun with --unknown-white to read others as white)
+```
+
+So: enlarge with nearest neighbour or not at all. ImageMagick's `-scale`
+is nearest neighbour and its `-resize` is not; `sips -z` is not;
+`scripts/ppm-to-png.py` is, which is why its output survives the round
+trip above. And whatever you send out, keep the PPM: the runner reads
+programs as text, and PNG is the format for showing a program to someone
+else.
 
 ## Example programs
 
@@ -641,6 +805,21 @@ piet: wrote 166x3 codels to docs/piet/img/hello.svg
 
 `mondrian.ppm` is drawn at twelve pixels per codel and *without* `--grid`,
 because it is meant to be looked at rather than counted.
+
+One picture on this page is a PNG rather than an SVG — the one in
+[Programs as PNG](#programs-as-png), which has to be a PNG to show what the
+converter produces. The same script draws it, one 24-pixel block per codel
+and no grid, so it is still a runnable program:
+
+```
+python3 scripts/ppm-to-png.py Langlib/Examples/Piet/add.ppm docs/piet/img/add.png 24 --no-grid
+```
+
+Output:
+
+```
+docs/piet/img/add.png: 8x3 codels -> 192x72 px (scale 24, grid False)
+```
 
 Any Piet program can be rendered this way, not just the examples, and
 `--codel-size N` samples a program drawn at more than one pixel per codel.

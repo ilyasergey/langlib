@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
-"""Render a Brainloller PPM as a scaled-up PNG for the documentation.
+"""Render a PPM program as a scaled-up PNG for the documentation.
 
-Brainloller programs are images, so the spec page should show them. A
-Brainloller image is also *tiny* (`cat.ppm` is three pixels square), and a
-browser shown a 3x3 PNG draws a speck. This scales each codel to a block
-and draws a grid between the blocks, so a reader can count the commands
-and match them against the colour table.
+Brainloller and Piet programs are images, so their spec pages should show
+them. Such an image is also *tiny* (Brainloller's `cat.ppm` is three
+pixels square), and a browser shown a 3x3 PNG draws a speck. This scales
+each codel to a block and, unless `--no-grid` is given, draws a grid
+between the blocks, so a reader can count the commands and match them
+against the colour table.
+
+With `--no-grid` the output is an exact whole-number enlargement of the
+program, so it can be converted back to a PPM and run at `--codel-size
+<scale>`; the grid lines of the default are mid grey, which is not a
+command colour in either language, and they would fail that round trip.
 
 The grid lines are a presentation device and are not part of the program.
 They are drawn in mid grey, which is not one of the ten meaningful
