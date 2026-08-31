@@ -42,7 +42,11 @@ law (`halted_stable`: a completed run does not change with more fuel), and
 [`LawfulTraceLang`](../Langlib/Common/Compilation.lean) its trace
 counterpart; the `correct_stable` corollaries (and
 `TuringComplete.simulates_stable`) use them to upgrade every `∃ m` to
-"every fuel from some point on". Instances are proved once per interpreter,
+"every fuel from some point on". `CertifiedCompiler`, `IOCertifiedCompiler`
+and `TuringComplete` **require** the classes — an unlawful target could
+satisfy the bare `∃ m` by abusing fuel as an input channel, so the
+requirement is part of what the statements mean, not a convenience.
+Instances are proved once per interpreter,
 in `Langlib/Languages/<L>/Stability.lean`, by one induction over `exec`;
 **every language with a `ProgLang` instance has one**, and every language
 with a `TraceLang` instance (whitespace, subleq, FRACTRAN) has the trace

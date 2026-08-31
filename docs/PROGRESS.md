@@ -2,7 +2,21 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-31 (latest): lawful languages — the `∃ fuel` guarantee is cashed
+## 2026-08-31 (latest): lawfulness is now required, not optional
+
+Follow-up to the entry below: `CertifiedCompiler`, `IOCertifiedCompiler`
+and `TuringComplete` now **require** `LawfulProgLang` (the I/O-aware one
+also `LawfulTraceLang`) instead of offering lawful upgrades on the side.
+The reason is semantic, not stylistic: against an unlawful interpreter the
+`∃ fuel` conclusion can be satisfied by treating fuel as an input channel —
+halt with the right answer exactly at fuels that encode a halting URM
+trace — so a language whose programs compute nothing could have claimed a
+completeness witness. `halted_stable` pins fuel to its budget role, which
+makes the requirement part of what the statements mean. Since every
+language already has its instance, nothing else changed: the whole library
+rebuilt without touching a single witness or bespoke proof.
+
+## 2026-08-31: lawful languages — the `∃ fuel` guarantee is cashed
 
 An adversarial pass over `Langlib/Common/Compilation.lean` and
 `Langlib/Common/Computability.lean` found the definitions sound but with

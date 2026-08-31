@@ -34,16 +34,19 @@ candidates for the stronger statement.
 ## Fuel is existential; lawfulness is what cashes it
 
 Both `correct` fields conclude with "for some fuel bound `m`". That is the
-right obligation to put on a compiler proof, but it is weaker than what a
-runner needs: a runner picks its own fuel bound and has no way to find the
-witness. `LawfulProgLang` (and `LawfulTraceLang` for traces) is the missing
-law — a completed run is a fixed point of more fuel — and the
+right obligation to put on a compiler proof, but on its own it is weaker
+than it reads — against an interpreter free to treat fuel as an input
+channel, "some fuel works" says nothing about the program — and it is
+weaker than what a runner needs, since a runner picks its own fuel bound
+and has no way to find the witness. `LawfulProgLang` (and `LawfulTraceLang`
+for traces) is the missing law: a completed run is a fixed point of more
+fuel. The correctness structures **require** it — stating `spec`-correctness
+into an unlawful target is not a weaker claim but a broken one — and the
 `correct_stable` corollaries use it to restate both notions as "every fuel
-bound from some point on". Every real interpreter satisfies the law; making
-it a class keeps it out of `ProgLang` itself, so that registering a language
-stays cheap and the proof (one induction over the interpreter, see
-`Langlib/Languages/<L>/Stability.lean`) is paid only where the guarantee is
-consumed.
+bound from some point on". It is a class of its own rather than a field of
+`ProgLang` so that merely registering a language stays cheap; the proof is
+one induction over the interpreter (`Langlib/Languages/<L>/Stability.lean`),
+and every language in the library has it.
 
 ## Traces need the interpreter's cooperation
 
@@ -138,9 +141,17 @@ compiler's fragment, so the fragment is part of the data rather than prose.
 `encodeInput` is a single stream rather than a function of the program
 because `spec` is I/O-free: the source program reads nothing, so there is
 nothing for a caller to supply. The I/O-aware counterpart below takes the
-stream as an argument. -/
+stream as an argument.
+
+The target must be lawful, and not as bookkeeping: `correct` concludes with
+"for some fuel bound", and against an unlawful target that existential can
+be satisfied by treating the fuel as an input channel — halt with the right
+bytes exactly at fuels that encode the answer — so the statement would not
+mean "the compiled program computes this". `halted_stable` is what pins
+fuel to its budget role, and it is what `correct_stable` uses to read the
+existential as "every fuel from some point on". -/
 structure CertifiedCompiler {Src Ans : Type} (spec : Src → Nat → Ans → Prop)
-    (L : Type) [ProgLang L] where
+    (L : Type) [ProgLang L] [LawfulProgLang L] where
   /-- Source program to a program of `L`, or an error naming what is outside
   the fragment. -/
   compile : Src → Except String (ProgLang.Prog L)
@@ -159,7 +170,8 @@ structure CertifiedCompiler {Src Ans : Type} (spec : Src → Nat → Ans → Pro
 
 namespace CertifiedCompiler
 
-variable {Src Ans L : Type} [ProgLang L] {spec : Src → Nat → Ans → Prop}
+variable {Src Ans L : Type} [ProgLang L] [LawfulProgLang L]
+  {spec : Src → Nat → Ans → Prop}
 
 /-- **Two verified compilers for one target agree.** On a program both
 accept and a source run that produces `result`, both compiled programs halt
@@ -187,7 +199,7 @@ point on works". The upgrade is exactly what a lawful target buys: without
 `LawfulProgLang.halted_stable` the `∃ m` in `correct` says nothing about
 the fuel bound a runner actually picks, and with it, any bound at or past
 the witness gives the same halted run. -/
-theorem correct_stable [LawfulProgLang L] (c : CertifiedCompiler spec L)
+theorem correct_stable (c : CertifiedCompiler spec L)
     (p : Src) (prog : ProgLang.Prog L) (result : Ans) (n : Nat)
     (hc : c.compile p = .ok prog) (hp : spec p n result) :
     ∃ m₀, ∀ m, m₀ ≤ m →
@@ -300,10 +312,16 @@ line-oriented numeric I/O, a Piet image that prints a decimal numeral — says
 so here, once, in the compiler's own data, instead of quietly weakening the
 theorem. It is a function of the trace alone, so it cannot depend on the
 program, the answer, or the fuel: the encoding is a property of the
-compilation scheme, not an excuse. -/
+compilation scheme, not an excuse.
+
+Both lawfulness classes are required, for the reason `CertifiedCompiler`
+gives: without them the "for some fuel" conclusion — here about the trace
+as well as the answer — could lean on fuel-indexed behaviour no run of the
+compiled program exhibits. -/
 structure IOCertifiedCompiler {Src Ans : Type}
     (spec : Src → Input → Nat → Trace → Ans → Prop)
-    (L : Type) [ProgLang L] [TraceLang L] where
+    (L : Type) [ProgLang L] [LawfulProgLang L] [TraceLang L]
+    [LawfulTraceLang L] where
   /-- Source program to a program of `L`, or an error naming what is outside
   the fragment. -/
   compile : Src → Except String (ProgLang.Prog L)
@@ -334,8 +352,8 @@ def specErase {Src Ans : Type} (spec : Src → Input → Nat → Trace → Ans �
 
 namespace IOCertifiedCompiler
 
-variable {Src Ans L : Type} [ProgLang L] [TraceLang L]
-  {spec : Src → Input → Nat → Trace → Ans → Prop}
+variable {Src Ans L : Type} [ProgLang L] [LawfulProgLang L] [TraceLang L]
+  [LawfulTraceLang L] {spec : Src → Input → Nat → Trace → Ans → Prop}
 
 /-- **Behavioural correctness implies answer correctness.** Fixing the input
 stream and forgetting the trace turns an `IOCertifiedCompiler` into a
@@ -368,8 +386,7 @@ def toCertifiedOf (c : IOCertifiedCompiler spec L) (σ : Input)
 point on works", trace included. The I/O-aware counterpart of
 `CertifiedCompiler.correct_stable`, needing both lawfulness classes: the
 run stabilises by `halted_stable` and its trace by `trace_stable`. -/
-theorem correct_stable [LawfulProgLang L] [LawfulTraceLang L]
-    (c : IOCertifiedCompiler spec L)
+theorem correct_stable (c : IOCertifiedCompiler spec L)
     (p : Src) (prog : ProgLang.Prog L) (σ : Input) (τ : Trace)
     (result : Ans) (n : Nat)
     (hc : c.compile p = .ok prog) (hp : spec p σ n τ result) :

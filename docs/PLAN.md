@@ -299,7 +299,11 @@ stability law (a completed run is a fixed point of more fuel),
 "every fuel from some point on". Every language with a `ProgLang` instance
 has a proved instance, one induction over its interpreter in
 `Langlib/Languages/<L>/Stability.lean` (the bounded Befunge-93 core's lives
-next to that model). See [verification.md](verification.md).
+next to that model), and the three correctness structures
+(`CertifiedCompiler`, `IOCertifiedCompiler`, `TuringComplete`) **require**
+lawfulness — a bare `∃ fuel` against an unlawful target can be satisfied by
+abusing fuel as an input channel, so the requirement is part of the
+statements' meaning. See [verification.md](verification.md).
 
 `TraceLang` additionally carries `trace_faithful`: a halting run, replayed
 on any stream sandwiched between its claimed reads and the original, is the

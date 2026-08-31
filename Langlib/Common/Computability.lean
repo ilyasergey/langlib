@@ -100,8 +100,18 @@ visible in the source and makes `#eval` fail. So the convention in
 meta-theoretic half of the completeness claim, checked by the compiler
 rather than the kernel. Every witness in `Langlib/Computability/` satisfies
 it, and the differential tests run the compiled programs, which no
-noncomputable witness could survive. -/
-structure TuringComplete (L : Type) [ProgLang L] where
+noncomputable witness could survive.
+
+**Lawfulness is required, not assumed.** `simulates` concludes with "for
+some fuel bound `m`", and against an unlawful interpreter that existential
+can be satisfied by treating fuel as an input channel — halt with the right
+answer exactly at fuels that encode a halting URM trace, and at no others —
+so a language whose *programs* compute nothing could claim the witness.
+`LawfulProgLang.halted_stable` pins fuel to its budget role: once a run has
+completed it is fixed, so the only way to satisfy `simulates` is for the
+compiled program itself to do the work. It also gives `simulates_stable`
+below, the form a runner can rely on. -/
+structure TuringComplete (L : Type) [ProgLang L] [LawfulProgLang L] where
   /-- The compiler: a URM program and its input vector become an `L`
   program. This is a real, total, runnable function; `#eval` can apply it. -/
   compile : Program → List Nat → ProgLang.Prog L
@@ -148,12 +158,12 @@ Two limits of this statement, both deliberate and both worth knowing:
   than over `Nat.Partrec` ones.
 -/
 
-variable {L : Type} [ProgLang L]
+variable {L : Type} [ProgLang L] [LawfulProgLang L]
 
 /-- `simulates`, upgraded from "some fuel works" to "every fuel from some
-point on works", for a lawful target: the completeness counterpart of
+point on works": the completeness counterpart of
 `CertifiedCompiler.correct_stable`. -/
-theorem TuringComplete.simulates_stable [LawfulProgLang L]
+theorem TuringComplete.simulates_stable
     (tc : TuringComplete L) (P : Program) (inputs : List Nat) (result : Nat)
     (h : HaltsWithResult P inputs result) :
     ∃ m₀, ∀ m, m₀ ≤ m →

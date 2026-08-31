@@ -69,7 +69,7 @@ open Langlib.Computability
 open Langlib.Turpentine.Compile.URM (compileToURM compileToURM_correct
   compileToURM_inputs TurpentineHaltsWith)
 
-variable {L : Type} [ProgLang L]
+variable {L : Type} [ProgLang L] [LawfulProgLang L]
 
 /-- A verified compiler from Turpentine into `L`: the generic
 `CertifiedCompiler` at Turpentine's own specification.
@@ -79,7 +79,7 @@ compiler's fragment, so the fragment is part of the data rather than prose.
 `encodeInput` is a single stream because `TurpentineHaltsWith` is I/O-free:
 the source program reads nothing, so there is nothing for a caller to
 supply. -/
-abbrev TurpentineCompiler (L : Type) [ProgLang L] :=
+abbrev TurpentineCompiler (L : Type) [ProgLang L] [LawfulProgLang L] :=
   CertifiedCompiler TurpentineHaltsWith L
 
 /-- The derived compiler: `compileToURM`, then the completeness witness's own
