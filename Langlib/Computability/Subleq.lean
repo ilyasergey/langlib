@@ -3,6 +3,7 @@ import Langlib.Common.Computability
 import Langlib.Computability.URM
 import Langlib.Languages.Subleq.Semantics
 import Langlib.Languages.Subleq.Trace
+import Langlib.Languages.Subleq.Stability
 
 /-!
 # Subleq is Turing complete
@@ -1197,6 +1198,16 @@ instance : TraceLang SubleqLang where
   trace := Langlib.Subleq.evalTrace
   trace_outputs := Langlib.Subleq.evalTrace_outputs
   trace_inputs := Langlib.Subleq.evalTrace_inputs
+
+/-- **Subleq is lawful**: a completed run is a fixed point of more fuel.
+Proved in `Langlib/Languages/Subleq/Stability.lean`; it upgrades every
+`∃ m` statement about a subleq run to "every fuel from some point on"
+(`CertifiedCompiler.correct_stable`, `TuringComplete.simulates_stable`). -/
+instance : LawfulProgLang SubleqLang where
+  halted_stable := Langlib.Subleq.evalProg_stable
+
+instance : LawfulTraceLang SubleqLang where
+  trace_stable := Langlib.Subleq.evalTrace_stable
 
 /-- **Subleq is Turing complete.**
 

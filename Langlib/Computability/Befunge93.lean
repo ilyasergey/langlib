@@ -292,6 +292,24 @@ theorem exec_succ (fuel : Nat) (s : State) :
   | zero => rfl
   | succ fuel ih => exact ih (step s)
 
+/-- A machine that is no longer running is a fixed point of `step`. -/
+theorem step_stable {s : State} (h : s.status ≠ .running) : step s = s := by
+  have hc : (s.status != Status.running) = true := by
+    cases hs : s.status with
+    | running => exact absurd hs h
+    | halted => rfl
+    | error => rfl
+  rw [step, if_pos hc]
+
+/-- A completed run is a fixed point of more fuel. -/
+theorem exec_stable {n : Nat} {s : State} (h : (exec n s).status ≠ .running) :
+    ∀ k, exec (n + k) s = exec n s := by
+  intro k
+  induction k with
+  | zero => rfl
+  | succ k ih =>
+    rw [show n + (k + 1) = (n + k) + 1 by omega, exec_succ, ih, step_stable h]
+
 /-- Run the bounded byte core.  The input parameter is ignored. -/
 def evalProg (p : Program) (_input : Input) (fuel : Nat) : RunResult :=
   let s := exec fuel (State.initial p)
@@ -311,6 +329,22 @@ instance : ProgLang BoundedByteBefunge93 where
   Prog := BoundedByteBefunge93.Program
   parse := BoundedByteBefunge93.parse
   run := BoundedByteBefunge93.evalProg
+
+/-- **The bounded byte core is lawful**: a completed run is a fixed point
+of more fuel. Bounded storage and lawfulness are orthogonal claims. -/
+instance : LawfulProgLang BoundedByteBefunge93 where
+  halted_stable := by
+    intro p i n m hnm h
+    obtain ⟨k, rfl⟩ : ∃ k, m = n + k := ⟨m - n, by omega⟩
+    replace h : (BoundedByteBefunge93.evalProg p i n).exit ≠ Exit.outOfFuel := h
+    show BoundedByteBefunge93.evalProg p i (n + k)
+      = BoundedByteBefunge93.evalProg p i n
+    unfold BoundedByteBefunge93.evalProg at h ⊢
+    dsimp only at h ⊢
+    cases hst : (BoundedByteBefunge93.exec n (BoundedByteBefunge93.State.initial p)).status with
+    | running => rw [hst] at h; simp at h
+    | halted => rw [BoundedByteBefunge93.exec_stable (by rw [hst]; nofun), hst]
+    | error => rw [BoundedByteBefunge93.exec_stable (by rw [hst]; nofun), hst]
 
 namespace BoundedByteBefunge93
 

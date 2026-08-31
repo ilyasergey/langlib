@@ -3,6 +3,7 @@ import Std.Data.String.ToNat
 import Langlib.Common.Computability
 import Langlib.Computability.URM
 import Langlib.Languages.Piet.Semantics
+import Langlib.Languages.Piet.Stability
 
 /-!
 # Verified foundations for a URM to Piet compiler
@@ -3986,6 +3987,11 @@ instance : ProgLang PietLang where
   Prog := Langlib.Piet.Grid
   parse := fun src => Langlib.Piet.parseGrid {} src.toUTF8
   run := Langlib.Piet.evalGrid
+
+/-- **Piet is lawful**: a completed run is a fixed point of more fuel.
+Proved in `Langlib/Languages/Piet/Stability.lean`. -/
+instance : LawfulProgLang PietLang where
+  halted_stable := Langlib.Piet.evalGrid_stable
 
 set_option maxHeartbeats 1000000 in
 /-- Piet is Turing complete, via the verified URM-to-image compiler. -/

@@ -52,7 +52,7 @@ simulation theorem: whenever the URM halts, the compiled program halts and
 its output decodes to the contents of URM register 0.
 
 Two deliberate differences from the sketch in `docs/PLAN.md`, both forced by
-what can actually be proved (see `docs/computability.md`):
+what can actually be proved (see `docs/agent-brief-completeness.md`):
 
 * the machine's input is a `List Nat` rather than a `URM.Regs`. A `Regs` is
   a function `Nat → Nat`, and no finite input stream can encode one. cslib's
@@ -83,7 +83,24 @@ ingredients (`compile`, `encodeInput`, `decodeOutput`) stay explicit fields
 rather than being baked into the statement. That is what makes the claim
 composable: a translation `L → L'` that preserves observable behaviour turns
 a `TuringComplete L` into a `TuringComplete L'` by composing `compile` with
-the translation and leaving the encode and decode functions alone. -/
+the translation and leaving the encode and decode functions alone.
+
+**The proposition alone does not capture Turing completeness; the witness
+being a runnable `def` is part of the claim.** Nothing in this structure
+forces `compile` to be computable, and Lean cannot say "computable" about
+its own functions from inside the logic. A witness built with
+`Classical.choice` — "if the URM halts, choose the answer and emit a program
+that prints it" — typechecks for any language that can print a constant,
+Deadfish included, and no axiom audit catches it: `Classical.choice` is in
+the allowed axiom set, since Mathlib proofs use it freely. What rules the
+cheat out is that such a `compile` must be marked `noncomputable`, which is
+visible in the source and makes `#eval` fail. So the convention in
+`docs/agent-brief-completeness.md` — the witness's `compile` is a plain
+`def` that `#eval` can apply — is not a style preference: it is the
+meta-theoretic half of the completeness claim, checked by the compiler
+rather than the kernel. Every witness in `Langlib/Computability/` satisfies
+it, and the differential tests run the compiled programs, which no
+noncomputable witness could survive. -/
 structure TuringComplete (L : Type) [ProgLang L] where
   /-- The compiler: a URM program and its input vector become an `L`
   program. This is a real, total, runnable function; `#eval` can apply it. -/
@@ -132,6 +149,24 @@ Two limits of this statement, both deliberate and both worth knowing:
 -/
 
 variable {L : Type} [ProgLang L]
+
+/-- `simulates`, upgraded from "some fuel works" to "every fuel from some
+point on works", for a lawful target: the completeness counterpart of
+`CertifiedCompiler.correct_stable`. -/
+theorem TuringComplete.simulates_stable [LawfulProgLang L]
+    (tc : TuringComplete L) (P : Program) (inputs : List Nat) (result : Nat)
+    (h : HaltsWithResult P inputs result) :
+    ∃ m₀, ∀ m, m₀ ≤ m →
+      (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) m).exit =
+        Exit.halted ∧
+      tc.decodeOutput
+          (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) m).output =
+        some result := by
+  obtain ⟨m₀, hh, hd⟩ := tc.simulates P inputs result h
+  refine ⟨m₀, fun m hm => ?_⟩
+  rw [LawfulProgLang.halted_stable (tc.compile P inputs) (tc.encodeInput inputs)
+    hm (by rw [hh]; nofun)]
+  exact ⟨hh, hd⟩
 
 /-- A Turing-complete language computes every URM-computable partial
 function, wherever that function is defined. -/
@@ -304,8 +339,18 @@ theorem halts_iff_search (b : BoundedRun L) (p : ProgLang.Prog L) (i : Input) :
     | intro n hn => exact ⟨n, hn.2⟩
 
 /-- Halting is decidable for a language whose runs have bounded storage.
-Since the halting problem for a Turing complete language is undecidable, no
-language with a `BoundedRun` witness has a `TuringComplete` witness. -/
+
+That a language cannot have both this witness and a *computable*
+`TuringComplete` witness is true but **meta-theoretic**, and subtler than
+"the halting problem is undecidable": `simulates` is one-directional, so a
+compiled program may halt where its URM diverges, and deciding the target's
+halting does not decide the URM's. The argument that does work: bounded
+search plus a computable `compile` would make "the decoded answer of the
+compiled run, when it halts" a total computable extension of the URM result
+function, which the recursion theorem forbids. Neither argument can be run
+inside Lean — "computable" is not a predicate Lean can state about its own
+functions, and without it `TuringComplete` *is* (noncomputably) inhabitable
+for bounded languages; see the `TuringComplete` docstring. -/
 def halting_decidable (b : BoundedRun L) (p : ProgLang.Prog L) (i : Input) :
     Decidable (∃ n, (ProgLang.run p i n).isHalted = true) :=
   decidable_of_iff _ (b.halts_iff_search p i).symm
@@ -338,9 +383,9 @@ theorem halts_iff_search (b : BoundedStorage L) (p : ProgLang.Prog L) (i : Input
     (∃ n, (ProgLang.run p i n).isHalted = true) ↔ b.search p i = true :=
   b.toBoundedRun.halts_iff_search p i
 
-/-- Halting is decidable for a language with bounded storage. Since the
-halting problem for a Turing complete language is undecidable, no language
-with a `BoundedStorage` witness has a `TuringComplete` witness. -/
+/-- Halting is decidable for a language with bounded storage. On why this
+excludes a computable `TuringComplete` witness — a meta-theorem, not a
+corollary — see `BoundedRun.halting_decidable`. -/
 def halting_decidable (b : BoundedStorage L) (p : ProgLang.Prog L) (i : Input) :
     Decidable (∃ n, (ProgLang.run p i n).isHalted = true) :=
   b.toBoundedRun.halting_decidable p i

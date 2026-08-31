@@ -1,6 +1,7 @@
 import Langlib.Languages.Piet.Syntax
 import Langlib.Languages.Piet.Parser
 import Langlib.Languages.Piet.Semantics
+import Langlib.Languages.Piet.Stability
 
 /-!
 # Piet

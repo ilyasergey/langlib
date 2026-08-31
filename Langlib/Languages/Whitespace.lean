@@ -2,6 +2,7 @@ import Langlib.Languages.Whitespace.Syntax
 import Langlib.Languages.Whitespace.Parser
 import Langlib.Languages.Whitespace.Semantics
 import Langlib.Languages.Whitespace.Trace
+import Langlib.Languages.Whitespace.Stability
 
 /-!
 # Whitespace

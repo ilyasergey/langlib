@@ -1,6 +1,7 @@
 import Langlib.Languages.Ski.Syntax
 import Langlib.Languages.Ski.Parser
 import Langlib.Languages.Ski.Semantics
+import Langlib.Languages.Ski.Stability
 
 /-!
 # SKI combinator calculus

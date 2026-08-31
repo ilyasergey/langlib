@@ -1,6 +1,7 @@
 import Langlib.Languages.MalbolgeUnshackled.Syntax
 import Langlib.Languages.MalbolgeUnshackled.Parser
 import Langlib.Languages.MalbolgeUnshackled.Semantics
+import Langlib.Languages.MalbolgeUnshackled.Stability
 
 /-!
 # Malbolge Unshackled

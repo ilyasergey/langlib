@@ -1,6 +1,7 @@
 import Langlib.Languages.Deadfish.Syntax
 import Langlib.Languages.Deadfish.Parser
 import Langlib.Languages.Deadfish.Semantics
+import Langlib.Languages.Deadfish.Stability
 
 /-!
 # Deadfish

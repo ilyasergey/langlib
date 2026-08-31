@@ -1,5 +1,6 @@
 import Langlib.Common.Computability
 import Langlib.Languages.Deadfish.Semantics
+import Langlib.Languages.Deadfish.Stability
 
 /-!
 # Deadfish: exact termination and decidable halting
@@ -27,6 +28,15 @@ instance : ProgLang DeadfishLang where
   Prog := Langlib.Deadfish.Prog
   parse := Langlib.Deadfish.parse
   run := fun p _input fuel => Langlib.Deadfish.evalProg p fuel
+
+/-- **Deadfish is lawful**: a completed run is a fixed point of more fuel.
+Proved in `Langlib/Languages/Deadfish/Stability.lean`. Bounded storage and
+lawfulness are orthogonal: the accumulator is one word, but a finished run
+still does not change with more fuel. -/
+instance : LawfulProgLang DeadfishLang where
+  halted_stable := by
+    intro p _i n m hnm h
+    exact Langlib.Deadfish.evalProg_stable p hnm h
 
 namespace Deadfish
 

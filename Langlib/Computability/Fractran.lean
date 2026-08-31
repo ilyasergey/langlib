@@ -1,5 +1,6 @@
 import Langlib.Common.Computability
 import Langlib.Languages.Fractran.Semantics
+import Langlib.Languages.Fractran.Stability
 import Mathlib.Data.Nat.Factorization.Basic
 import Mathlib.Data.Nat.GCD.BigOperators
 import Mathlib.Data.Nat.Prime.Nth
@@ -4453,6 +4454,13 @@ instance : ProgLang FractranLang where
   run := fun p _input fuel =>
     Langlib.Fractran.evalProg { out := .final } p.code p.start fuel
 
+/-- **FRACTRAN is lawful**: a completed run is a fixed point of more fuel.
+Proved in `Langlib/Languages/Fractran/Stability.lean`. -/
+instance : LawfulProgLang FractranLang where
+  halted_stable := by
+    intro p _i n m hnm h
+    exact Langlib.Fractran.evalProg_stable { out := .final } p.code p.start hnm h
+
 /-- **FRACTRAN's trace semantics.** A FRACTRAN run never reads: `run`
 takes an `Input` and does not look at it, so `TraceLang.ofInputFree`
 discharges its side condition by `rfl` and the observable behaviour of a
@@ -4465,6 +4473,14 @@ its interpreter has to record the events, which is the refactoring
 `docs/certified-compilation.md` schedules. -/
 instance : TraceLang FractranLang :=
   TraceLang.ofInputFree FractranLang (fun _ _ _ _ => rfl)
+
+/-- FRACTRAN's trace is stable too: `ofInputFree` reads the trace off the
+run on the empty stream, which `LawfulProgLang` has just pinned down. -/
+instance : LawfulTraceLang FractranLang where
+  trace_stable := by
+    intro p i n m hnm h
+    exact congrArg (fun r => Trace.ofOutput r.output.toList)
+      (LawfulProgLang.halted_stable (L := FractranLang) p Input.empty hnm h)
 
 /-- FRACTRAN is Turing complete via the verified URM compiler. -/
 def fractranComplete : TuringComplete FractranLang where

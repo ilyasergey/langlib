@@ -287,6 +287,20 @@ ignores the input stream) and is the only one today. Every other language
 needs its interpreter to record events, which is a change to the shape of
 a small-step semantics rather than a proof.
 
+### Lawfulness: the `∃ fuel` is cashed `[x]`
+
+`ProgLang` has no laws, so "∃ fuel, the compiled run halts with the right
+answer" — the conclusion of every correctness statement — would by itself
+say nothing about the fuel bound a runner actually picks.
+`LawfulProgLang` (`Langlib/Common/Compilation.lean`) states the missing
+stability law (a completed run is a fixed point of more fuel),
+`LawfulTraceLang` its trace counterpart, and the
+`correct_stable`/`simulates_stable` corollaries upgrade every `∃ m` to
+"every fuel from some point on". Every language with a `ProgLang` instance
+has a proved instance, one induction over its interpreter in
+`Langlib/Languages/<L>/Stability.lean` (the bounded Befunge-93 core's lives
+next to that model). See [verification.md](verification.md).
+
 ### Behavioural certification for whitespace `[~]`
 
 Whitespace goes first, ahead of subleq. The reason is that

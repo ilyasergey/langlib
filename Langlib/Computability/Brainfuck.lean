@@ -1261,6 +1261,13 @@ instance : ProgLang BrainfuckLang where
   parse := Langlib.Brainfuck.parse
   run := Langlib.Brainfuck.evalProg {}
 
+/-- **Brainfuck is lawful**: a completed run is a fixed point of more fuel.
+Proved in `Langlib/Languages/Brainfuck/Stability.lean`, at every
+configuration, so Ook! and brainloller — which run through the same
+interpreter — inherit their instances from the same lemma. -/
+instance : LawfulProgLang BrainfuckLang where
+  halted_stable := Langlib.Brainfuck.evalProg_stable {}
+
 /-- **Brainfuck is Turing complete.**
 
 The witness uses paired unary tape columns and a structured counter-machine

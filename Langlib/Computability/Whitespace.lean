@@ -1120,6 +1120,16 @@ instance : TraceLang WhitespaceLang where
   trace_outputs := Langlib.Whitespace.evalTrace_outputs
   trace_inputs := Langlib.Whitespace.evalTrace_inputs
 
+/-- **Whitespace is lawful**: a completed run is a fixed point of more fuel.
+Proved in `Langlib/Languages/Whitespace/Stability.lean`; it upgrades every
+`∃ m` statement about a whitespace run to "every fuel from some point on"
+(`CertifiedCompiler.correct_stable`, `TuringComplete.simulates_stable`). -/
+instance : LawfulProgLang WhitespaceLang where
+  halted_stable := Langlib.Whitespace.evalProg_stable
+
+instance : LawfulTraceLang WhitespaceLang where
+  trace_stable := Langlib.Whitespace.evalTrace_stable
+
 /-- **Whitespace is Turing complete.**
 
 The witness is the compiler `URMWhitespace.compile`, which turns a URM

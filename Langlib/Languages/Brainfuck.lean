@@ -1,6 +1,7 @@
 import Langlib.Languages.Brainfuck.Syntax
 import Langlib.Languages.Brainfuck.Parser
 import Langlib.Languages.Brainfuck.Semantics
+import Langlib.Languages.Brainfuck.Stability
 
 /-!
 # Brainfuck

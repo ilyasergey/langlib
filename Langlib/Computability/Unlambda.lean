@@ -1701,6 +1701,11 @@ instance : ProgLang UnlambdaLang where
   parse := Langlib.Unlambda.parse
   run := Langlib.Unlambda.evalProg
 
+/-- **Unlambda is lawful**: a completed run is a fixed point of more fuel.
+Proved in `Langlib/Languages/Unlambda/Stability.lean`. -/
+instance : LawfulProgLang UnlambdaLang where
+  halted_stable := Langlib.Unlambda.evalProg_stable
+
 /-- **Unlambda is Turing complete.**
 
 The witness compiles a URM program into a single application: the structured

@@ -2,7 +2,37 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-31 (latest): a Turpentine backend for Malbolge itself
+## 2026-08-31 (latest): lawful languages — the `∃ fuel` guarantee is cashed
+
+An adversarial pass over `Langlib/Common/Compilation.lean` and
+`Langlib/Common/Computability.lean` found the definitions sound but with
+one structural soft spot and two misleading docstrings, all now fixed.
+
+* **`LawfulProgLang` / `LawfulTraceLang`.** `ProgLang` had no laws, so the
+  `∃ m` concluding every correctness statement said nothing about the fuel
+  bound a runner actually picks. The new classes state fuel stability (a
+  completed run, trace included, is a fixed point of more fuel);
+  `CertifiedCompiler.correct_stable`, `IOCertifiedCompiler.correct_stable`
+  and `TuringComplete.simulates_stable` upgrade every `∃ m` to "every fuel
+  from some point on". **Every `ProgLang` tag has an instance** — proved
+  per interpreter in `Langlib/Languages/<L>/Stability.lean` by one uniform
+  induction (brainfuck's lemma serves Ook! and brainloller too; the bounded
+  Befunge-93 core's proof lives next to that model) — and all three
+  `TraceLang` languages have the trace counterpart.
+* **`TuringComplete` docstring** now says out loud that the proposition
+  alone is not the completeness claim: a `Classical.choice` witness could
+  inhabit it for Deadfish, no axiom audit would object, and what rules the
+  cheat out is the convention that `compile` is a plain `def` that `#eval`
+  can apply.
+* **`halting_decidable` docstrings** claimed "no `BoundedStorage` witness
+  coexists with a `TuringComplete` witness" as if it were a corollary. It
+  is a meta-theorem about computable witnesses, and by a subtler argument
+  than halting-problem undecidability (the one-directional `simulates`
+  breaks the naive reduction; the recursion theorem does the work). Both
+  docstrings now say so, and the dangling `docs/computability.md` reference
+  points at `docs/agent-brief-completeness.md`.
+
+## 2026-08-31: a Turpentine backend for Malbolge itself
 
 `docs/malbolge/compiler.md` used to say **not planned**, and gave a good
 reason: Malbolge is 59049 words of 59049 values, so it is not Turing

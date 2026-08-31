@@ -1,6 +1,7 @@
 import Langlib.Computability.Brainfuck
 import Langlib.Computability.Counter
 import Langlib.Languages.Thue.Semantics
+import Langlib.Languages.Thue.Stability
 
 /-!
 # Thue is Turing complete: a verified URM-to-Thue generator
@@ -4021,6 +4022,11 @@ instance : ProgLang ThueLang where
   Prog := Langlib.Thue.Prog
   parse := Langlib.Thue.parse
   run := Langlib.Thue.evalProg { finalState := true }
+
+/-- **Thue is lawful**: a completed run is a fixed point of more fuel.
+Proved in `Langlib/Languages/Thue/Stability.lean`. -/
+instance : LawfulProgLang ThueLang where
+  halted_stable := Langlib.Thue.evalProg_stable { finalState := true }
 
 /-- Thue is Turing complete, via the verified URM-to-Thue generator. -/
 def thueComplete : TuringComplete ThueLang where

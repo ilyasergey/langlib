@@ -1,6 +1,7 @@
 import Langlib.Languages.Unlambda.Syntax
 import Langlib.Languages.Unlambda.Parser
 import Langlib.Languages.Unlambda.Semantics
+import Langlib.Languages.Unlambda.Stability
 
 /-!
 # Unlambda

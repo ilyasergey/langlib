@@ -31,6 +31,20 @@ correct compiler is answer-correct. Everything langlib has proved so far is
 answer-correct, and `docs/certified-compilation.md` says which compilers are
 candidates for the stronger statement.
 
+## Fuel is existential; lawfulness is what cashes it
+
+Both `correct` fields conclude with "for some fuel bound `m`". That is the
+right obligation to put on a compiler proof, but it is weaker than what a
+runner needs: a runner picks its own fuel bound and has no way to find the
+witness. `LawfulProgLang` (and `LawfulTraceLang` for traces) is the missing
+law — a completed run is a fixed point of more fuel — and the
+`correct_stable` corollaries use it to restate both notions as "every fuel
+bound from some point on". Every real interpreter satisfies the law; making
+it a class keeps it out of `ProgLang` itself, so that registering a language
+stays cheap and the proof (one induction over the interpreter, see
+`Langlib/Languages/<L>/Stability.lean`) is paid only where the guarantee is
+consumed.
+
 ## Traces need the interpreter's cooperation
 
 A `RunResult` reports the bytes a run emitted and nothing about the bytes it
@@ -75,6 +89,33 @@ class ProgLang (L : Type) where
   parse : String → Except String Prog
   /-- The pure interpreter core: program, input, fuel. -/
   run : Prog → Input → Nat → RunResult
+
+/-! ## Lawful languages: completed runs are stable -/
+
+/-- The law `ProgLang` alone does not demand, and every real interpreter in
+langlib satisfies: once a run has completed — halted or errored, anything
+but `outOfFuel` — more fuel changes nothing.
+
+Without it, the `∃ m` in the correctness statements below is weaker than it
+reads: a pathological instance could produce the right answer at one magic
+fuel value and something else at every larger one, satisfying the theorem
+while no actual invocation of the runner — which picks its own fuel bound —
+is guaranteed to see the right answer. `halted_stable` is what turns "some
+fuel works" into "every fuel from some point on works"
+(`CertifiedCompiler.correct_stable` below), which is the form a runner can
+rely on.
+
+This is the fuel monotonicity of `docs/verification.md`, stated as a
+stability law. It is a class of its own rather than a field of `ProgLang`
+so that registering a language stays cheap; instances are proved next to
+the interpreter they are about (`Langlib/Languages/<L>/Stability.lean`) and
+registered next to the language's `ProgLang` instance, and `docs/PLAN.md`
+tracks which languages still owe one. -/
+class LawfulProgLang (L : Type) [ProgLang L] : Prop where
+  /-- A completed run does not change when given more fuel. -/
+  halted_stable : ∀ (p : ProgLang.Prog L) (i : Input) {n m : Nat}, n ≤ m →
+    (ProgLang.run p i n).exit ≠ Exit.outOfFuel →
+    ProgLang.run p i m = ProgLang.run p i n
 
 /-! ## Certified compilation, answer only -/
 
@@ -136,6 +177,22 @@ theorem agree (c₁ c₂ : CertifiedCompiler spec L)
   obtain ⟨m₂, hh₂, hd₂⟩ := c₂.correct p prog₂ result n h₂ hp
   exact ⟨m₁, m₂, hh₁, hh₂, by rw [hd₁, hd₂]⟩
 
+/-- `correct`, upgraded from "some fuel works" to "every fuel from some
+point on works". The upgrade is exactly what a lawful target buys: without
+`LawfulProgLang.halted_stable` the `∃ m` in `correct` says nothing about
+the fuel bound a runner actually picks, and with it, any bound at or past
+the witness gives the same halted run. -/
+theorem correct_stable [LawfulProgLang L] (c : CertifiedCompiler spec L)
+    (p : Src) (prog : ProgLang.Prog L) (result : Ans) (n : Nat)
+    (hc : c.compile p = .ok prog) (hp : spec p n result) :
+    ∃ m₀, ∀ m, m₀ ≤ m →
+      (ProgLang.run prog c.encodeInput m).exit = Exit.halted ∧
+      c.decodeOutput (ProgLang.run prog c.encodeInput m).output = some result := by
+  obtain ⟨m₀, hh, hd⟩ := c.correct p prog result n hc hp
+  refine ⟨m₀, fun m hm => ?_⟩
+  rw [LawfulProgLang.halted_stable prog c.encodeInput hm (by rw [hh]; nofun)]
+  exact ⟨hh, hd⟩
+
 /-- Weakening the specification weakens the obligation: a compiler correct
 for `spec` is correct for any specification `spec` refines. Used to read an
 I/O-aware result back as an ordinary one. -/
@@ -189,6 +246,20 @@ def ofInputFree (L : Type) [ProgLang L]
     rw [Trace.inputs_ofOutput]; exact List.nil_prefix
 
 end TraceLang
+
+/-- The trace counterpart of `LawfulProgLang`: once a run has completed,
+its trace does not change when given more fuel either. A separate class
+because `TraceLang` itself is one: a language may be lawful as a `ProgLang`
+without recording traces at all.
+
+For the interpreters in the library this comes from the same lemma as
+`halted_stable` — the whole final state of a completed run is a fixed point
+of more fuel, and both the `RunResult` and the trace are read off it. -/
+class LawfulTraceLang (L : Type) [ProgLang L] [TraceLang L] : Prop where
+  /-- A completed run's trace does not change when given more fuel. -/
+  trace_stable : ∀ (p : ProgLang.Prog L) (i : Input) {n m : Nat}, n ≤ m →
+    (ProgLang.run p i n).exit ≠ Exit.outOfFuel →
+    TraceLang.trace p i m = TraceLang.trace p i n
 
 /-! ## Certified compilation with I/O -/
 
@@ -271,6 +342,27 @@ def toCertifiedOf (c : IOCertifiedCompiler spec L) (σ : Input)
     (h : ∀ p n a, spec₀ p n a → ∃ τ, spec p σ n τ a) :
     CertifiedCompiler spec₀ L :=
   (c.toCertified σ).weaken h
+
+/-- `correct`, upgraded from "some fuel works" to "every fuel from some
+point on works", trace included. The I/O-aware counterpart of
+`CertifiedCompiler.correct_stable`, needing both lawfulness classes: the
+run stabilises by `halted_stable` and its trace by `trace_stable`. -/
+theorem correct_stable [LawfulProgLang L] [LawfulTraceLang L]
+    (c : IOCertifiedCompiler spec L)
+    (p : Src) (prog : ProgLang.Prog L) (σ : Input) (τ : Trace)
+    (result : Ans) (n : Nat)
+    (hc : c.compile p = .ok prog) (hp : spec p σ n τ result) :
+    ∃ m₀, ∀ m, m₀ ≤ m →
+      (ProgLang.run prog (c.encodeInput σ) m).exit = Exit.halted ∧
+      c.decodeOutput (ProgLang.run prog (c.encodeInput σ) m).output = some result ∧
+      TraceLang.trace prog (c.encodeInput σ) m = c.encodeTrace τ := by
+  obtain ⟨m₀, hh, hd, ht⟩ := c.correct p prog σ τ result n hc hp
+  refine ⟨m₀, fun m hm => ?_⟩
+  have hne : (ProgLang.run prog (c.encodeInput σ) m₀).exit ≠ Exit.outOfFuel := by
+    rw [hh]; nofun
+  rw [LawfulProgLang.halted_stable prog (c.encodeInput σ) hm hne,
+    LawfulTraceLang.trace_stable prog (c.encodeInput σ) hm hne]
+  exact ⟨hh, hd, ht⟩
 
 /-- The output bytes of a compiled run are determined by the source trace,
 which is the part of behavioural correctness the answer-only statement

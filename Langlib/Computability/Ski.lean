@@ -993,6 +993,13 @@ instance : ProgLang SkiLang where
   parse := Langlib.Ski.parse
   run := fun p _ fuel => Langlib.Ski.evalProg p fuel
 
+/-- **SKI is lawful**: a run that reached a normal form is a fixed point of
+more fuel. Proved in `Langlib/Languages/Ski/Stability.lean`. -/
+instance : LawfulProgLang SkiLang where
+  halted_stable := by
+    intro p _i n m hnm h
+    exact Langlib.Ski.evalProg_stable p hnm h
+
 /-- **SKI is Turing complete.**
 
 The witness compiles a URM program into a single application: the structured

@@ -65,6 +65,11 @@ instance : ProgLang MalbolgeUnshackledLang where
   parse := load
   run := evalImage {}
 
+/-- **Malbolge Unshackled is lawful**: a completed run is a fixed point of
+more fuel. Proved in `Langlib/Languages/MalbolgeUnshackled/Stability.lean`. -/
+instance : LawfulProgLang MalbolgeUnshackledLang where
+  halted_stable := evalImage_stable {}
+
 namespace Unshackled
 
 /-! ## Base-3 digits without fuel

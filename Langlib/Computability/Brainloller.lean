@@ -316,6 +316,11 @@ instance : ProgLang BrainlollerLang where
     Langlib.Brainloller.decodeProg img
   run := Langlib.Brainfuck.evalProg {}
 
+/-- **Brainloller is lawful**, by the brainfuck stability lemma: the two
+languages share an interpreter. -/
+instance : LawfulProgLang BrainlollerLang where
+  halted_stable := Langlib.Brainfuck.evalProg_stable {}
+
 /-- **Brainloller is Turing complete.**
 
 The witness is `brainfuckComplete`'s, unchanged: a decoded Brainloller

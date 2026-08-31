@@ -1,6 +1,7 @@
 import Langlib.Languages.Thue.Syntax
 import Langlib.Languages.Thue.Parser
 import Langlib.Languages.Thue.Semantics
+import Langlib.Languages.Thue.Stability
 
 /-!
 # Thue

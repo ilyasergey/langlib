@@ -1,6 +1,7 @@
 import Langlib.Languages.Malbolge.Syntax
 import Langlib.Languages.Malbolge.Parser
 import Langlib.Languages.Malbolge.Semantics
+import Langlib.Languages.Malbolge.Stability
 
 /-!
 # Malbolge

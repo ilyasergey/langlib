@@ -526,6 +526,11 @@ instance : ProgLang OokLang where
   parse := Langlib.Ook.parse
   run := Langlib.Brainfuck.evalProg {}
 
+/-- **Ook! is lawful**, by the brainfuck stability lemma: the two languages
+share an interpreter. -/
+instance : LawfulProgLang OokLang where
+  halted_stable := Langlib.Brainfuck.evalProg_stable {}
+
 /-- **Ook! is Turing complete.**
 
 The witness is `brainfuckComplete`'s, unchanged: `Langlib.Ook.Prog` is

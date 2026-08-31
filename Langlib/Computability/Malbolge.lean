@@ -38,6 +38,11 @@ instance : ProgLang MalbolgeLang where
   parse := load
   run := evalImage
 
+/-- **Malbolge is lawful**: a completed run is a fixed point of more fuel.
+Proved in `Langlib/Languages/Malbolge/Stability.lean`. -/
+instance : LawfulProgLang MalbolgeLang where
+  halted_stable := evalImage_stable
+
 /-- One ten-trit Malbolge word, equivalently one memory address. -/
 abbrev MalbolgeWord := Fin memSize
 
@@ -513,6 +518,13 @@ instance : ProgLang LoadedMalbolge where
     else
       throw "loaded image is not 59049 words below 59049"
   run p input fuel := Langlib.Malbolge.evalImage p.val input fuel
+
+/-- **Loaded Malbolge is lawful**, by the same stability lemma: it runs the
+same interpreter on a well-formed image. -/
+instance : LawfulProgLang LoadedMalbolge where
+  halted_stable := by
+    intro p i n m hnm h
+    exact Langlib.Malbolge.evalImage_stable p.val i hnm h
 
 /-- The cursor can never pass this: the run starts at `i.pos` and only
 advances while there is input left. -/

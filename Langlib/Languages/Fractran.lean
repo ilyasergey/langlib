@@ -1,6 +1,7 @@
 import Langlib.Languages.Fractran.Syntax
 import Langlib.Languages.Fractran.Parser
 import Langlib.Languages.Fractran.Semantics
+import Langlib.Languages.Fractran.Stability
 
 /-!
 # FRACTRAN

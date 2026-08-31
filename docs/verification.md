@@ -33,16 +33,21 @@ Three properties hold across all of them, by construction:
    exit for every `m ≥ n`; if it runs out of fuel, its output so far is a
    prefix of what more fuel produces.
 
-Fuel monotonicity is the technical lemma that lets a proof stop worrying
-about the fuel bookkeeping that would otherwise dominate it. It belongs in
-`Langlib/Common/`, proved once per interpreter, stated uniformly:
-
-```lean
-theorem output_mono (p) (i) {n m} (h : n ≤ m) :
-  Prefix (run p i n).output (run p i m).output
-theorem halted_stable (p) (i) {n m} (h : n ≤ m) :
-  (run p i n).exit ≠ .outOfFuel → run p i m = run p i n
-```
+Fuel monotonicity is now a stated law, not folklore. `ProgLang` itself has
+no laws, so "∃ fuel, the run halts with the right output" — the form every
+correctness theorem concludes with — would be weaker than it reads: nothing
+ties the witness fuel to the bound a runner actually picks.
+[`LawfulProgLang`](../Langlib/Common/Compilation.lean) states the missing
+law (`halted_stable`: a completed run does not change with more fuel), and
+[`LawfulTraceLang`](../Langlib/Common/Compilation.lean) its trace
+counterpart; the `correct_stable` corollaries (and
+`TuringComplete.simulates_stable`) use them to upgrade every `∃ m` to
+"every fuel from some point on". Instances are proved once per interpreter,
+in `Langlib/Languages/<L>/Stability.lean`, by one induction over `exec`;
+**every language with a `ProgLang` instance has one**, and every language
+with a `TraceLang` instance (whitespace, subleq, FRACTRAN) has the trace
+counterpart. The output-prefix half sketched here earlier (`output_mono`)
+has no consumer yet and stays unstated.
 
 ## The correctness statement
 
@@ -74,7 +79,9 @@ right strength for this library:
 * Because both semantics are deterministic and observable behaviour is a
   byte stream, forward simulation on halting runs already gives the
   backward direction for halting runs: there is nothing else the compiled
-  program could have done.
+  program could have done. (That argument quietly uses fuel stability —
+  "the run at the witness fuel is *the* run" — which is now the stated law
+  `LawfulProgLang.halted_stable` rather than an unspoken assumption.)
 
 `InFragment C P` is a decidable predicate defined per compiler (no
 `readInt` for a byte-only backend, values within a documented range for
@@ -341,8 +348,11 @@ started with. Those are exactly the two backends the library has proved
 answer-correct, so the remaining work on both rows is on the Turpentine side
 and in the simulation, not in the interpreter.
 
-Fuel monotonicity dropped out of the scoreboard: both proofs use the
-exact-cost `Langlib.Common.Reaches` and never needed it.
+Fuel monotonicity dropped out of the scoreboard as a proof tool — both
+proofs use the exact-cost `Langlib.Common.Reaches` and never needed it —
+and came back as a stated guarantee: every language's `LawfulProgLang`
+instance is what turns each row's `∃ m` theorem into one about every
+sufficiently large fuel bound (`correct_stable`).
 
 Whitespace's fragment is scalar `int`/`bool` with the full expression
 language including subtraction, unary minus and negative literals, plus
