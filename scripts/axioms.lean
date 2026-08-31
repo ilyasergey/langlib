@@ -718,6 +718,11 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.printable_of_decode
 #print axioms Unshackled.printable_of_decode_jmp
 
+-- The cheap branch: successor sends the two flags to adjacent addresses.
+#print axioms Unshackled.succ_blank
+#print axioms Unshackled.succ_mark
+#print axioms Unshackled.flag_selects_address
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

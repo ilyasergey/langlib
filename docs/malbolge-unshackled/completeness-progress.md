@@ -100,14 +100,8 @@ than by taste:
 3. **`emit`** — settled arithmetically (`step1_out`); needs its gadget.
 4. **`loop`** — the probe feeding a branch, wrapped so the body is
    re-enterable. Every ingredient exists.
-5. **The assembler** — likely *not* new work. langlib-c9's Turpentine
-   backend (`Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean`)
-   already carries a tested one: `wordFor` places any instruction at any
-   address, `legalCell` decides what the loader accepts, and `Asm` builds
-   and renders the image. It was written for straight-line code, so it does
-   not yet exercise the two-cycle residues or the spacing law a re-enterable
-   gadget row needs, but it is the right thing to grow rather than
-   duplicate. `compile : Program → List Nat → Image`, total and
+5. **The assembler** — likely *not* new work; grow langlib-c9's rather
+   than duplicating it. `compile : Program → List Nat → Image`, total and
    runnable, laying gadgets out at stride 94 with data after the code. The
    *placement* half now exists and is runnable, in the straight-line
    backend `Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean`:
@@ -185,6 +179,118 @@ jump indexed by an input character with no rotation anywhere, which is a
 cheaper `inp` dispatch than the branch pipeline. It is not in any gadget
 yet; `hop`/`hop_hop_hop` is the proved copy, at three operations and with
 constants no source file can hold.
+
+## How to proceed
+
+Read this before writing anything. The development is large but the next
+step is narrow, and three of the four design questions that look open have
+already been closed by theorems.
+
+### The one blocker: a walk
+
+Everything built so far reaches **statically known** addresses. `chain_run`
+fixes the code stride at 94 so every address is a compile-time constant;
+`gadget_run` positions `d` from a pointer laid down in advance. What does
+not exist anywhere is a **walk**: data-dependent iteration, stepping cell by
+cell until a probe says stop. `inc`, `dec` and `loop` all need one and none
+is possible without it. Build the walk first; the rest follows it.
+
+Its shape, and why the layout was chosen to make it cheap: the slot stride
+`SI` in `regAddr` is *defined* to be the walking gadget's length, so `d`
+advancing one per instruction carries it from slot `i` to slot `i + 1` with
+**no address arithmetic at all**. One iteration is therefore:
+
+1. probe the register cell in this slot (`register_probe`, two chain links,
+   restores everything it touches);
+2. branch on the flag, back to the top of the walk or out.
+
+The measure that makes it terminate is the number of marks left on the
+tape, `(f r).p - i`, which strictly decreases; `run_of_measure` is the loop
+rule waiting for it, and `sim_loop_test` already reduces the condition to
+reading exactly the cell the walk halts on.
+
+### Use the cheap branch, not the pipeline
+
+`branch_arith` is seven crazy operations and consumes four shaping
+constants, which a loop would have to restock every iteration. **Do not
+build the walk on it.** A loop's two destinations are fixed at compile
+time, so use `flag_selects_address` instead: the flag is `Value.zero` or
+`Value.eof`, successor sends them to addresses `1` and `0` respectively, so
+writing the flag to a cell and `movd`-ing through it lands `d` on one of two
+cells the compiler owns, and a `jmp` reads whichever target it put there.
+Three instructions, nothing consumed that the next probe does not rewrite.
+
+The cost is that addresses 0 and 1 are where execution begins, so put the
+prologue elsewhere or make those two cells hold jump targets before any
+branch runs. Keep `branch_arith` for the case it was built for, arbitrary
+computed targets.
+
+### Then, in order
+
+1. **The walk**, as above. Prove it against `run_of_measure` and state its
+   conclusion in the shape `gadget_run` uses, so the commands can compose
+   with it.
+2. **`inc`** and **`dec`**: walk to the boundary, then one write.
+   `regMem_up` and `regMem_down` carry the layout invariant across the
+   write, and `sim_inc`/`sim_dec` close the step. `dec` is *not* harder than
+   `inc`: the two-tape representation made both "set the first blank".
+3. **`emit`**: `step1_out` plus `sim_emit`, no walk needed.
+4. **`loop`**: the walk's probe feeding the cheap branch, with the body
+   between. `two_sweep` makes the body re-enterable.
+5. **The assembler**: grow langlib-c9's `wordFor`/`legalCell`/`Asm` rather
+   than writing a second one, and talk to that session first. The one thing
+   it lacks is a placement mode for cells that run twice, which forces the
+   residue to one of two per instruction. Note that the interleaved-`jmp`
+   layout removes padding from the problem entirely, so this may be much
+   smaller than a constraint solve.
+6. **The induction on `Ev`**: `Sim` is the invariant, `sim_*` are the steps,
+   `run_of_measure` is the top and `exec_halts_of_run?` is the bottom. Long
+   but mechanical.
+
+### Traps that cost real time here
+
+* **Do not try to run in fresh memory.** A compiler chooses `rest`, so
+  untouched memory *can* be made executable, and it looks like an escape
+  from self-encryption. `rotr_forces_halt` closes it: a virgin phase that
+  can rotate can also halt, 42 addresses along in the same phase.
+* **Do not try to avoid `*`.** `widthBounded_step1` proves a rot-free run
+  keeps every storable value in a finite alphabet, so every `j` and `i`
+  teleports into a fixed finite address set for ever. Rotation is the only
+  source of unboundedly many addresses.
+* **Do not try to compute a branch flag.** `no_accumulator_flag` proves no
+  chain against compiled-in constants can produce a uniform value that
+  depends on the accumulator. A flag must be *read* from something already
+  uniform, which is why registers store blank and mark as `...000` and
+  `...222`.
+* **Watch which cell a jump must keep printable.** The jumping cell needs no
+  side condition (`printable_of_decode`); the cell it lands on does, because
+  the postal stage reads at `c` after the jump has moved it.
+* **Keep the accumulator known at every gadget boundary.** `crz_two_steps`
+  needs constants computed from the accumulator, so it only applies where
+  the accumulator is known. `crz_absorb` is the tool when it is not.
+
+### Working in this checkout
+
+Several sessions share it. Build and test your own targets by name;
+**never `git stash`** — doing so here clobbered another session's
+uncommitted work mid-edit, and recovering it took longer than the test it
+was meant to enable. Run `lake test` before pushing, not after: master has
+been red from other sessions' in-flight work more than once. Commit in
+stages and push each one.
+
+Audit with a scratch file importing only
+`Langlib.Computability.MalbolgeUnshackled` rather than through
+`scripts/axioms.lean`, which imports the whole library and so fails
+whenever any other session's file is broken.
+
+### What "done" means
+
+A term `malbolgeUnshackledComplete : TuringComplete MalbolgeUnshackledLang`
+in `Langlib/Computability/MalbolgeUnshackled.lean`, every declaration
+reporting only the three standard axioms, a differential test suite
+compiling small URM programs and checking the decoded answers, and this
+page rewritten to say what is proved rather than what is planned. Until
+then the top of this page must keep saying there is no witness.
 
 ## Verifying
 

@@ -4164,6 +4164,44 @@ theorem printable_of_decode_jmp {w : Value} {m : Nat} (h : decode w m = .jmp) :
     ∃ code, printableCode? w = some code :=
   printable_of_decode (by rw [h]; simp)
 
+/-! ## A cheaper branch than the pipeline
+
+`branch_arith` turns a flag into either of two arbitrary targets in seven
+crazy operations, which is what you need when the targets are arbitrary. A
+loop does not need that. Its two destinations are fixed at compile time,
+and the flag it branches on is already one of exactly two values, so the
+successor function does the work for free.
+
+The two flags are `Value.zero` and `Value.eof`, and 3-adic successor sends
+them to **different, adjacent, compiler-controlled addresses**: `...000 + 1`
+is `1`, while `...222 + 1` wraps to `0`. So writing the flag into a cell
+and then `movd`-ing through that cell lands `d` on address 1 or address 0
+according to the flag, and a following `jmp` reads whichever target the
+compiler put there.
+
+Three instructions, against the pipeline's seven, and nothing is consumed
+that the next probe does not rewrite anyway. The catch is that addresses 0
+and 1 are where execution begins, so a compiler using this branch must
+either place its prologue elsewhere or arrange for those two cells to hold
+jump targets by the time any branch runs. langlib-c9 met the same two
+addresses from the other side, as "pinned" table entries in the Turpentine
+backend; they are not an artefact of a prologue but a consequence of
+`eof.succ = 0`. -/
+
+theorem succ_blank : cellBlank.succ = Value.ofNat 1 := by decide
+
+theorem succ_mark : cellMark.succ = Value.ofNat 0 := by decide
+
+/-- **The flag selects between two adjacent addresses.** After a `movd`
+through a cell holding the flag, `d` is `1` for a blank and `0` for a mark.
+Both are cells the compiler owns, so a following `jmp` reads whichever
+target it laid there. -/
+theorem flag_selects_address {v : Value} (h : v = cellBlank ∨ v = cellMark) :
+    v.succ = Value.ofNat (if v = cellBlank then 1 else 0) := by
+  rcases h with h | h <;> subst h
+  · rw [if_pos rfl]; exact succ_blank
+  · rw [if_neg (by decide)]; exact succ_mark
+
 end Unshackled
 
 end Langlib.Computability
