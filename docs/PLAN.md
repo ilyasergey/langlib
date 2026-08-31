@@ -301,6 +301,14 @@ has a proved instance, one induction over its interpreter in
 `Langlib/Languages/<L>/Stability.lean` (the bounded Befunge-93 core's lives
 next to that model). See [verification.md](verification.md).
 
+`TraceLang` additionally carries `trace_faithful`: a halting run, replayed
+on any stream sandwiched between its claimed reads and the original, is the
+same run — the law that rules out a trace underreporting reads the
+behaviour depends on. Proved for all three instances: whitespace and subleq
+by a two-stream simulation over their interpreters
+(`Langlib/Languages/<L>/Faithful.lean`, with the line-reader half in
+`Langlib/Common/Io.lean`), FRACTRAN for free via `TraceLang.ofInputFree`.
+
 ### Behavioural certification for whitespace `[~]`
 
 Whitespace goes first, ahead of subleq. The reason is that
@@ -476,7 +484,8 @@ What remains for the milestone is the proof itself:
 
 **Then subleq**, where `encodeTrace` is the identity too and steps 0 and 2
 are already paid for. Its step 1 is done: `Subleq.State` records the run's
-events and `Langlib/Languages/Subleq/Trace.lean` proves the two laws, so
+events, `Langlib/Languages/Subleq/Trace.lean` proves the bookkeeping laws
+and `Subleq/Faithful.lean` the faithfulness law, so
 `instance : TraceLang SubleqLang` sits beside `ProgLang SubleqLang`. One
 instruction, two of whose forms do I/O; reading at end of input consumes
 nothing and so records nothing. The cost was the same as whitespace's:

@@ -31,6 +31,17 @@ one structural soft spot and two misleading docstrings, all now fixed.
   breaks the naive reduction; the recursion theorem does the work). Both
   docstrings now say so, and the dangling `docs/computability.md` reference
   points at `docs/agent-brief-completeness.md`.
+* **`TraceLang.trace_faithful`.** The trace laws could not stop a trace
+  from underreporting its reads; the new third law can: a halting run,
+  replayed on any stream sandwiched between the claimed reads and the
+  original, is the same run, so omitting a read the behaviour depends on is
+  refuted by the truncated stream. Proved for whitespace and subleq by a
+  two-stream simulation (`Langlib/Languages/<L>/Faithful.lean`; the line
+  reader's half lives in `Langlib/Common/Io.lean` as
+  `readLineGo_faithful`), and for FRACTRAN for free. Finding the right
+  statement was the work: the law is false for erroring runs — whitespace's
+  `readnum` parse error prints the offending line while consuming nothing —
+  which is why it covers halting runs only, and the docs say so.
 
 ## 2026-08-31: a Turpentine backend for Malbolge itself
 

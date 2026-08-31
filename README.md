@@ -135,7 +135,7 @@ One definition carries the whole library: running a program, proving a
 compiler correct, and claiming a language is or is not Turing complete are
 all stated against it.
 
-**[`ProgLang L`](Langlib/Common/Compilation.lean#L71)** is what every
+**[`ProgLang L`](Langlib/Common/Compilation.lean#L90)** is what every
 language here supplies.
 
 ```lean
@@ -206,28 +206,28 @@ All three live in
 shared infrastructure rather than per-language files, so a claim means the
 same thing for every language.
 
-**[`TuringComplete L`](Langlib/Common/Computability.lean#L84)** is the
+**[`TuringComplete L`](Langlib/Common/Computability.lean#L104)** is the
 positive claim, and it is a *witness* rather than a proposition: a compiler
 from URM programs into `L`, an encoding of the machine's input, a decoding
 of its answer, and a proof that a compiled program halts with the right
 answer whenever the machine does. Writing that term down is what "we proved
 it complete" means here.
-[`computes_of_turingComplete`](Langlib/Common/Computability.lean#L135)
+[`computes_of_turingComplete`](Langlib/Common/Computability.lean#L173)
 translates it into cslib's own vocabulary: such an `L` computes every
 URM-computable partial function, wherever that function is defined. The
 witness also pays for itself, because a compiler from a register machine is
 exactly what a certified Turpentine backend needs (see below).
 
-**[`BoundedStorage L`](Langlib/Common/Computability.lean#L187)** is the
+**[`BoundedStorage L`](Langlib/Common/Computability.lean#L225)** is the
 negative claim: a configuration type, a bound on it per program and input,
 an injection into `{0, …, bound - 1}`, and two laws saying the machine is
 deterministic and that halting depends only on the configuration. From
-those, [`halting_decidable`](Langlib/Common/Computability.lean#L341)
+those, [`halting_decidable`](Langlib/Common/Computability.lean#L389)
 follows once and for all — a run that has not halted within `bound` steps
 has repeated a configuration and never will. A language with this witness
 cannot be Turing complete.
 
-**[`BoundedRun L`](Langlib/Common/Computability.lean#L219)** asks for the
+**[`BoundedRun L`](Langlib/Common/Computability.lean#L257)** asks for the
 same laws only where the pigeonhole argument uses them: at configurations a
 run actually reaches. Every `BoundedStorage` gives one. It exists because a
 language can have a state *type* that is wide (an unbounded array, an
@@ -279,18 +279,18 @@ the output is enormous, and the fragment is I/O-free.
 
 Answer preservation is not behaviour preservation, and the library says
 which one it has proved.
-[`CertifiedCompiler`](Langlib/Common/Compilation.lean#L96) is the
+[`CertifiedCompiler`](Langlib/Common/Compilation.lean#L142) is the
 answer-only statement: the compiled program halts and prints something that
 decodes to the number the source computed. That is exactly right for the
 derived compilers, whose fragment has no I/O, and much too weak for a
 backend that compiles `read` and `print`.
-[`IOCertifiedCompiler`](Langlib/Common/Compilation.lean#L212) is the
+[`IOCertifiedCompiler`](Langlib/Common/Compilation.lean#L304) is the
 behavioural one: a run's observable behaviour is a
 [`Trace`](Langlib/Common/Io.lean#L366) of the bytes it consumed and
 emitted, in order, and the compiled program has to reproduce the source's
 trace under an encoding the compiler declares up front, as well as its
 answer.
-[`toCertified`](Langlib/Common/Compilation.lean#L253) proves the second
+[`toCertified`](Langlib/Common/Compilation.lean#L345) proves the second
 implies the first, so upgrading a backend loses none of what was already
 proved about it. One backend has reached the behavioural statement:
 [`bespokeWhitespaceIO`](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4410)
@@ -302,7 +302,7 @@ remaining candidates and what each one needs are tabulated in
 
 Both compilation schemes are inhabitants of the same `CertifiedCompiler`
 interface, which pays off where a target has both:
-[`agree`](Langlib/Common/Compilation.lean#L126) proves that any two
+[`agree`](Langlib/Common/Compilation.lean#L172) proves that any two
 verified compilers for one target decode the same answer out of every
 program both accept. Subleq and whitespace have both, so for those two
 "the derived compiler is an oracle for the hand-written one" is a theorem

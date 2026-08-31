@@ -262,7 +262,7 @@ are inhabitants of a single `TurpentineCompiler` interface, so a language
 with both gets `agree` for free: on every program both accept, the two
 provably decode the same answer. Not the same *behaviour* — that is a
 stronger claim, and the interface for it is
-[`IOCertifiedCompiler`](../Langlib/Common/Compilation.lean#L212), which
+[`IOCertifiedCompiler`](../Langlib/Common/Compilation.lean#L304), which
 [whitespace's hand-written backend](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4410)
 inhabits over its output fragment and nothing else does yet.
 
@@ -299,13 +299,13 @@ The three columns follow from that, in the order the table puts them.
   verified compilers for one target produce the same answers.
 
   A `TurpentineCompiler` is
-  [`CertifiedCompiler`](../Langlib/Common/Compilation.lean#L96) — the
+  [`CertifiedCompiler`](../Langlib/Common/Compilation.lean#L142) — the
   library's generic notion of correct compilation, in the source, the
   answer type and the target — at Turpentine's own specification. Answers,
   not behaviour: the stronger
-  [`IOCertifiedCompiler`](../Langlib/Common/Compilation.lean#L212) also
+  [`IOCertifiedCompiler`](../Langlib/Common/Compilation.lean#L304) also
   demands the compiled program reproduce the source's trace of I/O events,
-  and [implies](../Langlib/Common/Compilation.lean#L253) this column. One
+  and [implies](../Langlib/Common/Compilation.lean#L345) this column. One
   backend has reached it —
   [`bespokeWhitespaceIO`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4410),
   over the output-only fragment, with `encodeTrace` the identity — and the

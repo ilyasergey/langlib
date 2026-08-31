@@ -12,6 +12,9 @@ semantic choices are in [docs/brainfuck/spec.md](../../../docs/brainfuck/spec.md
   unmatched bracket, reported with line and column.
 * `Semantics.lean`: the pure, fuel-based reference evaluator over a tape
   zipper. Configuration (`Config`) selects the EOF convention.
+* `Stability.lean`: a completed run is a fixed point of more fuel — the
+  `Langlib.Common.LawfulProgLang` law, proved by one induction over the
+  interpreter.
 * `Main.lean`: the standalone runner.
 
 ## Running

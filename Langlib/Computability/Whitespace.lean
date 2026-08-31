@@ -1109,8 +1109,9 @@ instance : ProgLang WhitespaceLang where
 
 /-- **Whitespace's trace semantics.** Unlike FRACTRAN, whitespace reads, so
 its instance cannot come from `TraceLang.ofInputFree`: the interpreter has
-to record its own events, and `Langlib/Languages/Whitespace/Trace.lean` proves
-the two laws about the record it keeps.
+to record its own events; `Langlib/Languages/Whitespace/Trace.lean` proves
+the bookkeeping laws about the record it keeps, and `Whitespace/Faithful.lean`
+the faithfulness law.
 
 This is the library's first `TraceLang` instance for a language that
 consumes input, and it is what makes an `IOCertifiedCompiler` into
@@ -1119,6 +1120,9 @@ instance : TraceLang WhitespaceLang where
   trace := Langlib.Whitespace.evalTrace
   trace_outputs := Langlib.Whitespace.evalTrace_outputs
   trace_inputs := Langlib.Whitespace.evalTrace_inputs
+  trace_faithful := by
+    intro p i i' n hh hA hB
+    exact Langlib.Whitespace.eval_faithful p i i' n hh hA hB
 
 /-- **Whitespace is lawful**: a completed run is a fixed point of more fuel.
 Proved in `Langlib/Languages/Whitespace/Stability.lean`; it upgrades every

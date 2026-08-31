@@ -30,6 +30,9 @@ continuation is reified.
   forced by the language: `c` must capture the rest of the computation, and
   `d` must be intercepted on the *value* of an operator rather than on its
   syntax.
+* `Stability.lean`: a completed run is a fixed point of more fuel — the
+  `Langlib.Common.LawfulProgLang` law, proved by one induction over the
+  interpreter.
 * `Main.lean`: the standalone runner.
 
 ## Running

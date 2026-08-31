@@ -18,6 +18,9 @@ printed spec and the reference interpreter disagree) are in
   stored unchecked). Errors report line, column, and load address.
 * `Semantics.lean`: the pure, fuel-based evaluator; one fuel unit per
   execution cycle.
+* `Stability.lean`: a completed run is a fixed point of more fuel — the
+  `Langlib.Common.LawfulProgLang` law, proved by one induction over the
+  interpreter.
 * `Main.lean`: the standalone runner.
 
 ## Running

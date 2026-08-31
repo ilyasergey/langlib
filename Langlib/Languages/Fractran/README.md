@@ -18,6 +18,9 @@ The full specification, history, and the exact semantic choices are in
   fixes the starting value; because fractions are reduced, the step's
   divisibility test is `n % den == 0` and the update `n / den * num` is an
   exact division on arbitrary-precision `Nat`.
+* `Stability.lean`: a completed run is a fixed point of more fuel — the
+  `Langlib.Common.LawfulProgLang` law, proved by one induction over the
+  interpreter.
 * `Main.lean`: the standalone runner.
 
 ## Running

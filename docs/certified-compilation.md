@@ -10,9 +10,9 @@ There are two halves to that claim, and this page is organised around them.
 
 * **What "correct" means.** Two definitions, one weaker and one stronger,
   both generic in the source language and the target:
-  [`CertifiedCompiler`](../Langlib/Common/Compilation.lean#L96) preserves
+  [`CertifiedCompiler`](../Langlib/Common/Compilation.lean#L142) preserves
   the program's *answer*, and
-  [`IOCertifiedCompiler`](../Langlib/Common/Compilation.lean#L212)
+  [`IOCertifiedCompiler`](../Langlib/Common/Compilation.lean#L304)
   preserves its *behaviour* — the bytes it read and printed, in order. The
   second implies the first.
 * **Two ways to get one.** *Derived*, by composing one shared
@@ -23,7 +23,7 @@ There are two halves to that claim, and this page is organised around them.
   interface, so where a target has both, they are provably in agreement.
 
 Everything here is stated over
-[`ProgLang`](../Langlib/Common/Compilation.lean#L71), the class every
+[`ProgLang`](../Langlib/Common/Compilation.lean#L90), the class every
 language in the library instantiates: a program type, a parser, and a pure
 fuel-based interpreter. The design argument behind the whole pipeline is in
 [verification.md](verification.md); this page is the engineering, and the
@@ -82,20 +82,20 @@ compilers for one target at once, and instance resolution is built to pick
 exactly one; a class would be ambiguous or would choose silently. So this is
 bundled data with named inhabitants, exactly like `TuringComplete`, and
 callers say which compiler they mean.
-[`ProgLang L`](../Langlib/Common/Compilation.lean#L71) stays a real class,
+[`ProgLang L`](../Langlib/Common/Compilation.lean#L90) stays a real class,
 because there is only ever one way to *run* a given language.
 
 Two theorems come with the interface, proved once for every source and
 target:
 
-* [`agree`](../Langlib/Common/Compilation.lean#L126) — on a program two
+* [`agree`](../Langlib/Common/Compilation.lean#L172) — on a program two
   compilers both accept and a source run producing `result`, both compiled
   programs halt and their outputs decode to the same answer. It follows from
   the two `correct` fields against the one specification, which is the formal
   version of "the derived compiler is an oracle for the hand-written one":
   once the hand-written backend has an inhabitant, the oracle claim stops
   being a testing practice and becomes a corollary.
-* [`weaken`](../Langlib/Common/Compilation.lean#L142) — a compiler correct
+* [`weaken`](../Langlib/Common/Compilation.lean#L204) — a compiler correct
   for `spec` is correct for anything `spec` refines. This is what lets a
   behavioural result be read back as an answer-only one.
 
@@ -110,9 +110,9 @@ decoder that ignores the output, and neither does.
 It is free of Mathlib and of cslib, deliberately, so a hand-written backend
 can state and prove its own correctness without either reaching the
 interpreters. Only the *computability* half of the story —
-[`TuringComplete`](../Langlib/Common/Computability.lean#L84),
-[`BoundedStorage`](../Langlib/Common/Computability.lean#L187), and
-[the bridge to cslib's vocabulary](../Langlib/Common/Computability.lean#L135)
+[`TuringComplete`](../Langlib/Common/Computability.lean#L104),
+[`BoundedStorage`](../Langlib/Common/Computability.lean#L225), and
+[the bridge to cslib's vocabulary](../Langlib/Common/Computability.lean#L173)
 — needs a universal model, and it lives next door in
 [`Langlib/Common/Computability.lean`](../Langlib/Common/Computability.lean).
 
@@ -148,22 +148,27 @@ supplies, not something derivable from the interpreter it already has:
 ```lean
 class TraceLang (L : Type) [ProgLang L] where
   trace : ProgLang.Prog L → Input → Nat → Trace
-  trace_outputs : ∀ p i n, (trace p i n).outputs = (ProgLang.run p i n).output.toList
-  trace_inputs  : ∀ p i n, (trace p i n).inputs <+: i.remaining
+  trace_outputs  : ∀ p i n, (trace p i n).outputs = (ProgLang.run p i n).output.toList
+  trace_inputs   : ∀ p i n, (trace p i n).inputs <+: i.remaining
+  trace_faithful : ∀ p i i' n, (ProgLang.run p i n).exit = .halted →
+    (trace p i n).inputs <+: i'.remaining → i'.remaining <+: i.remaining →
+    ProgLang.run p i' n = ProgLang.run p i n ∧ trace p i' n = trace p i n
 ```
 
-The two laws pin the output side exactly — `trace` can neither invent nor
-lose output — and constrain the input side to a prefix of what the stream
-still had to give. They do not, by themselves, force an interpreter to report
-every read it performs, and no law over a fuel-based evaluator can: a run
-that stopped at end of input is indistinguishable from one that never
-looked. A [`TraceLang`](../Langlib/Common/Compilation.lean#L162) instance is
-therefore part of a *language's* specification, written and reviewed next to
-its interpreter, and not something a compiler author may invent to make a
-proof go through.
+The first two laws pin the output side exactly — `trace` can neither invent
+nor lose output — and constrain the input side to a prefix of what the
+stream still had to give. The third pins the input side from below: a
+halting run, replayed on any stream sandwiched between the claimed reads
+and the original, is the same run, so a trace that omits a read the
+behaviour depends on is refuted by its own truncation. What no law can pin
+is the behaviourally inert part — erroring runs (whitespace's parse error
+prints a line it never consumed) and reads whose bytes nothing observable
+depends on — so a [`TraceLang`](../Langlib/Common/Compilation.lean#L228)
+instance remains part of a *language's* specification, written and reviewed
+next to its interpreter.
 
 The one sound shortcut is a language that provably never reads.
-[`TraceLang.ofInputFree`](../Langlib/Common/Compilation.lean#L182) builds
+[`TraceLang.ofInputFree`](../Langlib/Common/Compilation.lean#L259) builds
 the instance from a proof that `run` gives the same answer on every input
 stream, and FRACTRAN — whose `run` takes an `Input` and never looks at it —
 discharges that by `rfl`. It was the library's first instance, and it is
@@ -174,9 +179,12 @@ They read, so the interpreter has to record what it did:
 `Langlib.Whitespace.State` carries the run's events, the four I/O
 instructions append to them, and
 [`Langlib/Languages/Whitespace/Trace.lean`](../Langlib/Languages/Whitespace/Trace.lean)
-proves the two laws.
-[Subleq's](../Langlib/Languages/Subleq/Trace.lean) is the same, and shorter,
-because subleq has one instruction and only two of its forms do I/O.
+proves the bookkeeping laws and
+[`Whitespace/Faithful.lean`](../Langlib/Languages/Whitespace/Faithful.lean)
+the faithfulness law.
+[Subleq's](../Langlib/Languages/Subleq/Trace.lean) are the same, and
+shorter, because subleq has one instruction and only two of its forms do
+I/O.
 
 Both follow from one invariant on a reachable state — what the trace says
 was emitted *is* the output, and what it says was consumed *followed by what
@@ -234,10 +242,10 @@ def IOCertifiedCompiler.toCertified (c : IOCertifiedCompiler spec L) (σ : Input
     CertifiedCompiler (specErase spec σ) L
 ```
 
-where [`specErase spec σ p n a`](../Langlib/Common/Compilation.lean#L239) is
+where [`specErase spec σ p n a`](../Langlib/Common/Compilation.lean#L331) is
 `∃ τ, spec p σ n τ a`: fix the input stream, forget which events happened,
 keep that some run produced the answer. There is a second form,
-[`toCertifiedOf`](../Langlib/Common/Compilation.lean#L269), which takes the
+[`toCertifiedOf`](../Langlib/Common/Compilation.lean#L361), which takes the
 answer-only specification a backend was *already* proved against plus a proof
 that the I/O-aware one accounts for every run it describes.
 
@@ -245,10 +253,10 @@ This is the migration path, and it is why the two notions coexist rather than
 one replacing the other. Everything the library has proved so far is stated
 for `CertifiedCompiler`; when a backend is upgraded, none of it has to be
 reproved. Two consequences come free with the stronger notion:
-[`output_eq`](../Langlib/Common/Compilation.lean#L278), that the compiled
+[`output_eq`](../Langlib/Common/Compilation.lean#L391), that the compiled
 run's output bytes are determined by the source trace — exactly the
 information the answer-only statement throws away — and
-[`IOCertifiedCompiler.agree`](../Langlib/Common/Compilation.lean#L291), that
+[`IOCertifiedCompiler.agree`](../Langlib/Common/Compilation.lean#L404), that
 two behaviourally verified compilers encoding traces the same way agree on
 the trace as well as on the answer.
 
@@ -364,7 +372,7 @@ naturals, and four instructions — `Z n` (zero a register), `S n`
 `n` are equal). It is the yardstick LangLib measures languages against, and
 it comes from [cslib](https://github.com/leanprover/cslib) rather than being
 defined here. Proving a language Turing complete means producing a
-[`TuringComplete L`](../Langlib/Common/Computability.lean#L84) witness,
+[`TuringComplete L`](../Langlib/Common/Computability.lean#L104) witness,
 which *contains a verified compiler from URM programs into `L`*.
 
 That is the observation the whole route rests on. Half of a

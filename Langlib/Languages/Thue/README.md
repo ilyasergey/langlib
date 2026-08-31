@@ -18,6 +18,9 @@ specification, history, and the exact semantic choices are in
   the strategy: `first` (deterministic default: first rule in program
   order, leftmost occurrence) or `random seed` (uniform over all matches,
   driven by a documented LCG, reproducible per seed).
+* `Stability.lean`: a completed run is a fixed point of more fuel — the
+  `Langlib.Common.LawfulProgLang` law, proved by one induction over the
+  interpreter.
 * `Main.lean`: the standalone runner.
 
 ## Running

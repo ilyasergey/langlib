@@ -92,7 +92,7 @@ is `(C P).isOk`, and the theorem is stated against the successful case.
 ### Where this lives in Lean
 
 The sketch above is now a definition rather than prose:
-[`IOCertifiedCompiler`](../Langlib/Common/Compilation.lean#L212) in
+[`IOCertifiedCompiler`](../Langlib/Common/Compilation.lean#L304) in
 `Langlib/Common/Compilation.lean`, generic in the source language, the
 answer type and the target. It differs from the sketch in two ways, both
 strengthenings.
@@ -102,7 +102,13 @@ two runs printed the same bytes; it says nothing about what they *read*, so
 a compiled program that ignored its input and printed the right answer
 would pass. A `Trace` records consumption and emission as interleaved
 events, so the statement pins down how much of the stream was used and in
-what order relative to the printing.
+what order relative to the printing. The trace itself is pinned by three
+laws, the third of which (`trace_faithful`) rules out underreporting: a
+halting run, replayed on the stream truncated to the reads its trace
+claims, must be the same run. Whitespace, subleq and FRACTRAN all satisfy
+it; whitespace is why the law covers halting runs only — its `readnum`
+parse error prints the offending line while consuming nothing, so an
+erroring run can observably depend on bytes no honest trace claims.
 
 *The target's stream and events are the source's under a declared
 encoding.* The sketch runs both programs on the same `Input` and demands
@@ -115,9 +121,9 @@ re-encoding backend states a real theorem instead of a weakened one.
 What it does *not* strengthen is the halting hypothesis: divergence is
 still unconstrained, and "Later" below is still where that is owed. The
 weaker, answer-only
-[`CertifiedCompiler`](../Langlib/Common/Compilation.lean#L96) is what every
+[`CertifiedCompiler`](../Langlib/Common/Compilation.lean#L142) is what every
 result in the table below is stated with today, and
-[`toCertified`](../Langlib/Common/Compilation.lean#L253) proves the
+[`toCertified`](../Langlib/Common/Compilation.lean#L345) proves the
 behavioural statement implies it, so a backend can be upgraded without
 reproving anything that already rests on it.
 

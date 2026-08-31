@@ -18,6 +18,9 @@ from Malbolge, and what the language leaves to the implementation are in
   operation of the last two words, as Malbolge does, and reports the line
   and column of an illegal instruction.
 * `Semantics.lean`: the pure, fuel-based reference evaluator.
+* `Stability.lean`: a completed run is a fixed point of more fuel — the
+  `Langlib.Common.LawfulProgLang` law, proved by one induction over the
+  interpreter.
 * `Main.lean`: the standalone runner.
 
 ## Running

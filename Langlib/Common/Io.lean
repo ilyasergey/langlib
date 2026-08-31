@@ -502,6 +502,285 @@ theorem read?_remaining {i : Input} {b : UInt8} {i' : Input} (h : i.read? = some
   rw [getElem!_pos i.data i.pos hlt]
   simp
 
+/-! ### A read is determined by what the stream has left
+
+The faithfulness law (`Langlib/Common/Compilation.lean`) compares one run
+against another on a different stream, so its proofs need the converse of
+the lemmas above: not what a read did to the stream, but what the stream
+forces a read to do. A stream with nothing left refuses; a stream with
+`b :: t` left produces `b` and leaves `t`. -/
+
+/-- A stream with nothing left refuses to read. -/
+theorem read?_eq_none_of_remaining {i : Input} (h : i.remaining = []) :
+    i.read? = none := by
+  have hge : ¬ i.pos < i.data.size := by
+    rw [remaining, List.drop_eq_nil_iff] at h
+    intro hlt
+    rw [ByteArray.length_toList] at h
+    omega
+  unfold read?
+  rw [dif_neg hge]
+
+/-- A stream with `b :: t` left reads `b` and has `t` left. -/
+theorem read?_of_remaining_cons {i : Input} {b : UInt8} {t : List UInt8}
+    (h : i.remaining = b :: t) :
+    ∃ i', i.read? = some (b, i') ∧ i'.remaining = t := by
+  have hlt : i.pos < i.data.size := by
+    cases Nat.lt_or_ge i.pos i.data.size with
+    | inl h' => exact h'
+    | inr hge =>
+      have hnil : i.remaining = [] := by
+        rw [remaining, List.drop_eq_nil_iff, ByteArray.length_toList]
+        omega
+      rw [hnil] at h
+      exact absurd h (by simp)
+  obtain ⟨b', i', hr⟩ : ∃ b' i', i.read? = some (b', i') := by
+    unfold read?
+    rw [dif_pos hlt]
+    exact ⟨_, _, rfl⟩
+  have hbi := read?_remaining hr
+  rw [h] at hbi
+  obtain ⟨hb, ht⟩ := List.cons.inj hbi
+  exact ⟨i', hb ▸ hr, ht⟩
+
+/-- What a run consumed, decomposed at its first read: the byte that read
+produced, then what was consumed after it. `j` is where the run's cursor
+ends. -/
+theorem between_cons_of_read? {i i' j : Input} {b : UInt8}
+    (hr : i.read? = some (b, i')) (hp : i'.pos ≤ j.pos) :
+    between i j = b :: between i' j := by
+  have hpos := read?_pos hr
+  have hrem := read?_remaining hr
+  rw [between, between, ← hrem,
+    show j.pos - i.pos = (j.pos - i'.pos) + 1 by omega,
+    List.take_succ_cons]
+
+/-- Standing still consumes nothing. -/
+theorem between_self (i : Input) : between i i = [] := by
+  rw [between, Nat.sub_self, List.take_zero]
+
+/-- Consumption composes at a middle cursor: what the run consumed on the
+way from `i` to `k` is what it consumed up to `j`, then from `j` on. -/
+theorem between_append {i j k : Input} (hij : i.pos ≤ j.pos) (hjk : j.pos ≤ k.pos)
+    (hd : j.data = i.data) :
+    between i k = between i j ++ between j k := by
+  have hjr : j.remaining = i.remaining.drop (j.pos - i.pos) := by
+    simp only [remaining, hd, List.drop_drop]
+    congr 1
+    omega
+  rw [between, between, between, hjr,
+    show k.pos - i.pos = (j.pos - i.pos) + (k.pos - j.pos) by omega,
+    List.take_add]
+
+/-- Unpack one byte off a stream described by what it has left: the cursor
+is in range, the byte under it is the head, and one step of the cursor
+leaves the tail. -/
+theorem remaining_step {i : Input} {b : UInt8} {t : List UInt8}
+    (h : i.remaining = b :: t) :
+    ∃ (hlt : i.pos < i.data.size),
+      i.data[i.pos] = b ∧
+      i.read? = some (b, { i with pos := i.pos + 1 }) ∧
+      ({ i with pos := i.pos + 1 } : Input).remaining = t := by
+  have hlt : i.pos < i.data.size := by
+    cases Nat.lt_or_ge i.pos i.data.size with
+    | inl h' => exact h'
+    | inr hge =>
+      have hnil : i.remaining = [] := by
+        rw [remaining, List.drop_eq_nil_iff, ByteArray.length_toList]
+        omega
+      rw [hnil] at h
+      exact absurd h (by simp)
+  have hr : i.read? = some (i.data[i.pos], { i with pos := i.pos + 1 }) := by
+    unfold read?
+    rw [dif_pos hlt]
+  have hrem := read?_remaining hr
+  rw [h] at hrem
+  obtain ⟨hb, ht⟩ := List.cons.inj hrem
+  exact ⟨hlt, hb, hb ▸ hr, ht⟩
+
+/-! ### The line reader is faithful
+
+The `TraceLang` faithfulness law (`Langlib/Common/Compilation.lean`) needs,
+for a language that reads lines, that `readLineGo` is determined by the
+bytes it consumed: on any stream that still offers those bytes, but no more
+than the original had, it reads the same line, consumes the same bytes, and
+leaves a residue sandwiched the same way. -/
+
+theorem readLineGo_faithful : ∀ (acc : ByteArray) (i j : Input),
+    between i (readLineGo acc i).2 <+: j.remaining →
+    j.remaining <+: i.remaining →
+    (readLineGo acc j).1 = (readLineGo acc i).1 ∧
+    between j (readLineGo acc j).2 = between i (readLineGo acc i).2 ∧
+    (readLineGo acc j).2.remaining <+: (readLineGo acc i).2.remaining := by
+  intro acc i
+  induction acc, i using readLineGo.induct with
+  | case1 acc i hlt hnl =>
+    -- The byte under the cursor is the newline: consume it and stop.
+    intro j hA hB
+    have hr : i.read? = some (i.data[i.pos], { i with pos := i.pos + 1 }) := by
+      unfold read?
+      rw [dif_pos hlt]
+    have hgoi : readLineGo acc i = (acc, { i with pos := i.pos + 1 }) := by
+      rw [readLineGo, dif_pos hlt, if_pos hnl]
+    rw [hgoi] at hA ⊢
+    dsimp only at hA ⊢
+    rw [between_cons_of_read? hr (Nat.le_refl _), between_self] at hA
+    obtain ⟨t, ht⟩ := hA
+    have hjr : j.remaining = i.data[i.pos] :: t := by rw [← ht]; rfl
+    obtain ⟨hltj, hbj, hrj, hremj⟩ := remaining_step hjr
+    have hgoj : readLineGo acc j = (acc, { j with pos := j.pos + 1 }) := by
+      rw [readLineGo, dif_pos hltj, if_pos (by rw [hbj]; exact hnl)]
+    rw [hgoj]
+    dsimp only
+    refine ⟨rfl, ?_, ?_⟩
+    · rw [between_cons_of_read? hrj (Nat.le_refl _), between_self,
+        between_cons_of_read? hr (Nat.le_refl _), between_self]
+    · rw [hremj]
+      have hir := read?_remaining hr
+      rw [hjr] at hB
+      obtain ⟨u, hu⟩ := hB
+      rw [← hir, List.cons_append] at hu
+      exact ⟨u, (List.cons.inj hu).2⟩
+  | case2 acc i hlt hnl ih =>
+    -- An ordinary byte: consume it and keep reading.
+    intro j hA hB
+    have hr : i.read? = some (i.data[i.pos], { i with pos := i.pos + 1 }) := by
+      unfold read?
+      rw [dif_pos hlt]
+    have hgoi : readLineGo acc i
+        = readLineGo (acc.push i.data[i.pos]) { i with pos := i.pos + 1 } := by
+      rw [readLineGo, dif_pos hlt, if_neg hnl]
+    rw [hgoi] at hA ⊢
+    rw [between_cons_of_read? hr (readLineGo_pos_le _ _)] at hA
+    obtain ⟨t, ht⟩ := hA
+    rw [List.cons_append] at ht
+    have hjr : j.remaining = i.data[i.pos] :: (between { i with pos := i.pos + 1 }
+        (readLineGo (acc.push i.data[i.pos]) { i with pos := i.pos + 1 }).2 ++ t) :=
+      ht.symm
+    obtain ⟨hltj, hbj, hrj, hremj⟩ := remaining_step hjr
+    have hB' : ({ j with pos := j.pos + 1 } : Input).remaining <+:
+        ({ i with pos := i.pos + 1 } : Input).remaining := by
+      have hir := read?_remaining hr
+      rw [hjr] at hB
+      obtain ⟨u, hu⟩ := hB
+      rw [← hir, List.cons_append] at hu
+      exact ⟨u, by rw [hremj]; exact (List.cons.inj hu).2⟩
+    obtain ⟨h1, h2, h3⟩ := ih { j with pos := j.pos + 1 } ⟨t, hremj.symm⟩ hB'
+    have hgoj : readLineGo acc j
+        = readLineGo (acc.push i.data[i.pos]) { j with pos := j.pos + 1 } := by
+      rw [readLineGo, dif_pos hltj, if_neg (by rw [hbj]; exact hnl), hbj]
+    rw [hgoj]
+    refine ⟨h1, ?_, h3⟩
+    rw [between_cons_of_read? hrj (readLineGo_pos_le _ _), h2,
+      ← between_cons_of_read? hr (readLineGo_pos_le _ _)]
+  | case3 acc i hlt =>
+    -- End of input: the sandwich forces the other stream to have ended too.
+    intro j hA hB
+    have hnil : i.remaining = [] := by
+      rw [remaining, List.drop_eq_nil_iff, ByteArray.length_toList]
+      omega
+    have hjnil : j.remaining = [] := List.prefix_nil.mp (hnil ▸ hB)
+    have hltj : ¬ j.pos < j.data.size := by
+      rw [remaining, List.drop_eq_nil_iff, ByteArray.length_toList] at hjnil
+      omega
+    have hgoi : readLineGo acc i = (acc, i) := by rw [readLineGo, dif_neg hlt]
+    have hgoj : readLineGo acc j = (acc, j) := by rw [readLineGo, dif_neg hltj]
+    rw [hgoi, hgoj]
+    refine ⟨rfl, ?_, ?_⟩
+    · dsimp only
+      rw [between_self, between_self]
+    · dsimp only
+      rw [hjnil]
+      exact List.nil_prefix
+
+/-- `readLineBytes?` is faithful: the sandwiched stream reads the same
+line, consumes the same bytes, and leaves a residue sandwiched the same
+way. -/
+theorem readLineBytes?_faithful {i i₁ j : Input} {bs : ByteArray}
+    (hr : readLineBytes? i = some (bs, i₁))
+    (hA : between i i₁ <+: j.remaining)
+    (hB : j.remaining <+: i.remaining) :
+    ∃ j₁, readLineBytes? j = some (bs, j₁) ∧
+      between j j₁ = between i i₁ ∧ j₁.remaining <+: i₁.remaining := by
+  have hne : i.atEof = false := by
+    unfold readLineBytes? at hr
+    split at hr
+    · exact absurd hr (by simp)
+    · next h => simpa using h
+  have hlt : i.pos < i.data.size := by
+    unfold atEof at hne
+    simpa using hne
+  have hgo : readLineGo .empty i = (bs, i₁) := by
+    unfold readLineBytes? at hr
+    rw [if_neg (by rw [hne]; simp)] at hr
+    exact Option.some.inj hr
+  have hstep : between i (readLineGo ByteArray.empty i).2 <+: j.remaining := by
+    rw [hgo]
+    exact hA
+  -- The line reader, faced with at least one byte, consumes at least one
+  -- byte, so the other stream cannot have ended.
+  have hone : i.pos < (readLineGo ByteArray.empty i).2.pos := by
+    rw [readLineGo, dif_pos hlt]
+    split
+    · exact Nat.lt_succ_self _
+    · exact Nat.lt_of_lt_of_le (Nat.lt_succ_self _)
+        (readLineGo_pos_le (ByteArray.empty.push i.data[i.pos])
+          { i with pos := i.pos + 1 })
+  have hrem : i.remaining ≠ [] := by
+    intro hn
+    rw [remaining, List.drop_eq_nil_iff, ByteArray.length_toList] at hn
+    omega
+  have hbetween : between i (readLineGo ByteArray.empty i).2 ≠ [] := by
+    rw [between]
+    intro hn
+    rw [List.take_eq_nil_iff] at hn
+    cases hn with
+    | inl h0 => omega
+    | inr hnil => exact hrem hnil
+  have hjne : ¬ j.atEof = true := by
+    intro hj
+    have hjnil : j.remaining = [] := by
+      unfold atEof at hj
+      rw [remaining, List.drop_eq_nil_iff, ByteArray.length_toList]
+      simpa using hj
+    rw [hjnil, List.prefix_nil] at hstep
+    exact hbetween hstep
+  obtain ⟨h1, h2, h3⟩ := readLineGo_faithful .empty i j hstep hB
+  refine ⟨(readLineGo .empty j).2, ?_, ?_, ?_⟩
+  · unfold readLineBytes?
+    rw [if_neg hjne]
+    rw [hgo] at h1
+    rw [show readLineGo ByteArray.empty j
+        = ((readLineGo ByteArray.empty j).1, (readLineGo ByteArray.empty j).2) from rfl,
+      h1]
+  · rw [h2, hgo]
+  · rw [hgo] at h3
+    exact h3
+
+/-- `readLine?` is faithful, as the byte-level reader is: same line, same
+consumption, sandwiched residue. -/
+theorem readLine?_faithful {i i₁ j : Input} {ln : String}
+    (hr : readLine? i = some (ln, i₁))
+    (hA : between i i₁ <+: j.remaining)
+    (hB : j.remaining <+: i.remaining) :
+    ∃ j₁, readLine? j = some (ln, j₁) ∧
+      between j j₁ = between i i₁ ∧ j₁.remaining <+: i₁.remaining := by
+  unfold readLine? at hr
+  cases hb : readLineBytes? i with
+  | none => rw [hb] at hr; exact absurd hr (by simp)
+  | some p =>
+    obtain ⟨bs, i₁'⟩ := p
+    rw [hb] at hr
+    simp only [Option.some.injEq, Prod.mk.injEq] at hr
+    obtain ⟨hln, hi₁⟩ := hr
+    subst hi₁
+    obtain ⟨j₁, hj, hcons, hres⟩ := readLineBytes?_faithful hb hA hB
+    refine ⟨j₁, ?_, hcons, hres⟩
+    unfold readLine?
+    rw [hj]
+    show some (String.fromUTF8! bs, j₁) = some (ln, j₁)
+    rw [hln]
+
 end Input
 
 end Langlib.Common

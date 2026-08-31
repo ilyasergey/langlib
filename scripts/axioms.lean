@@ -798,3 +798,13 @@ open Langlib.Turpentine.Compile
 #print axioms URMSki.simulation
 #print axioms URMSki.compile
 #print axioms skiComplete
+
+-- The lawfulness layer: fuel stability (every interpreter) and trace
+-- faithfulness (every language with a trace). One representative per shape;
+-- the instances themselves are definitional wrappers around these.
+#print axioms Langlib.Whitespace.exec_stable
+#print axioms Langlib.Subleq.exec_stable
+#print axioms Langlib.Brainfuck.exec_stable
+#print axioms Langlib.Whitespace.eval_faithful
+#print axioms Langlib.Subleq.eval_faithful
+#print axioms Langlib.Common.Input.readLineGo_faithful

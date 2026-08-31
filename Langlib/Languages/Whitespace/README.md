@@ -15,6 +15,13 @@ specification, history, and the exact semantic choices are in
   `[Space]`/`[Tab]`/`[LF]`.
 * `Semantics.lean`: the pure, fuel-based reference evaluator: value stack,
   call stack, heap, program counter, labels resolved in a pre-pass.
+* `Trace.lean`: the interpreter's record of its own I/O events is honest —
+  the two `TraceLang` bookkeeping laws.
+* `Stability.lean`: a completed run is a fixed point of more fuel — the
+  `Langlib.Common.LawfulProgLang` law, proved by one induction over the
+  interpreter.
+* `Faithful.lean`: a halting run depends only on the bytes its trace
+  claims — the `TraceLang.trace_faithful` law.
 * `Main.lean`: the standalone runner.
 
 ## Running

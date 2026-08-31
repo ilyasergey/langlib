@@ -3,6 +3,7 @@ import Langlib.Languages.Whitespace.Parser
 import Langlib.Languages.Whitespace.Semantics
 import Langlib.Languages.Whitespace.Trace
 import Langlib.Languages.Whitespace.Stability
+import Langlib.Languages.Whitespace.Faithful
 
 /-!
 # Whitespace

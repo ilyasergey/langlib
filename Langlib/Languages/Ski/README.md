@@ -25,6 +25,9 @@ and has neither. A run's answer here is a term, a tower of `K`s ending in
 * `Semantics.lean`: normal-order reduction to normal form. Leftmost
   outermost is the strategy the standardisation theorem is about, so it
   finds a normal form whenever one exists.
+* `Stability.lean`: a completed run is a fixed point of more fuel — the
+  `Langlib.Common.LawfulProgLang` law, proved by one induction over the
+  interpreter.
 * `Main.lean`: the standalone runner.
 
 ## Running

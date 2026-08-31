@@ -5,13 +5,14 @@ import Langlib.Languages.Whitespace.Semantics
 
 `Langlib/Common/Compilation.lean` asks a language that wants behavioural
 reasoning for a `TraceLang` instance: a function from a run to the sequence
-of bytes it consumed and emitted, subject to two laws. The trace may neither
-invent nor lose output, and the bytes it claims to have read must be a
-prefix of what the stream had to give.
+of bytes it consumed and emitted, subject to three laws. This file proves
+the two bookkeeping ones — the trace may neither invent nor lose output,
+and the bytes it claims to have read must be a prefix of what the stream
+had to give; the third, faithfulness, is `Whitespace/Faithful.lean`'s.
 
 `Whitespace.evalTrace` is that function — the interpreter now records an
 event at each of `outchar`, `outnum`, `readchar` and `readnum` — and this
-file proves the two laws. The instance itself is registered next to
+file proves the two bookkeeping laws. The instance itself is registered next to
 `ProgLang WhitespaceLang` in `Langlib/Computability/Whitespace.lean`, which is
 where FRACTRAN's sits; nothing here needs Mathlib.
 

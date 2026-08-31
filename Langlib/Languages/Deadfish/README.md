@@ -16,6 +16,9 @@ and the exact semantic choices are in
 * `Semantics.lean`: the pure, fuel-based reference evaluator. The
   accumulator resets to 0 on exactly -1 or exactly 256, after each of
   `i`/`d`/`s`; `o` prints the value in decimal with a newline.
+* `Stability.lean`: a completed run is a fixed point of more fuel — the
+  `Langlib.Common.LawfulProgLang` law, proved by one induction over the
+  interpreter.
 * `Main.lean`: the standalone runner.
 
 ## Running

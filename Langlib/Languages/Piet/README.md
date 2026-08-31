@@ -16,6 +16,9 @@ The full specification, history, and the exact semantic choices are in
   blocks with precomputed exit codels, DP and CC, the 8-attempt sliding
   rules, white-block sliding with trap detection, and the 17 commands
   over an unbounded integer stack.
+* `Stability.lean`: a completed run is a fixed point of more fuel — the
+  `Langlib.Common.LawfulProgLang` law, proved by one induction over the
+  interpreter.
 * `Main.lean`: the standalone runner.
 
 ## Running

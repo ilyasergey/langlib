@@ -51,18 +51,23 @@ A `RunResult` reports the bytes a run emitted and nothing about the bytes it
 consumed, so it cannot be the observable behaviour of a run. `TraceLang` is
 the extra structure a language supplies to talk about behaviour: a function
 from a program, an input stream and a fuel bound to the `Trace` of events,
-subject to two laws tying it back to the interpreter. It is a separate class
+subject to three laws tying it back to the interpreter. It is a separate class
 from `ProgLang` because it is extra work per language — the interpreter has
 to record events — and because most of langlib gets by without it.
 
-The laws pin the output side exactly and constrain the input side to a
-prefix of what the stream offered. They do not, by themselves, force an
-interpreter to report every read it performs: no law over a fuel-based
-evaluator can, because a run that stops at end of input is indistinguishable
-from one that never looked. A `TraceLang` instance is therefore part of a
-*language's* specification, written next to its interpreter and reviewed
-with it, not something a compiler author may invent to make a proof go
-through.
+The laws pin the output side exactly, constrain the input side to a prefix
+of what the stream offered, and — `trace_faithful` — pin the input side
+from below: a halting run replayed on the stream truncated to its claimed
+reads is the same run, so a trace that omits a read the behaviour depends
+on is refuted by its own truncation. What remains deliberately unpinned is
+exactly the behaviourally inert part. An erroring run is unconstrained,
+because an error can leak stream content the machine never consumed
+(whitespace's parse error prints the offending line); and reads with no
+observable consequence can be claimed or omitted freely, since no replay
+can tell a byte that was consumed and ignored from one that was never
+touched. A `TraceLang` instance therefore remains part of a *language's*
+specification, written next to its interpreter and reviewed with it — the
+laws now leave an author far less room, not none.
 
 This module deliberately imports nothing but `Langlib.Common.Io`: it is
 Mathlib-free and cslib-free, so a hand-written backend can state its own
@@ -210,12 +215,16 @@ end CertifiedCompiler
 /-- The trace semantics of a language: what a run of a program observably
 *does*, not merely what it leaves behind.
 
-The two laws are the whole content. `trace_outputs` says the trace's output
-events are exactly the bytes the interpreter reports, so `trace` cannot
-invent or lose output. `trace_inputs` says the trace's input events are a
-prefix of the bytes the stream still had to give, so `trace` cannot claim
-reads that were never possible. Read the module header for what the laws
-deliberately do *not* say. -/
+The three laws are the whole content. `trace_outputs` says the trace's
+output events are exactly the bytes the interpreter reports, so `trace`
+cannot invent or lose output. `trace_inputs` says the trace's input events
+are a prefix of the bytes the stream still had to give, so `trace` cannot
+claim reads that were never possible. `trace_faithful` closes the remaining
+gap from the other side: a *halting* run, replayed on any stream sandwiched
+between the claimed reads and the original, is the same run — so the trace
+cannot underreport a read the run's observable behaviour depends on, or the
+truncated stream would expose it. Read the module header for the one thing
+even these laws deliberately do not say. -/
 class TraceLang (L : Type) [ProgLang L] where
   /-- The events of a run, in the order they happened. -/
   trace : ProgLang.Prog L → Input → Nat → Trace
@@ -224,6 +233,17 @@ class TraceLang (L : Type) [ProgLang L] where
     (trace p i n).outputs = (ProgLang.run p i n).output.toList
   /-- The trace's input events are a prefix of what the stream had left. -/
   trace_inputs : ∀ p i n, (trace p i n).inputs <+: i.remaining
+  /-- A halting run depends on nothing the trace does not claim: on any
+  stream that still offers the claimed reads, but no more than the original
+  did, the run is unchanged — same result, same trace. Halting runs only,
+  and not as a courtesy: an erroring run may observably depend on stream
+  content it never consumed, as whitespace's `readnum` does when its parse
+  error embeds the offending line in the message. -/
+  trace_faithful : ∀ (p : ProgLang.Prog L) (i i' : Input) (n : Nat),
+    (ProgLang.run p i n).exit = Exit.halted →
+    (trace p i n).inputs <+: i'.remaining →
+    i'.remaining <+: i.remaining →
+    ProgLang.run p i' n = ProgLang.run p i n ∧ trace p i' n = trace p i n
 
 namespace TraceLang
 
@@ -244,6 +264,7 @@ def ofInputFree (L : Type) [ProgLang L]
     rw [Trace.outputs_ofOutput, h p Input.empty i n]
   trace_inputs p i n := by
     rw [Trace.inputs_ofOutput]; exact List.nil_prefix
+  trace_faithful p i i' n _ _ _ := ⟨h p i' i n, rfl⟩
 
 end TraceLang
 

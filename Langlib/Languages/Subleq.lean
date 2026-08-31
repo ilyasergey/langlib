@@ -3,6 +3,7 @@ import Langlib.Languages.Subleq.Parser
 import Langlib.Languages.Subleq.Semantics
 import Langlib.Languages.Subleq.Trace
 import Langlib.Languages.Subleq.Stability
+import Langlib.Languages.Subleq.Faithful
 
 /-!
 # Subleq
