@@ -89,7 +89,7 @@ status matrix, including compilers):
 | [ook](docs/ook/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Ook.lean#L540)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L145) (certified), and [bespoke](docs/ook/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Ook.lean#L49), trusted) |
 | [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Brainloller.lean#L329)**, bar the [pixel walk](docs/brainloller/compiler.md) | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L150) (certified), and [bespoke](docs/brainloller/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Brainloller.lean#L57), trusted) |
 | [befunge93](docs/befunge93/spec.md) | [no with byte cells, yes with ours](docs/befunge93/spec.md#computational-class-and-why-our-deviations-matter) | **[yes](Langlib/Computability/Befunge93.lean#L343)**, for the byte core | [none: 2000 cells](docs/befunge93/compiler.md) |
-| [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[yes](Langlib/Computability/Malbolge.lean#L743)** | [none: bounded](docs/malbolge/compiler.md) |
+| [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[yes](Langlib/Computability/Malbolge.lean#L743)** | [bespoke](docs/malbolge/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Malbolge.lean), trusted, input-free programs whose output fits); no derived one ever — not Turing complete |
 | [deadfish](docs/deadfish/spec.md) | no, every program halts | **[yes](Langlib/Computability/Deadfish.lean#L89)** | [planned, output only](docs/deadfish/compiler.md) |
 | [malbolge-unshackled](docs/malbolge-unshackled/spec.md) | yes | open | [bespoke](docs/malbolge-unshackled/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean), trusted, input-free fragment); no derived one while the TC claim is open |
 | [unlambda](docs/unlambda/spec.md) | yes | **[yes](Langlib/Computability/Unlambda.lean#L1720)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L156) (certified); [bespoke planned](docs/unlambda/compiler.md) |
@@ -117,13 +117,17 @@ compiled program performs the source's I/O events, in order, not merely its
 answer. [Verified compilers](#verified-compilers) below explains why the library
 keeps both kinds.
 
-Malbolge Unshackled is the one row with a bespoke compiler and no derived
-one, and both halves of that are the same fact. Its completeness claim is
-still `open`, so there is no witness to derive a compiler from; and its
-backend compiles every program whose control flow can be settled before the
-target runs — loops, arrays and arithmetic included — but not one that
-reads input, because reading needs cells that survive re-execution, which
-is the completeness work itself.
+The two Malbolges have a bespoke compiler and no derived one, for opposite
+reasons. Malbolge Unshackled's completeness claim is still `open`, so there
+is no witness to derive a compiler from *yet*; its backend compiles every
+program whose control flow can be settled before the target runs — loops,
+arrays and arithmetic included — but not one that reads input, because
+reading needs cells that survive re-execution, which is the completeness
+work itself. Malbolge's derived compiler will never exist — the language is
+proved bounded, so there is no witness to be had — and its bespoke backend
+is accordingly bounded by the machine rather than by us: it accepts every
+input-free program whose output fits in the 59049 words, and refuses
+anything larger with the count of bytes by which it does not fit.
 
 
 The full matrix, with per-stage columns and links to every theorem, is in
@@ -322,11 +326,11 @@ interface, which pays off where a target has both:
 verified compilers for one target decode the same answer out of every
 program both accept. Subleq and whitespace have both, so for those two
 "the derived compiler is an oracle for the hand-written one" is a theorem
-rather than a testing practice. Five of the six unverified backends have a
-derived counterpart, and for those the derived one remains the strongest
-available check; malbolge-unshackled is checked by tests alone, since its
-completeness claim is open and so no derived compiler exists to compare
-against.
+rather than a testing practice. Five of the seven unverified backends have
+a derived counterpart, and for those the derived one remains the strongest
+available check; the two Malbolges are checked by tests alone, Unshackled
+because its completeness claim is open and Malbolge because there is no
+completeness to claim.
 
 Choose explicitly. `compile` and `exec` each take `--bespoke` or `--tc`,
 refuse both at once, and name the scheme they used, so a build log says
