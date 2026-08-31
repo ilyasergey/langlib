@@ -28,7 +28,7 @@ constraint-programming Turing tarpit: you do not write instructions, you
 write a grammar and let the string sort itself out. Thue is
 Turing-complete, by the obvious embedding of unrestricted grammars — and
 here that is a theorem rather than an appeal to the obvious:
-[`thueComplete`](../../Langlib/Computability/Thue.lean#L4024) compiles a
+[`thueComplete`](../../Langlib/Computability/Thue.lean#L4032) compiles a
 register machine into Thue and proves the compiled rules simulate it under
 this interpreter's own strategy. See
 [docs/computability-thue.md](../computability-thue.md).

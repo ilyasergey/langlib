@@ -56,7 +56,7 @@ the answer, once, in decimal, and nothing else.
 about this, because it is easy to oversell the difference. Its cleanup
 phase reduces a halting store to `2 ^ R₀` too — that is what
 `cleanupFrom` in
-[`Langlib/Computability/Fractran.lean`](../../Langlib/Computability/Fractran.lean#L3177)
+[`Langlib/Computability/Fractran.lean`](../../Langlib/Computability/Fractran.lean#L3181)
 is for, and its own comment says "pow2 observation then emits `R₀`" —
 and it keeps a unique control marker on an odd prime at every instruction
 boundary, so its intermediate states are not powers of two either. Running

@@ -3,10 +3,10 @@
 LangLib contains a total runnable URM-to-Piet compiler that accepts
 arbitrary `J` instructions, including backward jumps, and the simulation
 theorem that makes it a completeness proof:
-[`pietComplete : TuringComplete PietLang`](../Langlib/Computability/Piet.lean#L3992).
+[`pietComplete : TuringComplete PietLang`](../Langlib/Computability/Piet.lean#L3998).
 Composing it with the shared Turpentine-to-URM pass gives a certified
 Turpentine-to-Piet compiler,
-[`derivedPiet`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L137).
+[`derivedPiet`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L139).
 
 The claim is not that Piet is universal — that has never been in doubt, and
 the esolang wiki has said so since 2002. The claim is that *this image*,
@@ -109,9 +109,9 @@ operations touch DP and CC. `copyAt`, `storeTop`, `zeroAt`, `succTop` and
 the guarded instruction traces are all proved this way.
 
 **The arithmetic layer.**
-[`stackOf`](../Langlib/Computability/Piet.lean#L966) models the dispatcher's
+[`stackOf`](../Langlib/Computability/Piet.lean#L967) models the dispatcher's
 stack as a URM register file followed by the three control slots, and
-[`dispatchUpdate_step`](../Langlib/Computability/Piet.lean#L1270) proves
+[`dispatchUpdate_step`](../Langlib/Computability/Piet.lean#L1271) proves
 that one pass over the whole program performs exactly one
 `Cslib.URM.Step`. The argument is the masking one the branchless design
 rests on: instructions whose guard is zero are the identity, the one
@@ -125,18 +125,18 @@ parts.
 *Corridors.* Every command codel in a generated image is an isolated
 singleton block, because every Piet command changes the colour and the row
 below the corridor is black.
-[`unitCorridor_of_row`](../Langlib/Computability/Piet.lean#L1917) builds
+[`unitCorridor_of_row`](../Langlib/Computability/Piet.lean#L1918) builds
 those runs from row lookups and
-[`exec_unitCorridor`](../Langlib/Computability/Piet.lean#L447) executes
+[`exec_unitCorridor`](../Langlib/Computability/Piet.lean#L448) executes
 them through the real evaluator. The dispatcher's last two commands, the
 `switch` and the `pointer`, move the chooser and the direction and so
 cannot be inside a corridor;
-[`exec_toPivot`](../Langlib/Computability/Piet.lean#L3179) takes them one at
+[`exec_toPivot`](../Langlib/Computability/Piet.lean#L3180) takes them one at
 a time.
 
 *White transits.* A slide executes no command; it only moves, and each
 blocked turn rotates the direction and toggles the chooser.
-[`slide_return`](../Langlib/Computability/Piet.lean#L2107) is the whole
+[`slide_return`](../Langlib/Computability/Piet.lean#L2108) is the whole
 return corridor — down from the pivot's `pop`, left along the bottom, up the
 white column, and right into the first codel of the body — and its three
 blocked turns leave the chooser toggled exactly once, which is what the
@@ -151,26 +151,26 @@ neighbour, and one of the eight selected exits steps straight back into it.
 So the terminal is an L of three codels — the top-right corner, the codel
 below it, and the codel to the left of that — which is the smallest shape
 that can hide its own entry.
-[`flood_lblock`](../Langlib/Computability/Piet.lean#L2313) computes
+[`flood_lblock`](../Langlib/Computability/Piet.lean#L2314) computes
 `Langlib.Piet.flood` on it, ten worklist steps over a symbolic grid with the
 visited array tracked through three `set!` calls at distinct indices;
-[`localInfoAt?_lblock`](../Langlib/Computability/Piet.lean#L2373) turns that
+[`localInfoAt?_lblock`](../Langlib/Computability/Piet.lean#L2374) turns that
 into the block's eight exits; and
-[`tryFrom_lblock`](../Langlib/Computability/Piet.lean#L2399) proves every
+[`tryFrom_lblock`](../Langlib/Computability/Piet.lean#L2400) proves every
 one of them blocked, so the interpreter runs out of attempts and halts in
 the state it arrived in.
 
 **Putting it together.**
-[`reaches_iteration`](../Langlib/Computability/Piet.lean#L3477) is one whole
+[`reaches_iteration`](../Langlib/Computability/Piet.lean#L3478) is one whole
 turn of the loop: the corridor, the pivot, the `pop`, the return corridor,
 and back to the first codel of the body with the chooser where it started.
-[`exec_run`](../Langlib/Computability/Piet.lean#L3655) composes those over
+[`exec_run`](../Langlib/Computability/Piet.lean#L3656) composes those over
 `Cslib.URM.Steps`, taking the other branch — print the answer, slide into
 the terminal, halt — on the iteration whose committed program counter falls
 off the end of the source.
-[`exec_entry`](../Langlib/Computability/Piet.lean#L3745) covers the start
+[`exec_entry`](../Langlib/Computability/Piet.lean#L3746) covers the start
 slide and the prologue that loads the register file, and
-[`simulation`](../Langlib/Computability/Piet.lean#L3910) assembles the whole
+[`simulation`](../Langlib/Computability/Piet.lean#L3911) assembles the whole
 thing through `evalGrid` and reads the answer back out of the decimal the
 image printed.
 

@@ -164,7 +164,7 @@ recommendations and npiet where the spec is silent:
 ## Computational class
 
 **Turing complete, and proved so here**:
-[`pietComplete`](../../Langlib/Computability/Piet.lean#L3992) compiles an
+[`pietComplete`](../../Langlib/Computability/Piet.lean#L3998) compiles an
 unlimited register machine into a codel grid and proves that
 `Langlib.Piet.evalGrid` — the evaluator specified on this page, with these
 DP and CC rules, these exits and these white slides — computes what the

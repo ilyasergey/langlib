@@ -84,7 +84,7 @@ Output:
 
 ## The other compiler, and why this one exists
 
-[`pietComplete`](../../Langlib/Computability/Piet.lean#L3992) compiles an
+[`pietComplete`](../../Langlib/Computability/Piet.lean#L3998) compiles an
 arbitrary register machine into a codel grid and proves the simulation
 against `evalGrid`, so composing it with the shared Turpentine-to-URM pass
 gives a verified Turpentine-to-Piet compiler. It is correct by

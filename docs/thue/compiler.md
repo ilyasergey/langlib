@@ -11,7 +11,7 @@
 
 ## What already exists
 
-[`thueComplete`](../../Langlib/Computability/Thue.lean#L4026) compiles an
+[`thueComplete`](../../Langlib/Computability/Thue.lean#L4032) compiles an
 arbitrary register machine into Thue and proves the simulation, so composing
 it with the shared Turpentine-to-URM pass gives a verified Turpentine-to-Thue
 compiler today. It has the limits every derived compiler has: no I/O, because

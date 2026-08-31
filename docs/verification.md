@@ -96,7 +96,7 @@ is `(C P).isOk`, and the theorem is stated against the successful case.
 ### Where this lives in Lean
 
 The sketch above is now a definition rather than prose:
-[`IOCertifiedCompiler`](../Langlib/Common/Compilation.lean#L304) in
+[`IOCertifiedCompiler`](../Langlib/Common/Compilation.lean#L321) in
 `Langlib/Common/Compilation.lean`, generic in the source language, the
 answer type and the target. It differs from the sketch in two ways, both
 strengthenings.
@@ -125,9 +125,9 @@ re-encoding backend states a real theorem instead of a weakened one.
 What it does *not* strengthen is the halting hypothesis: divergence is
 still unconstrained, and "Later" below is still where that is owed. The
 weaker, answer-only
-[`CertifiedCompiler`](../Langlib/Common/Compilation.lean#L142) is what every
+[`CertifiedCompiler`](../Langlib/Common/Compilation.lean#L153) is what every
 result in the table below is stated with today, and
-[`toCertified`](../Langlib/Common/Compilation.lean#L345) proves the
+[`toCertified`](../Langlib/Common/Compilation.lean#L363) proves the
 behavioural statement implies it, so a backend can be upgraded without
 reproving anything that already rests on it.
 
@@ -302,7 +302,7 @@ pages for why), so they have no proof obligations.
 One thing, and it is not a compiler-correctness result: **Whitespace is
 proved Turing complete**
 ([Whitespace.lean](../Langlib/Computability/Whitespace.lean),
-[`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L1133)), by
+[`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L1147)), by
 compiling cslib's unlimited register machine into it and proving the
 compilation simulates. `#print axioms` on the result reports only
 `propext`, `Classical.choice` and `Quot.sound`.
@@ -321,7 +321,7 @@ as the proof.
 
 | Backend | Effective compiler | Simulation | End-to-end theorem | Derived compiler | Behavioural (I/O) |
 |---------|--------------------|------------|--------------------|------------------|-------------------|
-| whitespace | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3148) | [yes, scalars and output](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4355) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | [**yes**, output only, `encodeTrace = id`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401) |
+| whitespace | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3149) | [yes, scalars and output](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4355) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | [**yes**, output only, `encodeTrace = id`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401) |
 | subleq | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) | [yes, two shapes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118) | - |
 | brainfuck | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L122) | - |
 | fractran | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L127) | n/a (no I/O) |
