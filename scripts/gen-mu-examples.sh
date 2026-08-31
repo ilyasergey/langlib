@@ -18,10 +18,16 @@
 # `Langlib/Tests/CompileMalbolgeUnshackled.lean` verifies again from inside
 # the test suite by recompiling and comparing.
 #
-# Both sources are input-free by construction, which is the backend's
+# Every source is input-free by construction, which is the backend's
 # fragment: it decides control flow before the target runs. `primes-mu.turp`
 # and `sort-mu.turp` are the input-free twins of `primes.turp` and
-# `sort.turp`, with the bound and the six numbers fixed as literals.
+# `sort.turp`, with the bound and the six numbers fixed as literals;
+# `99bottles.turp` reads nothing as written, so it needs no twin.
+#
+# It runs each program it emits, and `99bottles.mu` is 64886 cells, where the
+# interpreter costs a good fifteen seconds. That is why the whole script is
+# slower than it looks, and why `lake test` checks the two small artifacts
+# rather than this one.
 #
 # Usage:
 #   scripts/gen-mu-examples.sh            regenerate in place
@@ -43,14 +49,18 @@ fi
 
 lake build turpentine malbolge-unshackled >/dev/null
 
-for name in primes sort; do
-  src="Langlib/Examples/Turpentine/${name}-mu.turp"
+# One entry per artifact, `<source stem>:<artifact stem>:<fuel>`. The fuel is
+# per artifact because a straight-line image spends one step per cell, so the
+# song needs an order of magnitude more of it than the other two.
+for entry in primes-mu:primes:100000 sort-mu:sort:100000 99bottles:99bottles:200000; do
+  IFS=: read -r stem name fuel <<<"$entry"
+  src="Langlib/Examples/Turpentine/${stem}.turp"
   ./.lake/build/bin/turpentine compile --to malbolge-unshackled \
     -o "$dest/${name}.mu" "$src" 2>/dev/null
-  # The compiled program must reproduce the source's output exactly. Both
-  # are input-free, so neither is given a stream.
+  # The compiled program must reproduce the source's output exactly. All
+  # are input-free, so none is given a stream.
   want=$(./.lake/build/bin/turpentine run "$src" </dev/null)
-  got=$(./.lake/build/bin/malbolge-unshackled --fuel 100000 "$dest/${name}.mu" </dev/null)
+  got=$(./.lake/build/bin/malbolge-unshackled --fuel "$fuel" "$dest/${name}.mu" </dev/null)
   if [ "$want" != "$got" ]; then
     echo "gen-mu-examples: ${name}.mu does not reproduce ${src}" >&2
     exit 1

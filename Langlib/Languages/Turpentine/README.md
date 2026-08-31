@@ -58,6 +58,7 @@ output.
 | `maxelem.turp` | largest of 8 numbers (ported from Velvet) | any backend |
 | `sort.turp` | insertion sort of 6 numbers (ported from Velvet) | any backend |
 | `sieve.turp` | primes below 50, via a bool array | any backend |
+| `99bottles.turp` | the whole beer song, 99 verses | any backend |
 | `primes-mu.turp` | primes up to 30, no input | `--to malbolge-unshackled` |
 | `sort-mu.turp` | sorts six literals, printing them | `--to malbolge-unshackled` |
 | `sum.turp` | sums the numbers below 5, answer only | `--tc` |
@@ -86,6 +87,12 @@ the result left in a variable named `answer`. `sum.turp` and `sumsq.turp`
 are in that fragment too and predate the suffix. Arrays, division, modulo,
 `&&`, `||` and initialisers on declarations are all in it. See
 [docs/certified-compilation.md](../../../docs/certified-compilation.md).
+
+`99bottles.turp` is the library's cross-language yardstick: its 11459 bytes
+are byte for byte what Malbolge's `99bottles.mal` and its Unshackled port
+`99bottles.mu` print, and its compiled image is checked in as
+`Langlib/Examples/MalbolgeUnshackled/compiled/99bottles.mu`. It reads
+nothing as written, so it needs no `-mu` twin.
 
 Programs suffixed `-mu` are written for the Malbolge Unshackled backend,
 which takes any program that does not read input — it settles control flow

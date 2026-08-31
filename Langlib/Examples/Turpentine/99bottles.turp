@@ -1,0 +1,34 @@
+// The whole beer song, ninety-nine verses down to none, with no input.
+// Usage: lake exe turpentine run Langlib/Examples/Turpentine/99bottles.turp
+//
+// The verse is the one that Iizawa, Sakabe, Sakai, Kusakari and Nishida's
+// `99bottles.mal` sings: the count and the noun phrase twice, the refrain,
+// then the next count -- "No more bottles of beer" once the shelf runs
+// out. So the 11459 bytes this prints are byte-for-byte the output of the
+// Malbolge example in Langlib/Examples/Malbolge/99bottles.mal and of its
+// Unshackled port in Langlib/Examples/MalbolgeUnshackled/99bottles.mu,
+// which is what makes this program worth having in three languages at once.
+//
+// It reads nothing, so it needs no `-mu` twin: every backend takes it as
+// written, and Langlib/Examples/MalbolgeUnshackled/compiled/99bottles.mu is
+// what `--to malbolge-unshackled` makes of it.
+// See docs/malbolge-unshackled/compiler.md.
+var n : int := 99;
+while n > 0 {
+  print(n);
+  if n == 1 { print(" bottle of beer"); } else { print(" bottles of beer"); }
+  println(" on the wall,");
+  print(n);
+  if n == 1 { print(" bottle of beer"); } else { print(" bottles of beer"); }
+  println(",");
+  println("Take one down, pass it around,");
+  if n == 1 {
+    print("No more bottles of beer");
+  } else {
+    print(n - 1);
+    if n - 1 == 1 { print(" bottle of beer"); } else { print(" bottles of beer"); }
+  }
+  println(" on the wall.");
+  println();
+  n := n - 1;
+}

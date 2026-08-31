@@ -541,3 +541,72 @@ machine, which has no output, and the correctness theorem talks about
 register 0. Every example in the directory with a `-tc` suffix is another
 program cut to that shape. Run it with
 `lake exe turpentine exec --via whitespace --tc …`.
+
+**Ninety-nine bottles** (`99bottles.turp`) — the most output any example
+here produces, from a description of it that fits on a screen, and the one
+example that exists to be compared against other languages rather than
+read.
+
+```
+// The whole beer song, ninety-nine verses down to none, with no input.
+// Usage: lake exe turpentine run Langlib/Examples/Turpentine/99bottles.turp
+//
+// The verse is the one that Iizawa, Sakabe, Sakai, Kusakari and Nishida's
+// `99bottles.mal` sings: the count and the noun phrase twice, the refrain,
+// then the next count -- "No more bottles of beer" once the shelf runs
+// out. So the 11459 bytes this prints are byte-for-byte the output of the
+// Malbolge example in Langlib/Examples/Malbolge/99bottles.mal and of its
+// Unshackled port in Langlib/Examples/MalbolgeUnshackled/99bottles.mu,
+// which is what makes this program worth having in three languages at once.
+//
+// It reads nothing, so it needs no `-mu` twin: every backend takes it as
+// written, and Langlib/Examples/MalbolgeUnshackled/compiled/99bottles.mu is
+// what `--to malbolge-unshackled` makes of it.
+// See docs/malbolge-unshackled/compiler.md.
+var n : int := 99;
+while n > 0 {
+  print(n);
+  if n == 1 { print(" bottle of beer"); } else { print(" bottles of beer"); }
+  println(" on the wall,");
+  print(n);
+  if n == 1 { print(" bottle of beer"); } else { print(" bottles of beer"); }
+  println(",");
+  println("Take one down, pass it around,");
+  if n == 1 {
+    print("No more bottles of beer");
+  } else {
+    print(n - 1);
+    if n - 1 == 1 { print(" bottle of beer"); } else { print(" bottles of beer"); }
+  }
+  println(" on the wall.");
+  println();
+  n := n - 1;
+}
+```
+
+It prints 11459 bytes, and they are byte for byte what Malbolge's
+`99bottles.mal` prints and what its Unshackled port `99bottles.mu` prints —
+two programs nobody can read, pinned by one that anybody can. The golden
+test checks it against the same rebuilt song the Malbolge suite checks
+`99bottles.mal` against, so those two are held to one standard rather than
+each to its own output; the Unshackled port is compared with `cmp` instead,
+being too slow to run on every `lake test`.
+
+It also reads nothing, which puts it in the Malbolge Unshackled backend's
+fragment as written, with no `-mu` twin needed:
+
+```
+lake exe turpentine compile --to malbolge-unshackled -o /tmp/99bottles.mu Langlib/Examples/Turpentine/99bottles.turp
+```
+
+Output:
+
+```
+turpentine: wrote 64886 bytes to /tmp/99bottles.mu [bespoke, hand-written and unverified]
+```
+
+That count is cells. It is 82% of the 78790 the hand-written port spends on
+the same song — the compiler's only direct comparison against a person, and
+it comes out ahead. The result is checked in as
+`Langlib/Examples/MalbolgeUnshackled/compiled/99bottles.mu`; see
+[docs/malbolge-unshackled/compiler.md](../malbolge-unshackled/compiler.md).

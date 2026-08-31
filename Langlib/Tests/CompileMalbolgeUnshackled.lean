@@ -191,7 +191,16 @@ def suite : Suite where
         expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n31\n37\n41\n43\n47\n" }
     , { name := "sum example (no output, answer only)", source := ex "sum",
         expect := .outputs "" }
-      -- The two examples that are checked in compiled, compiled afresh here
+      -- Two of the three examples that are checked in compiled, compiled
+      -- afresh here. The third, `99bottles.turp`, is deliberately absent
+      -- from every suite in this file and from the artifact suites below:
+      -- its image is 64886 cells and one run costs some fifteen seconds,
+      -- because the interpreter's cost grows with the size of the program.
+      -- `scripts/gen-mu-examples.sh` compiles it and checks its output
+      -- against the source's on every regeneration, which is where that
+      -- fifteen seconds is worth spending; the spec page carries the
+      -- command. The same reasoning keeps the hand-written `99bottles.mu`
+      -- out of `Langlib/Tests/MalbolgeUnshackled.lean`.
     , { name := "primes-mu example", source := ex "primes-mu",
         expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n" }
     , { name := "sort-mu example", source := ex "sort-mu",
@@ -353,7 +362,8 @@ nothing from the compiler involved.
 
 The differential suite above compiles the same two sources afresh, so
 between the two a wrong compiler and a wrong artifact are separate
-failures. -/
+failures. `compiled/99bottles.mu` is the third artifact and is checked by
+`scripts/gen-mu-examples.sh` instead; see the note there. -/
 def compiledSuite : Suite where
   name := "malbolge-unshackled compiled examples"
   run := Langlib.MalbolgeUnshackled.run

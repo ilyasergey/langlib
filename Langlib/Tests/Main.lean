@@ -3,6 +3,7 @@ import Langlib.Tests.Befunge93
 import Langlib.Tests.Brainfuck
 import Langlib.Tests.BoundedMalbolge
 import Langlib.Tests.Brainloller
+import Langlib.Tests.BeerSong
 import Langlib.Tests.BespokeSubleq
 import Langlib.Tests.BespokeWhitespace
 import Langlib.Tests.CompileBrainfuck

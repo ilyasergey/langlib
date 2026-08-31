@@ -2,7 +2,63 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-31 (latest): the matrices catch up, and two of them were lying
+## 2026-08-31 (latest): Piet programs as PNG, both directions
+
+`docs/piet/spec.md` gained a **Programs as PNG** section. PPM is what the
+runner reads and PNG is what everyone else trades, so the section works the
+conversion through in both directions: `scripts/ppm-to-png.py` for a
+whole-number enlargement (one block per codel, `--no-grid`), `sips` for a
+one-pixel-per-codel thumbnail, and `sips -s format pbm` back to a PPM the
+interpreter runs at `--codel-size 24`. Every command on the page was run;
+the round trip really does print `7`.
+
+The lesson the failures teach is the point of the section: a smoothly
+resampled program is not a program. `sips -z` blends the block edges and
+the interpreter stops on `unknown colour (127,0,0)` at the second codel,
+and the grid-line variant is off in both dimensions besides. Enlarge with
+nearest neighbour or not at all.
+
+`docs/piet/img/add.png` is the first PNG on the Piet page and, like every
+picture there, a derived file: `scripts/render-docs-images.sh` generates it
+with the very command the section quotes, and `--check` now compares PNGs
+in the Piet directory as well as SVGs.
+
+## 2026-08-31: the beer song, in Turpentine and compiled to Unshackled
+
+`Langlib/Examples/Turpentine/99bottles.turp` is the whole song, ninety-nine
+verses down to none, in thirty-odd readable lines. It exists to be compared
+rather than read: its 11459 bytes are byte for byte what Malbolge's
+`99bottles.mal` prints and what the hand-built Unshackled port
+`99bottles.mu` prints, checked with `cmp` and not by eye. It reads nothing
+as written, so unlike `primes-mu.turp` and `sort-mu.turp` it needs no
+input-free twin — it is already in the Malbolge Unshackled backend's
+fragment.
+
+**Compiled and checked in.** `compiled/99bottles.mu` is the third derived
+artifact under `Langlib/Examples/MalbolgeUnshackled/compiled/`, and the
+first one big enough to say anything about the backend's cost: 64886 cells,
+92602 bytes, verified against the source's own output at rotation widths 10,
+37 and 300. It is 82% of the 78790 cells the hand-written port spends on the
+same song — the compiler's only direct comparison against a person, and it
+comes out ahead. At 32346 code cells for 11459 output bytes it also pins the
+cost model down at 2.82 cells per printed byte, the fixed 194-cell overhead
+having finally vanished into the rounding (2.85 for the primes, 2.95 for the
+greeting, 3.08 for the sort).
+
+**One song, three suites.** The Malbolge suite rebuilt the song privately to
+check `99bottles.mal`. That definition moved to `Langlib/Tests/BeerSong.lean`
+so the Turpentine golden test can compare against the *same* string rather
+than against its own output recorded after the fact — which is the only
+thing that makes the new test say something.
+
+**What is not tested by `lake test`.** `compiled/99bottles.mu` is in none of
+the compile suites: one run costs some fifteen seconds, because the
+interpreter's cost grows with the size of the program. It is checked by
+`scripts/gen-mu-examples.sh`, which now compiles all three sources and runs
+every program it emits — the same trade the hand-written `99bottles.mu`
+already had.
+
+## 2026-08-31: the matrices catch up, and two of them were lying
 
 A documentation pass over every status table, prompted by the Malbolge
 Unshackled backend landing without the top-level matrix noticing.

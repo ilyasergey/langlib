@@ -828,7 +828,7 @@ short arithmetic one.
 
 ## Generated demos
 
-Two compiled programs are checked in under
+Three compiled programs are checked in under
 `Langlib/Examples/MalbolgeUnshackled/compiled/`. They are the first
 Unshackled programs in the library that nobody, and no search, wrote: they
 are output.
@@ -837,6 +837,7 @@ are output.
 |---|---|---|---|---|
 | `compiled/primes.mu` | 348 | 422 | `primes-mu.turp` | the primes up to 30 |
 | `compiled/sort.mu` | 268 | 304 | `sort-mu.turp` | six numbers, sorted |
+| `compiled/99bottles.mu` | 64886 | 92602 | `99bottles.turp` | the whole beer song |
 
 Run the primes:
 
@@ -876,11 +877,46 @@ Output:
 9
 ```
 
-Neither reads its input, so neither cares what is on the stream; and neither
-emits `*`, so neither cares about the rotation width. Both facts are pinned
-by tests rather than asserted.
+Run the song, which takes some fifteen seconds and needs its own order of
+magnitude of fuel, because a straight-line image spends one step per cell
+and this one has 64886 of them:
 
-### Why the sources have twins
+```
+lake exe malbolge-unshackled --fuel 200000 Langlib/Examples/MalbolgeUnshackled/compiled/99bottles.mu
+```
+
+Output, of which these are the first four lines and the last:
+
+```
+99 bottles of beer on the wall,
+99 bottles of beer,
+Take one down, pass it around,
+98 bottles of beer on the wall.
+...
+No more bottles of beer on the wall.
+```
+
+That one is worth a second look, because it is the compiler measured against
+a person. `Langlib/Examples/MalbolgeUnshackled/99bottles.mu` is a hand-built
+port of Malbolge's `99bottles.mal` printing the same 11459 bytes, and it
+takes 78790 cells to do it. The compiler takes 64886 — 82% of the
+hand-written figure, for a backend that knows nothing about the program
+beyond the bytes it must emit. Both are straight-line images printing a byte
+at a time, so what differs is the price of one printed byte.
+
+It is also the program that pins that price down, because it is long enough
+for the fixed 194-cell overhead to vanish into the rounding: 32346 code
+cells for 11459 output bytes is 2.82 cells a byte, against 2.85 for the
+primes, 2.95 for the greeting and 3.08 for the sort. A straight-line image pays that per output byte and pays
+nothing for anything else — not for the loop the source wrote, not for the
+arithmetic it did, only for what came out.
+
+None of the three reads its input, so none cares what is on the stream; and
+none emits `*`, so none cares about the rotation width. Both facts are
+pinned by tests for the two small ones, and were checked by hand for the
+song at widths 10, 37 and 300.
+
+### Why two of the sources have twins
 
 `primes.turp` reads its bound and `sort.turp` reads its six numbers, so this
 backend refuses both by name. `Langlib/Examples/Turpentine/primes-mu.turp`
@@ -893,10 +929,14 @@ Unshackled backend, so no *input*". Output is exactly what these keep and
 their `-tc` twins cannot have, because a register machine yields one number
 at halt and a straight-line Unshackled image can print a whole sequence.
 
+`99bottles.turp` needs no twin. It reads nothing as written — the count
+starts at 99 and counts down — so it is in the fragment already, which is
+why it is the one source here with no suffix.
+
 ### They are derived files
 
 `scripts/gen-mu-examples.sh` is the only thing that may write them. It
-compiles both sources, checks each compiled program against its source's own
+compiles every source, checks each compiled program against its source's own
 output, and reports the sizes:
 
 ```
@@ -908,6 +948,7 @@ Output:
 ```
 primes.mu: 422 bytes, output verified
 sort.mu: 304 bytes, output verified
+99bottles.mu: 92602 bytes, output verified
 ```
 
 The compiler is a pure function of its source, so the script is
@@ -923,18 +964,25 @@ Output:
 ```
 primes.mu: 422 bytes, output verified
 sort.mu: 304 bytes, output verified
+99bottles.mu: 92602 bytes, output verified
 gen-mu-examples: committed files are up to date
 ```
 
 That is the same contract `scripts/render-docs-images.sh` has for the
 graphical languages' pictures, and it divides the work the same way. The
 test suite checks two things and not the third: that the compiler produces
-the right output for both sources (recompiling them from scratch), and that
-the files in the tree really are Unshackled programs printing the right
-thing (loading them with Unshackled's own loader, at two rotation widths,
-with nothing from the compiler involved). What only `--check` catches is
-*staleness* — a backend change that was never regenerated. Run it in the
-same commit as any change to the backend or to either source.
+the right output for the two small sources (recompiling them from scratch),
+and that those files in the tree really are Unshackled programs printing the
+right thing (loading them with Unshackled's own loader, at two rotation
+widths, with nothing from the compiler involved). What only `--check`
+catches is *staleness* — a backend change that was never regenerated. Run it
+in the same commit as any change to the backend or to any source.
+
+`99bottles.mu` is checked only by the script, and on purpose. One run of it
+costs some fifteen seconds, which is too much to spend on every `lake test`
+and exactly right to spend on every regeneration — the same trade
+`Langlib/Tests/MalbolgeUnshackled.lean` makes for the hand-written
+`99bottles.mu` next to it.
 
 ### Reading one
 

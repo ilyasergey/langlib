@@ -1,5 +1,6 @@
 import Langlib.Common.TestHarness
 import Langlib.Languages.Malbolge.Semantics
+import Langlib.Tests.BeerSong
 
 /-!
 Golden tests for the Malbolge interpreter: the classic example programs,
@@ -8,7 +9,8 @@ against Olmstead's reference interpreter), EOF handling, the loader errors,
 and divergence.
 
 The 99-bottles example prints 11459 bytes, so rather than quote them we
-rebuild the song here (`beerSong`) and compare against that.
+compare against `Langlib.Tests.BeerSong.song`, which rebuilds the song and
+which the Unshackled and Turpentine suites compare against too.
 
 Malbolge's classic cat programs never halt: at end of input they print the
 byte 168 (= 59048 mod 256) forever. The `echo` and `first byte` suites run
@@ -40,21 +42,6 @@ program-too-long test: position `p` gets the unique printable `x` with
 private def nops (n : Nat) : String :=
   String.ofList <| (List.range n).map fun p => Char.ofNat (33 + (35 + 94 - p % 94) % 94)
 
-/-- `n` bottles of beer, singular at one. -/
-private def bottles (n : Nat) : String :=
-  if n == 1 then "1 bottle of beer" else s!"{n} bottles of beer"
-
-/-- One verse of the song as Iizawa et al.'s example prints it. -/
-private def verse (n : Nat) : String :=
-  let next := if n == 1 then "No more bottles of beer" else bottles (n - 1)
-  s!"{bottles n} on the wall,\n{bottles n},\n\
-     Take one down, pass it around,\n{next} on the wall.\n\n"
-
-/-- The whole song, 99 verses down to none: exactly what `99bottles.mal`
-prints (11459 bytes). -/
-private def beerSong : String :=
-  (List.range 99).foldl (fun acc i => acc ++ verse (99 - i)) ""
-
 def suite : Suite where
   name := "malbolge"
   run := run
@@ -69,7 +56,7 @@ def suite : Suite where
     , { name := "answer example (28 straight-line instructions)",
         source := ex "answer.mal", expect := .outputs "42" }
     , { name := "99 bottles example (Iizawa et al., real loops)",
-        source := ex "99bottles.mal", expect := .outputs beerSong }
+        source := ex "99bottles.mal", expect := .outputs BeerSong.song }
     , { name := "truth-machine example on 0", source := ex "truth.mal",
         input := "0", expect := .outputs "0" }
     , { name := "truth-machine example on 1", source := ex "truth.mal",

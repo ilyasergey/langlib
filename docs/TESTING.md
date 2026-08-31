@@ -34,15 +34,17 @@ naming the file that no longer matches what produced it:
 4. **Compiled Unshackled examples**
    (`./scripts/gen-mu-examples.sh --check`): the programs under
    `Langlib/Examples/MalbolgeUnshackled/compiled/` are
-   `turpentine compile --to malbolge-unshackled` applied to two `.turp`
+   `turpentine compile --to malbolge-unshackled` applied to three `.turp`
    sources. The compiler is a pure function of its source, so the script is
    byte-for-byte reproducible; drop `--check` to regenerate. It builds what
    it needs, and it also runs each compiled program and compares against
    its source's own output, so a regeneration that changed behaviour fails
-   rather than being committed. `lake test` checks the same artifacts from
-   the other side — see the malbolge-unshackled section below — but only
-   `--check` catches *staleness*, a backend change that was never
-   regenerated.
+   rather than being committed. That is why it takes the better part of a
+   minute: `compiled/99bottles.mu` is 64886 cells and one run of it costs
+   some fifteen seconds, which is also why that artifact is checked here
+   and not by `lake test`. `lake test` checks the other two from the other
+   side — see the malbolge-unshackled section below — but only `--check`
+   catches *staleness*, a backend change that was never regenerated.
 
 This file documents, per language, whether a reference exists and what to
 install to enable its differential section.

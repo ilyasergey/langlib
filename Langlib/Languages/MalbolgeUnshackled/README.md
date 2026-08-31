@@ -124,7 +124,7 @@ which is the Turing-completeness work.
 lake exe turpentine compile --to malbolge-unshackled -o /tmp/hello.mu Langlib/Examples/Turpentine/hello.turp
 ```
 
-Two of its outputs are checked in, under
+Three of its outputs are checked in, under
 [compiled/](../../Examples/MalbolgeUnshackled/compiled/). They are derived
 files: `scripts/gen-mu-examples.sh` is the only thing that may write them,
 and `scripts/gen-mu-examples.sh --check` fails if one is stale. Run them
@@ -135,6 +135,7 @@ data cells every compiled program carries.
 |------|--------------|--------|
 | `compiled/primes.mu` | prints the primes up to 30 (348 cells) | `Langlib/Examples/Turpentine/primes-mu.turp` |
 | `compiled/sort.mu` | prints six numbers in order (268 cells) | `Langlib/Examples/Turpentine/sort-mu.turp` |
+| `compiled/99bottles.mu` | prints the whole song (64886 cells), the same 11459 bytes as the hand-written `99bottles.mu` above and in 82% of the characters | `Langlib/Examples/Turpentine/99bottles.turp` |
 
 The full account of the layout, the assembler, the fragment and what the
 input half still needs is
@@ -148,10 +149,12 @@ in ten suites: differential runs against Turpentine's own interpreter, a
 sweep over seven starting rotation widths, an audit of every emitted cell
 against the loader's rule, the `194 + 2n` cell count, a tight fuel bound
 that a program which looped would miss, strict mode's refusal, the fragment
-boundary one case per reason, and the input probe. The last two load the
-checked-in `compiled/*.mu` files with Unshackled's own loader and run them
-— once at the default width and once at 37 — with nothing from the
+boundary one case per reason, and the input probe. The last two load the two
+small checked-in `compiled/*.mu` files with Unshackled's own loader and run
+them — once at the default width and once at 37 — with nothing from the
 compiler involved, so a wrong compiler and a stale artifact fail
-separately. Staleness itself is what
+separately. `compiled/99bottles.mu` is in none of those suites: one run of
+it costs some fifteen seconds, so it is checked by the generator script
+instead, which runs every program it emits. Staleness itself is what
 `scripts/gen-mu-examples.sh --check` catches; run it in the same commit as
-any change to the backend or to either source.
+any change to the backend or to any source.

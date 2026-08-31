@@ -1,9 +1,14 @@
 import Langlib.Common.TestHarness
 import Langlib.Languages.Turpentine.Semantics
+import Langlib.Tests.BeerSong
 
 /-!
 Golden tests for Turpentine: the examples, arithmetic conventions (Euclidean
 division), I/O, type errors, parse errors, runtime errors, and divergence.
+
+`99bottles.turp` is checked against `Langlib.Tests.BeerSong.song`, the same
+11459 bytes the Malbolge suite checks `99bottles.mal` against, so the two
+programs are held to one standard rather than each to its own output.
 -/
 
 namespace Langlib.Tests.Turpentine
@@ -63,6 +68,8 @@ def suite : Suite where
     , { name := "cat-tc example", source := ex "cat-tc.turp", expect := .outputs "" }
     , { name := "sieve example", source := ex "sieve.turp",
         expect := .outputs "2\n3\n5\n7\n11\n13\n17\n19\n23\n29\n31\n37\n41\n43\n47\n" }
+    , { name := "99bottles example (all 99 verses)", source := ex "99bottles.turp",
+        expect := .outputs BeerSong.song }
     , { name := "array elements start at zero", source := .inline
           "var a : int[3]; println(a[0] + a[1] + a[2]);",
         expect := .outputs "0\n" }
