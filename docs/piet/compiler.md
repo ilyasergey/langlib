@@ -390,7 +390,7 @@ lake exe turpentine compile --to piet --bespoke -o /tmp/tri.ppm Langlib/Examples
 Output, on stderr:
 
 ```
-turpentine: wrote 43787 bytes to /tmp/tri.ppm [bespoke, hand-written and unverified]
+turpentine: wrote 43779 bytes to /tmp/tri.ppm [bespoke, hand-written and unverified]
 ```
 
 ### An SVG, through the interpreter itself

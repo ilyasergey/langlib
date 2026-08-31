@@ -669,7 +669,7 @@ lake exe turpentine compile --to piet --bespoke -o /tmp/tri.ppm Langlib/Examples
 Output:
 
 ```
-turpentine: wrote 43787 bytes to /tmp/tri.ppm [bespoke, hand-written and unverified]
+turpentine: wrote 43779 bytes to /tmp/tri.ppm [bespoke, hand-written and unverified]
 ```
 
 That is an 88 x 42 codel image, and it runs like any other Piet program.
@@ -714,6 +714,12 @@ Output:
 
 ```
 turpentine exec: the certified URM fragment needs a variable named 'answer' to hold the answer: a URM has no output, so register 0 at halt is all there is
+turpentine: the certified compiler accepts only the I/O-free fragment
+  (no input or output, no subtraction, and the result in a
+  variable named 'answer'); arrays, division and modulo are
+  supported, and the message above names what was rejected.
+turpentine: retry with --bespoke to compile the whole language.
+turpentine: nothing was run
 ```
 
 Every mode, including emitting to stdout and what the two schemes cost, is
