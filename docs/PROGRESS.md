@@ -2,7 +2,58 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-31 (latest): one parser, because two agreed only by accident
+## 2026-08-31 (latest): the matrices catch up, and two of them were lying
+
+A documentation pass over every status table, prompted by the Malbolge
+Unshackled backend landing without the top-level matrix noticing.
+
+**The matrices.** `README.md`'s row for malbolge-unshackled still said
+`planned`; it now names the bespoke backend, its source, and the two facts
+that go together — the completeness claim is open, so there is no witness
+to derive a compiler from, and the backend cannot compile `read`, because
+reading needs the same machinery the completeness proof does. The list of
+bespoke targets in the same file said three languages; there are eight, and
+six of them are unverified rather than all of them. `Langlib/Languages/Turpentine/README.md`'s
+example table was a two-column header over three-column rows, so a third of
+it did not render at all; it is now a real third column saying what each
+file was written under, with `sum.turp`, `primes-mu.turp` and `sort-mu.turp`
+added and `suite/` pointed at.
+
+**Four places still said nothing inhabits `IOCertifiedCompiler`.**
+`bespokeWhitespaceIO` landed in the commit before last, and
+`docs/verification.md` was in the odd position of marking whitespace
+`**yes**` in its behavioural column and then denying it in the paragraph
+underneath. `docs/README.md`, `docs/PLAN.md` and `README.md` had the same
+sentence.
+
+**Two places said arrays are outside the certified fragment**, while two
+other places in the same two files said they are in. They are in:
+`sieve-tc.turp` compiles and answers 15. Checked by running all twelve
+`-tc` examples — eleven compile, `sort-tc` alone needs subtraction.
+
+**`docs/TESTING.md` had aged badly.** It said `scripts/axioms.lean` did not
+exist (it audits 523 declarations and is clean), that no URM differential
+suite existed (there are seven), and it invoked the audit with a `--run`
+that is not how it is run. It gained a malbolge-unshackled section — the
+one language whose reference interpreter *randomises* the thing a
+differential test would compare, which is why a width sweep replaces it —
+and a fourth entry for `scripts/gen-mu-examples.sh --check`, the
+derived-file check that now sits beside `render-docs-images.sh --check`.
+
+**Line anchors and links.** Every `#L` anchor in the repository was checked
+against the file it points into; six had drifted, one by 51 lines. Two
+table rows had an unescaped `|` inside a code span — `docs/conformance.md`'s
+`||` row and `docs/unlambda/spec.md`'s row for the `|` builtin — which
+splits the cell in every markdown renderer, so both rows were rendering
+with the wrong number of columns. And the compile example that told a
+reader to write `hello.mu` into the repository root now writes it to
+`/tmp`, which is what every other language's compile example already did.
+
+Every command quoted in the pass was run: `lake build` and `lake test`
+clean (1376 tests), `scripts/gen-mu-examples.sh --check` up to date, and
+the axiom audit `sorryAx`-free.
+
+## 2026-08-31: one parser, because two agreed only by accident
 
 Stage 6 milestone 2 opened with a question: do whitespace's `parseNumLine`
 and Turpentine's `parseIntLine` accept the same lines and agree on the

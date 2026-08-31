@@ -5,8 +5,8 @@
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved / disproved | Correct via TC | Hosts full Turpentine | Bespoke compiler | Bespoke correct |
 | ---------- | ------ | -------- | ------------- | ------------------ | -------- | ----------------- | ----------- | ---------------- | ----------------------- | ------------------ | ----------------- |
 | [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | [**yes**](../Langlib/Computability/Brainfuck.lean#L1269) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L122) | yes | [yes](brainfuck/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317) | - |
-| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1117) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | yes | [yes](whitespace/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530) | [**yes**, behaviourally](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401) |
-| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118) | yes | [yes](subleq/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125) | [**yes**, two shapes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L631) |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1133) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | yes | [yes](whitespace/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530) | [**yes**, behaviourally](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401) |
+| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1201) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118) | yes | [yes](subleq/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125) | [**yes**, two shapes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) |
 | [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | [yes, byte core](../Langlib/Computability/Befunge93.lean#L343) | n/a | no, 2000 code cells | [no](befunge93/compiler.md) | n/a |
 | [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [yes, bounded storage](malbolge/spec.md) | [**no**, halting decidable](../Langlib/Computability/Malbolge.lean#L743) | n/a | no, bounded storage | [yes](malbolge/compiler.md) | n/a |
 | [malbolge-unshackled](malbolge-unshackled/spec.md) | yes | yes | yes | yes | `malbolge-unshackled` | yes | open | [planned](malbolge-unshackled/compiler.md) | expected yes | [yes, input-free fragment](malbolge-unshackled/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean) | [planned](malbolge-unshackled/compiler.md) |
@@ -248,8 +248,8 @@ Neither replaces the other, and three facts keep it that way.
   The bespoke backend compiles the same thing into something that
   finishes. Neither compiler is wrong; they are answering different
   questions.
-* **The fragment is real but partial.** Initialisers, `&&`, `||`, `/` and
-  `%` have landed. Subtraction and arrays have not, and subtraction proved
+* **The fragment is real but partial.** Initialisers, `&&`, `||`, `/`, `%`
+  and arrays have landed. Subtraction has not, and proved
   harder than planned: the recommended `Nat`-valued reference semantics
   bridges the wrong way, since `answer := (2 - 5) + 10` halts with `7` in
   the reference and has no `Nat` run at all. See
@@ -263,7 +263,8 @@ with both gets `agree` for free: on every program both accept, the two
 provably decode the same answer. Not the same *behaviour* — that is a
 stronger claim, and the interface for it is
 [`IOCertifiedCompiler`](../Langlib/Common/Compilation.lean#L212), which
-nothing inhabits yet.
+[whitespace's hand-written backend](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4410)
+inhabits over its output fragment and nothing else does yet.
 
 The three columns follow from that, in the order the table puts them.
 
@@ -304,8 +305,12 @@ The three columns follow from that, in the order the table puts them.
   not behaviour: the stronger
   [`IOCertifiedCompiler`](../Langlib/Common/Compilation.lean#L212) also
   demands the compiled program reproduce the source's trace of I/O events,
-  and [implies](../Langlib/Common/Compilation.lean#L253) this column when
-  it lands. Nothing inhabits it yet.
+  and [implies](../Langlib/Common/Compilation.lean#L253) this column. One
+  backend has reached it —
+  [`bespokeWhitespaceIO`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4410),
+  over the output-only fragment, with `encodeTrace` the identity — and the
+  **Bespoke correct** column says `behaviourally` where that is what was
+  proved.
 
 * **Bespoke compiler**: whether a hand-written backend exists, and for
   what fragment.
@@ -316,14 +321,14 @@ The three columns follow from that, in the order the table puts them.
   [certified-compilation.md](certified-compilation.md) section 1.2).
 
   The first one has landed:
-  [`bespokeSubleq`](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L631) is a
+  [`bespokeSubleq`](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) is a
   second `TurpentineCompiler SubleqLang` beside the derived one, so
   [`agree`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L174) applies and "the
   derived compiler is an oracle for the hand-written one" is a corollary
   rather than a testing practice. Its fragment is two program shapes, which
   is small, and honestly so: `docs/subleq/compiler.md` lists what is
   refused.
-  [`bespokeWhitespace`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4255)
+  [`bespokeWhitespace`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4390)
   followed, over a much larger fragment: scalar `int`/`bool`, the whole
   expression language including subtraction and negative literals, `if`,
   `while` and `assert`, leaving out `/`, `%`, arrays and I/O. That fragment

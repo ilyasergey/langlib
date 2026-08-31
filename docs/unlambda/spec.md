@@ -66,7 +66,7 @@ The builtins, as functions:
 | `e` | — | exits the program |
 | `@` | `a` applied to `i` (a byte was read) or to `v` (end of input) | |
 | `?x` | `a` applied to `i` if the last byte read was `x`, else to `v` | |
-| `|` | `a` applied to `.b`, where `b` was the last byte read (`v` if none) | |
+| `\|` | `a` applied to `.b`, where `b` was the last byte read (`v` if none) | |
 
 `d` is the only special form. In `` `FG ``, if `F` evaluates to `d` then
 `G` is *not* evaluated; the result is a promise, and `G` runs when the

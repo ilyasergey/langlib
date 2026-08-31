@@ -262,8 +262,9 @@ target:
   answer. `IOCertifiedCompiler.toCertified` proves it implies the weaker
   notion, so an upgrade reproves nothing.
 
-Nothing inhabits `IOCertifiedCompiler` yet, and that is deliberate: the
-prerequisite is per-language, not per-compiler.
+`bespokeWhitespaceIO` is the only inhabitant of `IOCertifiedCompiler` so
+far, over the output-only fragment; the reason there is exactly one is that
+the prerequisite is per-language, not per-compiler.
 
 The derived compilers are out of scope for the upgrade and always will be:
 `TurpentineHaltsWith` is I/O-free because the URM is. FRACTRAN has its

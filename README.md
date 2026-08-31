@@ -81,8 +81,8 @@ status matrix, including compilers):
 | Language | Turing-complete (TC) | TC claim mechanised | Turpentine compiler |
 |----------|--------------------------|------------------------------|---------------------|
 | [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L1269)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L122) (certified), and [bespoke](docs/brainfuck/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317), trusted) |
-| [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1117)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L114) (certified), and [bespoke](docs/whitespace/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530), [certified on a fragment, behaviourally](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401)) |
-| [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1201)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L118) (certified), and [bespoke](docs/subleq/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125), [certified on a fragment](Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L631)) |
+| [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1133)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L114) (certified), and [bespoke](docs/whitespace/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530), [certified on a fragment, behaviourally](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401)) |
+| [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1201)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L118) (certified), and [bespoke](docs/subleq/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125), [certified on a fragment](Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639)) |
 | [fractran](docs/fractran/spec.md) | yes | **[yes](Langlib/Computability/Fractran.lean#L4471)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L127) (certified), and [bespoke](docs/fractran/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Fractran.lean), trusted) |
 | [piet](docs/piet/spec.md) | yes | **[yes](Langlib/Computability/Piet.lean#L3992)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L139) (certified), and [bespoke](docs/piet/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Piet.lean), trusted) |
 | [thue](docs/thue/spec.md) | yes | **[yes](Langlib/Computability/Thue.lean#L4026)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L133) (certified); [bespoke planned](docs/thue/compiler.md) |
@@ -91,7 +91,7 @@ status matrix, including compilers):
 | [befunge93](docs/befunge93/spec.md) | [no with byte cells, yes with ours](docs/befunge93/spec.md#computational-class-and-why-our-deviations-matter) | **[yes](Langlib/Computability/Befunge93.lean#L343)**, for the byte core | [none: 2000 cells](docs/befunge93/compiler.md) |
 | [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[yes](Langlib/Computability/Malbolge.lean#L743)** | [none: bounded](docs/malbolge/compiler.md) |
 | [deadfish](docs/deadfish/spec.md) | no, every program halts | **[yes](Langlib/Computability/Deadfish.lean#L89)** | [planned, output only](docs/deadfish/compiler.md) |
-| [malbolge-unshackled](docs/malbolge-unshackled/spec.md) | yes | open | [planned](docs/malbolge-unshackled/compiler.md) |
+| [malbolge-unshackled](docs/malbolge-unshackled/spec.md) | yes | open | [bespoke](docs/malbolge-unshackled/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean), trusted, input-free fragment); no derived one while the TC claim is open |
 | [unlambda](docs/unlambda/spec.md) | yes | **[yes](Langlib/Computability/Unlambda.lean#L1720)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L156) (certified); [bespoke planned](docs/unlambda/compiler.md) |
 | [ski](docs/ski/spec.md) | yes | **[yes](Langlib/Computability/Ski.lean#L1012)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L163) (certified); [bespoke: compile to unlambda instead](docs/ski/compiler.md) |
 | [Turpentine](docs/turpentine/spec.md) | yes | open | [(it is the source)](docs/turpentine/spec.md) |
@@ -117,6 +117,14 @@ compiled program performs the source's I/O events, in order, not merely its
 answer. [Verified compilers](#verified-compilers) below explains why the library
 keeps both kinds.
 
+Malbolge Unshackled is the one row with a bespoke compiler and no derived
+one, and both halves of that are the same fact. Its completeness claim is
+still `open`, so there is no witness to derive a compiler from; and its
+backend compiles every program whose control flow can be settled before the
+target runs — loops, arrays and arithmetic included — but not one that
+reads input, because reading needs cells that survive re-execution, which
+is the completeness work itself.
+
 
 The full matrix, with per-stage columns and links to every theorem, is in
 [docs/README.md](docs/README.md).
@@ -140,7 +148,7 @@ class ProgLang (L : Type) where
 `L` is an empty tag type that *names* the language rather than being its
 program type, so `Befunge93` and `BoundedByteBefunge93` can be two
 languages with two different answers.
-[`Input` and `RunResult`](Langlib/Common/Io.lean#L28) are the shared
+[`Input` and `RunResult`](Langlib/Common/Io.lean#L79) are the shared
 execution model: a byte stream with a read cursor, and the bytes a run
 emitted together with how it ended. The `Nat` is **fuel**, a step budget,
 which is what makes `run` a total function even of a program that never
@@ -238,13 +246,25 @@ noticed until the claim had to be written down precisely enough to prove.
 
 A Turpentine program reaches a target two ways, and the library keeps both.
 
-**Bespoke** compilers are hand-written per target. They accept the whole of
-Turpentine, produce compact output, and are what
-`lake exe turpentine compile --to <lang>` runs today for
+**Bespoke** compilers are hand-written per target. They produce compact
+output and accept as much of Turpentine as the target can host, and they
+are what `lake exe turpentine compile --to <lang>` runs today for eight
+languages:
 [brainfuck](Langlib/Languages/Turpentine/Compile/Brainfuck.lean),
-[whitespace](Langlib/Languages/Turpentine/Compile/Whitespace.lean) and
-[subleq](Langlib/Languages/Turpentine/Compile/Subleq.lean). None is verified yet;
-verifying one is per-language proof work.
+[whitespace](Langlib/Languages/Turpentine/Compile/Whitespace.lean),
+[subleq](Langlib/Languages/Turpentine/Compile/Subleq.lean),
+[ook](Langlib/Languages/Turpentine/Compile/Ook.lean),
+[brainloller](Langlib/Languages/Turpentine/Compile/Brainloller.lean),
+[piet](Langlib/Languages/Turpentine/Compile/Piet.lean),
+[fractran](Langlib/Languages/Turpentine/Compile/Fractran.lean) and
+[malbolge-unshackled](Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean).
+The first six take the whole language; the last two are bounded by their
+targets rather than by our effort — FRACTRAN has no I/O at all, and the
+Unshackled backend emits a straight line, so it takes any program that does
+not read. Two of the eight are verified, on a fragment each:
+[subleq](Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) and
+[whitespace](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4390).
+Verifying the rest is per-language proof work.
 
 **Derived via the URM**, a compiler costs nothing to write. A `TuringComplete`
 witness already contains a verified compiler from a register machine, so
@@ -266,22 +286,31 @@ derived compilers, whose fragment has no I/O, and much too weak for a
 backend that compiles `read` and `print`.
 [`IOCertifiedCompiler`](Langlib/Common/Compilation.lean#L212) is the
 behavioural one: a run's observable behaviour is a
-[`Trace`](Langlib/Common/Io.lean#L115) of the bytes it consumed and
+[`Trace`](Langlib/Common/Io.lean#L366) of the bytes it consumed and
 emitted, in order, and the compiled program has to reproduce the source's
 trace under an encoding the compiler declares up front, as well as its
 answer.
 [`toCertified`](Langlib/Common/Compilation.lean#L253) proves the second
 implies the first, so upgrading a backend loses none of what was already
-proved about it. Nothing is proved behaviourally yet; the candidates and
-what each one needs are tabulated in
+proved about it. One backend has reached the behavioural statement:
+[`bespokeWhitespaceIO`](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4410)
+is the first inhabitant of `IOCertifiedCompiler`, over the same fragment
+its answer-only theorem covers, with `encodeTrace` the identity — the
+compiled program does not re-encode the source's I/O, it performs it. The
+remaining candidates and what each one needs are tabulated in
 [certified-compilation.md](docs/certified-compilation.md).
 
 Both compilation schemes are inhabitants of the same `CertifiedCompiler`
 interface, which pays off where a target has both:
 [`agree`](Langlib/Common/Compilation.lean#L126) proves that any two
 verified compilers for one target decode the same answer out of every
-program both accept. Until a bespoke compiler is verified, the derived one
-is the strongest available check on it.
+program both accept. Subleq and whitespace have both, so for those two
+"the derived compiler is an oracle for the hand-written one" is a theorem
+rather than a testing practice. Five of the six unverified backends have a
+derived counterpart, and for those the derived one remains the strongest
+available check; malbolge-unshackled is checked by tests alone, since its
+completeness claim is open and so no derived compiler exists to compare
+against.
 
 Choose explicitly. `compile` and `exec` each take `--bespoke` or `--tc`,
 refuse both at once, and name the scheme they used, so a build log says
@@ -303,11 +332,10 @@ steps, because arithmetic becomes unary counting on a byte tape. The
 bespoke brainfuck backend compiles real programs into something that
 finishes.
 
-*The fragment is still narrowing in.* Initialisers, `&&`, `||`, `/` and
-`%` have landed; subtraction and arrays have not, and subtraction turned
-out to be harder than planned (the obvious `Nat`-valued semantics bridges
-the wrong way). Meanwhile the bespoke compilers accept the whole language
-today.
+*The fragment is still narrowing in.* Initialisers, `&&`, `||`, `/`, `%`
+and arrays have landed; subtraction has not, and turned out to be harder
+than planned (the obvious `Nat`-valued semantics bridges the wrong way).
+Meanwhile the bespoke compilers accept the whole language today.
 
 *A verified bespoke compiler needs a stronger theorem than the derived one
 has.* The certified statement observes a single number on runs that halt,
@@ -477,6 +505,29 @@ Output:
 
 ```
 HEllO WORld
+```
+
+Malbolge Unshackled runs a program nobody wrote: `compiled/primes.mu` is
+what the bespoke backend emits for a Turpentine source, checked into the
+tree and run here on Unshackled's own interpreter.
+
+```
+lake exe malbolge-unshackled --fuel 100000 Langlib/Examples/MalbolgeUnshackled/compiled/primes.mu
+```
+
+Output:
+
+```
+2
+3
+5
+7
+11
+13
+17
+19
+23
+29
 ```
 
 Turpentine, the readable front end, computes an integer square root.

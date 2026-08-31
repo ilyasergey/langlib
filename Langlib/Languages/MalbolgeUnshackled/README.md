@@ -121,7 +121,7 @@ needs a machine that loops, which needs cells that survive re-execution,
 which is the Turing-completeness work.
 
 ```
-lake exe turpentine compile --to malbolge-unshackled -o hello.mu Langlib/Examples/Turpentine/hello.turp
+lake exe turpentine compile --to malbolge-unshackled -o /tmp/hello.mu Langlib/Examples/Turpentine/hello.turp
 ```
 
 Two of its outputs are checked in, under

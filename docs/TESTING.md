@@ -20,16 +20,29 @@ that one written-down answer constrains every language that can host the
 program. [conformance.md](conformance.md) has the programs, the rule for
 what may join them, and how to add one.
 
-A third check is not a test of the interpreters but of the documentation:
+Two more checks are not tests of the interpreters but of the **derived
+files** in the tree — artifacts a script produces and nobody may hand-edit.
+Both regenerate into a scratch directory and compare, and both fail by
+naming the file that no longer matches what produced it:
 
 3. **Documentation images** (`./scripts/render-docs-images.sh --check`):
    the pictures on the Piet and Brainloller spec pages are derived from the
-   example programs, and this regenerates them into a scratch directory and
-   compares. It fails, naming the file, if a committed image no longer
-   matches the example it came from. Drop `--check` to rewrite them in
+   example programs. Drop `--check` to rewrite them in
    place. Piet renders through `lake exe piet --svg`, so that check needs
    `lake build` first; Brainloller renders through
    `scripts/ppm-to-png.py`, which needs only the Python standard library.
+4. **Compiled Unshackled examples**
+   (`./scripts/gen-mu-examples.sh --check`): the programs under
+   `Langlib/Examples/MalbolgeUnshackled/compiled/` are
+   `turpentine compile --to malbolge-unshackled` applied to two `.turp`
+   sources. The compiler is a pure function of its source, so the script is
+   byte-for-byte reproducible; drop `--check` to regenerate. It builds what
+   it needs, and it also runs each compiled program and compares against
+   its source's own output, so a regeneration that changed behaviour fails
+   rather than being committed. `lake test` checks the same artifacts from
+   the other side — see the malbolge-unshackled section below — but only
+   `--check` catches *staleness*, a backend change that was never
+   regenerated.
 
 This file documents, per language, whether a reference exists and what to
 install to enable its differential section.
@@ -190,6 +203,29 @@ round trips, hand-pixelled images pinning the rotation colours, and
 execution through the brainfuck core, which has its own differential
 section.
 
+## malbolge-unshackled
+
+Reference situation: Ørjan Johansen's own interpreter is the specification,
+but it **randomises the starting rotation width on every run**, precisely so
+that a program depending on the width fails some of the time. That makes
+byte-for-byte differential comparison against it unreliable in the one place
+it would matter, so `difftest.sh` has no section for the language and golden
+tests are the whole story.
+
+What replaces a reference run is a *sweep*. `Langlib/Tests/MalbolgeUnshackled.lean`
+re-runs five examples at rotation width 37, a width the default never uses,
+and `Langlib/Tests/CompileMalbolgeUnshackled.lean` runs every compiled
+program at seven widths from 10 to 300 and passes only if all seven agree,
+exit code included. Compiled programs also need the loader's default
+setting: they carry data cells outside `33..126`, so `--strict` refuses
+them, and a test asserts that it does.
+
+The compiler suites there are the counterpart to
+`scripts/gen-mu-examples.sh --check` above: the script checks that the
+checked-in artifacts are not stale, and `lake test` checks that they are
+real Unshackled programs printing the right thing, loaded with Unshackled's
+own loader with nothing from the compiler involved.
+
 ## Computability results
 
 The proofs under `Langlib/Computability/` are checked by Lean itself, so
@@ -197,7 +233,7 @@ they need no test harness. What they do need is an axiom audit, because a
 theorem resting on `sorryAx` type-checks perfectly well:
 
 ```
-lake env lean --run scripts/axioms.lean
+lake env lean scripts/axioms.lean
 ```
 
 Output:
@@ -207,16 +243,28 @@ Output:
 ```
 
 Anything other than those three standard axioms means the result is not
-what it claims. There is no `scripts/axioms.lean` yet; writing one that
-audits every completeness instance is a small and worthwhile job.
+what it claims. The file audits 523 declarations — every completeness and
+incompleteness instance, the trace laws, and both certified bespoke
+backends including `bespokeWhitespaceIO` — and is clean. Append to it
+whenever a new instance lands.
 
 Separately, a completeness proof yields a runnable compiler, so it can be
 differentially tested like any other: compile a small register-machine
-program and run it on our interpreter for that language. No such suite
-exists yet either.
+program and run it on our interpreter for that language.
+`Langlib/Tests/URM<Lang>.lean` does exactly that for brainfuck, fractran,
+piet, ski, subleq, thue and unlambda, and runs under `lake test` with the
+rest.
 
 ## Languages without a canonical interpreter
 
 For these, golden unit tests on programs are the reference story, and their
-spec pages record which documents the semantics follows. (Sections are added
-here as languages land.)
+spec pages record which documents the semantics follows: **unlambda**
+(Madore published several interpreters, and `docs/unlambda/spec.md` records
+the places they disagree with each other and which reading we took, so
+there is no single binary to difference against), **ski** (not an esolang
+at all — the reduction order is stated in `docs/ski/spec.md` and pinned by
+tests), and **malbolge-unshackled** for the reason in its own section
+above. The first two are also exercised through their completeness
+witnesses, by `Langlib/Tests/URMUnlambda.lean` and
+`Langlib/Tests/URMSki.lean`; malbolge-unshackled has no such suite because
+its completeness claim is still open.

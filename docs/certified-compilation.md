@@ -127,7 +127,7 @@ A backend that compiled `cat` into a program printing the right final answer
 and nothing else would satisfy it.
 
 The stronger statement needs a vocabulary for what a run observably *does*.
-[`Langlib/Common/Io.lean`](../Langlib/Common/Io.lean#L107) supplies it:
+[`Langlib/Common/Io.lean`](../Langlib/Common/Io.lean#L357) supplies it:
 
 ```lean
 inductive Event where
@@ -395,7 +395,7 @@ run becomes a halting `L` run whose output decodes to the same answer.
 Whitespace's, for instance, is
 [`compile`](../Langlib/Computability/Whitespace.lean#L126) and
 [`simulation`](../Langlib/Computability/Whitespace.lean#L1048), inside
-[`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L1117).
+[`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L1133).
 
 **The composition** is
 [`derived`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L96), one
@@ -765,7 +765,7 @@ correction branches on the sign of the divisor, a separate arithmetic
 obligation), arrays, and every I/O statement. The end-to-end theorem is
 [`bespokeCompile_correct`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3095).
 
-**[`bespokeSubleq`](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L631)**
+**[`bespokeSubleq`](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639)**
 covers two program shapes — `var answer: int := k; printByte(answer);` for
 `1 ≤ k ≤ 255`, and `var answer: int;` with an empty body — and that is
 honest rather than lazy. `TurpentineHaltsWith` names a single number, and a

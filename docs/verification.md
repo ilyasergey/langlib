@@ -285,7 +285,7 @@ pages for why), so they have no proof obligations.
 One thing, and it is not a compiler-correctness result: **Whitespace is
 proved Turing complete**
 ([Whitespace.lean](../Langlib/Computability/Whitespace.lean),
-[`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L1117)), by
+[`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L1133)), by
 compiling cslib's unlimited register machine into it and proving the
 compilation simulates. `#print axioms` on the result reports only
 `propext`, `Classical.choice` and `Quot.sound`.
@@ -305,7 +305,7 @@ as the proof.
 | Backend | Effective compiler | Simulation | End-to-end theorem | Derived compiler | Behavioural (I/O) |
 |---------|--------------------|------------|--------------------|------------------|-------------------|
 | whitespace | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3148) | [yes, scalars and output](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4355) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | [**yes**, output only, `encodeTrace = id`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401) |
-| subleq | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L631) | [yes, two shapes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L631) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118) | - |
+| subleq | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) | [yes, two shapes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118) | - |
 | brainfuck | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L122) | - |
 | fractran | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L127) | n/a (no I/O) |
 | thue | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L133) | - |
@@ -323,9 +323,10 @@ and a `TraceLang` instance would have nothing to say. Its answer is the
 normal form the interpreter prints, which is a property of the final state
 rather than of the run.
 
-The last column is otherwise empty on purpose. Nothing inhabits
-`IOCertifiedCompiler` yet, and the first step for any row is not a proof
-but a `TraceLang` instance: the interpreter has to record its events.
+The last column is otherwise empty on purpose. Whitespace is the one row
+that has reached the behavioural notion, and for every other the first step
+is not a proof but a `TraceLang` instance: the interpreter has to record
+its events.
 FRACTRAN has one already, for free, because its `run` provably ignores the
 input stream — which is also why its cell says `n/a` rather than `-`.
 

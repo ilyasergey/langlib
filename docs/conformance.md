@@ -51,7 +51,7 @@ Sources are in
 | [`multtable.turp`](../Langlib/Examples/Turpentine/suite/multtable.turp) | a five-by-five multiplication table | nested loops that both print; tab output | 5 |
 | [`bottles.turp`](../Langlib/Examples/Turpentine/suite/bottles.turp) | the last three verses of the bottles song | the most text; a singular/plural branch three times a verse | 15 |
 | [`divmod.turp`](../Langlib/Examples/Turpentine/suite/divmod.turp) | Euclidean division at all four sign pairs | negative operands, and a non-negative remainder | 8 |
-| [`logic.turp`](../Langlib/Examples/Turpentine/suite/logic.turp) | every boolean and comparison operator | `&&`, `||`, `!` and all six comparisons; no arithmetic | 11 |
+| [`logic.turp`](../Langlib/Examples/Turpentine/suite/logic.turp) | every boolean and comparison operator | `&&`, `\|\|`, `!` and all six comparisons; no arithmetic | 11 |
 ## How each one is run
 
 `Langlib/Tests/Conformance.lean` registers one suite per runner, so a

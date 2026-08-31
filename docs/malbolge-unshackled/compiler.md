@@ -43,13 +43,13 @@ crazy operation in the code row then reads the data cell directly below it.
 Compile the greeting to Unshackled source:
 
 ```
-lake exe turpentine compile --to malbolge-unshackled -o hello.mu Langlib/Examples/Turpentine/hello.turp
+lake exe turpentine compile --to malbolge-unshackled -o /tmp/hello.mu Langlib/Examples/Turpentine/hello.turp
 ```
 
 Output:
 
 ```
-turpentine: wrote 306 bytes to hello.mu [bespoke, hand-written and unverified]
+turpentine: wrote 306 bytes to /tmp/hello.mu [bespoke, hand-written and unverified]
 ```
 
 That count is cells, not bytes: 52 of the 306 are data cells above code
@@ -57,7 +57,7 @@ point 126, so the file is 358 bytes of UTF-8. Run it on Unshackled's own
 interpreter:
 
 ```
-lake exe malbolge-unshackled --fuel 100000 hello.mu
+lake exe malbolge-unshackled --fuel 100000 /tmp/hello.mu
 ```
 
 Output:
@@ -989,18 +989,20 @@ The saving is small here and would not be on a program that prints runs.
 ## Tests
 
 [`Langlib/Tests/CompileMalbolgeUnshackled.lean`](../../Langlib/Tests/CompileMalbolgeUnshackled.lean),
-run by `lake test`, in six suites. Four of them exist because a backend whose
+run by `lake test`, in ten suites. Four of them exist because a backend whose
 target checks its own program at load time can fail in four different ways.
 
-* **Differential**, 20 cases. Compile, load with Unshackled's loader, run on
+* **Differential**, 22 cases. Compile, load with Unshackled's loader, run on
   Unshackled's interpreter, compare with what Turpentine's own interpreter
   produces. Every expected string is Turpentine's. The cases cover string
   literals and escapes, decimal printing across digit boundaries and on
   negatives, booleans, Euclidean `/` and `%`, short-circuit `||`, `assert`,
   `int` and `bool` arrays with computed indices, **every byte from 1 to
   127** through `printByte`, byte 0 and byte 127, `printByte`'s reduction
-  mod 256, and the `hello`, `sieve` and `sum` examples.
-* **Rotation width**, 6 cases. The language leaves the starting rotation
+  mod 256, and the `hello`, `sieve`, `sum`, `primes-mu` and `sort-mu`
+  examples — the last two being the sources of the checked-in artifacts,
+  compiled afresh here.
+* **Rotation width**, 8 cases. The language leaves the starting rotation
   width to the implementation, and Johansen's interpreter randomises it
   precisely so that a program depending on it fails on some runs. This
   backend emits no `*`, so each case is run at seven widths from 10 to 300
@@ -1018,11 +1020,21 @@ target checks its own program at load time can fail in four different ways.
 * **The fragment boundary**, 10 cases, one per reason to refuse: each of the
   four reading statements, non-termination, a byte above 127, a trap, a
   failed assertion, a type error and a parse error.
+* **Strict mode**, 2 cases. `--strict` refuses an emitted program, by
+  design, and names the data cell it stopped at.
 * **The input probe**, 8 cases. `inputProbe` is not part of `compile`, so
   these check the mechanism rather than the compiler: `a` and `c` take their
   own branches, four other characters fall through to the shared echo
   branch, only the first character is read, and end of input fails the way
   the design says it must. Each case runs at four rotation widths.
+* **The checked-in artifacts**, 3 cases, and **the same at width 37**, 2
+  more. Everything above compiles a source and runs what came out. These
+  two suites do the other half: they load
+  `Langlib/Examples/MalbolgeUnshackled/compiled/*.mu` from the tree with
+  Unshackled's own loader and run them on Unshackled's own interpreter,
+  with nothing from the compiler involved, so a wrong compiler and a stale
+  artifact are separate failures. One case feeds `primes.mu` an input
+  stream it must ignore.
 
 Two checks are run by hand rather than by `lake test`, because they are
 sweeps rather than cases: `twoStep` over all 16384 accumulator/target pairs
