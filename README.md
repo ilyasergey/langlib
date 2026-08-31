@@ -154,10 +154,26 @@ emitted together with how it ended. The `Nat` is **fuel**, a step budget,
 which is what makes `run` a total function even of a program that never
 terminates — it returns `outOfFuel` instead of diverging.
 
-It is a class, not bundled data, because there is only ever one way to run
-a given language. It lives in
+**[`LawfulProgLang L`](Langlib/Common/Compilation.lean#L122)** is the one
+law the library asks of that shape: a completed run is a fixed point of
+more fuel. It looks like bookkeeping and is anything but. Every correctness
+statement here concludes with "for some fuel bound the compiled program
+halts with the right answer", and against an interpreter free to treat fuel
+as an *input channel* — halt with the right answer exactly at fuels that
+encode the answer, and at no others — that sentence is satisfiable by a
+language whose programs compute nothing. `halted_stable` pins fuel to its
+budget role, which is why the correctness structures and `TuringComplete`
+require the class rather than merely benefit from it, and why the
+`correct_stable` corollaries can read every "some fuel works" as "every
+fuel from some point on works" — the form a runner that picks its own
+bound actually needs. Every language in the library carries the instance,
+proved by one induction over its interpreter in
+`Langlib/Languages/<Lang>/Stability.lean`.
+
+`ProgLang` is a class, not bundled data, because there is only ever one way
+to run a given language. Both live in
 [`Langlib/Common/Compilation.lean`](Langlib/Common/Compilation.lean)
-alongside the compiler-correctness definitions, which need it.
+alongside the compiler-correctness definitions, which need them.
 
 ## Computability
 
