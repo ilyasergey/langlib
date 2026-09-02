@@ -362,14 +362,14 @@ theorem hr_I (X : Term) : HR (.app .I X) X := ⟨1, rfl⟩
 
 theorem hr_K2 (X Y : Term) : HR (.app (.app .K X) Y) X := ⟨1, rfl⟩
 
-theorem hr_numT_zero (Z S : Term) : HR (.app (.app (numT 0) Z) S) Z := ⟨4, rfl⟩
+theorem hr_numT_zero (Z Sf : Term) : HR (.app (.app (numT 0) Z) Sf) Z := ⟨4, rfl⟩
 
-theorem hr_numT_succ (m : Nat) (Z S : Term) :
-    HR (.app (.app (numT (m + 1)) Z) S) (.app S (.app (.app .K (numT m)) S)) :=
+theorem hr_numT_succ (m : Nat) (Z Sf : Term) :
+    HR (.app (.app (numT (m + 1)) Z) Sf) (.app Sf (.app (.app .K (numT m)) Sf)) :=
   ⟨3, rfl⟩
 
-theorem hr_succT (N Z S : Term) :
-    HR (.app (.app (.app succT N) Z) S) (.app S (.app (.app (numT 0) N) S)) :=
+theorem hr_succT (N Z Sf : Term) :
+    HR (.app (.app (.app succT N) Z) Sf) (.app Sf (.app (.app (numT 0) N) Sf)) :=
   ⟨7, rfl⟩
 
 theorem hr_predT (N : Term) :
@@ -466,14 +466,14 @@ care what a term head-reduces to, which is exactly the slack needed. -/
 
 /-- `T` branches like the number `m`. -/
 def NumT : Nat → Term → Prop
-  | 0, T => ∀ Z S, HR (.app (.app T Z) S) Z
-  | m + 1, T => ∀ Z S, ∃ P, NumT m P ∧ HR (.app (.app T Z) S) (.app S P)
+  | 0, T => ∀ Z Sf, HR (.app (.app T Z) Sf) Z
+  | m + 1, T => ∀ Z Sf, ∃ P, NumT m P ∧ HR (.app (.app T Z) Sf) (.app Sf P)
 
 theorem NumT.of_hr : ∀ {m : Nat} {T U : Term}, HR T U → NumT m U → NumT m T
-  | 0, T, U, h, hU => fun Z S => HR.trans (HR.app_left (HR.app_left h Z) S) (hU Z S)
-  | m + 1, T, U, h, hU => fun Z S => by
-      obtain ⟨P, hP, hred⟩ := hU Z S
-      exact ⟨P, hP, HR.trans (HR.app_left (HR.app_left h Z) S) hred⟩
+  | 0, T, U, h, hU => fun Z Sf => HR.trans (HR.app_left (HR.app_left h Z) Sf) (hU Z Sf)
+  | m + 1, T, U, h, hU => fun Z Sf => by
+      obtain ⟨P, hP, hred⟩ := hU Z Sf
+      exact ⟨P, hP, HR.trans (HR.app_left (HR.app_left h Z) Sf) hred⟩
 
 /-- `T` behaves like the list `xs` of register contents. -/
 def ListT : List Nat → Term → Prop
@@ -488,19 +488,19 @@ theorem ListT.of_hr : ∀ {xs : List Nat} {T U : Term}, HR T U → ListT xs U �
       exact ⟨H, Tl, hH, hTl, HR.trans (HR.app_left h C) hred⟩
 
 theorem numT_spec : ∀ m, NumT m (numT m)
-  | 0 => fun Z S => hr_numT_zero Z S
-  | m + 1 => fun Z S =>
-      ⟨.app (.app .K (numT m)) S,
-        NumT.of_hr (hr_K2 (numT m) S) (numT_spec m), hr_numT_succ m Z S⟩
+  | 0 => fun Z Sf => hr_numT_zero Z Sf
+  | m + 1 => fun Z Sf =>
+      ⟨.app (.app .K (numT m)) Sf,
+        NumT.of_hr (hr_K2 (numT m) Sf) (numT_spec m), hr_numT_succ m Z Sf⟩
 
 /-- `F` turns a numeral for `m` into one for `f m`. -/
 def NumFun (F : Term) (f : Nat → Nat) : Prop :=
   ∀ m N, NumT m N → NumT (f m) (.app F N)
 
 theorem succT_spec : NumFun succT (fun m => m + 1) := by
-  intro m N h Z S
-  exact ⟨.app (.app (numT 0) N) S,
-    NumT.of_hr (hr_numT_zero N S) h, hr_succT N Z S⟩
+  intro m N h Z Sf
+  exact ⟨.app (.app (numT 0) N) Sf,
+    NumT.of_hr (hr_numT_zero N Sf) h, hr_succT N Z Sf⟩
 
 theorem predT_spec : NumFun predT (fun m => m - 1) := by
   intro m N h

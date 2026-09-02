@@ -242,7 +242,8 @@ noncomputable def tokensOfList : List Nat → Tokens
   | cons j rest ih =>
     simp only [tokensOfList_cons, Finsupp.add_apply, Finsupp.single_apply, ih,
       List.count_cons]
-    split <;> simp_all <;> omega
+    split <;> simp_all
+    omega
 
 @[simp] theorem encodeTokens_single (i e : Nat) :
     encodeTokens (Finsupp.single i e) = primeAt i ^ e := by
@@ -289,7 +290,7 @@ noncomputable def pairedState (base : Tokens) (m r n c : Nat) : Tokens :=
 theorem enabled_head {produce : List Nat} {owner : Nat} {rest : List Nat} {s : Tokens}
     (h : (srule produce (owner :: rest)).Enabled s) : 1 ≤ s owner := by
   have ho := Finsupp.le_def.mp h owner
-  simp [srule, SRule.Enabled, tokensOfList, Finsupp.single_apply] at ho
+  simp [srule] at ho
   omega
 
 theorem counter_cons_enabled {base : Tokens} {owner r next : Nat} {n : Nat}
@@ -301,18 +302,18 @@ theorem counter_cons_enabled {base : Tokens} {owner r next : Nat} {n : Nat}
   intro i
   simp only [srule, tokensOfList, Finsupp.add_apply, Finsupp.single_apply]
   by_cases hio : owner = i
-  · subst i; simp [howner, hr, hor, hor.symm]
+  · subst i; simp [howner, hor.symm]
   · by_cases hir : r = i
-    · subst i; simp [howner, hr, hor, hor.symm]
+    · subst i; simp [hr, hor]
     · simp [hio, hir]
 
 theorem counter_cons_disabled {base : Tokens} {owner r next : Nat}
-    (howner : base owner = 0) (hr : base r = 0) (hor : owner ≠ r) :
+    (_howner : base owner = 0) (hr : base r = 0) (hor : owner ≠ r) :
     ¬(srule [next] [owner, r]).Enabled (counterState base r 0 owner) := by
   intro h
   have hv := Finsupp.le_def.mp h r
-  simp [srule, SRule.Enabled, counterState, tokensOfList, Finsupp.single_apply,
-    howner, hr, hor] at hv
+  simp [srule, counterState, tokensOfList,
+    hr, hor] at hv
 
 theorem counter_finish_enabled {base : Tokens} {owner r next : Nat}
     (howner : base owner = 0) :
@@ -345,7 +346,7 @@ theorem counter_apply_finish {base : Tokens} {owner r next : Nat}
   simp only [SRule.apply, srule, counterState, tokensOfList, Finsupp.add_apply,
     Finsupp.single_apply]
   by_cases hio : i = owner <;> by_cases hin : i = next <;>
-    subst_vars <;> simp_all <;> omega
+    subst_vars <;> simp_all
 
 @[simp] theorem SRule.toRule_toFrac (r : SRule) : r.toRule.toFrac = r.toFrac := by
   simp [SRule.toRule, Rule.toFrac, SRule.toFrac, encodeTokens_tokensOfList]
@@ -506,7 +507,7 @@ noncomputable def eraseToken (s : Tokens) (r : Nat) : Tokens :=
 
 theorem eraseToken_apply_of_ne (s : Tokens) {r i : Nat} (h : i ≠ r) :
     eraseToken s r i = s i := by
-  simp [eraseToken, Finsupp.tsub_apply, Finsupp.single_apply, h]
+  simp [eraseToken, Finsupp.tsub_apply, h]
 
 theorem eraseToken_add_self (s : Tokens) (r : Nat) :
     eraseToken s r + Finsupp.single r (s r) = s := by
@@ -515,7 +516,7 @@ theorem eraseToken_add_self (s : Tokens) (r : Nat) :
   simp only [eraseToken, Finsupp.add_apply, Finsupp.single_apply, Finsupp.tsub_apply]
   by_cases h : i = r
   · subst i; simp
-  · simp [h, Ne.symm h]
+  · simp [Ne.symm h]
 
 theorem regTokens_write (l : Layout) (regs : Cslib.URM.Regs) {r v : Nat}
     (hr : r < l.regBound) :
@@ -526,9 +527,8 @@ theorem regTokens_write (l : Layout) (regs : Cslib.URM.Regs) {r v : Nat}
   simp only [regTokens_apply, eraseToken, Finsupp.add_apply, Finsupp.single_apply,
     Finsupp.tsub_apply]
   by_cases hir : i = r
-  · subst i; simp [hr, Cslib.URM.Regs.write, Cslib.URM.Regs.read]
-  · simp [hir, Ne.symm hir, Cslib.URM.Regs.write, Cslib.URM.Regs.read,
-      Function.update_of_ne hir]
+  · subst i; simp [hr, Cslib.URM.Regs.write]
+  · simp [hir, Ne.symm hir, Cslib.URM.Regs.write]
 
 theorem control_ge_bound {l : Layout} {i : Nat} (h : IsControl l i) :
     l.regBound ≤ i := by
@@ -576,11 +576,11 @@ theorem counterState_onlyControl {l : Layout} {base : Tokens} {r n c : Nat}
     OnlyControl l c (counterState base r n c) := by
   classical
   constructor
-  · simp [counterState, hb c hc, Finsupp.single_apply,
+  · simp [counterState, hb c hc,
       ne_of_lt (lt_of_lt_of_le hr (control_ge_bound hc))]
   · intro i hi hic
     have hir : i ≠ r := ne_of_gt (lt_of_lt_of_le hr (control_ge_bound hi))
-    simp [counterState, hb i hi, Finsupp.single_apply, hic, hir]
+    simp [counterState, hb i hi, hic, hir]
 
 theorem pairedState_onlyControl {l : Layout} {base : Tokens} {m r n c : Nat}
     (hb : NoControl l base) (hm : m < l.regBound) (hr : r < l.regBound)
@@ -660,10 +660,10 @@ theorem paired_cons_enabled {l : Layout} {base : Tokens} {owner next m r n : Nat
     subst_vars <;> simp_all [eq_comm] <;> omega
 
 theorem paired_apply_cons (l : Layout) {base : Tokens}
-    {owner next m r n : Nat} (hbase : NoControl l base)
-    (ho : IsControl l owner) (hn : IsControl l next)
+    {owner next m r n : Nat} (_hbase : NoControl l base)
+    (_ho : IsControl l owner) (_hn : IsControl l next)
     (hm : m < l.regBound) (hr : r < l.regBound) (hmr : m ≠ r)
-    (hon : owner ≠ next) :
+    (_hon : owner ≠ next) :
     (srule [next, l.scratch0, l.scratch1] [owner, m, r]).apply
         (pairedState base m r (n + 1) owner) =
       pairedState
@@ -694,10 +694,10 @@ theorem single_data_enabled {base : Tokens} {owner source next add : Nat}
   intro i
   simp only [srule, tokensOfList, Finsupp.add_apply, Finsupp.single_apply]
   by_cases hio : i = owner <;> by_cases his : i = source <;>
-    subst_vars <;> simp_all [eq_comm] <;> omega
+    subst_vars <;> simp_all [eq_comm]
 
 theorem single_data_apply {base : Tokens} {owner source next add : Nat}
-    (hsource : 1 ≤ base source) (hos : owner ≠ source) :
+    (hsource : 1 ≤ base source) (_hos : owner ≠ source) :
     (srule [next, add] [owner, source]).apply
         (base + Finsupp.single owner 1) =
       base - Finsupp.single source 1 + Finsupp.single add 1 +
@@ -709,7 +709,7 @@ theorem single_data_apply {base : Tokens} {owner source next add : Nat}
     simp only [Finsupp.single_apply]
     by_cases his : i = source
     · subst i; simpa using hsource
-    · simp [his, Ne.symm his]
+    · simp [Ne.symm his]
   have hbaseSplit : base =
       (base - Finsupp.single source 1) + Finsupp.single source 1 :=
     (tsub_add_cancel_of_le hle).symm
@@ -893,7 +893,7 @@ def frac (produce consume : List Nat) : Frac :=
   ⟨tokenProduct produce, tokenProduct consume⟩
 
 theorem frac_eq_of_disjoint {produce consume : List Nat}
-    (h : produce.Disjoint consume) :
+    (_h : produce.Disjoint consume) :
     frac produce consume = ⟨tokenProduct produce, tokenProduct consume⟩ := by
   rfl
 
@@ -930,7 +930,7 @@ def compareRules (l : Layout) (a b m r equal unequal : Nat) : List SRule :=
 theorem zeroRules_ownedIn (l : Layout) {a b r next : Nat}
     (ha : IsControl l a) (hb : IsControl l b) {q : SRule}
     (hq : q ∈ zeroRules a b r next) : q.OwnedIn l [a, b] := by
-  simp only [zeroRules, List.mem_cons, List.mem_singleton, List.not_mem_nil,
+  simp only [zeroRules, List.mem_cons, List.not_mem_nil,
     or_false] at hq
   rcases hq with hq | hq | hq | hq <;> subst q <;>
     simp [SRule.OwnedIn, srule, ha, hb]
@@ -938,7 +938,7 @@ theorem zeroRules_ownedIn (l : Layout) {a b r next : Nat}
 theorem drainRules_ownedIn (l : Layout) {a b source next : Nat} {adds : List Nat}
     (ha : IsControl l a) (hb : IsControl l b) {q : SRule}
     (hq : q ∈ drainRules a b source adds next) : q.OwnedIn l [a, b] := by
-  simp only [drainRules, List.mem_cons, List.mem_singleton, List.not_mem_nil,
+  simp only [drainRules, List.mem_cons, List.not_mem_nil,
     or_false] at hq
   rcases hq with hq | hq | hq | hq <;> subst q <;>
     simp [SRule.OwnedIn, srule, ha, hb]
@@ -968,7 +968,7 @@ theorem drainRules_wellControlled (l : Layout) {a b source next : Nat}
     (hn : IsControl l next) (hs : ¬IsControl l source)
     (hadds : ∀ i ∈ adds, ¬IsControl l i) {q : SRule}
     (hq : q ∈ drainRules a b source adds next) : q.WellControlled l := by
-  simp only [drainRules, List.mem_cons, List.mem_singleton, List.not_mem_nil,
+  simp only [drainRules, List.mem_cons, List.not_mem_nil,
     or_false] at hq
   rcases hq with hq | hq | hq | hq <;> subst q <;>
     simp [SRule.WellControlled, srule, ha, hb, hn, hs] <;> assumption
@@ -1010,19 +1010,19 @@ theorem restore_equal_identity (l : Layout) (base : Tokens) (m r n : Nat)
   by_cases him : i = m
   · subst i
     simp [addMany_apply, eraseToken_apply_of_ne, hbm, hms0, hms1, hmr,
-      Ne.symm hms0, Ne.symm hms1, Ne.symm hmr, hs01, List.count]
+      Ne.symm hms0, Ne.symm hms1, Ne.symm hmr, List.count]
   · by_cases hir : i = r
     · subst i
       simp [addMany_apply, eraseToken_apply_of_ne, hbr, hrs0, hrs1, hmr,
-        Ne.symm hrs0, Ne.symm hrs1, Ne.symm hmr, hs01, List.count]
+        Ne.symm hrs0, Ne.symm hrs1, Ne.symm hmr, List.count]
     · by_cases his0 : i = l.scratch0
       · subst i
         simp [addMany_apply, eraseToken_apply_of_ne, hbs0, hms0, hrs0,
-          hms1, hrs1, hs01, List.count]
+          hs01, List.count]
       · by_cases his1 : i = l.scratch1
         · subst i
-          simp [addMany_apply, eraseToken_apply_of_ne, hbs1, hms1, hrs1,
-            hs01, List.count]
+          simp [hbs1, hms1, hrs1,
+            List.count]
         · simp [addMany_apply, eraseToken_apply_of_ne, him, hir, his0, his1,
             Ne.symm him, Ne.symm hir, Ne.symm his0, Ne.symm his1, List.count]
 
@@ -1049,21 +1049,21 @@ theorem restore_scratch_identity (l : Layout) (data : Tokens) (m r : Nat)
   by_cases him : i = m
   · subst i
     simp [addMany_apply, eraseToken_apply_of_ne, hms0, hms1, hmr,
-      Ne.symm hms0, Ne.symm hms1, Ne.symm hmr, hs01, List.count]
+      Ne.symm hmr, List.count]
   · by_cases hir : i = r
     · subst i
       simp [addMany_apply, eraseToken_apply_of_ne, hrs0, hrs1, hmr,
-        Ne.symm hrs0, Ne.symm hrs1, Ne.symm hmr, hs01, List.count]
+        Ne.symm hmr, List.count]
     · by_cases his0 : i = l.scratch0
       · subst i
-        simp [addMany_apply, eraseToken_apply_of_ne, hms0, hrs0, hms1,
-          hrs1, hs01, List.count]
+        simp [addMany_apply, eraseToken_apply_of_ne, hms0, hrs0,
+          hs01, List.count]
       · by_cases his1 : i = l.scratch1
         · subst i
-          simp [addMany_apply, eraseToken_apply_of_ne, hms1, hrs1, hs01,
+          simp [hms1, hrs1,
             List.count]
         · simp [addMany_apply, eraseToken_apply_of_ne, him, hir, his0, his1,
-            Ne.symm him, Ne.symm hir, Ne.symm his0, Ne.symm his1, List.count]
+            Ne.symm him, Ne.symm hir, List.count]
 
 theorem regTokens_split_two (l : Layout) (regs : Cslib.URM.Regs)
     {m r : Nat} (hm : m < l.regBound) (hr : r < l.regBound) (hmr : m ≠ r) :
@@ -1120,28 +1120,28 @@ theorem restore_left_identity (l : Layout) (base : Tokens) (m r x y : Nat)
   ext i
   by_cases him : i = m
   · subst i
-    simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbr, hbs0, hbs1,
-      hms0, hms1, hmr, Ne.symm hms0, Ne.symm hms1, Ne.symm hmr,
+    simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbs0, hbs1,
+      hms0, hms1, hmr, Ne.symm hms0, Ne.symm hms1,
       hs01, Ne.symm hs01, List.count]
     omega
   · by_cases hir : i = r
     · subst i
-      simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbr, hbs0, hbs1,
-        hms0, hms1, hrs0, hrs1, hmr, Ne.symm hms0, Ne.symm hms1,
+      simp [addMany_apply, eraseToken_apply_of_ne, hbr, hbs0, hbs1,
+        hrs0, hrs1, Ne.symm hms0, Ne.symm hms1,
         Ne.symm hrs0, Ne.symm hrs1, Ne.symm hmr, hs01, Ne.symm hs01,
         List.count]
     · by_cases his0 : i = l.scratch0
       · subst i
-        simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbr, hbs0, hbs1,
-          hms0, hrs0, hms1, hrs1, Ne.symm hms0, Ne.symm hrs0,
-          Ne.symm hms1, Ne.symm hrs1, hs01, Ne.symm hs01, List.count]
+        simp [addMany_apply, eraseToken_apply_of_ne, hbs0, hbs1,
+          Ne.symm hms0, Ne.symm hrs0,
+          Ne.symm hms1, hs01, Ne.symm hs01, List.count]
       · by_cases his1 : i = l.scratch1
         · subst i
-          simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbr, hbs0, hbs1,
-            hms1, hrs1, Ne.symm hms1, Ne.symm hrs1, hs01, Ne.symm hs01,
+          simp [addMany_apply, hbs0, hbs1,
+            Ne.symm hms1, Ne.symm hrs1, hs01, Ne.symm hs01,
             List.count]
         · simp [addMany_apply, eraseToken_apply_of_ne, him, hir, his0, his1,
-            Ne.symm him, Ne.symm hir, Ne.symm his0, Ne.symm his1, List.count]
+            Ne.symm his0, Ne.symm his1, List.count]
 
 theorem restore_right_identity (l : Layout) (base : Tokens) (m r x y : Nat)
     (hbm : base m = 0) (hbr : base r = 0)
@@ -1176,28 +1176,28 @@ theorem restore_right_identity (l : Layout) (base : Tokens) (m r x y : Nat)
   ext i
   by_cases him : i = m
   · subst i
-    simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbr, hbs0, hbs1,
-      hms0, hms1, hrs0, hrs1, hmr, Ne.symm hms0, Ne.symm hms1,
-      Ne.symm hrs0, Ne.symm hrs1, Ne.symm hmr, hs01, Ne.symm hs01,
+    simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbs0, hbs1,
+      hms0, hms1, hmr, Ne.symm hms0, Ne.symm hms1,
+      Ne.symm hrs0, Ne.symm hrs1, hs01, Ne.symm hs01,
       List.count]
   · by_cases hir : i = r
     · subst i
-      simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbr, hbs0, hbs1,
-        hrs0, hrs1, hmr, Ne.symm hrs0, Ne.symm hrs1, Ne.symm hmr,
+      simp [addMany_apply, eraseToken_apply_of_ne, hbr, hbs0, hbs1,
+        hrs0, hrs1, Ne.symm hrs0, Ne.symm hrs1, Ne.symm hmr,
         hs01, Ne.symm hs01, List.count]
       omega
     · by_cases his0 : i = l.scratch0
       · subst i
-        simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbr, hbs0, hbs1,
-          hms0, hrs0, hms1, hrs1, Ne.symm hms0, Ne.symm hrs0,
-          Ne.symm hms1, Ne.symm hrs1, hs01, Ne.symm hs01, List.count]
+        simp [addMany_apply, eraseToken_apply_of_ne, hbs0, hbs1,
+          Ne.symm hms0, Ne.symm hrs0,
+          Ne.symm hrs1, hs01, Ne.symm hs01, List.count]
       · by_cases his1 : i = l.scratch1
         · subst i
-          simp [addMany_apply, eraseToken_apply_of_ne, hbm, hbr, hbs0, hbs1,
-            hms1, hrs1, Ne.symm hms1, Ne.symm hrs1, hs01, Ne.symm hs01,
+          simp [addMany_apply, hbs0, hbs1,
+            Ne.symm hms1, Ne.symm hrs1, hs01, Ne.symm hs01,
             List.count]
         · simp [addMany_apply, eraseToken_apply_of_ne, him, hir, his0, his1,
-            Ne.symm him, Ne.symm hir, Ne.symm his0, Ne.symm his1, List.count]
+            Ne.symm his0, Ne.symm his1, List.count]
 
 theorem noControl_add_tokensOfList {l : Layout} {base : Tokens} {adds : List Nat}
     (hb : NoControl l base) (ha : ∀ i ∈ adds, ¬IsControl l i) :
@@ -1221,7 +1221,7 @@ theorem compareRules_equal_steps (l : Layout) (base : Tokens)
     (hbase : NoControl l base) (hbm : base m = 0) (hbr : base r = 0)
     (hm : m < l.regBound) (hr : r < l.regBound) (hmr : m ≠ r)
     (ha : IsControl l a) (hb : IsControl l b)
-    (he : IsControl l equal) (hu : IsControl l unequal)
+    (he : IsControl l equal) (_hu : IsControl l unequal)
     (hab : a ≠ b) (hae : a ≠ equal) (hbe : b ≠ equal) :
     RulesSteps (compareRules l a b m r equal unequal)
       (pairedState base m r n a)
@@ -1253,15 +1253,15 @@ theorem compareRules_equal_steps (l : Layout) (base : Tokens)
         intro h
         have hv := Finsupp.le_def.mp h m
         have hcm' : c ≠ m := ne_of_gt (lt_of_lt_of_le hm (control_ge_bound hc))
-        simp [SRule.Enabled, srule, pairedState, tokensOfList, hcm, hcr,
-          hcm', hmr] at hv
+        simp [srule, pairedState, tokensOfList, hcm,
+          hcm'] at hv
       have disabledR (c : Nat) (hc : IsControl l c) (produce : List Nat) :
           ¬(srule produce [c, r]).Enabled (pairedState current m r 0 c) := by
         intro h
         have hv := Finsupp.le_def.mp h r
         have hcr' : c ≠ r := ne_of_gt (lt_of_lt_of_le hr (control_ge_bound hc))
-        simp [SRule.Enabled, srule, pairedState, tokensOfList, hcm, hcr,
-          hcr', hmr] at hv
+        simp [srule, pairedState, tokensOfList, hcr,
+          hcr'] at hv
       have haFinish : (srule [equal] [a]).Enabled
           (pairedState current m r 0 a) := by
         simpa [pairedState, counterState] using
@@ -1374,7 +1374,7 @@ theorem compareRules_left_steps (l : Layout) (base : Tokens)
     (a b m r equal unequal n : Nat)
     (hbase : NoControl l base) (hbm : 1 ≤ base m) (hbr : base r = 0)
     (hm : m < l.regBound) (hr : r < l.regBound) (hmr : m ≠ r)
-    (ha : IsControl l a) (hb : IsControl l b) (hu : IsControl l unequal)
+    (ha : IsControl l a) (hb : IsControl l b) (_hu : IsControl l unequal)
     (hab : a ≠ b) :
     RulesSteps (compareRules l a b m r equal unequal)
       (pairedState base m r n a)
@@ -1401,7 +1401,7 @@ theorem compareRules_left_steps (l : Layout) (base : Tokens)
         intro h
         have hv := Finsupp.le_def.mp h r
         have hcr' : c ≠ r := ne_of_gt (lt_of_lt_of_le hr (control_ge_bound hc))
-        simp [SRule.Enabled, srule, pairedState, tokensOfList, hcr, hcr', hmr] at hv
+        simp [srule, pairedState, tokensOfList, hcr, hcr', hmr] at hv
       have leftEnabled (c : Nat) (hc : IsControl l c) :
           (srule [unequal, l.scratch0] [c, m]).Enabled
             (pairedState current m r 0 c) := by
@@ -1509,7 +1509,7 @@ theorem compareRules_right_steps (l : Layout) (base : Tokens)
     (a b m r equal unequal n : Nat)
     (hbase : NoControl l base) (hbm : base m = 0) (hbr : 1 ≤ base r)
     (hm : m < l.regBound) (hr : r < l.regBound) (hmr : m ≠ r)
-    (ha : IsControl l a) (hb : IsControl l b) (hu : IsControl l unequal)
+    (ha : IsControl l a) (hb : IsControl l b) (_hu : IsControl l unequal)
     (hab : a ≠ b) :
     RulesSteps (compareRules l a b m r equal unequal)
       (pairedState base m r n a)
@@ -1536,8 +1536,8 @@ theorem compareRules_right_steps (l : Layout) (base : Tokens)
         intro h
         have hv := Finsupp.le_def.mp h m
         have hcm' : c ≠ m := ne_of_gt (lt_of_lt_of_le hm (control_ge_bound hc))
-        simp [SRule.Enabled, srule, pairedState, tokensOfList, hcm,
-          hcm', hmr] at hv
+        simp [srule, pairedState, tokensOfList, hcm,
+          hcm'] at hv
       have rightEnabled (c : Nat) (hc : IsControl l c) :
           (srule [unequal, l.scratch1] [c, r]).Enabled
             (pairedState current m r 0 c) := by
@@ -1657,15 +1657,15 @@ theorem apply_cons_many {base : Tokens} {owner source next : Nat} {adds : List N
     Finsupp.add_apply, Finsupp.single_apply, Finsupp.tsub_apply]
   by_cases hio : i = owner
   · subst i
-    simp [howner, haOwner, hos, hon, hos.symm, hon.symm]
+    simp [howner, haOwner, hos.symm, hon.symm]
   · by_cases his : i = source
     · subst i
-      simp [hsource, haSource, hos, hsn, hos.symm, hsn.symm]
+      simp [hsource, haSource, hos, hsn.symm]
     · by_cases hin : i = next
       · subst i
-        simp [hnext, haNext, hon, hsn, hon.symm, hsn.symm]
-      · simp [hio, his, hin, Ne.symm hio, Ne.symm his, Ne.symm hin,
-          Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+        simp [hnext, haNext, hon, hsn]
+      · simp [Ne.symm hio, Ne.symm his, Ne.symm hin,
+          Nat.add_comm]
 
 /-- Drain a data counter, adding the same finite list of data tokens for
 each unit removed.  Alternating owner markers prevent cancellation. -/
@@ -1833,7 +1833,7 @@ theorem restoreRules_wellControlled (l : Layout) {a b c d m r next : Nat}
 theorem restoreRules_steps (l : Layout) (data : Tokens)
     (a b c d m r next : Nat)
     (hdata : NoControl l data) (hm : m < l.regBound) (hr : r < l.regBound)
-    (hmr : m ≠ r) (ha : IsControl l a) (hb : IsControl l b)
+    (_hmr : m ≠ r) (ha : IsControl l a) (hb : IsControl l b)
     (hc : IsControl l c) (hd : IsControl l d) (hn : IsControl l next)
     (hab : a ≠ b) (hac : a ≠ c) (hbc : b ≠ c)
     (hcd : c ≠ d) (hcn : c ≠ next) (hdn : d ≠ next)
@@ -1870,7 +1870,7 @@ theorem restoreRules_steps (l : Layout) (data : Tokens)
     have hsm : l.scratch1 ≠ m := by
       unfold Layout.scratch1 Layout.scratch0; omega
     rw [eraseToken_apply_of_ne _ (by unfold Layout.scratch1; omega)]
-    simp [hsm, Ne.symm hsm, List.count]
+    simp [Ne.symm hsm, List.count]
   have hsecond := drainRules_steps l secondBase c d l.scratch1 [r] next
     (data l.scratch1)
     (eraseToken_noControl hafterMControl l.scratch1) (eraseToken_apply_self _ _)
@@ -2008,7 +2008,7 @@ noncomputable def boundaryTokens (l : Layout) (pc : Nat)
     (regs : Cslib.URM.Regs) : Tokens :=
   regTokens l regs + Finsupp.single (targetMarker l pc) 1
 
-theorem nextMarker_control (l : Layout) {pc : Nat} (hpc : pc < l.progLen) :
+theorem nextMarker_control (l : Layout) {pc : Nat} (_hpc : pc < l.progLen) :
     IsControl l (nextMarker l pc) := by
   unfold nextMarker
   split
@@ -2251,11 +2251,11 @@ theorem instrRules_S_steps (l : Layout) {pc r : Nat} (hpc : pc < l.progLen)
       have hrn : r ≠ targetMarker l (pc + 1) := by
         intro h
         exact register_not_control hr (h ▸ targetMarker_control l (pc + 1))
-      simp [hr, htcur, hrc, Ne.symm hrc, hrn, Ne.symm hrn,
+      simp [hr, htcur, Ne.symm hrn,
         Cslib.URM.Regs.write]
     · have hbound : (i < l.regBound) = (i < l.regBound) := rfl
-      simp [hir, Ne.symm hir, Cslib.URM.Regs.write, Function.update_of_ne hir,
-        htcur, marker_ne_nextMarker l hpc (phase := 0) (by omega)]
+      simp [hir, Ne.symm hir, Cslib.URM.Regs.write,
+        htcur]
   have hlocal : RulesStep (instrRules l pc (.S r)) (boundaryTokens l pc regs)
       (boundaryTokens l (pc + 1) (regs.write r (regs r + 1))) := by
     change RulesStep [rule] _ _
@@ -2286,17 +2286,17 @@ theorem transfer_token_identity (l : Layout) (regs : Cslib.URM.Regs)
     omega
   by_cases hir : i = r
   · subst i
-    simp [hr, hm, hmr, hmr.symm, hrs, hrs.symm, hms, hms.symm,
+    simp [hr, hmr, hrs, hrs.symm,
       Cslib.URM.Regs.write]
   · by_cases him : i = m
     · subst i
-      simp [hm, hr, hmr, hmr.symm, hrs, hrs.symm, hms, hms.symm,
+      simp [hm, hmr, hmr.symm, hrs, hms.symm,
         Cslib.URM.Regs.write]
     · by_cases his : i = l.scratch0
       · subst i
-        simp [hsbound, hrs, hrs.symm, hms, hms.symm, Cslib.URM.Regs.write]
-      · simp [hir, him, his, Ne.symm hir, Ne.symm him, Ne.symm his,
-          Cslib.URM.Regs.write, Function.update_of_ne hir]
+        simp [hsbound, hrs, hrs.symm, hms]
+      · simp [hir, Ne.symm hir, Ne.symm him, Ne.symm his,
+          Cslib.URM.Regs.write]
 
 theorem instrRules_T_steps (l : Layout) {pc m r : Nat} (hpc : pc < l.progLen)
     (hm : m < l.regBound) (hr : r < l.regBound) (regs : Cslib.URM.Regs) :
@@ -2334,11 +2334,11 @@ theorem instrRules_T_steps (l : Layout) {pc m r : Nat} (hpc : pc < l.progLen)
       by_cases hic : i = l.marker pc 0
       · subst i
         have hne := marker_ne_nextMarker l hpc (phase := 0) (by omega)
-        simp [htcur, hregc, hne, Ne.symm hne]
-      · simp [htcur, hic, Ne.symm hic]
+        simp [htcur, hregc]
+      · simp [htcur, Ne.symm hic]
     have hlocal : RulesStep (instrRules l pc (.T m m))
         (boundaryTokens l pc regs) (boundaryTokens l (pc + 1) regs) := by
-      simp only [instrRules, if_pos rfl]
+      simp only [instrRules]
       simpa [rule, happly] using RulesStep.head hen
     exact Relation.ReflTransGen.single hlocal
   · let p0 := l.marker pc 0
@@ -2379,7 +2379,7 @@ theorem instrRules_T_steps (l : Layout) {pc m r : Nat} (hpc : pc < l.progLen)
     have hmove := drainRules_steps l base p2 p3 m [r, l.scratch0] p4 (regs m)
       (eraseToken_noControl (eraseToken_noControl (regTokens_noControl l regs) r) m)
       (eraseToken_apply_self _ _) (Or.inl hm)
-      (by intro i hi; simp only [List.mem_cons, List.mem_singleton,
+      (by intro i hi; simp only [List.mem_cons,
           List.not_mem_nil, or_false] at hi
           rcases hi with rfl | rfl
           · exact register_not_control hr
@@ -2403,7 +2403,7 @@ theorem instrRules_T_steps (l : Layout) {pc m r : Nat} (hpc : pc < l.progLen)
       (nextMarker l pc) (regs m)
       (eraseToken_noControl (addMany_noControl (regs m)
         (eraseToken_noControl (eraseToken_noControl (regTokens_noControl l regs) r) m)
-        (by intro i hi; simp only [List.mem_cons, List.mem_singleton,
+        (by intro i hi; simp only [List.mem_cons,
             List.not_mem_nil, or_false] at hi
             rcases hi with rfl | rfl
             · exact register_not_control hr
@@ -2472,7 +2472,7 @@ theorem instrRules_T_steps (l : Layout) {pc m r : Nat} (hpc : pc < l.progLen)
       · exact hdisjZM
       · intro q hq
         exact drainRules_wellControlled l hp2 hp3 hp4 (register_not_control hm)
-          (by intro i hi; simp only [List.mem_cons, List.mem_singleton,
+          (by intro i hi; simp only [List.mem_cons,
               List.not_mem_nil, or_false] at hi
               rcases hi with rfl | rfl
               · exact register_not_control hr
@@ -2513,7 +2513,7 @@ theorem instrRules_T_steps (l : Layout) {pc m r : Nat} (hpc : pc < l.progLen)
               (addMany_noControl (regs m)
                 (eraseToken_noControl (eraseToken_noControl
                   (regTokens_noControl l regs) r) m)
-                (by intro i hi; simp only [List.mem_cons, List.mem_singleton,
+                (by intro i hi; simp only [List.mem_cons,
                     List.not_mem_nil, or_false] at hi
                     rcases hi with rfl | rfl
                     · exact register_not_control hr
@@ -2543,9 +2543,7 @@ theorem instrRules_J_same_steps (l : Layout) {pc m q : Nat}
       simp [boundaryTokens, targetMarker, hpc, owner]
     have hen : rule.Enabled (boundaryTokens l pc regs) := by
       rw [hstart]
-      simpa [rule, SRule.Enabled, srule] using
-        counter_finish_enabled (base := regTokens l regs) (r := m) (next := next)
-          (regTokens_noControl l regs owner howner)
+      simp [rule, SRule.Enabled, srule]
     have happly : rule.apply (boundaryTokens l pc regs) =
         boundaryTokens l q regs := by
       rw [hstart]
@@ -2556,7 +2554,7 @@ theorem instrRules_J_same_steps (l : Layout) {pc m q : Nat}
       simpa [rule, counterState, boundaryTokens, next] using h
     have hstep : RulesStep (instrRules l pc (.J m m q))
         (boundaryTokens l pc regs) (boundaryTokens l q regs) := by
-      simp only [instrRules, if_pos rfl, if_neg hq]
+      simp only [instrRules, if_neg hq]
       simpa [rule, happly] using RulesStep.head hen
     exact Relation.ReflTransGen.single hstep
 
@@ -2816,7 +2814,7 @@ theorem instrRules_J_distinct_unequal_steps (l : Layout) {pc m r q : Nat}
     have hexcessM : excessBase m = 0 := by
       simp [excessBase, hbaseM, hmr]
     have hexcessR : 1 ≤ excessBase r := by
-      simp [excessBase, hbaseR, hmr]
+      simp [excessBase, hbaseR]
       omega
     have hstart : boundaryTokens l pc regs =
         pairedState excessBase m r (regs m) p0 := by
@@ -2826,11 +2824,12 @@ theorem instrRules_J_distinct_unequal_steps (l : Layout) {pc m r q : Nat}
         Finsupp.single_apply]
       by_cases him : i = m
       · subst i
-        simp [hmr, Ne.symm hmr] <;> omega
+        simp [Ne.symm hmr]
       · by_cases hir : i = r
         · subst i
-          simp [hmr, Ne.symm hmr] <;> omega
-        · simp [him, hir, Ne.symm him, Ne.symm hir]
+          simp [hmr]
+          omega
+        · simp [Ne.symm him, Ne.symm hir]
     have hcmp := compareRules_right_steps l excessBase p0 p1 m r p2 p4
       (regs m) hexcessControl hexcessM hexcessR hm hr hmr hp0 hp1 hp4 hp01
     have hdataControl : NoControl l data := by
@@ -2871,7 +2870,7 @@ theorem instrRules_J_distinct_unequal_steps (l : Layout) {pc m r q : Nat}
     have hexcessControl : NoControl l excessBase :=
       add_single_noControl hbaseControl (register_not_control hm)
     have hexcessM : 1 ≤ excessBase m := by
-      simp [excessBase, hbaseM, hmr]
+      simp [excessBase, hbaseM]
       omega
     have hexcessR : excessBase r = 0 := by
       simp [excessBase, hbaseR, hmr]
@@ -2883,11 +2882,12 @@ theorem instrRules_J_distinct_unequal_steps (l : Layout) {pc m r q : Nat}
         Finsupp.single_apply]
       by_cases him : i = m
       · subst i
-        simp [hmr, Ne.symm hmr] <;> omega
+        simp [Ne.symm hmr]
+        omega
       · by_cases hir : i = r
         · subst i
-          simp [hmr, Ne.symm hmr] <;> omega
-        · simp [him, hir, Ne.symm him, Ne.symm hir]
+          simp [hmr]
+        · simp [Ne.symm him, Ne.symm hir]
     have hcmp := compareRules_left_steps l excessBase p0 p1 m r p2 p4
       (regs r) hexcessControl hexcessM hexcessR hm hr hmr hp0 hp1 hp4 hp01
     have hdataControl : NoControl l data := by
@@ -2948,7 +2948,7 @@ theorem instrRules_owned (l : Layout) {pc : Nat} (i : Cslib.URM.Instr)
     ⟨phase, rest, hphase, rfl⟩
   cases i with
   | Z n =>
-    simp only [instrRules, zeroRules, List.mem_cons, List.mem_singleton,
+    simp only [instrRules, zeroRules, List.mem_cons,
       List.not_mem_nil, or_false] at hr
     rcases hr with hr | hr | hr | hr <;> subst r <;> apply owned <;> omega
   | S n =>
@@ -2961,7 +2961,7 @@ theorem instrRules_owned (l : Layout) {pc : Nat} (i : Cslib.URM.Instr)
     · simp only [List.mem_singleton] at hr
       subst r
       exact owned 0 _ [] (by omega)
-    · simp only [List.mem_append, zeroRules, List.mem_cons, List.mem_singleton,
+    · simp only [List.mem_append, zeroRules, List.mem_cons,
         List.not_mem_nil, or_false] at hr
       rcases hr with (h₁ | h₂) | h₃
       · rcases h₁ with hr | hr | hr | hr <;> subst r <;> apply owned <;> omega
@@ -2971,12 +2971,12 @@ theorem instrRules_owned (l : Layout) {pc : Nat} (i : Cslib.URM.Instr)
     simp only [instrRules] at hr
     split at hr
     · split at hr
-      · simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hr
+      · simp only [List.mem_cons, List.not_mem_nil, or_false] at hr
         rcases hr with hr | hr <;> subst r <;> apply owned <;> omega
       · simp only [List.mem_singleton] at hr
         subst r
         exact owned 0 _ [] (by omega)
-    · simp only [List.mem_append, List.mem_cons, List.mem_singleton,
+    · simp only [List.mem_append, List.mem_cons,
         List.not_mem_nil, or_false] at hr
       rcases hr with (h₁ | h₂) | h₃
       · rcases h₁ with hr | hr | hr | hr | hr | hr | hr | hr <;>
@@ -3000,7 +3000,7 @@ theorem instrRules_wellControlled (l : Layout) {pc : Nat} (hpc : pc < l.progLen)
   cases i with
   | Z n =>
     simp only [Cslib.URM.Instr.maxRegister] at hib
-    simp only [instrRules, zeroRules, List.mem_cons, List.mem_singleton,
+    simp only [instrRules, zeroRules, List.mem_cons,
       List.not_mem_nil, or_false] at hr
     rcases hr with hr | hr | hr | hr <;> subst r <;>
       simp [SRule.WellControlled, srule, hmark,
@@ -3021,7 +3021,7 @@ theorem instrRules_wellControlled (l : Layout) {pc : Nat} (hpc : pc < l.progLen)
       subst r
       simp [SRule.WellControlled, srule, hmark,
         nextMarker_control l hpc]
-    · simp only [List.mem_append, zeroRules, List.mem_cons, List.mem_singleton,
+    · simp only [List.mem_append, zeroRules, List.mem_cons,
         List.not_mem_nil, or_false] at hr
       rcases hr with ((hr | hr | hr | hr) | (hr | hr | hr | hr)) |
         (hr | hr | hr | hr)
@@ -3037,14 +3037,14 @@ theorem instrRules_wellControlled (l : Layout) {pc : Nat} (hpc : pc < l.progLen)
     simp only [instrRules] at hr
     split at hr
     · split at hr
-      · simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hr
+      · simp only [List.mem_cons, List.not_mem_nil, or_false] at hr
         rcases hr with hr | hr <;> subst r <;>
           simp [SRule.WellControlled, srule, hmark]
       · simp only [List.mem_singleton] at hr
         subst r
         simp [SRule.WellControlled, srule, hmark,
           targetMarker_control l q]
-    · simp only [List.mem_append, List.mem_cons, List.mem_singleton,
+    · simp only [List.mem_append, List.mem_cons,
         List.not_mem_nil, or_false] at hr
       rcases hr with
         ((hr | hr | hr | hr | hr | hr | hr | hr) |
@@ -3067,7 +3067,7 @@ theorem instrRules_map (l : Layout) (pc : Nat) (i : Cslib.URM.Instr) :
     by_cases hmr : m = r
     · simp only [instrRules, instrCode, if_pos hmr]
       by_cases hq : q = pc <;> simp [hq]
-    · simp [instrRules, instrCode, hmr, List.map_append]
+    · simp [instrRules, instrCode, hmr]
 
 def blocks (l : Layout) : Nat → Program → List Frac
   | _, [] => []
@@ -3217,7 +3217,7 @@ noncomputable def clearFromTokens (l : Layout) : Tokens → Nat → Tokens
   | data, r =>
       if r < l.regBound then clearFromTokens l (eraseToken data r) (r + 1)
       else data
-termination_by data r => l.regBound - r
+termination_by _ r => l.regBound - r
 decreasing_by omega
 
 theorem clean_injective_of_phase {l : Layout} {r r' phase phase' : Nat}
@@ -3263,7 +3263,7 @@ theorem blockOwners_disjoint_cleanupOwners (l : Layout) (start : Nat) :
   omega
 
 theorem cleanupOwners_disjoint_next (l : Layout) {r : Nat}
-    (hr : r < l.regBound) :
+    (_hr : r < l.regBound) :
     [l.clean r 0, l.clean r 1].Disjoint (cleanupOwners l (r + 1)) := by
   rw [List.disjoint_left]
   intro owner hcurrent hlater
@@ -3443,7 +3443,7 @@ theorem consume_control_apply {l : Layout} {base : Tokens} {owner : Nat}
     Finsupp.single_apply, Finsupp.tsub_apply]
   by_cases hio : i = owner
   · subst i; simp [hbo]
-  · simp [hio, Ne.symm hio]
+  · simp [Ne.symm hio]
 
 theorem cleanupFromRules_steps (l : Layout) (data : Tokens) (start : Nat)
     (hdata : NoControl l data) :
@@ -3554,9 +3554,7 @@ theorem cleanupRules_steps (l : Layout) (regs : Cslib.URM.Regs)
     have hclean1 := clean_control l 1 0
     have hfirstEnabled : firstRule.Enabled
         (regTokens l regs + Finsupp.single l.halt 1) := by
-      simpa [firstRule, SRule.Enabled, srule] using
-        counter_finish_enabled (base := regTokens l regs) (r := 0)
-          (next := l.clean 1 0) (hregControl l.halt hhalt)
+      simp [firstRule, SRule.Enabled, srule]
     have hfirstApply : firstRule.apply
         (regTokens l regs + Finsupp.single l.halt 1) =
         regTokens l regs + Finsupp.single (l.clean 1 0) 1 := by
@@ -3739,7 +3737,7 @@ theorem regTokens_ofInputs (P : Program) (inputs : List Nat) :
       rw [List.getD_eq_getElem?_getD, List.getElem?_eq_none (Nat.le_of_not_gt hi)]
       rfl
     simp [Cslib.URM.Regs.ofInputs, Finset.sum_apply,
-      Finsupp.single_apply, hi, hget]
+      Finsupp.single_apply, hi]
 
 theorem encodeTokens_inputSum (inputs : List Nat) :
     encodeTokens
@@ -3773,10 +3771,10 @@ theorem encodeInput_eq_encodeTokens_boundary (P : Program) (inputs : List Nat) :
   by_cases hempty : P.isEmpty
   · have hp : P = [] := List.isEmpty_iff.mp hempty
     subst P
-    simp [l, layout, targetMarker, Nat.mul_comm]
+    simp [layout, targetMarker, Nat.mul_comm]
   · have hp : P ≠ [] := by simpa [List.isEmpty_iff] using hempty
     have hlen : 0 < P.length := List.length_pos_iff.mpr hp
-    simp [l, layout, targetMarker, hempty, hlen, Nat.mul_comm]
+    simp [layout, targetMarker, hempty, hlen, Nat.mul_comm]
 
 theorem encodeInput_pos (P : Program) (inputs : List Nat) :
     0 < encodeInput P inputs := by
@@ -3818,9 +3816,7 @@ theorem cleanupSteps_compileRules (P : Program) (inputs : List Nat)
     have hclean1 := clean_control l 1 0
     have hfirstEnabled : firstRule.Enabled
         (regTokens l regs + Finsupp.single l.halt 1) := by
-      simpa [firstRule, SRule.Enabled, srule] using
-        counter_finish_enabled (base := regTokens l regs) (r := 0)
-          (next := l.clean 1 0) (hregControl l.halt hhalt)
+      simp [firstRule, SRule.Enabled, srule]
     have hfirstApply : firstRule.apply
         (regTokens l regs + Finsupp.single l.halt 1) =
         regTokens l regs + Finsupp.single (l.clean 1 0) 1 := by
@@ -4269,14 +4265,14 @@ theorem cleanupRules_consumesControl (l : Layout) {q : SRule}
     ∃ owner rest, IsControl l owner ∧ q.consume = owner :: rest := by
   by_cases hlarge : 1 < l.regBound
   · rw [cleanupRules, if_pos hlarge, cleanupFromRules_eq_loop] at hq
-    simp only [List.mem_cons, List.mem_append, List.mem_singleton] at hq
+    simp only [List.mem_cons, List.mem_append] at hq
     rcases hq with hq | hq | hq
     · subst q
       exact ⟨l.halt, [], halt_control l, rfl⟩
     · obtain ⟨owner, rest, _hmem, hcontrol, hconsume⟩ :=
         cleanupLoop_ownedIn l 1 hq
       exact ⟨owner, rest, hcontrol, hconsume⟩
-    · simp only [List.mem_cons, List.not_mem_nil, or_false] at hq
+    · simp only [List.not_mem_nil, or_false] at hq
       subst q
       exact ⟨l.clean (max 1 l.regBound) 0, [], clean_control l _ 0, rfl⟩
   · rw [cleanupRules, if_neg hlarge] at hq
@@ -4310,7 +4306,7 @@ theorem compileRule_disabled_final (P : Program) (inputs : List Nat)
     exact Nat.not_le_of_lt (registerBound_pos P inputs)
       (control_ge_bound hcontrol)
   have howner := Finsupp.le_def.mp henabled owner
-  simp [SRule.Enabled, hconsume, tokensOfList, howner0] at howner
+  simp [hconsume, howner0] at howner
 
 theorem concrete_step_none_of_all_disabled {rs : List SRule} {s : Tokens}
     (hdisabled : ∀ q ∈ rs, ¬q.Enabled s) :
