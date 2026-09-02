@@ -80,3 +80,7 @@ root = "Langlib.Languages.Ski.Main"
 [[lean_exe]]
 name = "malbolge-unshackled"
 root = "Langlib.Languages.MalbolgeUnshackled.Main"
+
+[[lean_exe]]
+name = "velato"
+root = "Langlib.Languages.Velato.Main"
