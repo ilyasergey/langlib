@@ -21,13 +21,16 @@
   completeness in [`Langlib/Computability/Velato.lean`](../../Langlib/Computability/Velato.lean)
   and [docs/computability-velato.md](../computability-velato.md)
 
-## The whole thing in one line
+## The whole thing, end to end
 
 Compile a Turpentine program into Velato, engrave the result as sheet music,
 and play it:
 
 ```
-lake exe turpentine compile --to velato -o /tmp/tune.vel Langlib/Examples/Turpentine/hello.turp && lake exe velato --sheet /tmp/tune.pdf /tmp/tune.vel && scripts/velato-audio.sh /tmp/tune.vel
+lake exe turpentine compile --to velato \
+  -o /tmp/tune.vel Langlib/Examples/Turpentine/hello.turp \
+  && lake exe velato --sheet /tmp/tune.pdf /tmp/tune.vel \
+  && scripts/velato-audio.sh /tmp/tune.vel
 ```
 
 Two lines of Turpentine go in; 166 notes, a one-page PDF and about a minute
