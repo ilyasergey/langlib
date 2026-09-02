@@ -46,6 +46,7 @@ import Langlib.Tests.Turpentine
 import Langlib.Tests.Unlambda
 import Langlib.Tests.Velato
 import Langlib.Tests.URMVelato
+import Langlib.Tests.CompileVelato
 
 /-!
 Test driver for langlib, run by `lake test` (from the repository root; the
@@ -112,6 +113,7 @@ def main : IO UInt32 := do
     , Langlib.Tests.Unlambda.suites
     , Langlib.Tests.Velato.suites
     , Langlib.Tests.URMVelato.suites
+    , Langlib.Tests.CompileVelato.suites
     ]
   let mut failures := 0
   for (name, check) in propertyChecks do

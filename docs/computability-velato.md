@@ -244,19 +244,27 @@ runner can actually rely on.
 
 ## Measured cost
 
-Compiled programs are **short and slow**, which is the opposite trade from
-every other backend here.
+Compiled programs have a **tiny structure and a large text**, which is a
+different trade from every other backend here, and the two halves are worth
+separating because it is easy to quote the flattering one.
 
-| | |
-| --- | --- |
-| Velato statements, empty URM program | 5 |
-| Velato statements, one-instruction URM program | 5 |
-| variables used | 1 |
+| URM program | Velato statements | notes |
+| --- | --- | --- |
+| empty | 5 | 150 |
+| `S 0` | 5 | 1331 |
+| a four-instruction addition loop | 10 | 7574 |
 
-Five statements, because the whole URM lives inside the counter machine's
-dispatch loop and the register file is a single number. Compare subleq,
-where a single `J` instruction costs nine machine instructions and the image
-runs to hundreds of words.
+Five statements for a small machine, because the whole URM lives inside the
+counter machine's dispatch loop and the register file is a single variable.
+That is genuinely the smallest structure of any backend here: compare
+subleq, where one `J` instruction alone costs nine machine instructions.
+
+The note count is the other half of the story. Each of those five statements
+carries primes written out as decimal numerals, and Velato spends one note
+per digit, so the *text* is long even though the syntax tree is short.
+Through the derived compiler, `sumsq.turp` comes out at 509 kB of note
+names, against subleq's 1.8 kB and whitespace's 3.2 kB — though still under
+brainfuck's 1.2 MB.
 
 The cost has moved into the arithmetic. `N` is exponential in the register
 values, so a register holding `k` makes the number roughly `2^k` — and every

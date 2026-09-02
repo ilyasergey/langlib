@@ -2,6 +2,7 @@ import Langlib.Common.Runner
 import Langlib.Languages.Turpentine.Semantics
 import Langlib.Languages.Turpentine.Compile.Brainfuck
 import Langlib.Languages.Turpentine.Compile.Subleq
+import Langlib.Languages.Turpentine.Compile.Velato
 import Langlib.Languages.Turpentine.Compile.Whitespace
 import Langlib.Languages.Turpentine.Compile.Ook
 import Langlib.Languages.Turpentine.Compile.Brainloller
@@ -168,6 +169,22 @@ def backends : List Backend :=
         Langlib.Turpentine.Compile.derivedWhitespace.compileSource
         Langlib.Whitespace.Prog.render
         Langlib.Whitespace.run) }
+  , { name := "velato"
+      -- Velato is the closest target in the library to Turpentine: both are
+      -- structured imperative languages with named variables and unbounded
+      -- integers, so the backend is close to a direct translation. What it
+      -- cannot do is arrays (Velato has none), readInt and assert (nothing
+      -- to parse or fail into); and like brainfuck's, its readByte cannot
+      -- tell a NUL byte from the end of the stream. The certified route
+      -- exists too, and is the usual composition of `compileToURM` with the
+      -- completeness witness; its output is the shortest of any derived
+      -- backend, because the register file is a single variable.
+    , bespoke := some (compilerOfSource Compile.Velato.compileSource
+        Langlib.Velato.run)
+    , certified := some (compilerOfCertified
+        Langlib.Turpentine.Compile.derivedVelato.compileSource
+        Compile.Velato.renderProg
+        Langlib.Velato.run) }
   , { name := "subleq"
     , bespoke := some (compilerOfSource Compile.Subleq.compileSource
         Langlib.Subleq.run)

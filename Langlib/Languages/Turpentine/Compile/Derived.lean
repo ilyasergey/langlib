@@ -8,6 +8,7 @@ import Langlib.Computability.Ook
 import Langlib.Computability.Brainloller
 import Langlib.Computability.Unlambda
 import Langlib.Computability.Ski
+import Langlib.Computability.Velato
 import Langlib.Languages.Turpentine.Compile.URM
 
 /-!
@@ -161,6 +162,20 @@ prints: a tower of `K`s, one per unit, ending in `I`. It is the slowest target
 in the library by a wide margin, because the reference interpreter rescans the
 whole term to find each leftmost redex. -/
 def derivedSki : TurpentineCompiler SkiLang := derived skiComplete
+
+/-- The certified Turpentine-to-Velato compiler obtained by composing the
+shared URM pass with the Godel-encoded Velato completeness witness. The
+emitted program is a note sequence whose single variable, middle C, carries
+the whole register file as a product of prime powers; the answer comes back
+in unary, one byte per unit.
+
+Its *structure* is the smallest of any derived backend -- five statements
+for a small machine, because the whole register file is one variable -- and
+its *text* is not, because each of those statements carries a prime as a
+decimal numeral and Velato spends one note per digit. `sumsq.turp` comes out
+at 509 kB of note names, against subleq's 1.8 kB and brainfuck's 1.2 MB.
+`docs/computability-velato.md` measures this. -/
+def derivedVelato : TurpentineCompiler VelatoLang := derived velatoComplete
 
 /-- **Two verified Turpentine compilers for one target agree**:
 `Langlib.Common.CertifiedCompiler.agree` at Turpentine's specification. On a

@@ -71,6 +71,8 @@ status matrix, including compilers):
   Turing complete
 * [unlambda](docs/unlambda/spec.md) (David Madore, 1999), a functional
   language with no variables and no lambdas
+* [velato](docs/velato/spec.md) (Daniel Temkin, 2009), whose programs are
+  MIDI files: the pitches, and the order they sound in, are the code
 * [ski](docs/ski/spec.md) (Schönfinkel 1924, Curry 1930), not an esolang
   but the combinator calculus underneath Unlambda, and the other half of
   the library's functional route to universality
@@ -95,6 +97,7 @@ status matrix, including compilers):
 | [malbolge-unshackled](docs/malbolge-unshackled/spec.md) | yes | open | [bespoke](docs/malbolge-unshackled/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean), trusted, input-free fragment); no derived one while the TC claim is open |
 | [unlambda](docs/unlambda/spec.md) | yes | **[yes](Langlib/Computability/Unlambda.lean#L1725)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L156) (certified); [bespoke planned](docs/unlambda/compiler.md) |
 | [ski](docs/ski/spec.md) | yes | **[yes](Langlib/Computability/Ski.lean#L1019)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L163) (certified); [bespoke: compile to unlambda instead](docs/ski/compiler.md) |
+| [velato](docs/velato/spec.md) | [yes, with unbounded ints](docs/velato/spec.md#computational-class) | **[yes](Langlib/Computability/Velato.lean#L726)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L178) (certified), and [bespoke](docs/velato/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Velato.lean#L387), trusted) |
 | [Turpentine](docs/turpentine/spec.md) | yes | open | [(it is the source)](docs/turpentine/spec.md) |
 
 
@@ -283,7 +286,7 @@ A Turpentine program reaches a target two ways, and the library keeps both.
 
 **Bespoke** compilers are hand-written per target. They produce compact
 output and accept as much of Turpentine as the target can host, and they
-are what `lake exe turpentine compile --to <lang>` runs today for nine
+are what `lake exe turpentine compile --to <lang>` runs today for ten
 languages:
 [brainfuck](Langlib/Languages/Turpentine/Compile/Brainfuck.lean),
 [whitespace](Langlib/Languages/Turpentine/Compile/Whitespace.lean),
@@ -292,13 +295,18 @@ languages:
 [brainloller](Langlib/Languages/Turpentine/Compile/Brainloller.lean),
 [piet](Langlib/Languages/Turpentine/Compile/Piet.lean),
 [fractran](Langlib/Languages/Turpentine/Compile/Fractran.lean),
-[malbolge-unshackled](Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean)
-and [malbolge](Langlib/Languages/Turpentine/Compile/Malbolge.lean).
-The first six take the whole language; the last three are bounded by their
+[malbolge-unshackled](Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean),
+[malbolge](Langlib/Languages/Turpentine/Compile/Malbolge.lean)
+and [velato](Langlib/Languages/Turpentine/Compile/Velato.lean).
+The first six take the whole language; the next three are bounded by their
 targets rather than by our effort — FRACTRAN has no I/O at all, the two
 Malbolge backends emit straight-line code, so they take any program that
 does not read, and Malbolge's additionally only what fits its 59049 words.
-Two of the nine are verified, on a fragment each:
+Velato is bounded differently again: it is Turing complete and its backend
+is a near-direct translation, since Velato is a structured imperative
+language rather than a machine, but Velato has no arrays and no way to
+fail, so `a[i]`, `readInt` and `assert` are refused by name.
+Two of the ten are verified, on a fragment each:
 [subleq](Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) and
 [whitespace](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4381).
 Verifying the rest is per-language proof work.
@@ -565,6 +573,49 @@ Output:
 19
 23
 29
+```
+
+Velato greets the world. Its source is a MIDI file, or -- as here, so that a
+repository can review it -- the same pitches written out as note names.
+
+```
+lake exe velato Langlib/Examples/Velato/hello.vel
+```
+
+Output:
+
+```
+Hello, World!
+```
+
+Velato shows what each note was doing, which is how you find out whether the
+piece you wrote says what you meant. This is velato.net's own worked
+example, and the labels come from the parser rather than from a second guess
+at the grammar.
+
+```
+lake exe velato --notes Langlib/Examples/Velato/print-h.vel
+```
+
+Output:
+
+```
+  #  note   role
+  1  C4     root
+  2  A4     cmd
+  3  G4     print
+  4  E4     value
+  5  F4     char
+  6  A4     7
+  7  D#4    2
+  8  G4     end num
+```
+
+Velato engraves a program as sheet music, and will also write it as a MIDI
+file or synthesise it to audio; `scripts/velato-audio.sh` plays the result.
+
+```
+lake exe velato --sheet /tmp/primes.pdf Langlib/Examples/Velato/primes.vel
 ```
 
 Turpentine, the readable front end, computes an integer square root.

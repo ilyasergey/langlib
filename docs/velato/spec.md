@@ -474,13 +474,6 @@ sequencer or another implementation can read it.
 lake exe velato --midi /tmp/hello.mid Langlib/Examples/Velato/hello.vel
 ```
 
-Hear it. The synthesiser is part of this library, so this needs nothing
-installed; `scripts/velato-audio.sh` will also play the result for you.
-
-```
-lake exe velato --wav /tmp/hello.wav Langlib/Examples/Velato/hello.vel
-```
-
 Get a diagnostic wrong on purpose. Errors name the note and the interval.
 
 ```
@@ -492,6 +485,99 @@ Output:
 ```
 velato: no command begins with a perfect 4th, at note #2 (F4)
 ```
+
+## Hearing a program
+
+A Velato program is music, so playing one is a reasonable thing to want, and
+it needs nothing installed. The synthesiser is part of this library —
+[`Langlib/Languages/Velato/Audio.lean`](../../Langlib/Languages/Velato/Audio.lean)
+writes a 16-bit PCM WAV directly — so rendering works on a bare checkout,
+with no FluidSynth, no SoundFont and no audio toolchain.
+
+### The short way
+
+```
+scripts/velato-audio.sh Langlib/Examples/Velato/fugue.vel
+```
+
+That renders the program and plays it with whatever the machine already has:
+`afplay` on macOS, or `aplay`, `paplay`, `play`, `ffplay` or `mpv` elsewhere.
+If it cannot find a player it says so and leaves you the file.
+
+To find out what it found, and what to install if it found nothing:
+
+```
+scripts/velato-audio.sh --deps
+```
+
+Output on a Mac with nothing extra installed:
+
+```
+Rendering audio needs nothing installed: the synthesiser is in the
+library itself (lake exe velato --wav).
+
+Playing it needs one of these. Found ones are marked.
+
+  WAV players
+    [found]   afplay
+    [missing] aplay
+    ...
+```
+
+### Rendering the audio yourself
+
+To keep the file rather than play it:
+
+```
+lake exe velato --wav /tmp/fugue.wav Langlib/Examples/Velato/fugue.vel
+```
+
+The result is mono, 44.1 kHz, one note every third of a second, each note a
+fundamental and five harmonics through a plucked envelope, with the whole
+piece normalised once at the end so a dense chord neither clips nor forces
+the rest to be quiet. The instrument is deliberately plain: Velato's
+harmonies are thick, and anything with a slow attack turns them to mud.
+
+Durations are the synthesiser's invention, not the program's. Velato ignores
+duration entirely, so there is nothing in a `.vel` file to say how long a
+note lasts; every note gets the same length. A MIDI file *does* carry
+durations, and `lake exe velato --midi` writes them, so a program that
+started life as a real piece of music keeps its rhythm through a round trip
+only if you keep the MIDI.
+
+### Playing it on a real instrument
+
+For something better than a plucked sine stack, write a MIDI file and give
+it to a synthesiser:
+
+```
+lake exe velato --midi /tmp/fugue.mid Langlib/Examples/Velato/fugue.vel
+```
+
+Any sequencer or player will open it. `scripts/velato-audio.sh --midi` will
+do the same and then play it through FluidSynth or TiMidity if one is
+installed — which, unlike the WAV path, does need a synthesiser and a
+SoundFont:
+
+```
+scripts/velato-audio.sh --midi Langlib/Examples/Velato/fugue.vel
+```
+
+On Debian or Ubuntu that is `sudo apt install fluidsynth
+fluid-soundfont-gm`; on Fedora, `sudo dnf install fluidsynth
+fluid-soundfont-gm`; with Homebrew, `brew install fluid-synth`. The `--deps`
+output above lists these too.
+
+### Adding accompaniment
+
+The MIDI file the runner writes has one track, which is the program. Velato
+reads the first track with notes and ignores every track after it, so
+putting a second track in the file changes nothing about what the program
+means and everything about what it sounds like. That is how the second of
+velato.net's two Hello World programs works, and it is the reliable way to
+make a Velato piece sound like something in particular — see the next
+section. `Langlib.Velato.Midi.File` takes a list of tracks; give track one
+the program's notes and track two whatever you want the audience to hear.
 
 ## Programs that sound like something else
 
