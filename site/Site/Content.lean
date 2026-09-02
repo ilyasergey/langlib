@@ -71,6 +71,10 @@ def langs : List Lang :=
     , author := "Jonathan Todd Skinner", year := "2006"
     , blurb := "One accumulator, four commands, no input and no way to stop. Famous for what it cannot do."
     , runner := "lake exe deadfish", examplesDir := "Deadfish" }
+  , { slug := "velato", name := "velato"
+    , author := "Daniel Temkin", year := "2009"
+    , blurb := "The source code is a MIDI file. Commands are the intervals between notes, so a program can be transposed into any key and a piece of music might already be one."
+    , runner := "lake exe velato", examplesDir := "Velato" }
   ]
 
 /--
