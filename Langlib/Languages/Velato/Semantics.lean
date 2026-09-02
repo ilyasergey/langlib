@@ -143,11 +143,11 @@ def Store.set (s : Store) (p : Pitch) (v : Value) : Store := s.set! p (some v)
 /-- Whether an operation on these two values is done in floating point.
 C#'s promotion rule: a `double` operand makes it so, and `char` promotes to
 `int` otherwise. -/
-private def isFloatOp (a b : Value) : Bool :=
+def isFloatOp (a b : Value) : Bool :=
   a.ty == Ty.double || b.ty == Ty.double
 
 /-- C#'s `%` on doubles: the remainder with the sign of the dividend. -/
-private def floatMod (a b : Float) : Float :=
+def floatMod (a b : Float) : Float :=
   let q := a / b
   let t := if q < 0 then -((-q).floor) else q.floor
   a - b * t
@@ -156,7 +156,7 @@ private def floatMod (a b : Float) : Float :=
 runtime error, as `DivideByZeroException` is in the generated C#; floating
 point division by zero is *not* an error in C# and yields an infinity, so it
 is not one here either. -/
-private def arith (op : BinOp) (a b : Value) : Except String Value :=
+def arith (op : BinOp) (a b : Value) : Except String Value :=
   if isFloatOp a b then
     let x := a.toFloat
     let y := b.toFloat
@@ -180,7 +180,7 @@ private def arith (op : BinOp) (a b : Value) : Except String Value :=
 
 /-- Apply a comparison. The result is `1` or `0` as an `int`: Velato has no
 boolean type to put it in, and `Value.truthy` reads it back. -/
-private def compare (op : BinOp) (a b : Value) : Except String Value :=
+def compareOp (op : BinOp) (a b : Value) : Except String Value :=
   let bit (t : Bool) : Value := .int (if t then 1 else 0)
   if isFloatOp a b then
     let x := a.toFloat
@@ -233,7 +233,7 @@ def evalExpr (st : Store) : Expr → Except String Value
     let a ← evalExpr st l
     let b ← evalExpr st r
     match op with
-    | .eq | .gt | .lt => compare op a b
+    | .eq | .gt | .lt => compareOp op a b
     | _ => arith op a b
 
 /-! ## Statements -/

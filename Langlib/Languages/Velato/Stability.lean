@@ -98,6 +98,11 @@ theorem exec_stable : ∀ n : Nat,
               exact ihS _ m' s' hm' h
           · simp only [if_neg hv] at h ⊢
 
+/-- The statement half, in the form callers need. -/
+theorem execStmt_stable (c : Stmt) (s : State) {n m : Nat} (hnm : n ≤ m)
+    (h : (execStmt n c s).2 ≠ .outOfFuel) : execStmt m c s = execStmt n c s :=
+  (exec_stable n).2 c m s hnm h
+
 /-- The block half, in the form the runner needs. -/
 theorem execList_stable (cs : List Stmt) (s : State) {n m : Nat} (hnm : n ≤ m)
     (h : (execList n cs s).2 ≠ .outOfFuel) : execList m cs s = execList n cs s :=
