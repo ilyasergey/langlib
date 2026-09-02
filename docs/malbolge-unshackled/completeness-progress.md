@@ -224,6 +224,29 @@ itself), so a pass must rewrite them before the next pass reads them.
 `sim_loop_test` already reduces the loop condition to reading exactly the
 cell a walk halts on, so the data side of the pass is closed.
 
+**What a pass finds ahead of itself, and the one design decision it
+forces.** A walk steps into cells no loader wrote, and `RegMem` asks every
+cell above a tape's length to be blank. Untouched cells hold the memory
+fill, and the fill is **never** blank: searching every pair of printable
+seeds finds no pair putting `...000` anywhere in the six-value table
+(measured, not proved; `leadAt_even` and `crzTrit_zero_ne_zero` are the
+structural reason). So a pass has to normalise the cells it is about to
+use.
+
+That is affordable, and `fillAt_slot` is why: with a slot stride divisible
+by 6, a given offset holds the *same* fill value in every slot, because the
+fill depends on the address only through its residue mod 6. The value is a
+compile-time constant, and `crz_two_steps` turns a known value into any
+other in two operations.
+
+It also closes the circularity the first design runs into. A pass's
+constants have to sit in the slot it is walking, since `d` only advances
+and the slots ahead are virgin — but the value at each offset ahead is
+known in advance, so a pass can write the *next* slot's constants using
+its own. The block propagates one slot per pass, the loader writes slot 0,
+and the walk carries it forward. This is the escalator argument applied to
+data rather than to addresses.
+
 ### Use `flag_branch`, not the pipeline
 
 There are three branches in the file now, and this is the one to build on.

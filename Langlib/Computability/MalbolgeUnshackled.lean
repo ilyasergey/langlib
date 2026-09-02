@@ -4460,6 +4460,59 @@ theorem walk_branch_target_q {DB SI R : Nat} {f : RegFile} {m : Memory}
   · rw [if_pos hlt, if_pos hlt, flagAddr, if_neg (by decide)]
   · rw [if_neg hlt, if_neg hlt, flagAddr, if_pos rfl]
 
+/-! ## What a walk finds in untouched memory
+
+A walk steps into cells no loader wrote, and `RegMem` asks every cell above
+a tape's length to hold `cellBlank`. Untouched cells hold the memory fill
+instead, so the two cannot both be true unless the fill is itself blank at
+the register offsets. **It never is**: searching every pair of printable
+seeds (the last two characters of the program are what the fill is
+computed from) finds no pair putting `...000` anywhere in the six-value
+table. That is a measurement rather than a theorem, but the structural
+reason is visible in `leadAt_even`, which pins the leading trit of every
+fill term by parity: half of them are not naturals at all, and the crazy
+operation has no column sending two zero trits to zero
+(`crzTrit_zero_ne_zero`).
+
+So a pass has to **normalise** the cells it is about to use, converting
+each from the fill value to blank. That is affordable because of the
+lemmas below: with a slot stride divisible by 6, a given offset holds the
+*same* fill value in every slot, since the fill depends on the address only
+through its residue mod 6 (`fillAt_slot`). The value is therefore a
+compile-time constant, and `crz_two_steps` turns a known value into any
+other in two operations.
+
+Which closes the circularity a first design runs into. The constants a pass
+needs sit in the slot it is walking, because `d` only ever advances; slots
+ahead are virgin. But the value at each offset ahead is known in advance,
+so a pass can write the *next* slot's constants using its own, and the
+block propagates one slot per pass. The loader writes slot 0, and the walk
+carries it forward. This is the escalator argument applied to data rather
+than to addresses. -/
+
+theorem mod6_ofNat (n : Nat) : (Value.ofNat n).mod6 = n % 6 := by
+  show (Value.ofNat n).modClass % 6 = n % 6
+  rw [modClass_ofNat]
+  exact Nat.mod_mod_of_dvd n (by omega)
+
+/-- The value an untouched cell holds. -/
+def fillAt (m : Memory) (n : Nat) : Value := m.rest.getD ((Value.ofNat n).mod6) Value.zero
+
+theorem get_of_not_mem {m : Memory} {n : Nat} (h : ¬ m.cells.contains (Value.ofNat n)) :
+    m.get (Value.ofNat n) = fillAt m n := by
+  show m.cells.getD (Value.ofNat n) _ = _
+  rw [Std.HashMap.getD_eq_fallback_of_contains_eq_false (by simpa using h)]
+  rfl
+
+theorem fillAt_slot {m : Memory} {SI : Nat} (h6 : SI % 6 = 0) (base k i : Nat) :
+    fillAt m (base + i * SI + k) = fillAt m (base + k) := by
+  unfold fillAt
+  rw [mod6_ofNat, mod6_ofNat]
+  congr 1
+  have hdvd : 6 ∣ i * SI := Nat.dvd_trans (Nat.dvd_of_mod_eq_zero h6) (Nat.dvd_mul_left SI i)
+  obtain ⟨c, hc⟩ := hdvd
+  omega
+
 end Unshackled
 
 end Langlib.Computability

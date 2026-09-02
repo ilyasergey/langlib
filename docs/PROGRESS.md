@@ -48,9 +48,27 @@ is the exit: feeding the cell a walk stands on to `flag_branch` aims
 control at `3 ^ j` while marks remain and at `2 * 3 ^ j` at the first
 blank, so the walk stops exactly at the tape boundary.
 
-What is left is one pass — the hypothesis `walk_iterate` takes — with two
-concrete jobs in it: re-entry, which `two_sweep` is for, and restocking the
-branch's constants. The blocker is now that narrow.
+**What a pass finds ahead of itself.** A walk steps into cells no loader
+wrote, and `RegMem` asks every cell above a tape's length to be blank.
+Untouched cells hold the memory fill, and the fill is never blank:
+searching every pair of printable seeds finds no pair putting `...000`
+anywhere in the six-value table. That is measured rather than proved, and
+`leadAt_even` with `crzTrit_zero_ne_zero` is the structural reason. So a
+pass has to normalise the cells it is about to use.
+
+`fillAt_slot` makes that affordable and closes the circularity the first
+design runs into. With a slot stride divisible by 6, a given offset holds
+the same fill value in every slot, because the fill sees the address only
+through its residue mod 6. So the value ahead is a compile-time constant,
+`crz_two_steps` converts it in two operations, and a pass can write the
+*next* slot's constants using its own. The constant block propagates one
+slot per pass, the loader writes slot 0, and the walk carries it forward:
+the escalator argument applied to data rather than to addresses.
+
+What is left is one pass — the hypothesis `walk_iterate` takes — with three
+concrete jobs in it: re-entry, which `two_sweep` is for, restocking the
+branch's constants, and propagating the block. The blocker is now that
+narrow.
 
 ## 2026-09-03: the Velato backend is verified, input included, and the build is warning-free
 

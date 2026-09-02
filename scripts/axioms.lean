@@ -743,6 +743,12 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.walk_branch_target
 #print axioms Unshackled.walk_branch_target_q
 
+-- What a walk finds in untouched memory: the same fill value at a given
+-- slot offset in every slot, when the stride is a multiple of 6.
+#print axioms Unshackled.mod6_ofNat
+#print axioms Unshackled.get_of_not_mem
+#print axioms Unshackled.fillAt_slot
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

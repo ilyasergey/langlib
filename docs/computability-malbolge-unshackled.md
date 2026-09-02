@@ -905,11 +905,17 @@ the address arithmetic
 (`trit_digitAt`, `digitAt_one_eq`, `digitAt_two_eq`, `flag_branch_blank`,
 `flag_branch_mark`, `flag_branch`, `flagAddr_gadget`); and the walk
 (`walk_iterate`, `walk_run`, `walk_branch_target`,
-`walk_branch_target_q`). `scripts/axioms.lean` reports `[propext,
+`walk_branch_target_q`); and the uniformity of the fill across slots
+(`mod6_ofNat`, `get_of_not_mem`, `fillAt_slot`). `scripts/axioms.lean` reports `[propext,
 Quot.sound]` or less for every one of them.
 
 **Measured, not proved**: the periods of `cat.mu` (3060) and `truth.mu`
-(408), and the five-step control cycle above. These come from running the
+(408), the five-step control cycle above, and that **no pair of printable
+seeds puts `...000` into the memory fill**, so a walk never finds a blank
+cell ahead of itself and every pass must normalise the cells it is about to
+use (`fillAt_slot` is what makes that affordable: with a slot stride
+divisible by 6, the fill value at a given offset is the same in every
+slot). These come from running the
 reference interpreter, so they are facts about our semantics, but they are
 `#eval` output rather than kernel-checked theorems.
 
