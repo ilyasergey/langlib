@@ -78,7 +78,7 @@ def runTrace (src : String) (input : Input) (fuel : Nat) : Except String RunResu
   let _ ← (Langlib.Turpentine.checkProgram p).mapError ("type error: " ++ ·)
   let ws ← bespokeWhitespaceIO.compile p
   let srcTrace := Langlib.Turpentine.evalTrace
-    (Langlib.Turpentine.Certified.BespokeWhitespace.answerProgram p) input fuel
+    (Langlib.Turpentine.Certified.answerProgram p) input fuel
   let tgtTrace := TraceLang.trace (L := WhitespaceLang) ws
     (bespokeWhitespaceIO.encodeInput input) fuel
   let r := ProgLang.run (L := WhitespaceLang) ws (bespokeWhitespaceIO.encodeInput input) fuel
