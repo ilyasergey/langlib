@@ -8,6 +8,13 @@
 #   docs/piet/img/*.svg         from Langlib/Examples/Piet/*.ppm
 #   docs/piet/img/add.png       from Langlib/Examples/Piet/add.ppm
 #   docs/brainloller/img/*.png  from Langlib/Examples/Brainloller/*.ppm
+#   docs/velato/img/*.png       from Langlib/Examples/Velato/*.vel
+#
+# Velato is graphical in a different sense: its programs are music, so its
+# spec page shows them engraved on a staff rather than as a picture of the
+# source. The engraving is done by the language's own runner, so a sheet
+# cannot drift from what the interpreter reads, and the labels under each
+# staff are the parser's own record of what it made of each note.
 #
 # The pictures are therefore derived files, and this script is the only
 # thing that may write them. Run it after changing an example, and commit
@@ -35,13 +42,16 @@ check=0
 if [ "$check" = 1 ]; then
   out=$(mktemp -d)
   trap 'rm -rf "$out"' EXIT
-  mkdir -p "$out/piet" "$out/brainloller"
+  mkdir -p "$out/piet" "$out/brainloller" "$out/velato"
   piet_dir="$out/piet"
   bl_dir="$out/brainloller"
+  vel_dir="$out/velato"
 else
   piet_dir=docs/piet/img
   bl_dir=docs/brainloller/img
+  vel_dir=docs/velato/img
 fi
+mkdir -p docs/velato/img
 
 # --- Piet: one SVG rectangle per codel ------------------------------------
 #
@@ -82,6 +92,20 @@ python3 scripts/ppm-to-png.py Langlib/Examples/Brainloller/compiled/hello.ppm \
 # The colour key in the decoding section: not a program, so it has no source.
 python3 scripts/ppm-to-png.py --legend "$bl_dir/colours.png"
 
+# --- Velato: one staff per sixteen notes ---------------------------------
+#
+# Engraved by the runner (`lake exe velato --sheet`), which writes a PPM, and
+# then through the same PPM-to-PNG converter Brainloller uses. Adding a
+# musical language therefore added no new tooling: no SVG rasteriser, no
+# font, no external renderer.
+tmp_ppm=$(mktemp -d)
+trap 'rm -rf "$tmp_ppm"' EXIT
+for prog in print-h twinkle hi ode cat count; do
+  lake exe velato --sheet "$tmp_ppm/$prog.ppm" \
+    "Langlib/Examples/Velato/$prog.vel" < /dev/null
+  python3 scripts/ppm-to-png.py "$tmp_ppm/$prog.ppm" "$vel_dir/$prog.png" 1 --no-grid
+done
+
 if [ "$check" = 1 ]; then
   status=0
   for f in "$piet_dir"/*.svg "$piet_dir"/*.png; do
@@ -91,6 +115,10 @@ if [ "$check" = 1 ]; then
   for f in "$bl_dir"/*.png; do
     cmp -s "$f" "docs/brainloller/img/$(basename "$f")" || {
       echo "stale: docs/brainloller/img/$(basename "$f")" >&2; status=1; }
+  done
+  for f in "$vel_dir"/*.png; do
+    cmp -s "$f" "docs/velato/img/$(basename "$f")" || {
+      echo "stale: docs/velato/img/$(basename "$f")" >&2; status=1; }
   done
   [ "$status" = 0 ] && echo "docs images are up to date"
   exit "$status"

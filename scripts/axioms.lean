@@ -26,6 +26,7 @@ import Langlib.Languages.Turpentine.Compile.Derived
 import Langlib.Languages.Turpentine.Trace
 import Langlib.Languages.Turpentine.Certified.BespokeWhitespace
 import Langlib.Computability.Brainfuck
+import Langlib.Computability.Velato
 import Langlib.Computability.Deadfish
 import Langlib.Computability.Malbolge
 import Langlib.Computability.Befunge93
@@ -799,12 +800,27 @@ open Langlib.Turpentine.Compile
 #print axioms URMSki.compile
 #print axioms skiComplete
 
+-- Velato. The interesting entries are the four facts about the Godel
+-- encoding that carries the whole register file in one variable, and `pr`,
+-- the prime sequence, which has to be computable as well as correct.
+#print axioms URMVelato.pr_prime
+#print axioms URMVelato.pr_strictMono
+#print axioms URMVelato.gd_up
+#print axioms URMVelato.dvd_gd_iff
+#print axioms URMVelato.gd_down
+#print axioms URMVelato.loopCond_eval
+#print axioms URMVelato.sim
+#print axioms URMVelato.simulation
+#print axioms URMVelato.compile
+#print axioms velatoComplete
+
 -- The lawfulness layer: fuel stability (every interpreter) and trace
 -- faithfulness (every language with a trace). One representative per shape;
 -- the instances themselves are definitional wrappers around these.
 #print axioms Langlib.Whitespace.exec_stable
 #print axioms Langlib.Subleq.exec_stable
 #print axioms Langlib.Brainfuck.exec_stable
+#print axioms Langlib.Velato.exec_stable
 #print axioms Langlib.Whitespace.eval_faithful
 #print axioms Langlib.Subleq.eval_faithful
 #print axioms Langlib.Common.Input.readLineGo_faithful

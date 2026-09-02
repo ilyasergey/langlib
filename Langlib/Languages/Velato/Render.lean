@@ -205,8 +205,12 @@ def ellipse (cv : Canvas) (cx cy rx ry angle : Float) (c : Rgb) : Canvas := Id.r
 pixels. `anchor` is `0` left, `1` centred, `2` right. -/
 def label (cv : Canvas) (x y : Float) (s : String) (size : Float) (anchor : Nat)
     (c : Rgb) : Canvas := Id.run do
+  -- Round *down*: the engraver budgets one scene unit per font pixel when
+  -- it spaces the notes, and rounding up would draw labels wider than the
+  -- gap it left for them, which is how "end while" ends up touching its
+  -- neighbour.
   let scale := size / Float.ofNat glyphH
-  let scale := if scale < 1.0 then 1.0 else scale.round
+  let scale := if scale < 1.0 then 1.0 else scale.floor
   let w := Float.ofNat (labelWidth s) * scale
   let x0 := match anchor with
     | 0 => x

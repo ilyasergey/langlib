@@ -248,13 +248,17 @@ def engrave (items : List Item) (st : Style := {}) (title : String := "") : Scen
   -- the label row is the part of these sheets that teaches the language.
   let widest := items.foldl (fun w it =>
     max w (max (labelWidth it.pitch.name) (labelWidth it.label))) 0
-  let advance := max st.advance (Float.ofNat widest + 7.0)
+  let advance := max st.advance (Float.ofNat widest + 11.0)
   -- A system is only as wide as the notes actually on it, so an eight-note
   -- program does not get sixteen notes' worth of empty staff.
   let perSys := if n < st.perSystem then max n 1 else st.perSystem
   let width := leftPad + Float.ofNat perSys * advance + 28.0
-  -- the last system's staff, plus room for the two label rows under it
-  let height := staffTop (Float.ofNat (systems - 1)) st + st.space * 9.0 + 14.0
+  -- The last system's staff, plus room for the two label rows under it, plus
+  -- however far its lowest note reaches below the staff.
+  let deepest := items.foldl (fun acc it =>
+    max acc (Float.ofNat (37 - min 37 (diatonic it.pitch)))) 0.0
+  let height := staffTop (Float.ofNat (systems - 1)) st
+    + st.space * 9.0 + deepest * (st.space / 2.0) + 14.0
   let mut shapes : List Shape := []
 
   if !title.isEmpty then
@@ -301,6 +305,14 @@ def engrave (items : List Item) (st : Style := {}) (title : String := "") : Scen
                   :: shapes
 
     let slice := (items.drop (sys * st.perSystem)).take st.perSystem
+    -- The label rows go under the *lowest note of this system*, not under
+    -- the staff: a variable is an absolute pitch and often sits well below
+    -- it on ledger lines, and a fixed offset would print its name through
+    -- its own note head.
+    let lowest := slice.foldl (fun acc it =>
+      let d := Float.ofNat (diatonic it.pitch)
+      max acc (bottom - (d - refLine) * (st.space / 2.0))) bottom
+    let labelY := lowest + st.space * 2.1
     for (it, idx) in slice.zipIdx do
       let x := leftPad + (Float.ofNat idx + 0.5) * advance
       let d := Float.ofNat (diatonic it.pitch)
@@ -348,9 +360,9 @@ def engrave (items : List Item) (st : Style := {}) (title : String := "") : Scen
                     :: shapes
       -- labels beneath
       if st.noteNames then
-        shapes := .text (x, bottom + st.space * 2.1) it.pitch.name 9.0 1 :: shapes
+        shapes := .text (x, labelY) it.pitch.name 9.0 1 :: shapes
       if !it.label.isEmpty then
-        shapes := .text (x, bottom + st.space * 3.5) it.label 9.0 1 :: shapes
+        shapes := .text (x, labelY + st.space * 1.4) it.label 9.0 1 :: shapes
 
   return { width := width.toUInt32.toNat, height := height.toUInt32.toNat,
            shapes := shapes.reverse }

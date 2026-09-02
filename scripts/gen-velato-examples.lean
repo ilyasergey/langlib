@@ -317,8 +317,16 @@ def emitTo (dir name : String) (p : Prog) (root : Pitch) (v : Voice)
           let (hit, tot) := followMatch notes v.follow
           s!"  {hit}/{tot} notes are the tune's own"
         else ""
+      -- The match figure goes in the file, computed rather than claimed:
+      -- a hand-written "and seven of these are the tune's own" is exactly
+      -- the sort of statement that rots the first time the encoder changes.
+      let statLine :=
+        if follow then
+          let (hit, tot) := followMatch notes v.follow
+          s!"% {hit} of its {tot} notes are the tune's own note at that point.\n"
+        else ""
       let comments := String.join (header.map fun l => "% " ++ l ++ "\n")
-      IO.FS.writeFile s!"{dir}/{name}.vel" (comments ++ renderNotes notes)
+      IO.FS.writeFile s!"{dir}/{name}.vel" (comments ++ statLine ++ renderNotes notes)
       IO.println s!"  {name}.vel  ({notes.size} notes){stats}"
 
 def main : IO Unit := do
@@ -387,8 +395,7 @@ def main : IO Unit := do
      "Velato reads. See docs/velato/spec.md, 'Programs that sound like",
      "something else'."] (follow := true)
   emitTo dir "twinkle" progH 60 (following dirajeMaman 20)
-    ["Prints \"H\", shadowing \"Ah! vous dirai-je, maman\" (traditional).",
-     "Eight notes, of which the first seven are the tune's own."] (follow := true)
+    ["Prints \"H\", shadowing \"Ah! vous dirai-je, maman\" (traditional)."] (follow := true)
   emitTo dir "lullaby" progCat 60 (following dirajeMaman 80)
     ["A cat program hidden in a lullaby.",
      "Usage: echo -n 'sleep' | lake exe velato Langlib/Examples/Velato/lullaby.vel"] (follow := true)

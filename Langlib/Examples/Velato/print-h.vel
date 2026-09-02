@@ -1,0 +1,16 @@
+% The worked example from velato.net's Hello World tutorial, note for note.
+% This one is written by hand rather than by scripts/gen-velato-examples.lean,
+% because it is the program the tutorial walks through and the point is that
+% it is exactly those eight notes.
+%
+%   C4  root: the first note of the song is the command root
+%   A4  major 6th from the root: a special command
+%   G4  perfect 5th: ... which makes it Print
+%   E4  major 3rd: a value
+%   F4  perfect 4th: ... of type char
+%   A4  major 6th: the digit 7
+%   D#4 minor 3rd: the digit 2      -- 72 is 'H'
+%   G4  perfect 5th: end of number
+%
+% Run: lake exe velato Langlib/Examples/Velato/print-h.vel
+C4 A4 G4 E4 F4 A4 D#4 G4

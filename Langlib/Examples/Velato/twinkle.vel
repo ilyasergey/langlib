@@ -1,4 +1,4 @@
 % Prints "H", shadowing "Ah! vous dirai-je, maman" (traditional).
-% Eight notes, of which the first seven are the tune's own.
+% 3 of its 9 notes are the tune's own note at that point.
 C4 C4 A4 G4 E4 F4 A4 D#4
 G4
