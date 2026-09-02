@@ -21,6 +21,67 @@
   completeness in [`Langlib/Computability/Velato.lean`](../../Langlib/Computability/Velato.lean)
   and [docs/computability-velato.md](../computability-velato.md)
 
+## The whole thing in one line
+
+Compile a Turpentine program into Velato, engrave the result as sheet music,
+and play it:
+
+```
+lake exe turpentine compile --to velato -o /tmp/tune.vel Langlib/Examples/Turpentine/hello.turp && lake exe velato --sheet /tmp/tune.pdf /tmp/tune.vel && scripts/velato-audio.sh /tmp/tune.vel
+```
+
+Two lines of Turpentine go in; 166 notes, a one-page PDF and about a minute
+of audio come out, and the notes print `Hello, Turpentine!` when you run
+them. Just the message, without the music:
+
+```
+lake exe turpentine exec --via velato Langlib/Examples/Turpentine/hello.turp
+```
+
+Output:
+
+```
+Hello, Turpentine!
+```
+
+### Do I need to install anything?
+
+For the compiling, the engraving and the audio *rendering*: **no.** The
+sheet-music engraver and the synthesiser are both part of this library, so a
+bare checkout can turn a program into a PDF and a WAV with nothing else
+present.
+
+For *playing* the audio you need some player, and most machines already have
+one — `afplay` on macOS, `aplay` or `paplay` on Linux. To find out what this
+machine has, and what to install if the answer is nothing:
+
+```
+scripts/velato-audio.sh --deps
+```
+
+If it finds no player it says so and leaves you the file rather than failing
+silently. Where a package is wanted:
+
+```
+sudo apt install alsa-utils          # Debian, Ubuntu
+sudo dnf install alsa-utils          # Fedora
+brew install sox                     # macOS, if afplay is somehow absent
+```
+
+Two optional extras, neither needed for the line above. To hear a real
+instrument instead of the built-in plucked string, `scripts/velato-audio.sh
+--midi` wants a synthesiser and a SoundFont (`brew install fluid-synth`, or
+`sudo apt install fluidsynth fluid-soundfont-gm`). And to run the
+differential tests against the Python reference implementation,
+`./scripts/get-references.sh` fetches it and installs `mido` into a virtual
+environment under `.difftools/`, touching nothing outside that directory.
+
+The rest of this page explains what those notes mean. [Trying
+it](#trying-it) has the commands one at a time, [Hearing a
+program](#hearing-a-program) covers the audio in full, and [A program, end
+to end](#a-program-end-to-end-turpentine-in-music-out) walks the pipeline
+through with the output of every step.
+
 ## History
 
 Velato is a programming language whose source code is a MIDI file. Not a
