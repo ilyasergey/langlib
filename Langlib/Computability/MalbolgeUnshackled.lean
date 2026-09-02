@@ -4207,6 +4207,259 @@ theorem flag_selects_address {v : Value} (h : v = cellBlank ∨ v = cellMark) :
   · rw [if_pos rfl]; exact succ_blank
   · rw [if_neg (by decide)]; exact succ_mark
 
+/-! ## A branch into two natural addresses, in two operations
+
+`flag_selects_address` above branches in three instructions but lands `d`
+on address 0 or 1, which is where execution begins. This section pays one
+extra `crazy` and buys the two landing sites back: **two crazy operations
+against `...111` and the natural `2 * 3 ^ j` send a blank to the address
+`2 * 3 ^ j` and a mark to the address `3 ^ j`**, for any `j` the compiler
+likes. Both are naturals, both are as far up in memory as the compiler
+wants, and the first constant is the same `...111` the ladder and the
+register probe already keep.
+
+Why two is the least possible, and why two suffice. One operation cannot
+do it: a single column of the crazy table sends the blank flag to `1` or
+`2` at every trit position (`no_single_step_blank_to_mark` is the missing
+entry), so the blank-side result has a repeating trit of `1` or `2` and is
+not a natural at all — the jump would land in the memory fill, which
+`restTable_not_printable` says can hang. Two columns composed give seven of
+the nine possible trit pairs, including `(0, 0)` at every high position,
+which is what keeps both results natural, and `(2, 1)` at position `j`,
+which is what makes them differ. `...111` then `2 * 3 ^ j` realises exactly
+that choice.
+
+This is not in tension with `no_accumulator_flag`: that theorem says no
+chain can compute a *uniform* value depending on the accumulator, and
+these two targets are not uniform. Reading a flag is still the only way to
+get one.
+
+The two constant cells behave differently, and a gadget author needs both
+facts. On the blank path the second cell is left holding exactly what it
+held (`flag_branch_blank` is an equation between the operand and the
+result), so it is self-restoring; on the mark path both cells are consumed
+and must be restocked before the next pass. -/
+
+/-- The value with trit `t` at position `j` and zeros elsewhere. -/
+def digitAt (t : Trit) (j : Nat) : Value := ⟨.t0, List.replicate j Trit.t0 ++ [t]⟩
+
+theorem trit_digitAt (t : Trit) (j : Nat) :
+    ∀ i, (digitAt t j).trit i = if i = j then t else .t0 := by
+  intro i
+  show (List.replicate j Trit.t0 ++ [t]).getD i Trit.t0 = _
+  induction j generalizing i with
+  | zero =>
+    cases i with
+    | zero => rfl
+    | succ k => simp [List.getD]
+  | succ j ih =>
+    cases i with
+    | zero => simp [List.getD]
+    | succ k =>
+      show (List.replicate j Trit.t0 ++ [t]).getD k Trit.t0 = _
+      rw [ih k]
+      simp
+
+theorem digitAt_normalized {t : Trit} (h : t ≠ .t0) (j : Nat) :
+    (digitAt t j).Normalized := by
+  show lastTrit? (List.replicate j Trit.t0 ++ [t]) ≠ some Trit.t0
+  rw [lastTrit?_eq_getD (by simp) Trit.t0, getD_lt (by simp),
+    List.getElem_append_right (by simp)]
+  simpa using h
+
+theorem trits3_two_pow3 : ∀ j, trits3 (2 * 3 ^ j) = List.replicate j Trit.t0 ++ [Trit.t2]
+  | 0 => by
+    show trits3 2 = [Trit.t2]
+    rw [show (2:Nat) = 1 + 1 from rfl, trits3_succ, ofResidue_two (by omega),
+      show (1 + 1) / 3 = 0 by omega, trits3_zero]
+  | j + 1 => by
+    rw [show 2 * 3 ^ (j + 1) = 3 * (2 * 3 ^ j) by
+        rw [Nat.pow_succ]; omega,
+      trits3_three_mul (Nat.mul_pos (by omega) (Nat.pow_pos (by omega))),
+      trits3_two_pow3 j]
+    rfl
+
+theorem digitAt_one_eq (j : Nat) : digitAt Trit.t1 j = Value.ofNat (3 ^ j) := by
+  rw [ofNat_eq, trits3_pow3]
+  rfl
+
+theorem digitAt_two_eq (j : Nat) : digitAt Trit.t2 j = Value.ofNat (2 * 3 ^ j) := by
+  rw [ofNat_eq, trits3_two_pow3]
+  rfl
+
+theorem crz_mark_one : Value.crz cellMark cellOne = cellMark := by decide
+
+/-- **Two operations send a blank to the address `2 * 3 ^ j`**, leaving the
+second constant cell holding exactly what it held before. -/
+theorem flag_branch_blank (j : Nat) :
+    Value.crz (Value.crz cellBlank cellOne) (digitAt Trit.t2 j) = digitAt Trit.t2 j := by
+  rw [ladder_blank_to_one]
+  apply ext_of_trits (crz_normalized _ _) (digitAt_normalized (t := Trit.t2) (by decide) j)
+    (by rw [crz_lead]; rfl)
+  intro i
+  rw [crz_trit, trit_digitAt Trit.t2 j i, trit_uniform]
+  by_cases h : i = j
+  · rw [if_pos h]; rfl
+  · rw [if_neg h]; rfl
+
+/-- **And a mark to the address `3 ^ j`.** -/
+theorem flag_branch_mark (j : Nat) :
+    Value.crz (Value.crz cellMark cellOne) (digitAt Trit.t2 j) = digitAt Trit.t1 j := by
+  rw [crz_mark_one]
+  apply ext_of_trits (crz_normalized _ _) (digitAt_normalized (t := Trit.t1) (by decide) j)
+    (by rw [crz_lead]; rfl)
+  intro i
+  rw [crz_trit, trit_digitAt Trit.t2 j i, trit_digitAt Trit.t1 j i,
+    show cellMark.trit i = Trit.t2 from rfl]
+  by_cases h : i = j
+  · rw [if_pos h, if_pos h]; rfl
+  · rw [if_neg h, if_neg h]; rfl
+
+/-- The address a flag selects: `2 * 3 ^ j` for a blank, `3 ^ j` for a mark. -/
+def flagAddr (j : Nat) (v : Value) : Nat := if v = cellBlank then 2 * 3 ^ j else 3 ^ j
+
+theorem flag_branch (j : Nat) {v : Value} (h : v = cellBlank ∨ v = cellMark) :
+    Value.crz (Value.crz v cellOne) (digitAt Trit.t2 j)
+      = Value.ofNat (flagAddr j v) := by
+  rcases h with h | h <;> subst h
+  · rw [flag_branch_blank, digitAt_two_eq, flagAddr, if_pos rfl]
+  · rw [flag_branch_mark, digitAt_one_eq, flagAddr, if_neg (by decide)]
+
+/-- **The flag-to-address gadget.** Three instructions: two `crazy` cells
+turn a flag in the accumulator into a natural address, and one `movd` aims
+`d` at the cell holding it, so that a following `jmp` branches. -/
+theorem flagAddr_gadget (j : Nat) {s₀ : State} {c₀ d₀ : Nat} (w : Nat → Nat)
+    (hflag : s₀.a = cellBlank ∨ s₀.a = cellMark)
+    (hc : s₀.c = Value.ofNat c₀) (hd : s₀.d = Value.ofNat d₀)
+    (hsep : c₀ + 3 ≤ d₀)
+    (hdec : ∀ i < 2, decode (s₀.mem.get (Value.ofNat (c₀ + i)))
+      (Value.ofNat (c₀ + i)).modClass = .crazy)
+    (hmovd : decode (s₀.mem.get (Value.ofNat (c₀ + 2)))
+      (Value.ofNat (c₀ + 2)).modClass = .movd)
+    (hprint : ∀ i < 3, printableCode? (s₀.mem.get (Value.ofNat (c₀ + i)))
+      = some (w i))
+    (hK0 : s₀.mem.get (Value.ofNat d₀) = cellOne)
+    (hK1 : s₀.mem.get (Value.ofNat (d₀ + 1)) = digitAt Trit.t2 j)
+    (hKp : s₀.mem.get (Value.ofNat (d₀ + 2)) = Value.ofNat d₀) :
+    ∃ s', run? 3 s₀ = some s'
+      ∧ s'.a = Value.ofNat (flagAddr j s₀.a)
+      ∧ s'.c = Value.ofNat (c₀ + 3)
+      ∧ s'.d = Value.ofNat (d₀ + 1)
+      ∧ s'.mem.get (Value.ofNat (d₀ + 1)) = Value.ofNat (flagAddr j s₀.a)
+      ∧ (∀ addr, (∀ i < 3, addr ≠ Value.ofNat (c₀ + i)) →
+          (∀ k < 2, addr ≠ Value.ofNat (d₀ + k)) →
+          s'.mem.get addr = s₀.mem.get addr)
+      ∧ s'.input = s₀.input ∧ s'.output = s₀.output ∧ s'.outClosed = s₀.outClosed := by
+  obtain ⟨s₂, hrun2, hA, hC, hD, hDs, hCs, hframe, hin, hout, hoc, hrw, hmw⟩ :=
+    crazy_run 2 w hc hd (by omega) (fun i hi => hdec i hi)
+      (fun i hi => hprint i (by omega))
+  have hfold : crzFold s₀.mem d₀ s₀.a 2 = Value.ofNat (flagAddr j s₀.a) := by
+    show Value.crz (Value.crz s₀.a (s₀.mem.get (Value.ofNat (d₀ + 0))))
+        (s₀.mem.get (Value.ofNat (d₀ + 1))) = _
+    rw [show d₀ + 0 = d₀ from rfl, hK0, hK1]
+    exact flag_branch j hflag
+  have hcell2 : s₂.mem.get (Value.ofNat (c₀ + 2)) = s₀.mem.get (Value.ofNat (c₀ + 2)) :=
+    hframe _ (fun i hi => ofNat_ne (by omega)) (fun k hk => ofNat_ne (by omega))
+  have hop2 : s₂.mem.get (Value.ofNat (d₀ + 2)) = Value.ofNat d₀ := by
+    rw [hframe _ (fun i hi => ofNat_ne (by omega)) (fun k hk => ofNat_ne (by omega))]
+    exact hKp
+  have hstep := step1_movd (s := s₂) (code := w 2)
+    (by rw [hC, hcell2]; exact hmovd)
+    (by rw [hC, hcell2]; exact hprint 2 (by omega))
+  rw [hD, hop2, hC] at hstep
+  rw [succ_ofNat, succ_ofNat, show c₀ + 2 + 1 = c₀ + 3 by omega] at hstep
+  set s₃ : State := { s₂ with mem := s₂.mem.set (Value.ofNat (c₀ + 2)) (Value.ofNat (encrypt (w 2))), c := Value.ofNat (c₀ + 3), d := Value.ofNat (d₀ + 1), maxWidth := if (Value.ofNat d₀).width > s₂.maxWidth then (Value.ofNat d₀).width else s₂.maxWidth, rotWidth := if (Value.ofNat d₀).width > s₂.maxWidth then growRotWidth s₂.rotWidth (Value.ofNat d₀).width else s₂.rotWidth } with hs₃
+  have hrun3 : run? 3 s₀ = some s₃ := by
+    rw [show (3 : Nat) = 2 + 1 from rfl, run?_add 2 1, hrun2, Option.bind_some,
+      run?_one]
+    exact hstep
+  refine ⟨s₃, hrun3, ?_, rfl, rfl, ?_, ?_, hin, hout, hoc⟩
+  · show s₂.a = _
+    rw [hA]; exact hfold
+  · show (s₂.mem.set (Value.ofNat (c₀ + 2)) (Value.ofNat (encrypt (w 2)))).get
+      (Value.ofNat (d₀ + 1)) = _
+    rw [get_set_ne _ (ofNat_ne (by omega)), hDs 1 (by omega)]
+    exact hfold
+  · intro addr hac had
+    show (s₂.mem.set (Value.ofNat (c₀ + 2)) (Value.ofNat (encrypt (w 2)))).get addr = _
+    rw [get_set_ne _ (Ne.symm (hac 2 (by omega)))]
+    exact hframe addr (fun i hi => hac i (by omega)) had
+
+/-! ## The walk
+
+The one thing every command needs and nothing in this file had: iteration
+whose length is decided by the data rather than by the compiler. `inc`,
+`dec` and the loop condition are all "walk to the boundary of a tape", and
+the boundary is wherever the register file says it is.
+
+`walk_iterate` is the induction. One pass costs a fixed `k` steps and
+carries the walk from slot `i` to slot `i + 1`, which the layout makes free:
+`regAddr`'s slot stride `SI` is the pass length, so `d` advancing one per
+instruction arrives at the next slot with no address arithmetic. The number
+of passes is the tape length, so the run is `k * n` steps for an `n` the
+compiler never knows.
+
+`walk_branch_target` is the exit. Feeding the cell a walk is standing on to
+the two-operation branch above aims control at `3 ^ j` while marks remain
+and at `2 * 3 ^ j` at the first blank, so a compiler that puts the top of
+the walk at one and its exit at the other gets termination at the boundary
+for free. Both tapes are covered, since `inc` walks the first and `dec` the
+second. -/
+
+/-- **A walk of `n` passes runs.** One pass costs `k` steps and carries the
+walk from slot `i` to slot `i + 1`; `n` of them cost `k * n`. The bound `n`
+is the *data*: it comes from the register file, not from the compiler. -/
+theorem walk_iterate {Iter : Nat → State → Prop} {k n : Nat}
+    (hstep : ∀ i s, i < n → Iter i s → ∃ s', run? k s = some s' ∧ Iter (i + 1) s') :
+    ∀ m i s, i + m = n → Iter i s → ∃ s', run? (k * m) s = some s' ∧ Iter n s' := by
+  intro m
+  induction m with
+  | zero =>
+    intro i s hi h
+    refine ⟨s, by rw [Nat.mul_zero]; rfl, ?_⟩
+    rw [show n = i by omega]
+    exact h
+  | succ m ih =>
+    intro i s hi h
+    obtain ⟨s₁, hr₁, h₁⟩ := hstep i s (by omega) h
+    obtain ⟨s', hr', h'⟩ := ih (i + 1) s₁ (by omega) h₁
+    refine ⟨s', ?_, h'⟩
+    rw [show k * (m + 1) = k + k * m by rw [Nat.mul_succ, Nat.add_comm],
+      run?_add k (k * m), hr₁, Option.bind_some]
+    exact hr'
+
+/-- The walk from slot `0`, which is where a gadget enters it. -/
+theorem walk_run {Iter : Nat → State → Prop} {k n : Nat}
+    (hstep : ∀ i s, i < n → Iter i s → ∃ s', run? k s = some s' ∧ Iter (i + 1) s')
+    {s : State} (h : Iter 0 s) :
+    ∃ s', run? (k * n) s = some s' ∧ Iter n s' :=
+  walk_iterate hstep n 0 s (by omega) h
+
+/-- **The walk continues exactly while there are marks.** At slot `i` of
+register `r`'s first tape the flag-to-address gadget aims at `3 ^ j` while
+`i` is below the tape's length, and at `2 * 3 ^ j` at the first blank. So a
+compiler that puts the top of the walk at `3 ^ j` and its exit at
+`2 * 3 ^ j` gets a loop that stops at the boundary, with no address
+arithmetic anywhere. -/
+theorem walk_branch_target {DB SI R : Nat} {f : RegFile} {m : Memory}
+    (h : RegMem DB SI R f m) {r : Nat} (hr : r < R) (i j : Nat) :
+    flagAddr j (m.get (Value.ofNat (regAddr DB SI r false i)))
+      = if i < (f r).p then 3 ^ j else 2 * 3 ^ j := by
+  rw [(h r hr i).1]
+  by_cases hlt : i < (f r).p
+  · rw [if_pos hlt, if_pos hlt, flagAddr, if_neg (by decide)]
+  · rw [if_neg hlt, if_neg hlt, flagAddr, if_pos rfl]
+
+/-- The same on the second tape, which is the one `dec` extends. -/
+theorem walk_branch_target_q {DB SI R : Nat} {f : RegFile} {m : Memory}
+    (h : RegMem DB SI R f m) {r : Nat} (hr : r < R) (i j : Nat) :
+    flagAddr j (m.get (Value.ofNat (regAddr DB SI r true i)))
+      = if i < (f r).q then 3 ^ j else 2 * 3 ^ j := by
+  rw [(h r hr i).2]
+  by_cases hlt : i < (f r).q
+  · rw [if_pos hlt, if_pos hlt, flagAddr, if_neg (by decide)]
+  · rw [if_neg hlt, if_neg hlt, flagAddr, if_pos rfl]
+
 end Unshackled
 
 end Langlib.Computability

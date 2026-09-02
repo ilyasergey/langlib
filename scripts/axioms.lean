@@ -724,6 +724,25 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.succ_mark
 #print axioms Unshackled.flag_selects_address
 
+-- A branch into two natural addresses, in two crazy operations, and the
+-- three-instruction gadget that runs it.
+#print axioms Unshackled.trit_digitAt
+#print axioms Unshackled.digitAt_normalized
+#print axioms Unshackled.trits3_two_pow3
+#print axioms Unshackled.digitAt_one_eq
+#print axioms Unshackled.digitAt_two_eq
+#print axioms Unshackled.crz_mark_one
+#print axioms Unshackled.flag_branch_blank
+#print axioms Unshackled.flag_branch_mark
+#print axioms Unshackled.flag_branch
+#print axioms Unshackled.flagAddr_gadget
+
+-- The walk: iteration whose length is the data's, and where it stops.
+#print axioms Unshackled.walk_iterate
+#print axioms Unshackled.walk_run
+#print axioms Unshackled.walk_branch_target
+#print axioms Unshackled.walk_branch_target_q
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

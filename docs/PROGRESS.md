@@ -2,7 +2,57 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-09-03 (latest): the Velato backend is verified, input included, and the build is warning-free
+## 2026-09-03 (latest): Malbolge Unshackled gets a walk, and a two-operation branch
+
+Two pieces of the Turing-completeness effort, both in
+`Langlib/Computability/MalbolgeUnshackled.lean`, both axiom-clean. There is
+still **no `TuringComplete` witness**; the tracker
+`docs/malbolge-unshackled/completeness-progress.md` says what is left.
+
+**A branch into two natural addresses, in two crazy operations.** The file
+had two branches and neither was the right tool for a loop. `branch_arith`
+reaches arbitrary targets in seven operations and consumes four shaping
+constants, which a loop must restock every pass. `flag_selects_address`
+costs three instructions but lands `d` on address 0 or 1, which is where
+execution begins. `flag_branch` pays one crazy operation more than that and
+buys those two addresses back: against `...111` and the natural `2 * 3 ^ j`
+it sends a blank flag to the address `2 * 3 ^ j` and a mark to `3 ^ j`, for
+any `j` the compiler likes, both naturals, both anywhere in memory. The
+first constant is the `...111` the ladder and the register probe already
+keep. `flagAddr_gadget` runs it in three instructions, two `crazy` cells
+and a `movd` that leaves `d` on the cell holding the address.
+
+Two is the least possible, and the argument is the same tritwise one that
+runs through the rest of this development. A single column of the crazy
+table sends the blank flag to `1` or `2` at *every* trit position, so a
+one-operation result repeats `1` or `2` for ever, is not a natural, and a
+jump into it lands in the memory fill, which `restTable_not_printable` says
+can hang. Two columns composed give seven of the nine possible pairs,
+including `(0, 0)` above position `j`, which keeps both targets natural,
+and `(2, 1)` at `j`, which makes them differ. This does not contradict
+`no_accumulator_flag`: that rules out computing a *uniform* value from the
+accumulator, and neither target is uniform.
+
+One asymmetry a gadget author needs. On the blank path the second constant
+cell ends holding exactly what it held, so it restores itself; on the mark
+path both constants are consumed and a pass must restock them.
+
+**The walk, which was the blocker.** Everything built before this batch
+reached statically known addresses; nothing did data-dependent iteration,
+and `inc`, `dec` and the loop condition all need it. Two of its three parts
+now exist. `walk_iterate` is the induction: `n` passes of a `k`-step pass
+cost `k * n` steps, where `n` is a tape length rather than anything the
+compiler knows, and the layout makes a pass free of address arithmetic
+because `regAddr`'s slot stride *is* the pass length. `walk_branch_target`
+is the exit: feeding the cell a walk stands on to `flag_branch` aims
+control at `3 ^ j` while marks remain and at `2 * 3 ^ j` at the first
+blank, so the walk stops exactly at the tape boundary.
+
+What is left is one pass — the hypothesis `walk_iterate` takes — with two
+concrete jobs in it: re-entry, which `two_sweep` is for, and restocking the
+branch's constants. The blocker is now that narrow.
+
+## 2026-09-03: the Velato backend is verified, input included, and the build is warning-free
 
 **A `TraceLang` for Velato.** `Langlib/Languages/Velato/Trace.lean` proves
 the two bookkeeping laws (the trace's output events are the output; its

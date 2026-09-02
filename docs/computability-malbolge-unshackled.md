@@ -811,6 +811,76 @@ the unit a compiled counter-machine command is built from, and its
 hypotheses are all stated on the *initial* memory, the prologue's two
 writes being transferred across by its frame.
 
+## A branch into two natural addresses
+
+Three branches now exist in the development, and the third is the one a
+compiler should use. `branch_arith` costs seven crazy operations and four
+shaping constants, which a loop would have to restock every iteration.
+`flag_selects_address` costs three instructions but lands `d` on address 0
+or 1, which is where execution begins. The third pays one extra crazy
+operation and buys those two landing sites back.
+
+**Two crazy operations, against `...111` and the natural `2 * 3 ^ j`, send
+a blank to the address `2 * 3 ^ j` and a mark to the address `3 ^ j`** —
+`flag_branch_blank` and `flag_branch_mark`, for every `j`. Both results are
+naturals, both sit as far up in memory as the compiler cares to put them,
+and the first constant is the `...111` the ladder and the register probe
+already keep.
+
+Two is the least possible. One operation cannot do it: a single column of
+the crazy table sends the blank flag to `1` or `2` at *every* trit
+position, so the blank-side result repeats `1` or `2` for ever and is not a
+natural address at all, and a jump into it lands in the memory fill, which
+`restTable_not_printable` says can hang. Two columns composed give seven of
+the nine possible pairs, and the two that matter are there: `(0, 0)`, which
+keeps both results natural above position `j`, and `(2, 1)`, which makes
+them differ at `j`. Choosing `...111` then `2 * 3 ^ j` realises exactly
+that pattern.
+
+This does not contradict `no_accumulator_flag`. That theorem rules out
+computing a *uniform* value from the accumulator, and neither target is
+uniform. A flag still has to be read from a cell; what the branch does is
+turn one into control flow.
+
+The two constant cells behave differently, which a gadget author has to
+know. On the blank path the second cell ends holding exactly what it held —
+`flag_branch_blank` is an equation between the operand and the result — so
+it is self-restoring. On the mark path both cells are consumed and must be
+restocked before the next pass.
+
+`flagAddr_gadget` is the machine half: three instructions, two `crazy`
+cells and one `movd` that aims `d` at the cell now holding the address, so
+a following `jmp` branches. The frame names the five cells it touches, and
+the accumulator ends holding the address as well.
+
+## The walk
+
+The one thing every command needs and nothing else in the file had:
+iteration whose length is decided by the data. `inc`, `dec` and the loop
+condition are all "walk to the boundary of a tape", and the boundary is
+wherever the register file says it is, not where the compiler put it.
+
+`walk_iterate` is the induction. A pass costs a fixed `k` steps and carries
+the walk from slot `i` to slot `i + 1`, which the layout makes free:
+`regAddr`'s slot stride is the pass length, so `d` advancing one per
+instruction arrives at the next slot with no address arithmetic at all. `n`
+passes cost `k * n` steps, and `n` is the tape length.
+
+`walk_branch_target` is the exit, and it is where the branch above earns
+its place. Feeding the cell the walk is standing on into the
+two-operation branch aims control at `3 ^ j` while marks remain and at
+`2 * 3 ^ j` at the first blank. So a compiler that puts the top of the walk
+at one address and its exit at the other gets termination at the tape
+boundary for nothing. Both tapes are covered, `inc` walking the first and
+`dec` the second.
+
+What `walk_iterate` takes as a hypothesis is one pass: that from slot `i`,
+`k` steps reach slot `i + 1` with the invariant intact. Building that pass
+is the remaining work, and the narrow question inside it is restocking —
+the mark path consumes both branch constants, so a pass has to restore its
+own operands before the next one runs, which is what the two-sweep
+discipline is for.
+
 ## What is proved, what is cited, what is open
 
 **Proved, axiom-clean**: the `ProgLang` instance; the memory laws
@@ -831,7 +901,11 @@ the address arithmetic
 `encrypt_ne_self_range`, `opcode_inj`, `opcode_ne_encrypt`,
 `decode_encrypt_ne`); obstruction two (`lead_getD_crzSeq`, `leadAt_even`,
 `restTable_not_printable`); and the alternating-cell table
-(`alternatingCell_spec`). `scripts/axioms.lean` reports `[propext,
+(`alternatingCell_spec`); the two-operation branch into natural addresses
+(`trit_digitAt`, `digitAt_one_eq`, `digitAt_two_eq`, `flag_branch_blank`,
+`flag_branch_mark`, `flag_branch`, `flagAddr_gadget`); and the walk
+(`walk_iterate`, `walk_run`, `walk_branch_target`,
+`walk_branch_target_q`). `scripts/axioms.lean` reports `[propext,
 Quot.sound]` or less for every one of them.
 
 **Measured, not proved**: the periods of `cat.mu` (3060) and `truth.mu`
@@ -850,12 +924,12 @@ The evidence is MalbolgeLisp, not a theorem.
 2. Reaching the loop. `Loop.neverHalts` covers every state in the cycle,
    but the 154-step prologue that `loop.mu` uses to get there is checked by
    running the interpreter, not proved. See the note above.
-3. A register representation. `crz_two_steps` says the arithmetic is
-   adequate and the escalator says addresses can be minted, but the two
-   have to be joined: registers live at escalator-minted addresses, `p`
-   consumes a fresh constant per operation, and the sequencing of `d`
-   past constants and registers is the layout problem an assembler must
-   solve.
+3. One pass of a walk. The walk's induction and its exit condition are
+   proved (`walk_iterate`, `walk_branch_target`), and both take a single
+   pass as a hypothesis: from slot `i`, a fixed number of steps reach slot
+   `i + 1` with the layout intact. Building that pass is what remains, and
+   the narrow question inside it is restocking, since the mark path of the
+   branch consumes both of its constants.
 4. `restTable_not_printable` assumes its two seeds are naturals. The loader
    always supplies naturals, because they are character code points, but
    proving that means carrying an invariant through `loadWith`'s mutable

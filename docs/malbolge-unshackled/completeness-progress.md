@@ -82,12 +82,16 @@ than by taste:
 | Simulation invariant | `Sim`, `sim_inc`, `sim_dec`, `sim_emit`, `sim_frame`, `sim_loop_test` |
 | Flags must be read, not computed | `crzChain_agree`, `no_accumulator_flag` |
 | Which cell a jump must keep printable | `decode_outOfBounds_iff`, `printable_of_decode` |
+| A branch into two natural addresses | `flag_branch`, `flagAddr_gadget` — two crazy operations, three instructions |
+| The walk | `walk_iterate`, `walk_run` — iteration whose length is the tape's |
+| Where the walk stops | `walk_branch_target`, `walk_branch_target_q` |
 
 ## Remaining
 
 1. **`inc`** — walk a register's cells to the first blank and set it. The
-   write arithmetic is done (`register_set`); what remains is the walk and
-   the layout. Set costs two visits because no single crazy operation
+   write arithmetic is done (`register_set`) and so are the walk's
+   induction and exit (`walk_iterate`, `walk_branch_target`); what remains
+   is one pass and the layout. Set costs two visits because no single crazy operation
    crosses from `...000` to `...222`
    (`no_single_step_blank_to_mark`).
 2. **`dec`** — the design question is **resolved**. A register is a pair of
@@ -186,50 +190,76 @@ Read this before writing anything. The development is large but the next
 step is narrow, and three of the four design questions that look open have
 already been closed by theorems.
 
-### The one blocker: a walk
+### The blocker, narrowed: one pass of a walk
 
-Everything built so far reaches **statically known** addresses. `chain_run`
-fixes the code stride at 94 so every address is a compile-time constant;
-`gadget_run` positions `d` from a pointer laid down in advance. What does
-not exist anywhere is a **walk**: data-dependent iteration, stepping cell by
-cell until a probe says stop. `inc`, `dec` and `loop` all need one and none
-is possible without it. Build the walk first; the rest follows it.
+Everything built before this batch reached **statically known** addresses.
+`chain_run` fixes the code stride at 94 so every address is a compile-time
+constant; `gadget_run` positions `d` from a pointer laid down in advance.
+The **walk** — data-dependent iteration, stepping cell by cell until a
+probe says stop — is what `inc`, `dec` and `loop` all need, and two of its
+three parts now exist.
 
-Its shape, and why the layout was chosen to make it cheap: the slot stride
-`SI` in `regAddr` is *defined* to be the walking gadget's length, so `d`
-advancing one per instruction carries it from slot `i` to slot `i + 1` with
-**no address arithmetic at all**. One iteration is therefore:
+**The induction exists.** `walk_iterate` runs `n` passes of a `k`-step
+pass, at a cost of `k * n` steps, where `n` is the tape length and so is
+not a number the compiler knows. `walk_run` is it from slot 0, which is
+where a gadget enters. The layout is what makes a pass cheap: the slot
+stride `SI` in `regAddr` is *defined* to be the pass length, so `d`
+advancing one per instruction carries the walk from slot `i` to slot
+`i + 1` with **no address arithmetic at all**.
 
-1. probe the register cell in this slot (`register_probe`, two chain links,
-   restores everything it touches);
-2. branch on the flag, back to the top of the walk or out.
+**The exit exists.** `walk_branch_target` says the flag-to-address branch
+below aims control at `3 ^ j` while marks remain on the tape and at
+`2 * 3 ^ j` at the first blank, so putting the top of the walk at one and
+its exit at the other terminates the walk exactly at the boundary.
+`walk_branch_target_q` is the same on the second tape, the one `dec`
+extends.
 
-The measure that makes it terminate is the number of marks left on the
-tape, `(f r).p - i`, which strictly decreases; `run_of_measure` is the loop
-rule waiting for it, and `sim_loop_test` already reduces the condition to
-reading exactly the cell the walk halts on.
+**One pass is what is left.** It is the hypothesis `walk_iterate` takes:
+from slot `i`, `k` steps reach slot `i + 1` with the layout intact. Two
+concrete jobs inside it. The pass has to be re-enterable, which is what
+`two_sweep` is for. And it has to **restock**: the mark path of the branch
+consumes both of its constants (the blank path restores the second one by
+itself), so a pass must rewrite them before the next pass reads them.
 
-### Use the cheap branch, not the pipeline
+`sim_loop_test` already reduces the loop condition to reading exactly the
+cell a walk halts on, so the data side of the pass is closed.
 
+### Use `flag_branch`, not the pipeline
+
+There are three branches in the file now, and this is the one to build on.
 `branch_arith` is seven crazy operations and consumes four shaping
-constants, which a loop would have to restock every iteration. **Do not
-build the walk on it.** A loop's two destinations are fixed at compile
-time, so use `flag_selects_address` instead: the flag is `Value.zero` or
-`Value.eof`, successor sends them to addresses `1` and `0` respectively, so
-writing the flag to a cell and `movd`-ing through it lands `d` on one of two
-cells the compiler owns, and a `jmp` reads whichever target it put there.
-Three instructions, nothing consumed that the next probe does not rewrite.
+constants; **do not build a walk on it.** `flag_selects_address` is three
+instructions but lands `d` on address 0 or 1, which is where execution
+begins.
 
-The cost is that addresses 0 and 1 are where execution begins, so put the
-prologue elsewhere or make those two cells hold jump targets before any
-branch runs. Keep `branch_arith` for the case it was built for, arbitrary
+`flag_branch` pays one more crazy operation than that and buys the two
+landing sites back: **two crazy operations, against `...111` and the
+natural `2 * 3 ^ j`, send a blank to the address `2 * 3 ^ j` and a mark to
+`3 ^ j`**, for any `j` the compiler likes. Both targets are naturals, both
+are anywhere in memory, and the first constant is the `...111` the ladder
+and the register probe already keep. `flagAddr_gadget` is the machine half:
+two `crazy` cells and one `movd`, leaving `d` on the cell that holds the
+address, so a following `jmp` branches.
+
+Two operations is the least possible, and the reason is worth knowing
+before trying to shave it. A single column of the crazy table sends the
+blank flag to `1` or `2` at *every* trit position, so a one-operation
+result repeats `1` or `2` for ever and is not a natural address; a jump
+into it lands in the memory fill, which can hang. Two columns composed
+give `(0, 0)` above position `j`, which keeps both targets natural, and
+`(2, 1)` at `j`, which makes them differ.
+
+Watch the restock. On the blank path the second constant cell ends holding
+exactly what it held, so it restores itself; on the mark path both cells
+are consumed. Keep `branch_arith` for the case it was built for, arbitrary
 computed targets.
 
 ### Then, in order
 
-1. **The walk**, as above. Prove it against `run_of_measure` and state its
-   conclusion in the shape `gadget_run` uses, so the commands can compose
-   with it.
+1. **One pass of the walk**, as above: the hypothesis `walk_iterate`
+   takes. Make it re-enterable with `two_sweep`, restock the branch's two
+   constants, and state its conclusion in the shape `gadget_run` uses so
+   the commands compose with it. The induction and the exit are done.
 2. **`inc`** and **`dec`**: walk to the boundary, then one write.
    `regMem_up` and `regMem_down` carry the layout invariant across the
    write, and `sim_inc`/`sim_dec` close the step. `dec` is *not* harder than
