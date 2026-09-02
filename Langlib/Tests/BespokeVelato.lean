@@ -211,7 +211,7 @@ def differential : Suite where
         source := .inline "var answer : int; print(0 - 42); answer := 1;",
         expect := .outputs "-42\n1" }
     , { name := "summing the input bytes", source := .inline sumBytes,
-        input := "velato", expect := .outputs "\n653" }
+        input := "velato", expect := .outputs "\n651" }
     , { name := "echoing byte values", source := .inline echoValues,
         input := "hi", expect := .outputs "104\n105\n\n2" }
     ]

@@ -10,7 +10,9 @@ lake exe turpentine exec    --via velato prog.turp                    # compile 
 ```
 
 * **bespoke** — [`Langlib/Languages/Turpentine/Compile/Velato.lean`](../../Langlib/Languages/Turpentine/Compile/Velato.lean),
-  hand-written, compact, unverified, and the one you want.
+  hand-written, compact, the one you want, and
+  [proved correct on a fragment](#verification-status), behaviourally and
+  input included.
 * **certified** — [`derivedVelato`](../../Langlib/Languages/Turpentine/Compile/Derived.lean),
   correct by construction, obtained from
   [Velato's completeness proof](../computability-velato.md) with no new
@@ -89,6 +91,28 @@ Velato's `Input` stores `0` for both — [the spec page](spec.md) records why �
 so this backend maps `0` to `-1`, and **a NUL byte in the input is
 indistinguishable from end of input**. The brainfuck backend carries exactly
 this caveat for exactly this reason.
+
+### A second caveat: `printByte` above 127
+
+Turpentine's `printByte(e)` writes the single byte `e mod 256`. Velato has
+no way to write a byte: `Print` of a `char` writes the UTF-8 encoding of
+its code point, which is one byte only up to 127. So for a value in
+`128 … 255` the backend and the source disagree, and there is nothing the
+backend can do about it, since no Velato value prints as a lone byte in
+that range. Compile and run a program that prints byte 200:
+
+```
+printf 'printByte(200);\n' > /tmp/byte.turp && lake exe turpentine exec --via velato /tmp/byte.turp | xxd
+```
+
+Output:
+
+```
+00000000: c388                                     ..
+```
+
+The reference interpreter writes the one byte `c8`. This is why `printByte`
+is outside the verified fragment below: the theorem would be false.
 
 ### What is refused, and why
 
@@ -326,27 +350,93 @@ keeps its rhythm — it just has to keep its MIDI file to do so.
 
 ## Verification status
 
-The bespoke backend is **trusted, not verified**: it is checked by the
-differential tests in
-[`Langlib/Tests/CompileVelato.lean`](../../Langlib/Tests/CompileVelato.lean),
-which compile a program, run it on the Velato interpreter, and compare
-against the Turpentine reference. That is testing, not proof.
+The bespoke backend is **verified on a fragment**, and behaviourally:
+[`Langlib/Languages/Turpentine/Certified/BespokeVelato.lean`](../../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean)
+gives two inhabitants of the library's correctness interfaces for it.
 
-Verifying it means inhabiting `TurpentineCompiler VelatoLang` a second time,
-next to `derivedVelato`, at which point
-[`agree`](../../Langlib/Languages/Turpentine/Compile/Derived.lean) applies
-and "the derived compiler is an oracle for the hand-written one" becomes a
-corollary rather than a testing practice. That is what
-[`BespokeSubleq`](../../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean)
-and
-[`BespokeWhitespace`](../../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean)
-did for their targets, and it is per-language proof work that has not been
-done here. It is tracked in [PLAN.md](../PLAN.md).
+* [`bespokeVelato`](../../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2015)
+  is a `TurpentineCompiler VelatoLang`, next to `derivedVelato`, so
+  [`agree`](../../Langlib/Languages/Turpentine/Compile/Derived.lean) applies
+  and "the derived compiler is an oracle for the hand-written one" is a
+  corollary ([`bespokeVelato_agrees_derived`](../../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2053)).
+* [`bespokeVelatoIO`](../../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032)
+  is an `IOCertifiedCompiler`, with `encodeInput` **and** `encodeTrace` the
+  identity: the compiled program runs on the source's own input stream and
+  performs the source's events, reads included, byte for byte and in order.
+  It is the first behaviourally verified backend in the library whose
+  fragment reads.
 
-The natural first fragment is smaller than it looks. Velato's interpreter is
-already lawful (`LawfulProgLang VelatoLang`, proved in
-[`Stability.lean`](../../Langlib/Languages/Velato/Stability.lean)), and the
-translation of `while`, `if` and assignment is close enough to the identity
-that the simulation relation is nearly "the same store, renamed". What would
-take the work is the division correction, whose whole point is that the two
-languages disagree.
+### The fragment is a fragment of Turpentine
+
+Worth saying plainly, because "verified on a fragment" invites the wrong
+reading: the fragment is a set of **source** programs. It is no part of
+Velato that goes missing; Velato itself is covered whole. The interpreter in
+[`Langlib/Languages/Velato/Semantics.lean`](../../Langlib/Languages/Velato/Semantics.lean)
+implements the entire language, and Velato's Turing completeness is proved
+outright, on all of it, by
+[`velatoComplete`](../../Langlib/Computability/Velato.lean#L745). Nothing in
+this directory is a partial account of the target.
+
+What narrows is which Turpentine programs the correctness theorem talks
+about, and it narrows in four layers that are easy to conflate:
+
+| layer | narrowed by | what it excludes |
+| --- | --- | --- |
+| what the backend accepts | Velato's expressiveness | arrays, `readInt`, `assert`; see [What is refused](#what-is-refused-and-why) |
+| what the proof covers | our proof effort so far | additionally `/`, `%`, initialisers, duplicate names, and programs with no `answer : int` |
+| what the proof cannot cover | a real disagreement | `printByte`, where the compiled program and the source disagree above 127 |
+| what the specification assumes | Velato's `Input` | streams containing a NUL byte |
+
+Only the second layer is about effort rather than about the languages, and
+only it will move. The first will not: Velato has no arrays and no way to
+fail, so no amount of proving will let `a[i]` or `assert` through. The
+third and fourth are places where source and target genuinely disagree,
+recorded rather than papered over; widening the fragment to admit them
+would make the theorem false.
+
+A program in the fragment is compiled by exactly the same code generator
+that compiles everything else. `bespokeCompile` is `checkFragment` followed
+by `Compile/Velato.lean`'s own `compileProgram`, with nothing swapped out,
+so the fragment is a checked precondition on a theorem rather than a
+second, tamer compiler. Outside it the backend still runs, and is still
+checked against `derivedVelato` and the reference interpreter by the tests
+below; it is simply not proved.
+
+The proof is about the code generator that ships, gated by a fragment
+check. What `bespokeVelato.compile` accepts:
+
+| | in the fragment |
+| --- | --- |
+| declarations | scalar `int` and `bool`, no initialiser, names distinct, one of them `answer : int` |
+| expressions | literals, variables, `-`, `!`, `+ - * == != < <= > >= && ||` |
+| statements | `skip`, `;`, `:=`, `if`, `while`, `print`/`println` of a string, an `int` or a `bool`, `x := readByte()` into an `int` |
+
+Left out, with the reason: `/` and `%` (the Euclidean correction above is a
+separate arithmetic obligation), initialisers (no certified fragment has
+them yet), `printByte` (the second caveat: the theorem would be false), and
+arrays, `readInt` and `assert`, which the backend itself refuses.
+
+One thing sits in the specification rather than in the fragment. The
+theorem is stated against `BehavesWithAnswerNulFree`, which is
+`BehavesWithAnswer` on a stream with **no NUL byte**: the first caveat
+above is exactly that Velato cannot tell a NUL from the end of the stream,
+and on a stream that has one the backend genuinely behaves differently
+from the source. Putting the restriction in the specification, where a
+reader will find it, is the honest statement of what the backend does; a
+weakened `encodeTrace` would have hidden it.
+
+Why the proof is short by the standards of this directory, at about a
+tenth of a page per construct: Velato is a structured language, so the
+simulation relation is nearly "the same store, renamed" — each declared
+variable's pitch holds its value, a `bool` as `1` or `0`, and the two
+sides share input, output and events. The one construct with real content
+is `readByte`, four target statements whose intermediate stores the proof
+follows one by one; the NUL-free hypothesis is used exactly once, to know
+that the byte read is not `0` and so survives the fixup.
+
+[`Langlib/Tests/BespokeVelato.lean`](../../Langlib/Tests/BespokeVelato.lean)
+runs the claim as well as the library proves it: the pipeline, a
+differential check against the reference interpreter with the same epilogue
+appended, agreement with `derivedVelato`, the rejections, and the
+behavioural instance itself on programs that read, comparing the two event
+lists.

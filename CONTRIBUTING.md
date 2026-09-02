@@ -82,7 +82,7 @@ interfaces in `Langlib/Common/Compilation.lean` rather than as a bespoke
 theorem, so that it composes with everything else:
 
 * `CertifiedCompiler spec L` preserves the *answer*. Enough for a source
-  program with no I/O; the derived compilers and both verified bespoke
+  program with no I/O; the derived compilers and all three verified bespoke
   backends are stated with it.
 * `IOCertifiedCompiler spec L` preserves the *behaviour*: the trace of
   bytes consumed and emitted, in order, under an encoding the compiler
@@ -92,6 +92,14 @@ theorem, so that it composes with everything else:
 
 Both are generic in the source language and the answer type; Turpentine's
 `TurpentineCompiler` is the first at `TurpentineHaltsWith`.
+
+Start from `Langlib/Languages/Turpentine/Certified/Shared.lean`, which has
+the source-side half of every such proof — the fragment predicates, the
+evaluator inversion lemmas, the `answer` epilogue and its decoder, and the
+two specifications `HaltsWithAnswer` and `BehavesWithAnswer` — so a new
+proof only has to supply the target side. `BespokeVelato.lean` is the
+shortest example of the shape: a state relation, big-step judgements over
+the target's fuel, one simulation lemma per construct, and the instances.
 
 ## Style
 

@@ -257,8 +257,8 @@ shared correctness statement (forward simulation on halting runs, with
 observable behaviour a byte stream), the per-backend proof structure (a
 state relation plus per-construct simulation lemmas over shared fuel
 machinery in `Langlib/Common/`), and the order: whitespace, then subleq,
-then brainfuck, with ook free from brainfuck. Two backends are now proved
-over fragments (`bespokeSubleq`, `bespokeWhitespace`) and
+then brainfuck, with ook free from brainfuck. Three backends are now proved
+over fragments (`bespokeSubleq`, `bespokeWhitespace`, `bespokeVelato`) and
 `verification.md` carries the scoreboard.
 
 ### The statement is now a definition `[~]`
@@ -269,7 +269,7 @@ target:
 
 * `CertifiedCompiler spec L` — answer preservation. Everything proved in
   the library today is stated with it, including every derived compiler and
-  both bespoke ones.
+  all three bespoke ones.
 * `IOCertifiedCompiler spec L` — behaviour preservation. A run's
   observable behaviour is a `Trace` of interleaved input and output events
   (`Langlib/Common/Io.lean`); a compiled program must reproduce the
@@ -277,16 +277,18 @@ target:
   answer. `IOCertifiedCompiler.toCertified` proves it implies the weaker
   notion, so an upgrade reproves nothing.
 
-`bespokeWhitespaceIO` is the only inhabitant of `IOCertifiedCompiler` so
-far, over the output-only fragment; the reason there is exactly one is that
-the prerequisite is per-language, not per-compiler.
+`bespokeWhitespaceIO` and `bespokeVelatoIO` are the two inhabitants of
+`IOCertifiedCompiler`: the first over an output-only fragment, the second
+over one that reads as well. The prerequisite — a `TraceLang` instance — is
+per-language, not per-compiler, which is why the count is what it is.
 
 The derived compilers are out of scope for the upgrade and always will be:
 `TurpentineHaltsWith` is I/O-free because the URM is. FRACTRAN has its
 instance for free (`TraceLang.ofInputFree`, since its `run` provably
-ignores the input stream) and is the only one today. Every other language
-needs its interpreter to record events, which is a change to the shape of
-a small-step semantics rather than a proof.
+ignores the input stream); whitespace, subleq and Velato have theirs the
+expensive way. Every other language needs its interpreter to record events,
+which is a change to the shape of a small-step semantics rather than a
+proof.
 
 ### Lawfulness: the `∃ fuel` is cashed `[x]`
 
@@ -309,10 +311,13 @@ statements' meaning. See [verification.md](verification.md).
 `TraceLang` additionally carries `trace_faithful`: a halting run, replayed
 on any stream sandwiched between its claimed reads and the original, is the
 same run — the law that rules out a trace underreporting reads the
-behaviour depends on. Proved for all three instances: whitespace and subleq
-by a two-stream simulation over their interpreters
+behaviour depends on. Proved for all four instances: whitespace, subleq and
+Velato by a two-stream simulation over their interpreters
 (`Langlib/Languages/<L>/Faithful.lean`, with the line-reader half in
-`Langlib/Common/Io.lean`), FRACTRAN for free via `TraceLang.ofInputFree`.
+`Langlib/Common/Io.lean`; Velato's interpreter runs whole sub-runs rather
+than single steps, so its simulation also has to say that the two runs
+consume the same bytes, which is what lets one sub-run be followed by the
+next), FRACTRAN for free via `TraceLang.ofInputFree`.
 
 ### Behavioural certification for whitespace `[~]`
 
@@ -506,6 +511,69 @@ exactly the bytes `Value.render` does.
 
 What is left for subleq is its own steps 3–5: widening the two-shape
 fragment, and the instance.
+
+### Behavioural certification for velato `[x]`
+
+Landed on 2026-09-02, out of the planned order: the plan said whitespace,
+then subleq, then brainfuck, and Velato was not in the list. It turned out
+to be the cheapest target in the library to certify and the first whose
+fragment could read. Velato is a structured language, so the backend is
+nearly a renaming and the simulation relation is nearly "the same store,
+renamed". The proof is `Langlib/Languages/Turpentine/Certified/BespokeVelato.lean`.
+
+1. **Traces in the Velato interpreter.** `Velato.State` already recorded
+   its events; `Langlib/Languages/Velato/Trace.lean` proves the two
+   bookkeeping laws and `Velato/Faithful.lean` the faithfulness law, and
+   `instance : TraceLang VelatoLang` sits beside `ProgLang VelatoLang`.
+   Faithfulness cost something new: the interpreter runs whole sub-runs, so
+   the two-stream simulation has to know where the second run's cursor is
+   *after* a sub-run, and `Faithful` carries "the two runs consume the same
+   bytes" alongside the agreement of results so that `Faithful.seq` can
+   compose a statement with the rest of its block, or a loop body with the
+   loop again.
+2. **The shared source-side stock.**
+   `Langlib/Languages/Turpentine/Certified/Shared.lean` holds what every
+   certified backend needs from Turpentine and nothing about any target:
+   the fragment predicates, the evaluator inversion lemmas,
+   `evalExpr_hasTy`, the `initEnv` unfolding, the epilogue `answerProgram`,
+   the decoder `decodeAnswer` with its inversion, and the two
+   specifications `HaltsWithAnswer` and `BehavesWithAnswer`.
+   `BespokeWhitespace.lean` imports it and lost some six hundred lines.
+3. **The generator, characterised.** The backend's `compileExpr` and
+   `compileStmt` were `partial` for no reason and are not any more, and
+   `compileProgram`'s two `for` loops became recursive functions with the
+   same behaviour (the golden suite confirms it). `Runs` is a two-line
+   algebra over the generator's state monad; `compileExpr_spec` and
+   `compileStmt_spec` say the generator emits exactly the pure reference
+   translation `cE`/`cS` on the fragment, so the simulation is stated about
+   that.
+4. **The simulation.** `Rel`: each declared variable's pitch holds `encV` of
+   its value (an `int` is itself, a `bool` is `1` or `0`), every name in
+   scope is defined, the store has its 128 cells, and the two sides share
+   input, output and events. `Halts` and `HaltsS` are big-step judgements
+   composed through `execList_stable`. `simExpr` and `simStmt` are the
+   per-construct simulations; `readByte` is four target statements followed
+   store by store, and the NUL-free hypothesis is used exactly once, to know
+   the byte read is not `0`.
+5. **The instances.** `bespokeVelato : TurpentineCompiler VelatoLang` and
+   `bespokeVelatoIO : IOCertifiedCompiler BehavesWithAnswerNulFree
+   VelatoLang`, with `encodeInput = encodeTrace = id`.
+   `BehavesWithAnswerNulFree` is `BehavesWithAnswer` on a stream with no
+   NUL byte: Velato's `Input` stores `0` for a NUL and at end of stream
+   alike, the backend maps `0` to `-1`, and the specification says so where
+   a reader will see it rather than a weakened `encodeTrace` hiding it.
+6. **Tests and docs.** `Langlib/Tests/BespokeVelato.lean`: the pipeline,
+   the differential check against the reference with the same epilogue,
+   agreement with `derivedVelato`, the rejections, and the behavioural claim
+   run on programs that read. `docs/velato/compiler.md` and both scoreboards
+   are current.
+
+What the fragment leaves out, and why: `/` and `%` (the Euclidean
+correction is a separate arithmetic obligation), initialisers (no certified
+fragment has them yet), and `printByte`, which turned out to be a genuine
+divergence rather than a proof gap: Velato prints a `char` as the UTF-8
+encoding of its code point, so a byte in `128 … 255` comes out as two bytes.
+`docs/velato/compiler.md` records it and a golden test pins it.
 
 ## Stage 7: website `[ ]`
 

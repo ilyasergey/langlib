@@ -314,15 +314,16 @@ and once Turpentine compiles to a register machine, composition gives a
 verified Turpentine-to-Whitespace compiler without touching the effective
 backend.
 
-Two effective compilers are now verified, each over a fragment stated as
+Three effective compilers are now verified, each over a fragment stated as
 data rather than as prose: the compiler's own `Except.error` is the
 fragment. The table below is the scoreboard; update it in the same commit
 as the proof.
 
 | Backend | Effective compiler | Simulation | End-to-end theorem | Derived compiler | Behavioural (I/O) |
 |---------|--------------------|------------|--------------------|------------------|-------------------|
-| whitespace | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3149) | [yes, scalars and output](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4355) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | [**yes**, output only, `encodeTrace = id`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401) |
+| whitespace | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L2695) | [yes, scalars and output](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3744) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | [**yes**, output only, `encodeTrace = id`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3790) |
 | subleq | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) | [yes, two shapes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118) | - |
+| velato | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L1254) | [yes, scalars, output and `readByte`](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L1983) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L178) | [**yes**, input included, `encodeTrace = encodeInput = id`, NUL-free streams](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032) |
 | brainfuck | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L122) | - |
 | fractran | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L127) | n/a (no I/O) |
 | thue | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L133) | - |
@@ -340,23 +341,30 @@ and a `TraceLang` instance would have nothing to say. Its answer is the
 normal form the interpreter prints, which is a property of the final state
 rather than of the run.
 
-The last column is otherwise empty on purpose. Whitespace is the one row
-that has reached the behavioural notion, and for every other the first step
+The last column is otherwise empty on purpose. Whitespace and Velato are
+the two rows that have reached the behavioural notion — Velato's with
+input, which whitespace's still lacks — and for every other the first step
 is not a proof but a `TraceLang` instance: the interpreter has to record
 its events.
 FRACTRAN has one already, for free, because its `run` provably ignores the
 input stream — which is also why its cell says `n/a` rather than `-`.
 
-**Whitespace and subleq have theirs too, and those are the real kind.**
-Both read, so nothing was free: each interpreter records the run's events,
-and
-[`Whitespace/Trace.lean`](../Langlib/Languages/Whitespace/Trace.lean) and
-[`Subleq/Trace.lean`](../Langlib/Languages/Subleq/Trace.lean) prove the two
+**Whitespace, subleq and Velato have theirs too, and those are the real
+kind.** All three read, so nothing was free: each interpreter records the
+run's events, and
+[`Whitespace/Trace.lean`](../Langlib/Languages/Whitespace/Trace.lean),
+[`Subleq/Trace.lean`](../Langlib/Languages/Subleq/Trace.lean) and
+[`Velato/Trace.lean`](../Langlib/Languages/Velato/Trace.lean) prove the two
 laws from one invariant — the trace's output events *are* the output, and
 its input events *followed by what the cursor has left* are what the stream
-started with. Those are exactly the two backends the library has proved
-answer-correct, so the remaining work on both rows is on the Turpentine side
-and in the simulation, not in the interpreter.
+started with. Velato's faithfulness law
+([`Velato/Faithful.lean`](../Langlib/Languages/Velato/Faithful.lean)) needed
+one more idea than the other two, because its interpreter runs whole
+sub-runs rather than single steps: the two-stream simulation also has to
+say that the two runs consume the *same bytes*, or a statement could not
+be followed by the rest of its block. Those are exactly the three backends
+the library has proved answer-correct, so the remaining work on the rows is
+on the Turpentine side and in the simulation, not in the interpreter.
 
 Fuel monotonicity dropped out of the scoreboard as a proof tool — both
 proofs use the exact-cost `Langlib.Common.Reaches` and never needed it —
@@ -367,7 +375,10 @@ sufficiently large fuel bound (`correct_stable`).
 Whitespace's fragment is scalar `int`/`bool` with the full expression
 language including subtraction, unary minus and negative literals, plus
 `if`, `while` and `assert`; it leaves out `/`, `%`, arrays and all I/O.
-Subleq's is two program shapes. Note that whitespace's fragment is
+Subleq's is two program shapes. Velato's is whitespace's without `assert`
+and with `print`, `println` and `readByte` into an `int` variable; `/`, `%`
+and `printByte` stay out, the last because Velato prints a `char` above 127
+as two UTF-8 bytes where Turpentine writes one. Note that whitespace's fragment is
 **incomparable** with the certified URM one: subtraction and negative
 integers are impossible on the register machine, while `/` and `%` are in
 the URM fragment and not in this one. `agree` applies on the intersection,

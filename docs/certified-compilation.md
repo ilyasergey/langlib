@@ -276,18 +276,18 @@ representability side condition in the fragment predicate or a wrapping
 source semantics to match. [verification.md](verification.md) is where both
 gaps are argued.
 
-### 1.4 What is proved behaviourally: the whitespace backend
+### 1.4 What is proved behaviourally: the whitespace and Velato backends
 
-`IOCertifiedCompiler` has one inhabitant,
-[`bespokeWhitespaceIO`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401),
-and it is the strongest shape the definition allows: **`encodeTrace` is the
-identity**. The compiled program does not re-encode the source's I/O into a
+`IOCertifiedCompiler` has two inhabitants. The first,
+[`bespokeWhitespaceIO`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3790),
+is the strongest shape the definition allows on the output side:
+**`encodeTrace` is the identity**. The compiled program does not re-encode the source's I/O into a
 target convention; it performs it, byte for byte and in order.
 
 Three things make that statement mean what it appears to mean.
 
 * The specification is
-  [`BehavesWithAnswer`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4278),
+  [`BehavesWithAnswer`](../Langlib/Languages/Turpentine/Certified/Shared.lean#L714),
   which is `TurpentineBehavesWith` at `answerProgram p` — the source *with*
   the epilogue the compiler appends. The epilogue's newline and answer are
   events the compiled program really performs, and a specification that did
@@ -300,6 +300,27 @@ Three things make that statement mean what it appears to mean.
 * `TurpentineBehavesWith` is not a trace a compiler author chose:
   [`behavesWith_wf`](../Langlib/Languages/Turpentine/Trace.lean) says the
   events it names are a real run's.
+
+The second,
+[`bespokeVelatoIO`](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032),
+is the first whose fragment **reads**. Its `encodeInput` is the identity as
+well as its `encodeTrace`: the compiled Velato program runs on the very
+stream the source runs on, and the theorem says its trace, input events
+included, is the source's. The specification it is indexed by is
+[`BehavesWithAnswerNulFree`](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L1994),
+which is `BehavesWithAnswer` on a stream with no NUL byte: Velato's `Input`
+stores `0` for a NUL and at end of stream alike, and the backend turns `0`
+into Turpentine's `-1` without being able to tell the two apart. The
+restriction sits in the specification, where a reader will find it, rather
+than in a weakened `encodeTrace`. The proof is short by the standards of
+this directory, because Velato is a structured language and the simulation
+is nearly "the same store, renamed":
+[`simStmt`](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L1254)
+is one induction over the source's fuel and syntax, and the only real work
+is `readByte`, four target statements whose intermediate stores the proof
+follows one by one. What the two proofs share, from the fragment predicates
+to the answer decoder, lives in
+[`Certified/Shared.lean`](../Langlib/Languages/Turpentine/Certified/Shared.lean).
 
 The correctness statement in force elsewhere in the library is still the
 answer-only one — `bespokeWhitespace` proves that directly, against a
@@ -319,6 +340,7 @@ bespoke backends of section 3, which do compile Turpentine's `read` and
 | Backend | Proved today | What the upgrade needs |
 |---|---|---|
 | [Whitespace](../Langlib/Languages/Turpentine/Compile/Whitespace.lean) | **`IOCertifiedCompiler`**, scalars and output, `encodeTrace = id` | done for output; `readInt` is milestone 2 |
+| [Velato](../Langlib/Languages/Turpentine/Compile/Velato.lean) | **`IOCertifiedCompiler`**, scalars, output and `readByte`, `encodeTrace = encodeInput = id`, on NUL-free streams | done; `/`, `%` and `printByte` stay outside the fragment, the last because Velato prints a `char` above 127 as two UTF-8 bytes |
 | [Subleq](../Langlib/Languages/Turpentine/Compile/Subleq.lean) | `CertifiedCompiler`, two shapes | **`TraceLang` done**; `encodeTrace` is the identity, now checked |
 | [Brainfuck](../Langlib/Languages/Turpentine/Compile/Brainfuck.lean) | tested, not proved | the correctness proof first |
 | [Ook!](../Langlib/Languages/Turpentine/Compile/Ook.lean), [Brainloller](../Langlib/Languages/Turpentine/Compile/Brainloller.lean) | tested, not proved | Brainfuck's, then re-encoding |
@@ -762,16 +784,16 @@ which is the whole point: with two inhabitants,
 and "the derived compiler is an oracle for the hand-written one" stops being
 a testing practice and becomes a corollary
 ([`bespokeSubleq_agrees_derived`](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L681),
-[`bespokeWhitespace_agrees_derived`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4435)).
+[`bespokeWhitespace_agrees_derived`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3824)).
 
-**[`bespokeWhitespace`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4381)**
+**[`bespokeWhitespace`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3770)**
 covers the larger fragment: scalar `int` and `bool` declarations without
 initialisers, the whole expression language including subtraction, unary
 minus and negative literals, and `skip`, sequencing, assignment, `if`,
 `while` and `assert`. Left out are `/` and `%` (the backend's Euclidean
 correction branches on the sign of the divisor, a separate arithmetic
 obligation), arrays, and every I/O statement. The end-to-end theorem is
-[`bespokeCompile_correct`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4355).
+[`bespokeCompile_correct`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3744).
 
 **[`bespokeSubleq`](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639)**
 covers two program shapes — `var answer: int := k; printByte(answer);` for

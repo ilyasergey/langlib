@@ -6,6 +6,7 @@ import Langlib.Tests.Brainloller
 import Langlib.Tests.BeerSong
 import Langlib.Tests.BespokeSubleq
 import Langlib.Tests.BespokeWhitespace
+import Langlib.Tests.BespokeVelato
 import Langlib.Tests.CompileBrainfuck
 import Langlib.Tests.CompileBrainloller
 import Langlib.Tests.CompileFractran
@@ -73,6 +74,7 @@ def main : IO UInt32 := do
     , Langlib.Tests.Brainloller.suites
     , Langlib.Tests.BespokeSubleq.suites
     , Langlib.Tests.BespokeWhitespace.suites
+    , Langlib.Tests.BespokeVelato.suites
     , Langlib.Tests.CompileBrainfuck.suites
     , Langlib.Tests.CompileBrainloller.suites
     , Langlib.Tests.CompileFractran.suites

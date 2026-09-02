@@ -1177,16 +1177,14 @@ theorem simExpr {F : Frame} {ns : List String} (hcov : Covers F ns)
       | mod => simp [okOp] at hop
       | eq =>
         cases v₁ <;> cases v₂ <;>
-          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb
-        subst hb
+          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb <;> subst hb
         · rw [cBin, velato_eval_eq ihl' ihr']; rfl
         · rename_i x y
           rw [cBin, velato_eval_eq ihl' ihr']
           cases x <;> cases y <;> rfl
       | ne =>
         cases v₁ <;> cases v₂ <;>
-          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb
-        subst hb
+          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb <;> subst hb
         · rw [cBin, velato_eval_not (velato_eval_eq ihl' ihr')]
           exact congrArg Except.ok (notbit_eq_enc _)
         · rename_i x y

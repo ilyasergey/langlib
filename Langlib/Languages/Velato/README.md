@@ -46,6 +46,8 @@ machine already has.
 | `Parser.lean` | notes to syntax, recording what each note was |
 | `Semantics.lean` | the pure fuel-based reference interpreter |
 | `Stability.lean` | completed runs are a fixed point of more fuel |
+| `Trace.lean` | the run's recorded I/O events are exactly what it read and wrote |
+| `Faithful.lean` | a halting run depends only on the bytes its trace claims |
 | `Emit.lean` | syntax back to notes, with voice leading |
 | `Midi.lean` | Standard MIDI Files, both directions |
 | `Sheet.lean` | engraving a program onto a staff |
@@ -58,6 +60,12 @@ Turing-completeness proof, which needs both, is in
 [`Langlib/Computability/Velato.lean`](../../Computability/Velato.lean) and
 explained in
 [`docs/computability-velato.md`](../../../docs/computability-velato.md).
+That file also registers Velato's `TraceLang` instance, built from
+`Trace.lean` and `Faithful.lean`, which is what lets the Turpentine backend
+for Velato be proved correct *behaviourally*, input included:
+[`Langlib/Languages/Turpentine/Certified/BespokeVelato.lean`](../Turpentine/Certified/BespokeVelato.lean),
+with the fragment spelled out in
+[`docs/velato/compiler.md`](../../../docs/velato/compiler.md).
 
 ## Two things worth knowing before reading the code
 

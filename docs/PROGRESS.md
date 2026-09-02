@@ -2,7 +2,56 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-09-02 (latest): velato, and a completeness proof that had to work differently
+## 2026-09-03 (latest): the Velato backend is verified, input included, and the build is warning-free
+
+**A `TraceLang` for Velato.** `Langlib/Languages/Velato/Trace.lean` proves
+the two bookkeeping laws (the trace's output events are the output; its
+input events followed by what the cursor has left are the stream) and
+`Velato/Faithful.lean` the faithfulness law. Faithfulness needed one idea
+the whitespace and subleq proofs did not: Velato's interpreter runs whole
+sub-runs rather than single steps, so the two-stream simulation must also
+say that the two runs *consume the same bytes*, or a statement could not be
+followed by the rest of its block. `Faithful.seq` is that composition, and
+`instance : TraceLang VelatoLang` sits beside `ProgLang VelatoLang`.
+
+**The hand-written Velato backend is proved correct on a fragment,
+behaviourally.** `Langlib/Languages/Turpentine/Certified/BespokeVelato.lean`
+gives `bespokeVelato : TurpentineCompiler VelatoLang` and `bespokeVelatoIO :
+IOCertifiedCompiler BehavesWithAnswerNulFree VelatoLang` with `encodeInput`
+**and** `encodeTrace` both the identity: the compiled program runs on the
+source's own stream and performs its events, reads included. It is the
+first behaviourally verified backend in the library whose fragment reads.
+The fragment is scalar `int`/`bool` with no initialisers, the expression
+language without `/` and `%`, `if`, `while`, `print`/`println` of strings,
+integers and booleans, and `x := readByte()`. The specification restricts
+the stream to one with no NUL byte, because Velato's `Input` stores `0` for
+a NUL and at end of stream alike and the backend cannot tell them apart;
+that is stated in the specification rather than hidden in `encodeTrace`.
+The proof is about the shipped generator: its `partial` was removed and its
+`for` loops rewritten as recursion, with no change in behaviour.
+
+**A divergence found on the way.** `printByte` is out of the fragment for
+a real reason, not a proof gap: Velato prints a `char` as the UTF-8
+encoding of its code point, so `printByte(200)` writes `C3 88` where
+Turpentine writes `C8`. `docs/velato/compiler.md` records it and a golden
+test pins it.
+
+**Shared source-side lemmas.**
+`Langlib/Languages/Turpentine/Certified/Shared.lean` now holds everything
+the certified backends need from Turpentine and nothing about any target:
+fragment predicates, evaluator inversion, `evalExpr_hasTy`, the `initEnv`
+unfolding, the `answer` epilogue and its decoder, and the two
+specifications. `BespokeWhitespace.lean` imports it and shrank from 4449 to
+about 3840 lines with no change to what it proves.
+
+**Zero warnings.** The whole project now builds without a single Lean
+warning: 183 unused `simp` arguments, unused hypothesis names and a few
+never-executed tactics in `Computability/Fractran.lean`, and a local
+variable named `S` next to the `S` combinator in `Computability/Ski.lean`.
+
+Tests: 1570, all passing (43 new for the Velato backend).
+
+## 2026-09-02: velato, and a completeness proof that had to work differently
 
 Velato (Daniel Temkin, 2009) is a language whose source code is a MIDI file:
 the pitches, in the order the file sounds them, are the program. Commands

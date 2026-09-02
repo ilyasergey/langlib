@@ -5,7 +5,7 @@
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved / disproved | Correct via TC | Hosts full Turpentine | Bespoke compiler | Bespoke correct |
 | ---------- | ------ | -------- | ------------- | ------------------ | -------- | ----------------- | ----------- | ---------------- | ----------------------- | ------------------ | ----------------- |
 | [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | [**yes**](../Langlib/Computability/Brainfuck.lean#L1276) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L122) | yes | [yes](brainfuck/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317) | - |
-| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1147) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | yes | [yes](whitespace/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530) | [**yes**, behaviourally](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401) |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1147) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | yes | [yes](whitespace/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530) | [**yes**, behaviourally](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3790) |
 | [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1233) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118) | yes | [yes](subleq/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125) | [**yes**, two shapes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) |
 | [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | [yes, byte core](../Langlib/Computability/Befunge93.lean#L377) | n/a | no, 2000 code cells | [no](befunge93/compiler.md) | n/a |
 | [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [yes, bounded storage](malbolge/spec.md) | [**no**, halting decidable](../Langlib/Computability/Malbolge.lean#L755) | n/a | no, bounded storage | [yes, bounded fragment](malbolge/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Malbolge.lean) | n/a |
@@ -18,7 +18,7 @@
 | [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `deadfish` | [yes, every program halts](deadfish/spec.md) | [**no**, halting decidable](../Langlib/Computability/Deadfish.lean#L99) | n/a | no, output only | [planned, output-only](deadfish/compiler.md) | [planned](deadfish/compiler.md) |
 | [unlambda](unlambda/spec.md) | yes | yes | yes | yes | `unlambda` | yes | [**yes**](../Langlib/Computability/Unlambda.lean#L1725) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L156) | expected yes | [planned](unlambda/compiler.md) | [planned](unlambda/compiler.md) |
 | [ski](ski/spec.md) | yes | yes | yes | yes | `ski` | yes | [**yes**](../Langlib/Computability/Ski.lean#L1019) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L163) | no, no I/O | [no](ski/compiler.md) | n/a |
-| [velato](velato/spec.md) | yes | yes | yes | yes | `velato` | [yes, with unbounded ints](velato/spec.md#computational-class) | [**yes**](../Langlib/Computability/Velato.lean#L726) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L178) | no arrays, no readInt | [yes](velato/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Velato.lean#L387) | [planned](velato/compiler.md) |
+| [velato](velato/spec.md) | yes | yes | yes | yes | `velato` | [yes, with unbounded ints](velato/spec.md#computational-class) | [**yes**](../Langlib/Computability/Velato.lean#L745) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L178) | no arrays, no readInt | [yes](velato/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Velato.lean#L360) | [**yes**, behaviourally, input included](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032) |
 | [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `turpentine` | yes | open | (source) | (source) | (source) | (source) |
 | [URM](#the-urm) (yardstick) | [here](#the-urm) | n/a | [yes](../Langlib/Computability/URM.lean) | yes | n/a | yes | (yardstick) | (the route itself) | no I/O at all | [yes, certified fragment](../Langlib/Languages/Turpentine/Compile/URM.lean) | [**yes**](../Langlib/Languages/Turpentine/Compile/URM.lean#L3985) |
 
@@ -264,8 +264,10 @@ with both gets `agree` for free: on every program both accept, the two
 provably decode the same answer. Not the same *behaviour* — that is a
 stronger claim, and the interface for it is
 [`IOCertifiedCompiler`](../Langlib/Common/Compilation.lean#L321), which
-[whitespace's hand-written backend](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401)
-inhabits over its output fragment and nothing else does yet.
+[whitespace's hand-written backend](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3790)
+inhabits over its output fragment and
+[Velato's](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032)
+over a fragment that reads as well.
 
 The three columns follow from that, in the order the table puts them.
 
@@ -306,10 +308,12 @@ The three columns follow from that, in the order the table puts them.
   not behaviour: the stronger
   [`IOCertifiedCompiler`](../Langlib/Common/Compilation.lean#L321) also
   demands the compiled program reproduce the source's trace of I/O events,
-  and [implies](../Langlib/Common/Compilation.lean#L363) this column. One
-  backend has reached it —
-  [`bespokeWhitespaceIO`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401),
-  over the output-only fragment, with `encodeTrace` the identity — and the
+  and [implies](../Langlib/Common/Compilation.lean#L363) this column. Two
+  backends have reached it —
+  [`bespokeWhitespaceIO`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3790),
+  over the output-only fragment, and
+  [`bespokeVelatoIO`](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032),
+  over a fragment that reads too, both with `encodeTrace` the identity — and the
   **Bespoke correct** column says `behaviourally` where that is what was
   proved.
 
@@ -329,7 +333,7 @@ The three columns follow from that, in the order the table puts them.
   rather than a testing practice. Its fragment is two program shapes, which
   is small, and honestly so: `docs/subleq/compiler.md` lists what is
   refused.
-  [`bespokeWhitespace`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4381)
+  [`bespokeWhitespace`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3770)
   followed, over a much larger fragment: scalar `int`/`bool`, the whole
   expression language including subtraction and negative literals, `if`,
   `while` and `assert`, leaving out `/`, `%`, arrays and I/O. That fragment

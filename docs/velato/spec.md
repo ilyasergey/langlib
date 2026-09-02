@@ -19,7 +19,11 @@
   [examples](../../Langlib/Examples/Velato/), tests in
   [`Langlib/Tests/Velato.lean`](../../Langlib/Tests/Velato.lean), Turing
   completeness in [`Langlib/Computability/Velato.lean`](../../Langlib/Computability/Velato.lean)
-  and [docs/computability-velato.md](../computability-velato.md)
+  and [docs/computability-velato.md](../computability-velato.md), and a
+  Turpentine backend proved correct on a fragment, behaviourally and input
+  included, in
+  [`Langlib/Languages/Turpentine/Certified/BespokeVelato.lean`](../../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean)
+  ([docs/velato/compiler.md](compiler.md))
 
 ## History
 

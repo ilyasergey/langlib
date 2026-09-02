@@ -381,9 +381,17 @@ Packaged as a `TurpentineCompiler WhitespaceLang`:
 def bespokeWhitespace : TurpentineCompiler WhitespaceLang where
   compile := BespokeWhitespace.bespokeCompile
   encodeInput := Input.ofString ""
-  decodeOutput := BespokeWhitespace.decodeAnswer
+  decodeOutput := decodeAnswer
   correct := …
 ```
+
+The source-side half of this proof no longer lives here. Everything it
+needs from Turpentine and nothing from whitespace — the fragment
+predicates, the evaluator inversion lemmas, `evalExpr_hasTy`, the `initEnv`
+unfolding, the `answer` epilogue and its decoder, and both specifications —
+is in
+[`Certified/Shared.lean`](../../Langlib/Languages/Turpentine/Certified/Shared.lean),
+where the Velato proof reads it too.
 
 ### What is proved behaviourally
 
@@ -394,7 +402,7 @@ second one says it *behaves* like the source:
 def bespokeWhitespaceIO : IOCertifiedCompiler BehavesWithAnswer WhitespaceLang where
   compile := BespokeWhitespace.bespokeCompile
   encodeInput := fun _ => Input.ofString ""
-  decodeOutput := BespokeWhitespace.decodeAnswer
+  decodeOutput := decodeAnswer
   encodeTrace := id
   correct := …
 ```
@@ -413,8 +421,10 @@ different program. `encodeInput` ignores the source's input stream, which
 is honest only because the fragment cannot read — when `readInt` joins it,
 the input events will have to match too.
 
-It is the library's first inhabitant of `IOCertifiedCompiler`. The
-answer-only `bespokeWhitespace` stays alongside it rather than being
+It was the library's first inhabitant of `IOCertifiedCompiler`;
+[Velato's](../velato/compiler.md#verification-status) is the second, and
+the first whose fragment reads, so `encodeInput` there is the identity too.
+The answer-only `bespokeWhitespace` stays alongside it rather than being
 replaced: it is proved against a sharper specification, one that does not
 need the epilogue's events to exist. Deriving it *from* the behavioural
 instance at the same fuel bound is not free, and is not done — `seq` runs

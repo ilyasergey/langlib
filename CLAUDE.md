@@ -120,7 +120,10 @@ taught it to you.
   `Langlib/Languages/Turpentine/Certified/`.
 * `Langlib/Languages/Turpentine/Certified/` holds the correctness proofs of
   the hand-written Turpentine backends (namespace
-  `Langlib.Turpentine.Certified`, one file per target). Those proofs sit
+  `Langlib.Turpentine.Certified`, one file per target, plus `Shared.lean`
+  for the Turpentine-side facts every such proof needs: the fragment
+  predicates, the evaluator inversion lemmas, the `answer` epilogue and its
+  decoder. A lemma that mentions no target belongs there). Those proofs sit
   next to the backends they are about rather than in
   `Langlib/Computability/`, which is reserved for the Turing-completeness
   results and their URM bridges. Nothing a runner imports may import

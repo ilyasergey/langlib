@@ -49,7 +49,7 @@ status matrix, including compilers):
   one-character commands on a tape of bytes
 * [fractran](docs/fractran/spec.md) (John Conway, 1987), whose programs are
   lists of fractions
-* [subleq](docs/subleq/spec.md) (folklore OISC, de-facto conventions by
+* [subleq](docs/subleq/spec.md) (folklore, de-facto spec by
   Oleg Mazonka), one instruction: subtract, branch if the result is ≤ 0
 * [whitespace](docs/whitespace/spec.md) (Edwin Brady & Chris Morris, 2003),
   where only spaces, tabs and newlines are code
@@ -84,7 +84,7 @@ status matrix, including compilers):
 | Language | Turing-complete (TC) | TC claim mechanised | Turpentine compiler |
 |----------|--------------------------|------------------------------|---------------------|
 | [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L1276)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L122) (certified), and [bespoke](docs/brainfuck/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317), trusted) |
-| [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1147)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L114) (certified), and [bespoke](docs/whitespace/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530), [certified on a fragment, behaviourally](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401)) |
+| [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1147)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L114) (certified), and [bespoke](docs/whitespace/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530), [certified on a fragment, behaviourally](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3790)) |
 | [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1233)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L118) (certified), and [bespoke](docs/subleq/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125), [certified on a fragment](Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639)) |
 | [fractran](docs/fractran/spec.md) | yes | **[yes](Langlib/Computability/Fractran.lean#L4486)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L127) (certified), and [bespoke](docs/fractran/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Fractran.lean), trusted) |
 | [piet](docs/piet/spec.md) | yes | **[yes](Langlib/Computability/Piet.lean#L3998)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L139) (certified), and [bespoke](docs/piet/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Piet.lean), trusted) |
@@ -97,7 +97,7 @@ status matrix, including compilers):
 | [malbolge-unshackled](docs/malbolge-unshackled/spec.md) | yes | open | [bespoke](docs/malbolge-unshackled/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean), trusted, input-free fragment); no derived one while the TC claim is open |
 | [unlambda](docs/unlambda/spec.md) | yes | **[yes](Langlib/Computability/Unlambda.lean#L1725)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L156) (certified); [bespoke planned](docs/unlambda/compiler.md) |
 | [ski](docs/ski/spec.md) | yes | **[yes](Langlib/Computability/Ski.lean#L1019)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L163) (certified); [bespoke: compile to unlambda instead](docs/ski/compiler.md) |
-| [velato](docs/velato/spec.md) | [yes, with unbounded ints](docs/velato/spec.md#computational-class) | **[yes](Langlib/Computability/Velato.lean#L726)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L178) (certified), and [bespoke](docs/velato/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Velato.lean#L387), trusted) |
+| [velato](docs/velato/spec.md) | [yes, with unbounded ints](docs/velato/spec.md#computational-class) | **[yes](Langlib/Computability/Velato.lean#L745)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L178) (certified), and [bespoke](docs/velato/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Velato.lean#L360), [certified on a fragment, behaviourally, input included](Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032)) |
 | [Turpentine](docs/turpentine/spec.md) | yes | open | [(it is the source)](docs/turpentine/spec.md) |
 
 
@@ -116,9 +116,9 @@ Its output is also enormous. A **bespoke** one is hand-written for that
 target: it emits compact, readable code and supports the whole language.
 *(trusted)* means tested rather than proved; *(certified on a fragment)*
 means a correctness theorem covers part of what the compiler accepts, and
-links it. Whitespace's says more than the others: on its fragment the
-compiled program performs the source's I/O events, in order, not merely its
-answer. [Verified compilers](#verified-compilers) below explains why the library
+links it. Whitespace's and Velato's say more than the others: on their
+fragments the compiled program performs the source's I/O events, in order,
+not merely its answer, and Velato's fragment reads input too. [Verified compilers](#verified-compilers) below explains why the library
 keeps both kinds.
 
 The two Malbolges have a bespoke compiler and no derived one, for opposite
@@ -306,9 +306,10 @@ Velato is bounded differently again: it is Turing complete and its backend
 is a near-direct translation, since Velato is a structured imperative
 language rather than a machine, but Velato has no arrays and no way to
 fail, so `a[i]`, `readInt` and `assert` are refused by name.
-Two of the ten are verified, on a fragment each:
-[subleq](Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) and
-[whitespace](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4381).
+Three of the ten are verified, on a fragment each:
+[subleq](Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639),
+[whitespace](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3770) and
+[velato](Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2015).
 Verifying the rest is per-language proof work.
 
 **Derived via the URM**, a compiler costs nothing to write. A `TuringComplete`
@@ -337,11 +338,17 @@ trace under an encoding the compiler declares up front, as well as its
 answer.
 [`toCertified`](Langlib/Common/Compilation.lean#L363) proves the second
 implies the first, so upgrading a backend loses none of what was already
-proved about it. One backend has reached the behavioural statement:
-[`bespokeWhitespaceIO`](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L4401)
-is the first inhabitant of `IOCertifiedCompiler`, over the same fragment
-its answer-only theorem covers, with `encodeTrace` the identity — the
-compiled program does not re-encode the source's I/O, it performs it. The
+proved about it. Two backends have reached the behavioural statement.
+[`bespokeWhitespaceIO`](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3790)
+was the first inhabitant of `IOCertifiedCompiler`, over the output half of
+its fragment, with `encodeTrace` the identity: the compiled program does
+not re-encode the source's I/O, it performs it.
+[`bespokeVelatoIO`](Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032)
+is the second, and the first whose fragment reads: its `encodeInput` is the
+identity too, so source and target run on the same stream and the input
+events match byte for byte. Its specification restricts the stream to one
+with no NUL byte, the one byte on which Velato's `Input` and Turpentine's
+`readByte` disagree. The
 remaining candidates and what each one needs are tabulated in
 [certified-compilation.md](docs/certified-compilation.md).
 
