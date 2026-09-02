@@ -134,7 +134,7 @@ open Langlib.Velato in
 /-- Compile an expression to a prelude of statements and a Velato
 expression. The prelude is empty for everything but division, remainder, and
 a `&&` or `||` whose right operand needs one. -/
-partial def compileExpr (Γ : Langlib.Turpentine.Ctx) :
+def compileExpr (Γ : Langlib.Turpentine.Ctx) :
     Turpentine.Expr → M (Except String (List Langlib.Velato.Stmt × Langlib.Velato.Expr))
   | .intLit n => return .ok ([], .intLit n)
   | .boolLit b => return .ok ([], .intLit (if b then 1 else 0))
@@ -214,7 +214,7 @@ def putStr (s : String) : List Langlib.Velato.Stmt :=
   s.toList.map fun c => .print (.charLit c.toNat)
 
 open Langlib.Velato in
-partial def compileStmt (Γ : Langlib.Turpentine.Ctx) :
+def compileStmt (Γ : Langlib.Turpentine.Ctx) :
     Turpentine.Stmt → M (Except String (List Langlib.Velato.Stmt))
   | .skip => return .ok []
   | .seq a b => do
@@ -317,44 +317,54 @@ partial def compileStmt (Γ : Langlib.Turpentine.Ctx) :
 
 /-! ## Programs -/
 
+/-- Give every declared variable a pitch, in declaration order, starting at
+`varBase`. Arrays get none, and the error says so before anything else goes
+wrong; a program with more scalars than there are pitches below the scratch
+register is refused too. -/
+def allocVars : List (String × Ty × Option Expr) → Nat → Std.HashMap String Pitch →
+    Except String (Std.HashMap String Pitch)
+  | [], _, vars => .ok vars
+  | (x, t, _) :: rest, n, vars =>
+    match t with
+    | .array _ _ => .error s!"velato: Velato has no arrays, so '{x}' cannot be declared"
+    | _ =>
+      if varBase + n ≥ scratchBase then
+        .error "velato: this program declares more variables than Velato has notes for them"
+      else allocVars rest (n + 1) (vars.insert x (varBase + n))
+
 open Langlib.Velato in
-/-- Compile a type-checked program to a Velato program. -/
+/-- The declarations and the initialisers of a program's variables, as two
+separate lists: declarations first, then the initialisers, then the body.
+Velato has no initialiser syntax, so `var x: int := 3` becomes a declaration
+and an assignment, and a variable without an initialiser is left at the zero
+Velato's declaration already gives it — `false` is zero too. -/
+def declsAndInits (Γ : Langlib.Turpentine.Ctx) (vars : Std.HashMap String Pitch) :
+    List (String × Ty × Option Expr) →
+      Except String (List Langlib.Velato.Stmt × List Langlib.Velato.Stmt)
+  | [] => .ok ([], [])
+  | (x, _, init) :: rest => do
+    let some pt := vars[x]? | throw s!"velato: internal: '{x}' lost its pitch"
+    let inits ← match init with
+      | none => pure []
+      | some e =>
+        match (compileExpr Γ e).run { vars } with
+        | (.error m, _) => throw m
+        | (.ok (pre, ve), _) => pure (pre ++ [.assign pt ve])
+    let (ds, is) ← declsAndInits Γ vars rest
+    return (.declare pt .int :: ds, inits ++ is)
+
+open Langlib.Velato in
+/-- Compile a type-checked program to a Velato program: allocate the
+variables, compile the body, check the scratch register fits, and put the
+declarations, the initialisers and the body in that order. -/
 def compileProgram (p : Program) (Γ : Langlib.Turpentine.Ctx) :
     Except String Langlib.Velato.Prog := do
-  -- Give every declared variable a pitch. Arrays get none, and the error
-  -- says so before anything else goes wrong.
-  let mut vars : Std.HashMap String Pitch := {}
-  let mut n := 0
-  for (x, t, _) in p.decls do
-    if let .array _ _ := t then
-      throw s!"velato: Velato has no arrays, so '{x}' cannot be declared"
-    if varBase + n ≥ scratchBase then
-      throw s!"velato: this program declares more variables than Velato has notes for them"
-    vars := vars.insert x (varBase + n)
-    n := n + 1
+  let vars ← allocVars p.decls 0 {}
   let (body?, st) := (compileStmt Γ p.body).run { vars }
   let body ← body?
   if scratchBase + st.peak > 128 then
     throw "velato: this program needs more scratch variables than Velato has notes"
-  -- Declarations first, then the initialisers, then the body. Velato has no
-  -- initialiser syntax, so `var x: int := 3` becomes a declaration and an
-  -- assignment.
-  let mut decls : List Langlib.Velato.Stmt := []
-  let mut inits : List Langlib.Velato.Stmt := []
-  for (x, t, init) in p.decls do
-    let some pt := vars[x]? | throw s!"velato: internal: '{x}' lost its pitch"
-    decls := decls ++ [.declare pt .int]
-    match init with
-    | none =>
-      -- Velato's declaration already zeroes it, and `false` is zero too
-      pure ()
-    | some e =>
-      match (compileExpr Γ e).run { vars } with
-      | (.error m, _) => throw m
-      | (.ok (pre, ve), _) => inits := inits ++ pre ++ [.assign pt ve]
-    match t with
-    | .array _ _ => throw s!"velato: Velato has no arrays, so '{x}' cannot be declared"
-    | _ => pure ()
+  let (decls, inits) ← declsAndInits Γ vars p.decls
   return decls ++ inits ++ body
 
 /-- The command root the emitted program is written from: middle C. A Velato

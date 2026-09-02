@@ -23,19 +23,43 @@
 
 ## The whole thing, end to end
 
-Compile a Turpentine program into Velato, engrave the result as sheet music,
-and play it:
+Four commands take two lines of Turpentine to a tune you can hear. Nothing
+below needs anything installed except the last one, which needs a way to
+play a sound.
+
+Compile the Turpentine program into Velato. Two lines of source become 166
+notes.
 
 ```
-lake exe turpentine compile --to velato \
-  -o /tmp/tune.vel Langlib/Examples/Turpentine/hello.turp \
-  && lake exe velato --sheet /tmp/tune.pdf /tmp/tune.vel \
-  && scripts/velato-audio.sh /tmp/tune.vel
+lake exe turpentine compile --to velato -o /tmp/tune.vel Langlib/Examples/Turpentine/hello.turp
 ```
 
-Two lines of Turpentine go in; 166 notes, a one-page PDF and about a minute
-of audio come out, and the notes print `Hello, Turpentine!` when you run
-them. Just the message, without the music:
+Run the notes. They are a program, and this is what it says.
+
+```
+lake exe velato /tmp/tune.vel
+```
+
+Output:
+
+```
+Hello, Turpentine!
+```
+
+Engrave the same notes as sheet music: a one-page PDF, about 124 kB.
+
+```
+lake exe velato --sheet /tmp/tune.pdf /tmp/tune.vel
+```
+
+Play them. About a minute of audio.
+
+```
+scripts/velato-audio.sh /tmp/tune.vel
+```
+
+If you only want the message and not the music, one command does the
+compiling and the running together:
 
 ```
 lake exe turpentine exec --via velato Langlib/Examples/Turpentine/hello.turp

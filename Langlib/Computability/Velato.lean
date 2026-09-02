@@ -2,6 +2,7 @@ import Langlib.Common.Computability
 import Langlib.Computability.URM
 import Langlib.Computability.Counter
 import Langlib.Languages.Velato.Stability
+import Langlib.Languages.Velato.Faithful
 import Mathlib
 
 /-!
@@ -693,6 +694,24 @@ theorem below would permit an interpreter that read the answer off the fuel
 bound rather than computing it. -/
 instance : LawfulProgLang VelatoLang where
   halted_stable := Langlib.Velato.evalProg_stable
+
+/-- **Velato's trace semantics.** Velato reads, so the instance cannot come
+from `TraceLang.ofInputFree`: the interpreter records its own events, and
+`Langlib/Languages/Velato/Trace.lean` proves the bookkeeping laws about the
+record it keeps, `Velato/Faithful.lean` the faithfulness law. It is what
+makes an `IOCertifiedCompiler` into Velato expressible at all, and Velato is
+the first target in the library whose verified backend reads input
+(`Langlib/Languages/Turpentine/Certified/BespokeVelato.lean`). -/
+instance : TraceLang VelatoLang where
+  trace := Langlib.Velato.evalTrace
+  trace_outputs := Langlib.Velato.evalTrace_outputs
+  trace_inputs := Langlib.Velato.evalTrace_inputs
+  trace_faithful := by
+    intro p i i' n hh hA hB
+    exact Langlib.Velato.eval_faithful p i i' n hh hA hB
+
+instance : LawfulTraceLang VelatoLang where
+  trace_stable := Langlib.Velato.evalTrace_stable
 
 /-- **Velato is Turing complete.**
 
