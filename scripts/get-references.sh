@@ -144,12 +144,31 @@ if [ -f "$SRC/VelatoPy/velato.py" ]; then
 elif command -v git >/dev/null 2>&1; then
   if git clone -q --depth 1 https://github.com/rottytooth/VelatoPy.git \
        "$SRC/VelatoPy" 2>/dev/null; then
-    echo "velato: cloned $SRC/VelatoPy (needs: pip install mido)"
+    echo "velato: cloned $SRC/VelatoPy"
   else
     echo "velato: clone failed; skipping"
   fi
 else
   echo "velato: git not installed; skipping"
+fi
+
+# VelatoPy needs `mido`, and a Homebrew or system Python is usually
+# externally managed (PEP 668), so installing into it would need
+# --break-system-packages. A virtual environment under .difftools/ keeps the
+# promise this script makes in its header: nothing outside .difftools/ is
+# touched. difftest.sh prefers this interpreter and falls back to python3.
+if [ -f "$TOOLS/venv/bin/python" ] \
+   && "$TOOLS/venv/bin/python" -c "import mido" >/dev/null 2>&1; then
+  echo "velato: mido already installed in $TOOLS/venv"
+elif command -v python3 >/dev/null 2>&1; then
+  if python3 -m venv "$TOOLS/venv" >/dev/null 2>&1 \
+     && "$TOOLS/venv/bin/pip" install --quiet mido >/dev/null 2>&1; then
+    echo "velato: installed mido in $TOOLS/venv"
+  else
+    echo "velato: could not create $TOOLS/venv; difftest will skip velato"
+  fi
+else
+  echo "velato: python3 not installed; skipping"
 fi
 
 echo

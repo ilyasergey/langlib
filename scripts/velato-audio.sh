@@ -74,9 +74,11 @@ play_midi() {
   local f=$1
   if have fluidsynth; then
     local sf=""
-    for c in /usr/share/sounds/sf2/FluidR3_GM.sf2 \
+    for c in .difftools/soundfonts/*.sf2 \
+             /usr/share/sounds/sf2/FluidR3_GM.sf2 \
              /usr/share/soundfonts/FluidR3_GM.sf2 \
-             /opt/homebrew/share/fluid-soundfont/FluidR3_GM.sf2; do
+             /opt/homebrew/share/fluid-soundfont/FluidR3_GM.sf2 \
+             /Library/Audio/Sounds/Banks/*.sf2; do
       [ -f "$c" ] && sf=$c && break
     done
     if [ -n "$sf" ]; then

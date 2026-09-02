@@ -158,36 +158,59 @@ else
 fi
 
 # ------------------------------------------------------------------- velato
-# Reference: VelatoPy, https://github.com/rottytooth/VelatoPy (MIT), which
-# needs Python's `mido`. The reference reads MIDI and our examples are kept
-# as note names, so each program is converted with `--midi` first; that also
-# means a disagreement could be the writer's fault rather than the
-# interpreter's, which is worth knowing when one shows up.
+# Reference: VelatoPy, https://github.com/rottytooth/VelatoPy (MIT), by the
+# language's author. get-references.sh clones it and puts `mido` in a
+# virtual environment under .difftools/.
 #
-# The reference describes itself as "mostly vibe-coded; the definitive
-# implementation is still the original C# compiler", so a disagreement is
-# not automatically ours. The 2009 C# compiler is the authority, and it
-# needs .NET Framework 4.8; it is not fetched here.
+# Our examples are kept as note names and the reference reads MIDI, so each
+# program is converted with `--midi` first; a disagreement could therefore be
+# the writer's fault rather than the interpreter's, which is worth checking
+# first when one shows up. VelatoPy also prints a four-line banner before the
+# program's output, one line of which is the file path, so its output is cut
+# at the "--- Output ---" marker.
+#
+# TWO EXAMPLES ARE DELIBERATELY NOT COMPARED, because the reference is wrong
+# on both and its README says why: it describes itself as "mostly vibe-coded"
+# and names the 2009 C# compiler as the definitive implementation.
+#
+#   hello.vel  VelatoPy prints a char as a character only for codes 32..127
+#              and prints the *number* otherwise (velato.py, the PRINT
+#              branch), so a trailing newline comes out as "10". The C#
+#              compiler emits a character literal and Console.Write writes
+#              it whatever it is.
+#   count.vel  VelatoPy's expression evaluator acts on + - * / > < == only
+#              (velato.py, evaluate_expression), so NOT is silently dropped
+#              and a loop guarded by `!(i > 10)` never runs.
+#
+# Both are checked by our own golden tests instead. See docs/TESTING.md.
 VEL_LANGLIB=.lake/build/bin/velato
 VELATOPY=.difftools/src/VelatoPy/velato.py
+# get-references.sh puts mido in a virtual environment rather than in the
+# system Python, which is usually externally managed; fall back to whatever
+# python3 is on PATH for anyone who installed it themselves.
+if [ -x .difftools/venv/bin/python ]; then VELPY=.difftools/venv/bin/python
+else VELPY=python3; fi
 if [ ! -x "$VEL_LANGLIB" ]; then
   note "velato: build first (lake build velato); skipping"
 elif [ ! -f "$VELATOPY" ]; then
   SKIP=$((SKIP+1))
   note "velato: VelatoPy not fetched (run ./scripts/get-references.sh); skipping"
-elif ! python3 -c "import mido" >/dev/null 2>&1; then
+elif ! "$VELPY" -c "import mido" >/dev/null 2>&1; then
   SKIP=$((SKIP+1))
-  note "velato: python3 mido not installed (pip install mido); skipping"
+  note "velato: mido not installed (run ./scripts/get-references.sh); skipping"
 else
   note "velato vs VelatoPy:"
   VELTMP=$(mktemp -d)
-  for prog in print-h hi hello twinkle; do
+  for prog in print-h hi twinkle ode cat; do
     src="Langlib/Examples/Velato/$prog.vel"
     "$VEL_LANGLIB" --midi "$VELTMP/$prog.mid" "$src" < /dev/null >/dev/null 2>&1
     compare "$prog.vel" "" "$VEL_LANGLIB" "$src" \
-      -- python3 "$VELATOPY" "$VELTMP/$prog.mid"
+      -- sh -c "'$VELPY' '$VELATOPY' '$VELTMP/$prog.mid' \
+                | sed -n '/^--- Output ---\$/,\$p' | tail -n +2"
   done
   rm -rf "$VELTMP"
+  note "  (hello.vel and count.vel are not compared: the reference is wrong"
+  note "   on both, see the comment in this script and docs/TESTING.md)"
 fi
 
 # Languages with no comparable reference binary (see docs/TESTING.md for
