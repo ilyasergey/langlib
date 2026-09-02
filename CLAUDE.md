@@ -3,6 +3,22 @@
 LangLib is a Lean 4 library of esoteric programming language semantics, with a
 human-readable front-end language (Turpentine) and verified compilers from it.
 
+## This file
+
+`AGENTS.md` is a symbolic link to this file, so every coding agent reads the
+same policies whichever name it looks for. There is one copy: edit
+`CLAUDE.md`, never replace the link with a second copy of the text. If your
+tool rewrote `AGENTS.md` into a regular file, restore it with
+`git checkout AGENTS.md` and put the change in `CLAUDE.md` instead.
+
+These are the conventions. The contribution checklist, what a complete
+language or compiler contribution consists of, and the rules on
+computational-class claims live in `CONTRIBUTING.md`; read it before adding
+a language, an example, or a compiler. Keep both files true of the
+repository as you go: anything you learn that the next agent would have to
+rediscover belongs in one of them, in the same commit as the change that
+taught it to you.
+
 ## Toolchain and layout
 
 * Lean toolchain is pinned in `lean-toolchain` (currently 4.33.x). Do not

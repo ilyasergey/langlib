@@ -2,7 +2,23 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-08-31 (latest): lawfulness is now required, not optional
+## 2026-09-02 (latest): one policy file, two names
+
+`AGENTS.md` was a hand-made copy of `CLAUDE.md` and had already drifted: it
+was missing the "Example programs" requirement, the whole graphical-languages
+policy (derived images, `scripts/render-docs-images.sh`), and the
+`Turpentine/Certified/` section with its warning about name resolution. An
+agent that read `AGENTS.md` — Codex, Cursor, Gemini CLI all look for that
+name — was working from stale rules.
+
+`AGENTS.md` is now a symbolic link to `CLAUDE.md` (git records it as mode
+120000), so the two cannot diverge again: there is one file, reachable under
+either name. `CLAUDE.md` opens with a "This file" section saying so, telling
+a tool that rewrites the link into a regular file to restore it, and pointing
+at `CONTRIBUTING.md` for the contribution checklist, which the conventions
+file never referenced before. `CONTRIBUTING.md` points back.
+
+## 2026-08-31: lawfulness is now required, not optional
 
 Follow-up to the entry below: `CertifiedCompiler`, `IOCertifiedCompiler`
 and `TuringComplete` now **require** `LawfulProgLang` (the I/O-aware one

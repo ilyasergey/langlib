@@ -97,7 +97,9 @@ Both are generic in the source language and the answer type; Turpentine's
 
 * Keep `lake build` and `lake test` green at every commit.
 * No `sorry` on master.
-* Follow the layout and naming conventions in `CLAUDE.md`.
+* Follow the layout and naming conventions in `CLAUDE.md` (also readable
+  as `AGENTS.md`, a symbolic link to the same file, which is where coding
+  agents pick the conventions up).
 * Write docs plainly and precisely; these languages supply their own drama.
 
 ## Process
