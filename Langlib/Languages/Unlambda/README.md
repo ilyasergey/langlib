@@ -70,6 +70,29 @@ implementation and its author was never recorded. It runs, and
 is empty, but it is not a LangLib original and the credit it deserves is
 missing; if you know whose it is, add it here.
 
+## Compiling Turpentine to Unlambda
+
+There are two compilers, and they are the furthest apart of any pair in the
+library. The hand-written one in
+[`Compile/Unlambda.lean`](../Turpentine/Compile/Unlambda.lean) takes the
+whole of Turpentine — arrays, input, byte-exact output — by building a
+lambda term and eliminating the binders with bracket abstraction; the one
+derived from the completeness proof is correct by construction and, on a
+six-line program, ten thousand times larger. Both are documented in
+[docs/unlambda/compiler.md](../../../docs/unlambda/compiler.md).
+
+```
+lake exe turpentine exec --via unlambda Langlib/Examples/Turpentine/hello.turp
+```
+
+Three compiled programs are checked in under
+[compiled/](../../Examples/Unlambda/compiled/), regenerated and verified by
+`scripts/gen-unl-examples.sh`. Only ASCII ones: `.x` carries the byte it
+prints, so a program that can print an arbitrary byte contains all 256 of
+them. That is also why the backend emits a `ByteArray` and why this module
+has `parseBytes` beside `parse` — a `String` cannot hold a program that
+prints byte 200.
+
 ## Tests
 
 Golden tests live in [Langlib/Tests/Unlambda.lean](../../Tests/Unlambda.lean)
@@ -83,3 +106,8 @@ differential suite for the certified compiler out of the completeness proof:
 small URM programs run on both the executable register machine and the
 compiled Unlambda, with their answers compared, plus a size regression. The
 compiled programs are large by design.
+
+[Langlib/Tests/CompileUnlambda.lean](../../Tests/CompileUnlambda.lean) is the
+differential suite for the hand-written backend, and the twenty conformance
+programs go through it as well
+([docs/conformance.md](../../../docs/conformance.md)).

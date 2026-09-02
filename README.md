@@ -95,7 +95,7 @@ status matrix, including compilers):
 | [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[yes](Langlib/Computability/Malbolge.lean#L755)** | [bespoke](docs/malbolge/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Malbolge.lean), trusted, input-free programs whose output fits); no derived one ever — not Turing complete |
 | [deadfish](docs/deadfish/spec.md) | no, every program halts | **[yes](Langlib/Computability/Deadfish.lean#L99)** | [planned, output only](docs/deadfish/compiler.md) |
 | [malbolge-unshackled](docs/malbolge-unshackled/spec.md) | yes | open | [bespoke](docs/malbolge-unshackled/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean), trusted, input-free fragment); no derived one while the TC claim is open |
-| [unlambda](docs/unlambda/spec.md) | yes | **[yes](Langlib/Computability/Unlambda.lean#L1725)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L156) (certified); [bespoke planned](docs/unlambda/compiler.md) |
+| [unlambda](docs/unlambda/spec.md) | yes | **[yes](Langlib/Computability/Unlambda.lean#L1725)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L156) (certified), and [bespoke](docs/unlambda/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Unlambda.lean#L965), trusted) |
 | [ski](docs/ski/spec.md) | yes | **[yes](Langlib/Computability/Ski.lean#L1019)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L163) (certified); [bespoke: compile to unlambda instead](docs/ski/compiler.md) |
 | [velato](docs/velato/spec.md) | [yes, with unbounded ints](docs/velato/spec.md#computational-class) | **[yes](Langlib/Computability/Velato.lean#L745)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L178) (certified), and [bespoke](docs/velato/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Velato.lean#L360), [certified on a fragment, behaviourally, input included](Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032)) |
 | [Turpentine](docs/turpentine/spec.md) | yes | open | [(it is the source)](docs/turpentine/spec.md) |
@@ -744,6 +744,36 @@ Output:
 ***
 ****
 *****
+```
+
+Another target has no machine in it at all. The Unlambda backend turns a
+program into a *term*: a statement is a function from a state to the next
+one, `while` is a fixed point, and the binders come out by bracket
+abstraction. A greeting is short enough to read.
+
+```
+cat Langlib/Examples/Unlambda/compiled/hello.unl
+```
+
+Output (the program starts with three backquotes, so this block is fenced
+with four):
+
+````
+# compiled by turpentine, bespoke backend to unlambda: 63 builtins.
+```s`k``s``s``s``s``s``s``s``s``s``s``s``s``s``s``s``s``s``s``s`k.H`k.e`k.l`k.l`k.o`k.,`k. `k.T`k.u`k.r`k.p`k.e`k.n`k.t`k.i`k.n`k.e`k.!`kri`kii
+````
+
+That file is what `turpentine compile --to unlambda` emitted for
+`hello.turp`, and it runs on Unlambda's own interpreter.
+
+```
+lake exe unlambda Langlib/Examples/Unlambda/compiled/hello.unl
+```
+
+Output:
+
+```
+Hello, Turpentine!
 ```
 
 The certified compiler needs a program in its fragment: no I/O, no

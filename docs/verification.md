@@ -330,7 +330,7 @@ as the proof.
 | piet | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L139) | - |
 | ook | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L145) | - |
 | brainloller | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L150) | - |
-| unlambda | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L156) | - |
+| unlambda | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L156) | - |
 | ski | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L163) | n/a (no I/O) |
 | deadfish | - | - | - | n/a (not complete) | - |
 | malbolge | - | - | - | n/a (not complete) | - |

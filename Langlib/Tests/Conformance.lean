@@ -6,8 +6,10 @@ import Langlib.Languages.Turpentine.Compile.Subleq
 import Langlib.Languages.Turpentine.Compile.Ook
 import Langlib.Languages.Turpentine.Compile.Brainloller
 import Langlib.Languages.Turpentine.Compile.Piet
+import Langlib.Languages.Turpentine.Compile.Unlambda
 import Langlib.Languages.Whitespace.Semantics
 import Langlib.Languages.Subleq.Semantics
+import Langlib.Languages.Unlambda.Semantics
 
 /-!
 # The conformance suite
@@ -147,6 +149,14 @@ private def viaPiet (src : String) (i : Input) (n : Nat) :
     Except String RunResult :=
   Langlib.Turpentine.Compile.Piet.runCompiled src i n
 
+/-- Unlambda's file is bytes rather than text, because `.x` carries the byte
+it prints, so this one goes out through `compileBytes` and comes back through
+`parseBytes`. -/
+private def viaUnlambda (src : String) (i : Input) (n : Nat) :
+    Except String RunResult := do
+  let bytes ← Langlib.Turpentine.Compile.Unlambda.compileBytes src
+  Langlib.Unlambda.runBytes bytes i n
+
 def compiledBrainfuck : Suite where
   name := "conformance: compiled to brainfuck"
   run := viaBrainfuck
@@ -183,6 +193,16 @@ def compiledPiet : Suite where
   run := viaPiet
   cases := cases "Turpentine" "turp"
 
+/-- Unlambda has no store and no jumps, so every number here is a Scott
+numeral and every operation on one is unary: `power` counts to 16384 an
+increment at a time. Compiling and running the twenty still takes about four
+and a half seconds from the command line: a combinator step is cheap, and
+nothing here has to be searched for. -/
+def compiledUnlambda : Suite where
+  name := "conformance: compiled to unlambda"
+  run := viaUnlambda
+  cases := cases "Turpentine" "turp"
+
 def suites : List Suite :=
   [ reference
   , compiledBrainfuck
@@ -190,6 +210,7 @@ def suites : List Suite :=
   , compiledSubleq
   , compiledOok
   , compiledBrainloller
-  , compiledPiet ]
+  , compiledPiet
+  , compiledUnlambda ]
 
 end Langlib.Tests.Conformance

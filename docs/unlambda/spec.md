@@ -160,6 +160,12 @@ because it evaluates `e` when the closure is built. See
 [computability-unlambda.md](../computability-unlambda.md) for the account,
 the costs, and what is cited rather than proved.
 
+The same finding shapes the *hand-written* compiler, which is a separate
+piece of work: [compiler.md](compiler.md) compiles the whole of Turpentine —
+loops, arrays, input, byte-exact output — into `s`, `k`, `i`, `.x`, `?x`,
+`@`, `c` and `e`, and is the only backend in this library that translates a
+program's meaning rather than transliterating a machine.
+
 ## Trying it
 
 A chain of printers, applied left to right: `` `.H.e `` prints `H` and

@@ -157,6 +157,25 @@ state first-order, I/O explicit.
   (`derivedThue`, `derivedFractran`, `derivedPiet`), all three are
   reachable from the CLI as `--to <lang> --tc`, so what a bespoke backend
   adds is readable output and I/O, not correctness.
+* Turpentine -> unlambda `[x]` (bespoke): **done**, and it is the only
+  backend here that is not a machine-to-machine translation, because
+  Unlambda has no machine in it. A statement becomes a function from a
+  state tuple to the next one, `while` is a fixed point, an `int` is a sign
+  and a Scott numeral, an array is a Scott list, and the binders are taken
+  out by bracket abstraction. It takes the whole language, input and
+  byte-exact output included; the only thing it cannot reproduce is
+  *failure*, since Unlambda has no runtime errors, so Turpentine's four
+  ways to fail become `e` and the run stops with the output written so far.
+  Two things call by value forced, both recorded in
+  `docs/unlambda/compiler.md`: constructors must be strict, or a closure
+  captures an expression and recomputes it at every projection; and
+  everything crossing a binder must be a *value*, or the `s` expansion
+  doubles it once per enclosing `let` — twenty-odd of those is sixteen
+  million. `c` appears once per input primitive, because `?x` and `@`
+  answer in `i` and `v` and only a captured continuation gets a value back
+  out of a `v`; `d` never appears, because bracket abstraction over `s`
+  already delays what has to be delayed. All twenty conformance programs
+  run through it, in about four and a half seconds.
 * Turpentine -> piet, arrays `[x]`: **done**. Arrays live on the stack like
   the scalars and are reached with `roll`; a *computed* index is parked in
   a scratch slot placed below every variable, which is deeper than any

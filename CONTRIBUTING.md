@@ -77,6 +77,14 @@ reference interpreter, and compared against the Turpentine interpreter's output.
 Verification of compilers follows the pipeline described in
 `docs/verification.md`; proofs are welcome but may land after the compiler.
 
+A backend hands the runner its target's source text as a `String`. If the
+target's program is not *text*, hand over bytes instead: Unlambda's `.x`
+carries the byte it prints, so a program that prints byte 200 contains byte
+200, and a `String` holding it is written out as its two-byte UTF-8
+encoding and parses back as something else. `Artifact.bytes` in
+`Langlib/Languages/Turpentine/Main.lean` takes a `ByteArray` for that case,
+and `Compile/Unlambda.lean` is the backend that needs it.
+
 When you do prove one, state it as an inhabitant of one of the two
 interfaces in `Langlib/Common/Compilation.lean` rather than as a bespoke
 theorem, so that it composes with everything else:

@@ -15,6 +15,7 @@ import Langlib.Tests.CompileMalbolgeUnshackled
 import Langlib.Tests.CompilePiet
 import Langlib.Tests.CompileOok
 import Langlib.Tests.CompileSubleq
+import Langlib.Tests.CompileUnlambda
 import Langlib.Tests.CompileWhitespace
 import Langlib.Tests.Conformance
 import Langlib.Tests.ConformanceHand
@@ -83,6 +84,7 @@ def main : IO UInt32 := do
     , Langlib.Tests.CompilePiet.suites
     , Langlib.Tests.CompileOok.suites
     , Langlib.Tests.CompileSubleq.suites
+    , Langlib.Tests.CompileUnlambda.suites
     , Langlib.Tests.CompileWhitespace.suites
     , Langlib.Tests.Conformance.suites
     , Langlib.Tests.ConformanceHand.suites

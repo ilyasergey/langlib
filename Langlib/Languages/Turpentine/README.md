@@ -16,6 +16,13 @@ turpentine dissolves tar. Full language reference:
   discipline;; `assert` must be boolean.
 * `Semantics.lean`: pure fuel-based interpreter (unbounded integers,
   Euclidean `/` and `%`, short-circuit booleans, byte- and line-level I/O).
+* `Trace.lean`: the run's observable behaviour as a stream of I/O events,
+  and the proof that the interpreter reports it honestly.
+* `Compile/`: one hand-written backend per target, plus `Derived.lean` for
+  the ones obtained from a completeness witness. Each backend's fragment
+  and costs are written up in `docs/<langname>/compiler.md`.
+* `Certified/`: the correctness proofs of the hand-written backends, kept
+  apart because they need Mathlib and the runners must not.
 * `Main.lean`: the runner.
 
 ## Running

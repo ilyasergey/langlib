@@ -2,7 +2,76 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-09-03 (latest): Malbolge Unshackled gets a walk, and a two-operation branch
+## 2026-09-03 (latest): a hand-written Turpentine backend for Unlambda
+
+`Langlib/Languages/Turpentine/Compile/Unlambda.lean`, the backend
+`docs/unlambda/compiler.md` had been describing as the most interesting one
+in the library that did not exist. It exists, it takes the whole of
+Turpentine — arrays, `readInt`, `readByte`, byte-exact output — and all
+twenty conformance programs go through it and agree with the reference
+interpreter.
+
+It is the only backend here that does not compile a machine to a machine,
+because Unlambda has no machine in it. A state is a nested pair of the
+program's variables, a statement is a function from one state to the next,
+`;` is composition, `if` is a boolean applied to two thunks, `while` is a
+fixed point, an `int` is a sign and a Scott numeral, and an array is a Scott
+list. The compiler builds all that as a lambda term with real binders and
+then removes the binders by bracket abstraction, which is the step the
+completeness proof already knew was delicate.
+
+**What call by value cost.** Three things, one known in advance and two
+found by watching a program not finish.
+
+* The textbook clause ``[x] E = `kE`` for an `E` without `x` is unsound: it
+  evaluates `E` when the closure is built. `abs` keeps it for *value
+  expressions* only, exactly as `Langlib/Computability/Unlambda.lean` does,
+  and the `s` expansion everywhere else is what makes a thunk a thunk.
+* **Constructors have to be strict.** A pair built as `λf. f (x+1) y`
+  captures the expression, not the value, and recomputes it at every
+  projection; a loop's state is a chain of such pairs, so the cost of
+  reading a variable doubled per iteration. A twenty-iteration loop could
+  not finish in 200 million steps.
+* **Everything that crosses a binder has to be a value.** The runtime
+  library is bound by two dozen `let`s, and a `let` is an applied
+  abstraction. A subterm that is not a value cannot be carried past a binder
+  with one `k`; it is expanded with `s`, which doubles it. Two dozen
+  doublings is sixteen million, and `cat.turp` would not compile. Writing
+  each library entry as `λa b. Z F a b` rather than `` `ZF `` makes it a
+  lambda, hence a value, hence one `k` per binder; the compiled body goes in
+  as a thunk and is forced at the end for the same reason.
+
+**Where `c` is unavoidable.** `?x` and `@` answer `i` or `v`, and `v`
+swallows whatever the failing branch would have returned, so there is no way
+to see a mismatch from the inside. Every test therefore runs under a
+captured continuation and the *match* is what leaves; the code after the
+test is the else-branch. `cat.turp` compiles to 22 342 applications with
+exactly two `c`s in them, and no `d` anywhere — bracket abstraction over `s`
+already delays everything that has to be delayed, which is the same reason
+the completeness proof never needed either.
+
+**Bytes, not text.** Unlambda is the one target whose compiled file is not
+text: `.x` carries the byte it prints, so a program that prints byte 200
+contains byte 200, and a `String` holding it would be written out as its
+two-byte UTF-8 encoding and parse back as something else. The backend emits
+a `ByteArray`, `Langlib.Unlambda.parseBytes` reads one (new, beside
+`parse`), and `Artifact` in the runner grew an optional byte payload for it.
+`cat.turp` compiled this way echoes binary input byte for byte.
+
+**Costs.** `hello.turp` is 212 bytes and 412 steps; `99bottles.turp` is
+12.4 kB and 8.8 million steps; `power.turp`, which doubles to 16384 an
+increment at a time because the arithmetic is unary, is 34.7 million. The
+certified route on the same six-line `sum.turp` emits 41 235 167 bytes where
+this one emits 3 868. All of it is measured in `docs/unlambda/compiler.md`.
+
+**Also.** `Langlib/Tests/CompileUnlambda.lean` (28 cases, including the ones
+where a Turpentine runtime error becomes `e` and the run simply stops);
+unlambda added to the conformance suite, which is now 20 programs times 8
+runners; `scripts/gen-unl-examples.sh` regenerating three compiled examples
+under `Langlib/Examples/Unlambda/compiled/`; `docs/unlambda/compiler.md`
+rewritten from a plan into a description.
+
+## 2026-09-03: Malbolge Unshackled gets a walk, and a two-operation branch
 
 Two pieces of the Turing-completeness effort, both in
 `Langlib/Computability/MalbolgeUnshackled.lean`, both axiom-clean. There is

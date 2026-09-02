@@ -94,13 +94,18 @@ private def describeByte (b : UInt8) : String :=
 
 Failure modes: an unrecognised byte, a `.` or `?` at the very end of the
 input, an expression that ends with operands still missing, an empty
-program, and text after the end of the expression. -/
-def parse (src : String) : Except String Prog := do
+program, and text after the end of the expression.
+
+Bytes rather than a `String`, because `.x` and `?x` carry a *byte*: a program
+that prints byte 200 has that byte in its text, and no `String` survives the
+trip through UTF-8 with it intact. `Term.renderBytes` is the other half of
+this pair, and `parseBytes (renderBytes t) = .ok t` for every `t`. -/
+def parseBytes (bs : ByteArray) : Except String Prog := do
   let mut stack : Pending := []
   let mut mode : Mode := .normal
   let mut pos : Pos := {}
   let mut done : Option Term := none
-  for b in src.toUTF8.toList do
+  for b in bs.toList do
     let mut leaf? : Option Term := none
     match mode with
     | .comment =>
@@ -147,5 +152,10 @@ def parse (src : String) : Except String Prog := do
       | none => throw "empty program: an Unlambda program is one expression"
       | some (openPos, _) =>
         throw s!"unfinished application: the '`' at {openPos.show} never got its operands"
+
+/-- Parse Unlambda source held in a `String`, which is what a program written
+by hand is: its bytes are the UTF-8 encoding, and a `.x` carrying a non-ASCII
+byte is reported as the two bytes it really is. -/
+def parse (src : String) : Except String Prog := parseBytes src.toUTF8
 
 end Langlib.Unlambda

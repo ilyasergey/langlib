@@ -67,8 +67,9 @@ names it.
 | compiled to Ook! | likewise, through brainfuck's tokens |
 | compiled to Brainloller | likewise, through an image |
 | compiled to Piet | likewise, through a picture with no heap at all |
+| compiled to Unlambda | likewise, with no machine underneath at all |
 
-That is 20 programs times 7 runners: 140 cases, all in `lake test`, no
+That is 20 programs times 8 runners: 160 cases, all in `lake test`, no
 subprocesses.
 
 Piet is the slow one, and the reason is its interpreter rather than its
@@ -77,6 +78,12 @@ happens at every step, so one instruction costs the area of the picture.
 The twenty take about 45 seconds, most of it the four programs with arrays
 — Piet has no heap, so an array lives on the stack and every element access
 costs `O(depth)`.
+
+Unlambda is the surprise at the other end. It has no store, no jumps and no
+numbers — every integer in a compiled program is a Scott numeral and every
+operation on one is unary, so `power.turp` reaches 16384 an increment at a
+time — and the twenty still take about four and a half seconds. A combinator
+step is cheap, and nothing has to be searched for.
 
 ## Hand-written implementations
 

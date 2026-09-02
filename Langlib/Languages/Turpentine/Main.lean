@@ -10,6 +10,7 @@ import Langlib.Languages.Turpentine.Compile.Fractran
 import Langlib.Languages.Turpentine.Compile.Piet
 import Langlib.Languages.Turpentine.Compile.MalbolgeUnshackled
 import Langlib.Languages.Turpentine.Compile.Malbolge
+import Langlib.Languages.Turpentine.Compile.Unlambda
 import Langlib.Languages.Brainfuck.Semantics
 import Langlib.Languages.Subleq.Semantics
 import Langlib.Languages.Whitespace.Semantics
@@ -75,6 +76,13 @@ structure Artifact where
   /-- How to run the emitted file by hand, when `lake exe <target> <file>`
   is not the whole story. `<file>` in it is replaced by the path written. -/
   runNote : Option String := none
+  /-- The program's exact bytes, for a target whose file is not text.
+  Unlambda is the one: `.x` carries the byte it prints, so a program that
+  prints byte 200 has that byte in it, and writing a `String` holding it
+  would write its two-byte UTF-8 encoding instead. When this is set it is
+  what gets written and printed; `text` is then the one-character-per-byte
+  view, which is what the size reports and the reader see. -/
+  bytes : Option ByteArray := none
 
 /-- A compiler into some target: Turpentine source text to an `Artifact`,
 or an error naming what it refused. -/
@@ -87,6 +95,15 @@ def compilerOfSource (emit : String → Except String String)
   fun src => do
     let text ← emit src
     return { text, run := run text }
+
+/-- A target whose emitted file is bytes rather than text. `text` is the
+byte-per-character rendering, so the sizes reported stay honest. -/
+def compilerOfBytes (emit : String → Except String ByteArray)
+    (render : ByteArray → String)
+    (run : ByteArray → Input → Nat → Except String RunResult) : Compiler :=
+  fun src => do
+    let bs ← emit src
+    return { text := render bs, bytes := some bs, run := run bs }
 
 /-- The certified route for a target: parse, type-check, compile through
 the shared URM pass and the target's completeness witness, then render. One
@@ -250,9 +267,13 @@ def backends : List Backend :=
         Langlib.Thue.Prog.render
         (Langlib.Thue.run { finalState := true })) }
   , { name := "unlambda"
-      -- The emitted term uses only `s`, `k`, `i`, `.x` and application, all
-      -- of them ASCII, so `Term.render` round-trips through the parser. The
-      -- answer is printed in unary, one `*` per unit.
+      -- The one target whose file is bytes rather than text: `.x` carries the
+      -- byte it prints, so a program that prints byte 200 contains it. The
+      -- bespoke backend takes the whole language; the certified one uses only
+      -- `s`, `k`, `i`, `.x` and application, all of them ASCII, and prints its
+      -- answer in unary, one `*` per unit.
+    , bespoke := some (compilerOfBytes Compile.Unlambda.compileBytes
+        Compile.Unlambda.renderText Langlib.Unlambda.runBytes)
     , certified := some (compilerOfCertified
         Langlib.Turpentine.Compile.derivedUnlambda.compileSource
         Langlib.Unlambda.Term.render
@@ -481,17 +502,24 @@ def compileMain (args : List String) : IO UInt32 := do
     | none => IO.eprintln "turpentine: nothing emitted"
     return 1
   | .ok art =>
+    let size := match art.bytes with
+      | some bs => bs.size
+      | none => art.text.length
     match out? with
     | some path =>
-      IO.FS.writeFile path art.text
-      IO.eprintln s!"turpentine: wrote {art.text.length} bytes to {path} [{scheme}]"
+      match art.bytes with
+      | some bs => IO.FS.writeBinFile path bs
+      | none => IO.FS.writeFile path art.text
+      IO.eprintln s!"turpentine: wrote {size} bytes to {path} [{scheme}]"
       if let some note := art.runNote then
         IO.eprintln s!"turpentine: run it with: {note.replace "<file>" path}"
     | none =>
-      IO.eprintln s!"turpentine: emitting {art.text.length} bytes [{scheme}]"
+      IO.eprintln s!"turpentine: emitting {size} bytes [{scheme}]"
       if let some note := art.runNote then
         IO.eprintln s!"turpentine: run it with: {note}"
-      IO.print art.text
+      match art.bytes with
+      | some bs => (← IO.getStdout).write bs
+      | none => IO.print art.text
     return 0
 
 /-- `exec --via <lang> [--fuel N] [--verbose] <file.turp>`: compile in
@@ -578,7 +606,10 @@ def execMain (args : List String) : IO UInt32 := do
     return 1
   | .ok art =>
     if verbose then
-      IO.eprintln s!"turpentine: compiled to {art.text.length} bytes of {target} [{scheme}]"
+      let size := match art.bytes with
+        | some bs => bs.size
+        | none => art.text.length
+      IO.eprintln s!"turpentine: compiled to {size} bytes of {target} [{scheme}]"
     let stdinStream ← IO.getStdin
     let stdinBytes ← if ← stdinStream.isTty then pure ByteArray.empty
                      else stdinStream.readBinToEnd

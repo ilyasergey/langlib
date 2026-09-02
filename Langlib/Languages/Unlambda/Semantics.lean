@@ -222,4 +222,13 @@ def run (src : String) (input : Input) (fuel : Nat) : Except String RunResult :=
   let prog ← parse src
   return evalProg prog input fuel
 
+/-- Parse and run a program held as bytes. A program that prints or tests a
+byte above 127 cannot be held in a `String` — `.x` carries the byte itself —
+so anything that generates such a program, the Turpentine backend included,
+runs it through here. -/
+def runBytes (src : ByteArray) (input : Input) (fuel : Nat) :
+    Except String RunResult := do
+  let prog ← parseBytes src
+  return evalProg prog input fuel
+
 end Langlib.Unlambda

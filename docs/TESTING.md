@@ -56,6 +56,16 @@ naming the file that no longer matches what produced it:
    — and `lake test` checks the artifacts too. Only `--check` catches
    staleness.
 
+6. **Compiled Unlambda examples**
+   (`./scripts/gen-unl-examples.sh --check`): the same arrangement for
+   `Langlib/Examples/Unlambda/compiled/`, three programs that
+   `turpentine compile --to unlambda` produced, each run and compared
+   against its source's output. It also refuses to keep a file that is not
+   ASCII: `.x` carries the byte it prints, so a program that can print any
+   byte contains all 256 of them, which is a blob rather than something to
+   read in a diff. Those are shown with `xxd` in
+   [unlambda/compiler.md](unlambda/compiler.md) instead.
+
 This file documents, per language, whether a reference exists and what to
 install to enable its differential section.
 
