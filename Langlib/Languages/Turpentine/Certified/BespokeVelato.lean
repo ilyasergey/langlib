@@ -634,7 +634,7 @@ theorem Rel.emitStr {F : Frame} {ns : List String} {s : Turpentine.State}
   events := by simp [Turpentine.State.emitBytes, Langlib.Velato.State.emitBytes, h.events]
   utf8 := by
     obtain ⟨str₀, h₀⟩ := h.utf8
-    exact ⟨str₀ ++ str, by simp [Turpentine.State.emitBytes, h₀, toUTF8_append]⟩
+    exact ⟨str₀ ++ str, by simp [Turpentine.State.emitBytes, h₀]⟩
 
 /-- Updating a variable, from a store that may differ from the agreeing one
 at the variable's own pitch and at the scratch register: `readByte` writes
@@ -1160,28 +1160,33 @@ theorem simExpr {F : Frame} {ns : List String} (hcov : Covers F ns)
       cases op with
       | add =>
         cases v₁ <;> cases v₂ <;>
-          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb <;> subst hb
+          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb
+        subst hb
         rw [cBin, velato_eval_add ihl' ihr']; rfl
       | sub =>
         cases v₁ <;> cases v₂ <;>
-          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb <;> subst hb
+          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb
+        subst hb
         rw [cBin, velato_eval_sub ihl' ihr']; rfl
       | mul =>
         cases v₁ <;> cases v₂ <;>
-          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb <;> subst hb
+          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb
+        subst hb
         rw [cBin, velato_eval_mul ihl' ihr']; rfl
       | div => simp [okOp] at hop
       | mod => simp [okOp] at hop
       | eq =>
         cases v₁ <;> cases v₂ <;>
-          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb <;> subst hb
+          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb
+        subst hb
         · rw [cBin, velato_eval_eq ihl' ihr']; rfl
         · rename_i x y
           rw [cBin, velato_eval_eq ihl' ihr']
           cases x <;> cases y <;> rfl
       | ne =>
         cases v₁ <;> cases v₂ <;>
-          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb <;> subst hb
+          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb
+        subst hb
         · rw [cBin, velato_eval_not (velato_eval_eq ihl' ihr')]
           exact congrArg Except.ok (notbit_eq_enc _)
         · rename_i x y
@@ -1189,20 +1194,24 @@ theorem simExpr {F : Frame} {ns : List String} (hcov : Covers F ns)
           cases x <;> cases y <;> rfl
       | lt =>
         cases v₁ <;> cases v₂ <;>
-          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb <;> subst hb
+          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb
+        subst hb
         rw [cBin, velato_eval_lt ihl' ihr']; rfl
       | le =>
         cases v₁ <;> cases v₂ <;>
-          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb <;> subst hb
+          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb
+        subst hb
         rw [cBin, velato_eval_not (velato_eval_gt ihl' ihr')]
         exact congrArg Except.ok (le_enc _ _)
       | gt =>
         cases v₁ <;> cases v₂ <;>
-          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb <;> subst hb
+          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb
+        subst hb
         rw [cBin, velato_eval_gt ihl' ihr']; rfl
       | ge =>
         cases v₁ <;> cases v₂ <;>
-          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb <;> subst hb
+          simp only [evalBin, exc_pure, exc_throw, reduceCtorEq, Except.ok.injEq] at hb
+        subst hb
         rw [cBin, velato_eval_not (velato_eval_lt ihl' ihr')]
         exact congrArg Except.ok (le_enc _ _)
       | and => simp [straightOp] at hst
@@ -1706,7 +1715,7 @@ theorem compileProgram_inv {p : Program} {Γ : Ctx} {prog : Langlib.Velato.Prog}
         · rw [hdi, exc_bind_ok] at h
           dsimp only at h
           rw [exc_pure] at h
-          exact ⟨vars, rfl, body, σ', rfl, decls, inits, rfl, (Except.ok.inj h).symm⟩
+          exact ⟨vars, rfl, body, σ', hrun, decls, inits, hdi, (Except.ok.inj h).symm⟩
 
 /-! ### Running the declarations -/
 
@@ -1808,7 +1817,7 @@ theorem bespokeCompile_core (p : Program) (prog : Langlib.Velato.Prog) (result n
   let F : Frame := ⟨vars, typesOf p⟩
   have hgf : GoodFrame F := ⟨fun x q h => (hok.bound x q h).2.2, hok.inj⟩
   have hcov : Covers F (declNames p) := fun x hx => hcovv x hx
-  have hAty : F.tys[answerVar]? = some Ty.int := by
+  have hAty : (typesOf p)[answerVar]? = some Ty.int := by
     have h := typesGo_get p.decls hnd ∅ dA hdA
     rw [hdAn, hdAt] at h
     exact h
@@ -1819,9 +1828,9 @@ theorem bespokeCompile_core (p : Program) (prog : Langlib.Velato.Prog) (result n
   have hokE : okStmt (declNames p) (typesOf p) (answerProgram p).body = true := by
     show okStmt (declNames p) (typesOf p)
       (.seq p.body (.seq (.printStr "" true) (.printExpr (.var answerVar) false))) = true
-    simp only [okStmt, hokbody, okExpr, okPrintTy, inferExpr_answer hAty, Bool.true_and,
-      Bool.and_true, Bool.and_self]
-    exact List.contains_iff_mem.mpr hAmem
+    have hpr : okPrintTy (typesOf p) (.var answerVar) = true := by
+      rw [okPrintTy, inferExpr_answer hAty]
+    simp only [okStmt, hokbody, okExpr, hpr, List.contains_iff_mem.mpr hAmem, Bool.and_true]
   obtain ⟨σ'', hrun', -⟩ :=
     compileStmt_spec (typesOf p) (declNames p) vars hcovv (answerProgram p).body { vars } rfl hokE
   have hbody : body = cS vars (typesOf p) (answerProgram p).body := by
@@ -1850,12 +1859,13 @@ theorem bespokeCompile_core (p : Program) (prog : Langlib.Velato.Prog) (result n
         rw [hty, encV_default]
         show (pitches.foldl (fun st p => st.set p (.int 0)) Langlib.Velato.Store.empty).get q = _
         rw [foldl_set_get pitches _ q (by rw [store_size_empty]; exact hgf.lt_size hq), if_pos]
-        have hxn : x ∈ declNames p := by
+        have hxn : ∃ d ∈ p.decls, d.1 = x := by
           rcases hdom x q hq with h | h
           · simp at h
-          · exact h
-        rw [← pitchOf_eq hq]
-        exact List.mem_map_of_mem hxn
+          · exact List.mem_map.mp h
+        obtain ⟨d, hd, hdx⟩ := hxn
+        rw [← pitchOf_eq hq, ← hdx]
+        exact List.mem_map_of_mem (f := fun d => pitchOf vars d.1) hd
       · intro ty hty
         exact initGo_typesGo p.decls ∅ ∅ (by intro x t v h; simp at h) x ty v hty (henv ▸ hv)
     · intro x hx

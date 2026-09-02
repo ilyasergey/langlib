@@ -21,6 +21,32 @@
   completeness in [`Langlib/Computability/Velato.lean`](../../Langlib/Computability/Velato.lean)
   and [docs/computability-velato.md](../computability-velato.md)
 
+## History
+
+Velato is a programming language whose source code is a MIDI file. Not a
+file *describing* a program, and not a program that happens to make noise:
+the notes **are** the program, and the compiler reads their pitches in the
+order the file sounds them.
+
+Temkin's stated aim is a language that puts the programmer in the position of
+a composer with a secret. Any piece of music you write is, if the intervals
+happen to fall right, also a program; and any program you write is, whether
+you meant it to be or not, also a piece of music. The interesting work is
+making both halves good at once, and the language is arranged so that the
+composer keeps as much freedom as the encoding can spare: octave is ignored,
+key can be changed mid-piece, extra instrumental parts are ignored
+altogether, and where a program needs "a third" it will accept either a
+major or a minor one so that the composer can stay in the scale they are
+writing in. The result, as the site puts it, tends toward dense, jazz-like
+harmony — which is less an aesthetic choice than a consequence of the
+command table, as the "computational class" section below explains.
+
+The 2009 implementation is a *compiler*: it reads the MIDI, emits C#, and
+hands that to the C# compiler. That matters throughout this page, because it
+means Velato's dynamic semantics is C#'s, restricted to the fragment the
+code generator emits, and every question of the form "what does this
+program do?" is really a question about the generated C#.
+
 ## The whole thing, end to end
 
 Four commands take two lines of Turpentine to a tune you can hear. Nothing
@@ -108,32 +134,6 @@ it](#trying-it) has the commands one at a time, [Hearing a
 program](#hearing-a-program) covers the audio in full, and [A program, end
 to end](#a-program-end-to-end-turpentine-in-music-out) walks the pipeline
 through with the output of every step.
-
-## History
-
-Velato is a programming language whose source code is a MIDI file. Not a
-file *describing* a program, and not a program that happens to make noise:
-the notes **are** the program, and the compiler reads their pitches in the
-order the file sounds them.
-
-Temkin's stated aim is a language that puts the programmer in the position of
-a composer with a secret. Any piece of music you write is, if the intervals
-happen to fall right, also a program; and any program you write is, whether
-you meant it to be or not, also a piece of music. The interesting work is
-making both halves good at once, and the language is arranged so that the
-composer keeps as much freedom as the encoding can spare: octave is ignored,
-key can be changed mid-piece, extra instrumental parts are ignored
-altogether, and where a program needs "a third" it will accept either a
-major or a minor one so that the composer can stay in the scale they are
-writing in. The result, as the site puts it, tends toward dense, jazz-like
-harmony — which is less an aesthetic choice than a consequence of the
-command table, as the "computational class" section below explains.
-
-The 2009 implementation is a *compiler*: it reads the MIDI, emits C#, and
-hands that to the C# compiler. That matters throughout this page, because it
-means Velato's dynamic semantics is C#'s, restricted to the fragment the
-code generator emits, and every question of the form "what does this
-program do?" is really a question about the generated C#.
 
 ## The idea
 
@@ -318,6 +318,124 @@ survive a root change. It also means a program has at most **128**
 variables, one per MIDI note, which turns out to be the most consequential
 sentence on this page — see "computational class".
 
+## Trying it
+
+Run velato.net's own worked example. It is eight notes and prints one
+letter.
+
+```
+lake exe velato Langlib/Examples/Velato/print-h.vel
+```
+
+Output:
+
+```
+H
+```
+
+Ask what each note was doing. This is the parser's own account, not a second
+guess at the grammar: the labels are recorded as it reads.
+
+```
+lake exe velato --notes Langlib/Examples/Velato/print-h.vel
+```
+
+Output:
+
+```
+  #  note   role
+  1  C4     root
+  2  A4     cmd
+  3  G4     print
+  4  E4     value
+  5  F4     char
+  6  A4     7
+  7  D#4    2
+  8  G4     end num
+```
+
+Play the same program in G. Only intervals matter, so it says the same
+thing.
+
+```
+echo 'G4 E5 D5 B4 C5 E5 A#4 D5' > /tmp/g.vel && lake exe velato /tmp/g.vel
+```
+
+Output:
+
+```
+H
+```
+
+See a program as structured pseudocode, which is what a composer checks to
+find out whether the piece says what they meant.
+
+```
+lake exe velato --ast Langlib/Examples/Velato/cat.vel
+```
+
+Output:
+
+```
+char C3;
+C3 = input();
+while (!(C3 == 0)) {
+  print(C3);
+  C3 = input();
+}
+```
+
+Feed that program some input.
+
+```
+echo -n 'meow' | lake exe velato Langlib/Examples/Velato/cat.vel
+```
+
+Output:
+
+```
+meow
+```
+
+Something with arithmetic in it: the primes below fifty, by trial division,
+which is two nested loops and a flag.
+
+```
+lake exe velato Langlib/Examples/Velato/primes.vel
+```
+
+Output:
+
+```
+2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 
+```
+
+Engrave a program as sheet music. The format is taken from the extension:
+`.pdf`, `.svg`, or `.ppm` for a raster.
+
+```
+lake exe velato --sheet /tmp/hello.pdf Langlib/Examples/Velato/hello.vel
+```
+
+Turn a program into the MIDI file the language actually speaks, so a
+sequencer or another implementation can read it.
+
+```
+lake exe velato --midi /tmp/hello.mid Langlib/Examples/Velato/hello.vel
+```
+
+Get a diagnostic wrong on purpose. Errors name the note and the interval.
+
+```
+echo 'C4 F4 G4' > /tmp/bad.vel && lake exe velato /tmp/bad.vel
+```
+
+Output:
+
+```
+velato: no command begins with a perfect 4th, at note #2 (F4)
+```
+
 ## Semantic decisions in LangLib
 
 Every decision below is either the reference's, or a place where the
@@ -464,124 +582,6 @@ Because there are only 128 variables, and because the emitted arithmetic is
 exponential in the register values, compiled programs are *short* — five
 statements for a small machine — and *slow*. That is the opposite trade from
 every other backend here.
-
-## Trying it
-
-Run velato.net's own worked example. It is eight notes and prints one
-letter.
-
-```
-lake exe velato Langlib/Examples/Velato/print-h.vel
-```
-
-Output:
-
-```
-H
-```
-
-Ask what each note was doing. This is the parser's own account, not a second
-guess at the grammar: the labels are recorded as it reads.
-
-```
-lake exe velato --notes Langlib/Examples/Velato/print-h.vel
-```
-
-Output:
-
-```
-  #  note   role
-  1  C4     root
-  2  A4     cmd
-  3  G4     print
-  4  E4     value
-  5  F4     char
-  6  A4     7
-  7  D#4    2
-  8  G4     end num
-```
-
-Play the same program in G. Only intervals matter, so it says the same
-thing.
-
-```
-echo 'G4 E5 D5 B4 C5 E5 A#4 D5' > /tmp/g.vel && lake exe velato /tmp/g.vel
-```
-
-Output:
-
-```
-H
-```
-
-See a program as structured pseudocode, which is what a composer checks to
-find out whether the piece says what they meant.
-
-```
-lake exe velato --ast Langlib/Examples/Velato/cat.vel
-```
-
-Output:
-
-```
-char C3;
-C3 = input();
-while (!(C3 == 0)) {
-  print(C3);
-  C3 = input();
-}
-```
-
-Feed that program some input.
-
-```
-echo -n 'meow' | lake exe velato Langlib/Examples/Velato/cat.vel
-```
-
-Output:
-
-```
-meow
-```
-
-Something with arithmetic in it: the primes below fifty, by trial division,
-which is two nested loops and a flag.
-
-```
-lake exe velato Langlib/Examples/Velato/primes.vel
-```
-
-Output:
-
-```
-2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 
-```
-
-Engrave a program as sheet music. The format is taken from the extension:
-`.pdf`, `.svg`, or `.ppm` for a raster.
-
-```
-lake exe velato --sheet /tmp/hello.pdf Langlib/Examples/Velato/hello.vel
-```
-
-Turn a program into the MIDI file the language actually speaks, so a
-sequencer or another implementation can read it.
-
-```
-lake exe velato --midi /tmp/hello.mid Langlib/Examples/Velato/hello.vel
-```
-
-Get a diagnostic wrong on purpose. Errors name the note and the interval.
-
-```
-echo 'C4 F4 G4' > /tmp/bad.vel && lake exe velato /tmp/bad.vel
-```
-
-Output:
-
-```
-velato: no command begins with a perfect 4th, at note #2 (F4)
-```
 
 ## Hearing a program
 
