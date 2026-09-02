@@ -7,11 +7,15 @@ at the bottom, check the license situation, and move the language into
 
 ## In the library today
 
-Fourteen languages are implemented, documented and tested: brainfuck,
+Fifteen languages are implemented, documented and tested: brainfuck,
 whitespace, malbolge, malbolge-unshackled, befunge93, subleq, fractran,
-thue, ook, deadfish, piet, brainloller, unlambda and ski, plus the
-Turpentine front end. Ten of them carry a machine-checked answer about
+thue, ook, deadfish, piet, brainloller, unlambda, ski and velato, plus the
+Turpentine front end. Eleven of them carry a machine-checked answer about
 their computational class; `docs/README.md` has the matrix.
+
+Velato is the library's second *graphical* language in the loose sense --
+its programs are not text -- and the first musical one. It arrived after
+the first two waves below and was not on either list.
 
 ## Committed (first wave, see `docs/PLAN.md`)
 

@@ -134,6 +134,24 @@ if want piet; then
   fi
 fi
 
+# ------------------------------------------------------------------- velato
+# VelatoPy is a Python script rather than a binary, so it is cloned into
+# .difftools/src/ and run from there. It needs `mido`, which is not
+# installed here: this script does not touch the system, and difftest.sh
+# skips the section with a note if the module is missing.
+if [ -f "$SRC/VelatoPy/velato.py" ]; then
+  echo "velato: VelatoPy already fetched"
+elif command -v git >/dev/null 2>&1; then
+  if git clone -q --depth 1 https://github.com/rottytooth/VelatoPy.git \
+       "$SRC/VelatoPy" 2>/dev/null; then
+    echo "velato: cloned $SRC/VelatoPy (needs: pip install mido)"
+  else
+    echo "velato: clone failed; skipping"
+  fi
+else
+  echo "velato: git not installed; skipping"
+fi
+
 echo
 echo "References in $BIN:"
 ls -1 "$BIN" 2>/dev/null || echo "  (none)"

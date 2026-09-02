@@ -37,6 +37,27 @@ fi
 
 lake env lean --run scripts/gen-velato-examples.lean
 
+# --- compiled output ------------------------------------------------------
+#
+# What the Turpentine backend emits, checked in so that the documentation can
+# show a compiled program and the reader can run it without a build. Each is
+# verified here: the compiled program must reproduce its source's output
+# exactly, on the Velato interpreter.
+lake build turpentine velato >/dev/null
+mkdir -p Langlib/Examples/Velato/compiled
+for stem in hello sum primes-mu; do
+  src="Langlib/Examples/Turpentine/${stem}.turp"
+  dst="Langlib/Examples/Velato/compiled/${stem}.vel"
+  ./.lake/build/bin/turpentine compile --to velato -o "$dst" "$src" >/dev/null
+  want=$(./.lake/build/bin/turpentine run "$src" < /dev/null)
+  got=$(./.lake/build/bin/velato --fuel 200000000 "$dst" < /dev/null)
+  if [ "$want" != "$got" ]; then
+    echo "gen-velato-examples: ${stem}.vel does not reproduce ${src}" >&2
+    exit 1
+  fi
+  echo "  compiled/${stem}.vel  ($(wc -w < "$dst" | tr -d ' ') notes, output verified)"
+done
+
 if [ "$check" = 1 ]; then
   # print-h.vel is hand-written, so it is not part of the comparison; the
   # generator never touches it, and diff would agree, but saying so here

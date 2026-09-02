@@ -247,6 +247,36 @@ checked-in artifacts are not stale, and `lake test` checks that they are
 real Unshackled programs printing the right thing, loaded with Unshackled's
 own loader with nothing from the compiler involved.
 
+## velato
+
+Reference: [VelatoPy](https://github.com/rottytooth/VelatoPy) (MIT), a Python
+interpreter by the language's author. `./scripts/get-references.sh` clones it
+into `.difftools/src/`; it additionally needs `mido`, which the script does
+not install, because it does not touch the system:
+
+```
+pip install mido
+```
+
+Our examples are kept as note names and the reference reads MIDI, so
+`difftest.sh` converts each one with `lake exe velato --midi` first. A
+disagreement could therefore be the MIDI *writer's* fault rather than the
+interpreter's, which is worth checking first when one appears.
+
+**One known divergence, and we are on the other side of it.** VelatoPy
+prints a `char` as a character only when its code is in `32 … 127`, and
+prints the number otherwise, so a program ending in a newline prints a
+trailing `10`. The 2009 C# compiler emits a C# character literal and
+`Console.Write` writes it whatever it is, so a newline is a newline; we
+follow the C# reference. VelatoPy's own README names that compiler as the
+definitive implementation and describes itself as "mostly vibe-coded", so
+this is a bug in the reference rather than an open question. `hello.vel` is
+the case that shows it.
+
+The 2009 C# compiler itself is not fetched: it needs .NET Framework 4.8, and
+it *compiles* rather than interprets, so comparing against it means building
+and running an executable per program. Worth doing; not done.
+
 ## Computability results
 
 The proofs under `Langlib/Computability/` are checked by Lean itself, so

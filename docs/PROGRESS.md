@@ -2,7 +2,99 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-09-02 (latest): one policy file, two names
+## 2026-09-02 (latest): velato, and a completeness proof that had to work differently
+
+Velato (Daniel Temkin, 2009) is a language whose source code is a MIDI file:
+the pitches, in the order the file sounds them, are the program. Commands
+are intervals from a command root the composer may move at will, so a
+program keeps its meaning under transposition — and a piece of music is, if
+the intervals fall right, also a program.
+
+**The language.** `Note.lean` pins the two readings of an interval the
+language needs (exact for commands, coarse for expressions, which is what
+lets a composer stay in the scale) and the digit encoding that falls out of
+reserving the unison and the perfect fifth. `Parser.lean` follows
+velato.net's tables, cross-checked against the 2009 C# reference; where the
+two disagree the spec page says which we follow and why. The substantive
+case is `If`, whose branch in the reference reads no condition, advances an
+extra note, and loops on a tautology, so it cannot return.
+
+The parser records what each note turned out to be, in the parser rather
+than in a second pass, so the labels under an engraved staff cannot drift
+from the grammar that produced them.
+
+**Turing complete, and the proof is the interesting part.** Every other
+backend in the library lays the counter machine's registers out side by
+side: brainfuck a tape column each, subleq an address, Piet a stack slot.
+Velato cannot — a variable is a MIDI note, so a program has at most 128 of
+them, while `counterProgram` may ask for arbitrarily many. One register per
+variable would be a compiler that works for small programs and fails for
+large ones, which is precisely the failure
+`docs/agent-brief-completeness.md` warns about.
+
+So the unbounded state lives *inside* a cell rather than across cells. The
+whole register file is one number, `2^w0 * 3^w1 * 5^w2 * ...`, in a single
+variable — middle C; the other 127 are free. Increment multiplies by the
+register's prime, decrement divides by it, and "is register r nonzero" is
+"does the r-th prime divide the number". The primes are built by a
+Bertrand-bounded search rather than taken from `Nat.nth Nat.Prime`, which is
+noncomputable: `TuringComplete.compile` has to be a function that runs, and
+the differential tests run it.
+
+**And the theorem stands on a semantic decision, which is stated rather than
+assumed.** The encoding needs unbounded integers. The reference compiler
+emits C# `int`; under *that* reading Velato has at most 128 variables of
+finite width, hence a finite state space, hence a decidable halting problem
+and no completeness at all. The specification names no width, so both
+readings are defensible; `docs/velato/spec.md` gives three reasons for
+taking the unbounded one and states the finite-state converse as an open
+proof rather than pretending the question does not arise.
+
+**Compilers.** The hand-written Turpentine backend is the shortest in the
+library, because Velato is not a machine: it has `while`, `if`/`else`, named
+variables and unbounded integers, so the backend is nearly a direct
+translation. Its content is in the four places the languages differ — no
+arrays, Euclidean versus truncating division (corrected, which needs
+statements, which is why the expression compiler returns a prelude),
+short-circuiting that has to survive that prelude, and no boolean type. All
+fourteen compilable examples produce byte-identical output to the reference
+interpreter. `derivedVelato` is the certified route, one line off the
+completeness witness.
+
+**Seeing and hearing it.** A Velato program is music, so the runner engraves
+it — the same `Scene` going to PDF, SVG and a raster image, with no
+dependency outside Lean, because requiring an SVG rasteriser to look at a
+program is a poor trade. It also synthesises audio directly, so
+`scripts/velato-audio.sh` plays a program on a bare checkout.
+
+**A finding from the differential tests.** VelatoPy prints a `char` as a
+character only for codes in `32 … 127` and prints the number otherwise, so a
+program ending in a newline prints a trailing `10` there. The C# compiler
+emits a character literal and writes it whatever it is. We follow the C#
+reference, which the Python one names as definitive; `docs/TESTING.md`
+records it.
+
+**Two claims corrected during the work.** A docstring said the derived
+backend's output was "much shorter" than other targets'; it is not —
+`sumsq.turp` is 509 kB against subleq's 1.8 kB, because the five statements
+carry primes as decimal numerals and Velato spends a note per digit. And a
+generated example's header claimed seven of its notes were the shadowed
+tune's; three were. Both now report measured numbers, the second computed by
+the generator so it cannot rot.
+
+**On hiding a program inside a tune**, which is the obvious game and worth
+being precise about: you cannot make a Velato program play an arbitrary
+melody, because within a statement the pitch classes are forced. What you
+can do is change key at every statement boundary, which is what velato.net
+says root changes are for, and that gets about a third of the notes onto
+the tune. The examples report what they actually achieved. The reliable
+technique is the author's own: the program is the first track and the tune
+is the tracks after it, which the language ignores.
+
+1527 tests pass; the axiom audit reports only `propext`,
+`Classical.choice` and `Quot.sound`.
+
+## 2026-09-02: one policy file, two names
 
 `AGENTS.md` was a hand-made copy of `CLAUDE.md` and had already drifted: it
 was missing the "Example programs" requirement, the whole graphical-languages

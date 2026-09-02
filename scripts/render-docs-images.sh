@@ -105,6 +105,12 @@ for prog in print-h twinkle hi ode cat count; do
     "Langlib/Examples/Velato/$prog.vel" < /dev/null
   python3 scripts/ppm-to-png.py "$tmp_ppm/$prog.ppm" "$vel_dir/$prog.png" 1 --no-grid
 done
+# What the Turpentine backend emits, engraved: the compiler page shows it,
+# and the labels underneath spell out the message being printed.
+lake exe velato --sheet "$tmp_ppm/compiled-hello.ppm" \
+  Langlib/Examples/Velato/compiled/hello.vel < /dev/null
+python3 scripts/ppm-to-png.py "$tmp_ppm/compiled-hello.ppm" \
+  "$vel_dir/compiled-hello.png" 1 --no-grid
 
 if [ "$check" = 1 ]; then
   status=0

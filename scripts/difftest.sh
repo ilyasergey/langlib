@@ -157,6 +157,39 @@ else
     -- npiet Langlib/Examples/Piet/hi.ppm
 fi
 
+# ------------------------------------------------------------------- velato
+# Reference: VelatoPy, https://github.com/rottytooth/VelatoPy (MIT), which
+# needs Python's `mido`. The reference reads MIDI and our examples are kept
+# as note names, so each program is converted with `--midi` first; that also
+# means a disagreement could be the writer's fault rather than the
+# interpreter's, which is worth knowing when one shows up.
+#
+# The reference describes itself as "mostly vibe-coded; the definitive
+# implementation is still the original C# compiler", so a disagreement is
+# not automatically ours. The 2009 C# compiler is the authority, and it
+# needs .NET Framework 4.8; it is not fetched here.
+VEL_LANGLIB=.lake/build/bin/velato
+VELATOPY=.difftools/src/VelatoPy/velato.py
+if [ ! -x "$VEL_LANGLIB" ]; then
+  note "velato: build first (lake build velato); skipping"
+elif [ ! -f "$VELATOPY" ]; then
+  SKIP=$((SKIP+1))
+  note "velato: VelatoPy not fetched (run ./scripts/get-references.sh); skipping"
+elif ! python3 -c "import mido" >/dev/null 2>&1; then
+  SKIP=$((SKIP+1))
+  note "velato: python3 mido not installed (pip install mido); skipping"
+else
+  note "velato vs VelatoPy:"
+  VELTMP=$(mktemp -d)
+  for prog in print-h hi hello twinkle; do
+    src="Langlib/Examples/Velato/$prog.vel"
+    "$VEL_LANGLIB" --midi "$VELTMP/$prog.mid" "$src" < /dev/null >/dev/null 2>&1
+    compare "$prog.vel" "" "$VEL_LANGLIB" "$src" \
+      -- python3 "$VELATOPY" "$VELTMP/$prog.mid"
+  done
+  rm -rf "$VELTMP"
+fi
+
 # Languages with no comparable reference binary (see docs/TESTING.md for
 # why): ook, deadfish, fractran, subleq, thue, brainloller. Golden tests
 # cover them.

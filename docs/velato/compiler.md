@@ -161,6 +161,169 @@ and Velato spends one note per digit. `sumsq.turp` comes out at:
 [docs/computability-velato.md](../computability-velato.md) explains where
 that goes.
 
+## A program, end to end: Turpentine in, music out
+
+The whole pipeline, with nothing installed beyond this repository. Every
+command and every output below is exactly what it produces.
+
+**1. The source.** Two lines of Turpentine.
+
+```
+cat Langlib/Examples/Turpentine/hello.turp
+```
+
+Output:
+
+```
+// The obligatory greeting.
+println("Hello, Turpentine!");
+```
+
+**2. Compile it to Velato.**
+
+```
+lake exe turpentine compile --to velato -o /tmp/hello.vel Langlib/Examples/Turpentine/hello.turp
+```
+
+Output:
+
+```
+turpentine: wrote 534 bytes to /tmp/hello.vel [bespoke, hand-written and unverified]
+```
+
+That is 166 notes. The same file is checked in as
+`Langlib/Examples/Velato/compiled/hello.vel`, so the rest of this
+walkthrough can be followed without compiling anything, and the commands
+below use that path.
+
+```
+head -3 Langlib/Examples/Velato/compiled/hello.vel
+```
+
+Output:
+
+```
+C4 C4 A3 G3 D#4 F4 A4 D#4
+G4 C5 A4 G4 D#4 F4 D4 C#4
+D4 G4 C5 A4 G4 D#4 F4 D4
+```
+
+**3. Ask Velato what it just received.** The compiler is not consulted here:
+this is Velato's own parser reading the notes back.
+
+```
+lake exe velato --ast Langlib/Examples/Velato/compiled/hello.vel
+```
+
+Output, first four lines:
+
+```
+print('H');
+print('e');
+print('l');
+print('l');
+```
+
+Velato has no strings, so a greeting is one `Print` command per character.
+
+**4. Read it note by note.** The roles are recorded by the parser as it
+reads, so this is what the language actually made of each pitch.
+
+```
+lake exe velato --notes Langlib/Examples/Velato/compiled/hello.vel
+```
+
+Output, first nine notes:
+
+```
+  #  note   role
+  1  C4     root
+  2  C4     -
+  3  A3     cmd
+  4  G3     print
+  5  D#4    value
+  6  F4     char
+  7  A4     7
+  8  D#4    2
+  9  G4     end num
+```
+
+C4 sets the command root and the second C4 is a no-op at the unison. A3 is a
+major 6th above the root and G3 a perfect 5th, which together are `Print`.
+D#4 and F4 open a `char`, and A4 and D#4 are the digits 7 and 2 — seventy-two
+is `H`. G4 ends the number.
+
+**5. Run it.**
+
+```
+lake exe velato Langlib/Examples/Velato/compiled/hello.vel
+```
+
+Output:
+
+```
+Hello, Turpentine!
+```
+
+Steps 2 and 5 in one, if you only want the answer:
+
+```
+lake exe turpentine exec --via velato Langlib/Examples/Turpentine/hello.turp
+```
+
+Output:
+
+```
+Hello, Turpentine!
+```
+
+**6. Engrave it.** A one-page PDF, 124 kB:
+
+```
+lake exe velato --sheet /tmp/hello.pdf Langlib/Examples/Velato/compiled/hello.vel
+```
+
+This is that score. Eleven systems, and you can read the message off the
+label row: the digits under each `char` are the ASCII codes, 72, 101, 108,
+108, 111, and on.
+
+![the compiled greeting, engraved](img/compiled-hello.png)
+
+**7. Hear it.** This is the point of the language, and it needs nothing
+installed: the synthesiser is part of the library.
+
+```
+scripts/velato-audio.sh Langlib/Examples/Velato/compiled/hello.vel
+```
+
+That renders about 58 seconds of audio and plays it with whatever the
+machine already has — `afplay` on macOS, `aplay`, `paplay`, `play`, `ffplay`
+or `mpv` elsewhere. If it finds no player it says so and leaves you the
+file. `scripts/velato-audio.sh --deps` reports what it found.
+
+To keep the audio instead of playing it:
+
+```
+lake exe velato --wav /tmp/hello.wav Langlib/Examples/Velato/compiled/hello.vel
+```
+
+**8. Or hear it on a real instrument.** Write the MIDI file the language
+actually speaks — 1.6 kB — and open it in anything:
+
+```
+lake exe velato --midi /tmp/hello.mid Langlib/Examples/Velato/compiled/hello.vel
+```
+
+`scripts/velato-audio.sh --midi <file>` will do that and play it through
+FluidSynth or TiMidity, which — unlike the WAV path — does need a
+synthesiser and a SoundFont installed.
+
+Remember what the MIDI file does *not* carry back: Velato ignores duration,
+so the rhythm here is the writer's invention and not the program's. Every
+note is the same length because there is nothing in the program to say
+otherwise. A piece composed as music, rather than compiled from Turpentine,
+keeps its rhythm — it just has to keep its MIDI file to do so.
+
 ## Verification status
 
 The bespoke backend is **trusted, not verified**: it is checked by the
