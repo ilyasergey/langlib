@@ -72,7 +72,7 @@ status matrix, including compilers):
 * [unlambda](docs/unlambda/spec.md) (David Madore, 1999), a functional
   language with no variables and no lambdas
 * [velato](docs/velato/spec.md) (Daniel Temkin, 2009), whose programs are
-  MIDI files: the pitches, and the order they sound in, are the code
+  MIDI files: the pitches and their order are the code
 * [ski](docs/ski/spec.md) (Schönfinkel 1924, Curry 1930), not an esolang
   but the combinator calculus underneath Unlambda, and the other half of
   the library's functional route to universality
