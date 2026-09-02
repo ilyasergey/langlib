@@ -44,6 +44,7 @@ import Langlib.Tests.Thue
 import Langlib.Tests.Whitespace
 import Langlib.Tests.Turpentine
 import Langlib.Tests.Unlambda
+import Langlib.Tests.Velato
 
 /-!
 Test driver for langlib, run by `lake test` (from the repository root; the
@@ -52,9 +53,18 @@ suites read example programs by relative path).
 Each language contributes suites from `Langlib/Tests/<Langname>.lean`.
 -/
 
+/-! Checks that are properties of a pair of functions rather than golden
+outputs, so they do not fit the `Suite` shape: each returns the problems it
+found, and an empty list is a pass. -/
+
 open Langlib.Common in
-def main : IO UInt32 :=
-  runSuites <| List.flatten
+def propertyChecks : List (String × IO (List String)) :=
+  [ ("velato: emit round-trips through the parser", Langlib.Tests.Velato.emitRoundTrips)
+  , ("velato: MIDI round-trips through the reader", Langlib.Tests.Velato.midiRoundTrips) ]
+
+open Langlib.Common in
+def main : IO UInt32 := do
+  let suiteCode ← runSuites <| List.flatten
     [ Langlib.Tests.Befunge93.suites
     , Langlib.Tests.Brainfuck.suites
     , Langlib.Tests.BoundedMalbolge.suites
@@ -99,4 +109,16 @@ def main : IO UInt32 :=
     , Langlib.Tests.Whitespace.suites
     , Langlib.Tests.Turpentine.suites
     , Langlib.Tests.Unlambda.suites
+    , Langlib.Tests.Velato.suites
     ]
+  let mut failures := 0
+  for (name, check) in propertyChecks do
+    let problems ← check
+    if problems.isEmpty then
+      IO.println s!"PASS {name}"
+    else
+      failures := failures + problems.length
+      IO.println s!"FAIL {name}"
+      for p in problems.take 10 do
+        IO.println s!"  {p}"
+  return if failures == 0 then suiteCode else 1

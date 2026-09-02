@@ -1,0 +1,8 @@
+% Copy the input to the output. Input stores 0 at end of stream.
+% Usage: echo -n 'meow' | lake exe velato Langlib/Examples/Velato/cat.vel
+C4 C4 G#3 C3 D#4 C4 A3 F4
+C3 C4 E4 E4 D4 G4 G#4 G#4
+G#4 D#4 D4 C3 D4 D4 D#4 G4
+C#4 G4 G#4 G#4 D4 G#4 G#4 D4
+C4 A3 G3 D#4 D4 C3 C4 A3
+F4 C3 C4 E4 F4

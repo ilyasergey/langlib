@@ -1,0 +1,18 @@
+% Copy the input, raising lowercase letters to capitals.
+% Usage: echo -n 'velato' | lake exe velato Langlib/Examples/Velato/upper.vel
+C4 C4 G#3 C3 D#4 C4 G#3 D3
+D#4 C4 A3 F4 C3 C4 E4 E4
+D4 G4 G#4 G#4 G#4 D#4 D4 C3
+D4 D4 D#4 G4 C#4 G4 G#4 G#4
+D4 G#4 G#4 D4 C4 E4 G4 D4
+G4 G#4 G#4 G#4 D#4 D4 C3 D4
+F4 D#4 F4 B4 A4 G4 G#4 G#4
+D4 D4 G#4 D4 G4 G#4 G#4 G#4
+D#4 D4 C3 D4 D#4 D#4 F4 D4
+D#4 D#4 G4 G#4 G#4 D4 G#4 G#4
+D4 C4 D#4 D3 G#3 G#3 G#3 D#4
+D4 C3 G3 G3 D4 D#4 G4 E4
+D#4 G4 G#4 G#4 D4 C4 A3 G3
+D#4 D4 D3 C4 E4 A4 C5 A4
+G4 D#4 D4 C3 C4 E4 B3 C4
+A3 F4 C3 C4 E4 F4

@@ -1,0 +1,5 @@
+% Print "Hi": the smallest program with two statements in it.
+% Run: lake exe velato Langlib/Examples/Velato/hi.vel
+C4 C4 A3 G3 D#4 F4 A4 D#4
+G4 C5 A4 G4 D#4 F4 D4 C#4
+F#4 G4

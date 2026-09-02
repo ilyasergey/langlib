@@ -1,0 +1,12 @@
+% The truth machine: 0 prints 0 and stops, anything else prints 1 forever.
+% Usage: echo -n 0 | lake exe velato Langlib/Examples/Velato/truth.vel
+%        echo -n 1 | lake exe velato --fuel 400 Langlib/Examples/Velato/truth.vel
+C4 C4 G#3 C3 D#4 C4 A3 F4
+C3 C4 E4 G4 D#4 D4 C3 D4
+D4 D#4 F4 F4 A#4 G4 G#4 G#4
+D4 C4 A3 G3 D#4 F4 F4 A#4
+G4 C5 E5 A4 C5 E5 E5 D#5
+G5 D5 G4 D4 D4 D#4 G4 D4
+G4 G#4 G#4 D4 C4 A3 G3 D#4
+F4 F4 B4 G4 C5 E5 F5 C5
+E5 B4

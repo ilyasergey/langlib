@@ -1,0 +1,7 @@
+% Prints "Hi", while shadowing the Ode to Joy theme (Beethoven, 1824).
+% The tune is public domain; only its pitches are used, which is all
+% Velato reads. See docs/velato/spec.md, 'Programs that sound like
+% something else'.
+E4 F#4 A4 F#4 E4 C#4 D4 F#4
+C4 E4 B3 C4 A4 G4 D#4 F4
+D4 C#4 F#4 G4
