@@ -88,6 +88,7 @@ than by taste:
 | The core of a pass | `probe_branch_gadget` — probe, branch, jump in six instructions; the register cell comes back unchanged |
 | The no-op sweep of a chain | `chain_link_nop`, `chain_run_nop`, `chain_restored` — the second run that restores a chain for re-entry |
 | Where a chain may sit | `alternating_at` — one residue check per chain |
+| Start-up on the image route | `imageOf`, `imageOf_get`, `regAddr_mod6`, `imageOf_regMem_init` — the fill is chosen, so `sim_init` holds for free |
 
 ## Remaining
 
@@ -228,6 +229,50 @@ on: the register file is untouched, so `sim_frame` carries it across; and
 **the accumulator is known on each side**, because the branch separated
 the cases by exactly the flag that determined it, so resetting it to blank
 for the next probe is a compile-time matter.
+
+### The open crux: a branch that keeps `d`
+
+Working through the pass turned up an obstruction sharper than "assemble the
+pieces", and it is worth stating exactly, because it decides the layout.
+
+Every branch gadget in the file — `branch_gadget`, `flagAddr_gadget`,
+`probe_branch_gadget` — takes a hypothesis `hKp` naming a **movd pointer**,
+and in each the pointer's value depends on the slot base `d₀` (`d₀ + 5`,
+`d₀`, `d₀ + 2`). It is there for a structural reason. A `crazy` writes its
+result to `mem[d]` and then the postal stage advances `d` by one, so the
+computed address always ends up **one cell behind** `d`. A following `jmp`
+reads `mem[d]`, one cell ahead of where the address sits, so the branch
+first has to rewind `d` by one, and `movd` through a stored pointer is the
+only rewind the language has. That pointer is an absolute address inside
+the current slot, so it differs from slot to slot.
+
+A per-slot pointer is exactly what a walk cannot supply. The fill gives one
+value per residue mod 6, a constant across slots, so it cannot hold
+`d₀ + 2`. Propagation cannot help either: a pass would have to compute its
+own base to write the next slot's pointer, and **`d` is unreadable** — no
+instruction copies it into memory or the accumulator, which is the same
+fact the two-tape register design was built around.
+
+The destructive branch (`flag_selects_address`, targets 0 and 1) needs no
+pointer, because it reads the flag straight out of a cell — but it lands
+`d` on 0 or 1 and so **loses the sweep position**, and `d` cannot be saved
+to restore it.
+
+So a walk needs a data-dependent branch whose only per-slot operand is the
+register cell itself, and neither branch in hand is that. Two directions
+are open. One: a jmp whose target cell is **uniform** — every slot holds
+the same `entry` address, supplied by the fill, giving an unconditional
+loop-back — paired with a separate conditional exit that fires only at the
+boundary, where the tape reads blank. The exit still has to change control
+from a blank cell without a rewind, which is the same off-by-one in
+miniature. Two: give up post-increment addressing and mint each slot's
+address by rotation (the escalator), so `d` is repositioned by a `movd`
+through a value the program can *reconstruct* rather than one it stored.
+The escalator is proved (`rot_one`, `growRotWidth_double`); wiring it into
+the walk is not.
+
+This is the one place the construction still needs an idea rather than
+labour.
 
 **What is left of a pass** is the wrapping that `walk_iterate` takes as its
 hypothesis: from slot `i`, `k` steps reach slot `i + 1` with the layout

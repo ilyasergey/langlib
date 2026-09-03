@@ -4520,6 +4520,70 @@ theorem fillAt_slot {m : Memory} {SI : Nat} (h6 : SI % 6 = 0) (base k i : Nat) :
   obtain ⟨c, hc⟩ := hdvd
   omega
 
+/-! ## Building an image directly: the fill is the witness's to choose
+
+On the image route a witness hands `evalImage` an `Image` it built rather
+than one `load` produced, so the six-value fill is its own. `imageOf` is
+that constructor and `imageOf_get` reads a virgin cell off the chosen fill
+by residue. With a slot stride divisible by 6 every cell of a tape shares
+one residue (`regAddr_mod6`), so a single fill value covers a whole tape,
+and `imageOf_regMem_init` discharges `sim_init`'s memory hypothesis for the
+all-zero register file by choosing the fill blank at the register residues.
+This is why the image route pays nothing for start-up where the loadable
+route pays a normalising pass. -/
+
+/-- An image built directly from a written-cell map and a chosen six-value
+fill, the constructor a witness on the image route uses instead of `load`.
+`cells` are the addresses it decides; `fill` supplies every other cell by
+its residue mod 6. -/
+def imageOf (cells : Std.HashMap Value Value) (fill : Nat → Value) : Memory :=
+  { cells := cells, rest := ⟨(List.range 6).map fill⟩ }
+
+/-- A virgin cell of a directly-built image reads the chosen fill value at
+its residue. This is the image route's foundation: the six values are the
+witness's to pick, so an unwritten cell can hold whatever a residue class
+needs. -/
+theorem imageOf_get {cells : Std.HashMap Value Value} {fill : Nat → Value} {n : Nat}
+    (h : ¬ cells.contains (Value.ofNat n)) :
+    (imageOf cells fill).get (Value.ofNat n) = fill (n % 6) := by
+  rw [show (imageOf cells fill).get (Value.ofNat n)
+        = (imageOf cells fill).cells.getD (Value.ofNat n)
+            ((imageOf cells fill).rest.getD (Value.ofNat n).mod6 Value.zero) from rfl,
+    Std.HashMap.getD_eq_fallback_of_contains_eq_false (by simpa [imageOf] using h)]
+  show (⟨(List.range 6).map fill⟩ : Array Value).getD (Value.ofNat n).mod6 Value.zero = _
+  rw [mod6_ofNat]
+  have hlt : n % 6 < 6 := Nat.mod_lt _ (by omega)
+  simp [Array.getD, hlt]
+
+/-- A register address's residue mod 6 does not depend on the slot index,
+when the slot stride is a multiple of 6: every cell of a given tape shares
+one residue class, so one fill value serves the whole tape. -/
+theorem regAddr_mod6 {DB SI r : Nat} (hSI : SI % 6 = 0) (q : Bool) (i : Nat) :
+    regAddr DB SI r q i % 6 = regAddr DB SI r q 0 % 6 := by
+  unfold regAddr
+  have hdvd : 6 ∣ i * SI := Nat.dvd_trans (Nat.dvd_of_mod_eq_zero hSI) (Nat.dvd_mul_left SI i)
+  obtain ⟨c, hc⟩ := hdvd
+  omega
+
+/-- **The layout invariant holds at start-up on the image route.** A
+directly-built image whose register cells are all virgin, and whose fill is
+blank at each tape's residue class, represents the all-zero register file.
+This is `sim_init`'s memory hypothesis, discharged by choosing the fill. -/
+theorem imageOf_regMem_init {DB SI R : Nat} (hSI : SI % 6 = 0)
+    {cells : Std.HashMap Value Value} {fill : Nat → Value}
+    (hvirgin : ∀ r < R, ∀ (q : Bool) (i : Nat),
+      ¬ cells.contains (Value.ofNat (regAddr DB SI r q i)))
+    (hblank : ∀ r < R, ∀ q : Bool, fill (regAddr DB SI r q 0 % 6) = cellBlank) :
+    RegMem DB SI R RegFile.init (imageOf cells fill) := by
+  intro r hr i
+  have hp : (RegFile.init r).p = 0 := rfl
+  have hq : (RegFile.init r).q = 0 := rfl
+  refine ⟨?_, ?_⟩
+  · rw [imageOf_get (hvirgin r hr false i), regAddr_mod6 hSI false i, hblank r hr false,
+      hp, if_neg (by omega)]
+  · rw [imageOf_get (hvirgin r hr true i), regAddr_mod6 hSI true i, hblank r hr true,
+      hq, if_neg (by omega)]
+
 /-! ## The core of a pass: probe, branch, jump
 
 `register_probe` and `flag_branch` were stated on values; this puts them on

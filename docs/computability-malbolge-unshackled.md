@@ -936,8 +936,9 @@ the address arithmetic
 `walk_branch_target_q`); the core of a pass (`pass_fold`,
 `pass_cell_restored`, `probe_branch_gadget`); the no-op sweep of a chain
 (`chain_link_nop`, `chain_run_nop`, `decode_encrypt_alternating`,
-`chain_restored`, `alternating_at`); and the uniformity of the fill across
-slots (`mod6_ofNat`, `get_of_not_mem`, `fillAt_slot`). `scripts/axioms.lean` reports `[propext,
+`chain_restored`, `alternating_at`); the uniformity of the fill across
+slots (`mod6_ofNat`, `get_of_not_mem`, `fillAt_slot`); and the image-route
+start-up (`imageOf`, `imageOf_get`, `regAddr_mod6`, `imageOf_regMem_init`). `scripts/axioms.lean` reports `[propext,
 Quot.sound]` or less for every one of them.
 
 **Measured, not proved**: the periods of `cat.mu` (3060) and `truth.mu`

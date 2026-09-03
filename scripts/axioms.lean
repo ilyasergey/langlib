@@ -748,6 +748,9 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.mod6_ofNat
 #print axioms Unshackled.get_of_not_mem
 #print axioms Unshackled.fillAt_slot
+#print axioms Unshackled.imageOf_get
+#print axioms Unshackled.regAddr_mod6
+#print axioms Unshackled.imageOf_regMem_init
 
 -- The core of a pass: probe, branch, jump, as one six-instruction gadget.
 #print axioms Unshackled.pass_fold

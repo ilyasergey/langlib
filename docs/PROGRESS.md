@@ -2,7 +2,37 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-09-03 (latest): Malbolge Unshackled, the core of a pass
+## 2026-09-03 (latest): Malbolge Unshackled, image-route start-up and the open crux
+
+On `ilya/malbolge-tc`. Two things: a proved foundation for the image
+route, and a precise statement of the one obstruction that is still an idea
+rather than labour.
+
+**Image-route start-up, proved.** The `ProgLang` instance takes a program
+to be an `Image`, so a witness may build the memory directly and choose its
+six-value fill. `imageOf` is that constructor, `imageOf_get` reads a virgin
+cell off the chosen fill by residue, `regAddr_mod6` says every cell of a
+tape shares one residue when the slot stride is a multiple of 6, and
+`imageOf_regMem_init` discharges `sim_init`'s memory hypothesis for the
+all-zero register file by choosing the fill blank at the register residues.
+So start-up costs nothing on the image route. Axiom-clean.
+
+**The open crux, stated.** Working toward one pass turned up an obstruction
+the docs understated. Every branch gadget takes a movd pointer whose value
+depends on the slot base, and that is structural: a `crazy` writes to
+`mem[d]` and then `d` post-increments, so the computed address ends one
+cell behind `d`, and a following `jmp` reading `mem[d]` needs a one-cell
+rewind, which only `movd` through a stored pointer provides. That pointer
+is per-slot, and a walk cannot supply it: the fill is uniform across slots,
+and propagation fails because `d` is unreadable, so a pass cannot compute
+its own base. The pointer-free branch (`flag_selects_address`) instead
+lands `d` on 0 or 1 and loses the sweep position. So a walk needs a
+data-dependent branch whose only per-slot operand is the register cell, and
+neither branch in hand is that. The tracker records the two open directions
+(a uniform loop-back target from the fill plus a separate boundary exit, or
+minting each slot's address by rotation). No witness yet.
+
+## 2026-09-03: Malbolge Unshackled, the core of a pass
 
 On the branch `ilya/malbolge-tc`. `probe_branch_gadget` in
 `Langlib/Computability/MalbolgeUnshackled.lean` puts the register probe
