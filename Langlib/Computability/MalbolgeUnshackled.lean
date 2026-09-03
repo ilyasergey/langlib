@@ -4513,6 +4513,172 @@ theorem fillAt_slot {m : Memory} {SI : Nat} (h6 : SI % 6 = 0) (base k i : Nat) :
   obtain ⟨c, hc⟩ := hdvd
   omega
 
+/-! ## The core of a pass: probe, branch, jump
+
+`register_probe` and `flag_branch` were stated on values; this puts them on
+the machine, back to back, as one gadget. Six instructions and five operand
+cells, all statically placed relative to the slot:
+
+| code | operand | what happens |
+|---|---|---|
+| `crazy` | `...111` | accumulator `blank ↦ ...111`; the cell keeps `...111` |
+| `crazy` | the register cell | accumulator `↦` the cell's value; **the cell is unchanged** |
+| `crazy` | `...111` | first operation of the branch |
+| `crazy` | `2 * 3 ^ j` | second: the accumulator and the cell now hold the address |
+| `movd` | a pointer to the cell above | `d` aims at the address |
+| `jmp` | — | control lands one past the address |
+
+The register cell coming back unchanged is the clause that matters, since
+it is what `sim_frame` needs to carry the whole register file across a
+pass; `pass_cell_restored` is that fact on values and
+`probe_branch_gadget` cashes it on the machine.
+
+Two facts about the state on landing that the rest of a pass builds on.
+First, `d` has advanced four cells whichever way the branch went — the
+`movd` teleports it, but to a fixed offset — so the two landing sites can
+agree on where the operands are. Second, **the accumulator is known on
+each side**: the branch separated the two cases by exactly the flag that
+determined the accumulator, so the code at `3 ^ j + 1` knows it holds
+`3 ^ j` and the code at `2 * 3 ^ j + 1` knows it holds `2 * 3 ^ j`. That is
+what makes resetting it to blank for the next probe a compile-time matter,
+with `crz_two_steps` and constants the compiler computes. -/
+
+/-- The four-operand fold a pass computes: load the test accumulator, read
+the register cell, then the two operations of the branch. -/
+theorem pass_fold {j : Nat} {v : Value} (hv : v = cellBlank ∨ v = cellMark) :
+    Value.crz (Value.crz (Value.crz (Value.crz cellBlank cellOne) v) cellOne)
+      (digitAt Trit.t2 j) = Value.ofNat (flagAddr j v) := by
+  rw [ladder_blank_to_one]
+  rcases hv with h | h <;> subst h
+  · rw [crz_probe_blank]; exact flag_branch j (Or.inl rfl)
+  · rw [crz_probe_mark]; exact flag_branch j (Or.inr rfl)
+
+/-- What the probe leaves in the register cell: exactly what it found. -/
+theorem pass_cell_restored {v : Value} (hv : v = cellBlank ∨ v = cellMark) :
+    Value.crz (Value.crz cellBlank cellOne) v = v := by
+  rw [ladder_blank_to_one]
+  rcases hv with h | h <;> subst h
+  · exact crz_probe_blank
+  · exact crz_probe_mark
+
+/-- **The core of one pass: probe, branch, jump, in six instructions.**
+From a blank accumulator, four `crazy` cells load the test accumulator,
+read the register cell without changing it, and turn what they read into a
+natural address; a `movd` aims `d` at that address and a `jmp` takes it.
+Control lands one past `3 ^ j` on a mark and one past `2 * 3 ^ j` on a
+blank, the register cell is exactly as it was, and `d` has advanced four
+cells into the slot whichever way the branch went. -/
+theorem probe_branch_gadget (j : Nat) {s₀ : State} {c₀ d₀ : Nat} (w : Nat → Nat) {wt : Nat}
+    {v : Value} (hv : v = cellBlank ∨ v = cellMark)
+    (ha : s₀.a = cellBlank)
+    (hc : s₀.c = Value.ofNat c₀) (hd : s₀.d = Value.ofNat d₀)
+    (hsep : c₀ + 6 ≤ d₀)
+    (hdec : ∀ i < 4, decode (s₀.mem.get (Value.ofNat (c₀ + i)))
+      (Value.ofNat (c₀ + i)).modClass = .crazy)
+    (hmovd : decode (s₀.mem.get (Value.ofNat (c₀ + 4)))
+      (Value.ofNat (c₀ + 4)).modClass = .movd)
+    (hjmp : decode (s₀.mem.get (Value.ofNat (c₀ + 5)))
+      (Value.ofNat (c₀ + 5)).modClass = .jmp)
+    (hprint : ∀ i < 5, printableCode? (s₀.mem.get (Value.ofNat (c₀ + i)))
+      = some (w i))
+    (hK0 : s₀.mem.get (Value.ofNat d₀) = cellOne)
+    (hKv : s₀.mem.get (Value.ofNat (d₀ + 1)) = v)
+    (hK2 : s₀.mem.get (Value.ofNat (d₀ + 2)) = cellOne)
+    (hK3 : s₀.mem.get (Value.ofNat (d₀ + 3)) = digitAt Trit.t2 j)
+    (hKp : s₀.mem.get (Value.ofNat (d₀ + 4)) = Value.ofNat (d₀ + 2))
+    -- the landing cell: printable, and outside everything the pass writes
+    (hprT : printableCode? (s₀.mem.get (Value.ofNat (flagAddr j v))) = some wt)
+    (hTc : ∀ i < 6, flagAddr j v ≠ c₀ + i)
+    (hTd : ∀ k < 5, flagAddr j v ≠ d₀ + k) :
+    ∃ s', run? 6 s₀ = some s'
+      ∧ s'.a = Value.ofNat (flagAddr j v)
+      ∧ s'.c = Value.ofNat (flagAddr j v + 1)
+      ∧ s'.d = Value.ofNat (d₀ + 4)
+      ∧ s'.mem.get (Value.ofNat d₀) = cellOne
+      ∧ s'.mem.get (Value.ofNat (d₀ + 1)) = v
+      ∧ s'.mem.get (Value.ofNat (c₀ + 5)) = s₀.mem.get (Value.ofNat (c₀ + 5))
+      ∧ s'.mem.get (Value.ofNat (flagAddr j v)) = Value.ofNat (encrypt wt)
+      ∧ (∀ x : Nat, (∀ i < 5, x ≠ c₀ + i) → (∀ k < 4, x ≠ d₀ + k) → x ≠ flagAddr j v →
+          s'.mem.get (Value.ofNat x) = s₀.mem.get (Value.ofNat x))
+      ∧ s'.input = s₀.input ∧ s'.output = s₀.output ∧ s'.outClosed = s₀.outClosed := by
+  set T := flagAddr j v with hT
+  -- the four crazy cells
+  obtain ⟨s₄, hrun4, hA, hC, hD, hDs, hCs, hframe, hin, hout, hoc, _, _⟩ :=
+    crazy_run 4 w hc hd (by omega) (fun i hi => hdec i hi)
+      (fun i hi => hprint i (by omega))
+  have hfold : crzFold s₀.mem d₀ s₀.a 4 = Value.ofNat T := by
+    show Value.crz (Value.crz (Value.crz (Value.crz s₀.a (s₀.mem.get (Value.ofNat (d₀ + 0))))
+      (s₀.mem.get (Value.ofNat (d₀ + 1)))) (s₀.mem.get (Value.ofNat (d₀ + 2))))
+      (s₀.mem.get (Value.ofNat (d₀ + 3))) = _
+    rw [show d₀ + 0 = d₀ from rfl, ha, hK0, hKv, hK2, hK3]
+    exact pass_fold hv
+  have hcell0 : crzFold s₀.mem d₀ s₀.a 1 = cellOne := by
+    show Value.crz s₀.a (s₀.mem.get (Value.ofNat (d₀ + 0))) = _
+    rw [show d₀ + 0 = d₀ from rfl, ha, hK0]; exact ladder_blank_to_one
+  have hcell1 : crzFold s₀.mem d₀ s₀.a 2 = v := by
+    show Value.crz (Value.crz s₀.a (s₀.mem.get (Value.ofNat (d₀ + 0))))
+      (s₀.mem.get (Value.ofNat (d₀ + 1))) = _
+    rw [show d₀ + 0 = d₀ from rfl, ha, hK0, hKv]; exact pass_cell_restored hv
+  -- the movd
+  have hm4 : s₄.mem.get (Value.ofNat (c₀ + 4)) = s₀.mem.get (Value.ofNat (c₀ + 4)) :=
+    hframe _ (fun i hi => ofNat_ne (by omega)) (fun k hk => ofNat_ne (by omega))
+  have hp4 : s₄.mem.get (Value.ofNat (d₀ + 4)) = Value.ofNat (d₀ + 2) := by
+    rw [hframe _ (fun i hi => ofNat_ne (by omega)) (fun k hk => ofNat_ne (by omega))]
+    exact hKp
+  have hstepM := step1_movd (s := s₄) (code := w 4)
+    (by rw [hC, hm4]; exact hmovd) (by rw [hC, hm4]; exact hprint 4 (by omega))
+  rw [hD, hp4, hC, succ_ofNat, succ_ofNat] at hstepM
+  set m₅ := s₄.mem.set (Value.ofNat (c₀ + 4)) (Value.ofNat (encrypt (w 4))) with hm₅
+  set s₅ : State := { s₄ with mem := m₅, c := Value.ofNat (c₀ + 4 + 1), d := Value.ofNat (d₀ + 2 + 1), maxWidth := if (Value.ofNat (d₀ + 2)).width > s₄.maxWidth then (Value.ofNat (d₀ + 2)).width else s₄.maxWidth, rotWidth := if (Value.ofNat (d₀ + 2)).width > s₄.maxWidth then growRotWidth s₄.rotWidth (Value.ofNat (d₀ + 2)).width else s₄.rotWidth } with hs₅
+  -- the jmp
+  have hJ : m₅.get (Value.ofNat (c₀ + 5)) = s₀.mem.get (Value.ofNat (c₀ + 5)) := by
+    rw [hm₅, get_set_ne _ (ofNat_ne (by omega))]
+    exact hframe _ (fun i hi => ofNat_ne (by omega)) (fun k hk => ofNat_ne (by omega))
+  have hAddr : m₅.get (Value.ofNat (d₀ + 3)) = Value.ofNat T := by
+    rw [hm₅, get_set_ne _ (ofNat_ne (by omega)), hDs 3 (by omega)]
+    exact hfold
+  have hTcell : m₅.get (Value.ofNat T) = s₀.mem.get (Value.ofNat T) := by
+    rw [hm₅, get_set_ne _ (ofNat_ne (Ne.symm (hTc 4 (by omega))))]
+    exact hframe _ (fun i hi => ofNat_ne (hTc i (by omega)))
+      (fun k hk => ofNat_ne (hTd k (by omega)))
+  have hdecJ : decode (s₅.mem.get s₅.c) s₅.c.modClass = .jmp := by
+    show decode (m₅.get (Value.ofNat (c₀ + 4 + 1))) (Value.ofNat (c₀ + 4 + 1)).modClass = _
+    rw [hJ]; exact hjmp
+  have hprJ : printableCode? (s₅.mem.get (s₅.mem.get s₅.d)) = some wt := by
+    show printableCode? (m₅.get (m₅.get (Value.ofNat (d₀ + 2 + 1)))) = _
+    rw [hAddr, hTcell]; exact hprT
+  have hstepJ := step1_jmp (s := s₅) (code := wt) hdecJ hprJ
+  have hd₅ : s₅.d = Value.ofNat (d₀ + 3) := rfl
+  rw [show s₅.mem.get s₅.d = Value.ofNat T from hAddr, hd₅, succ_ofNat, succ_ofNat] at hstepJ
+  set s₆ : State := { s₅ with mem := m₅.set (Value.ofNat T) (Value.ofNat (encrypt wt)), c := Value.ofNat (T + 1), d := Value.ofNat (d₀ + 3 + 1) } with hs₆
+  have hrun6 : run? 6 s₀ = some s₆ := by
+    rw [show (6 : Nat) = 4 + 1 + 1 by rfl, run?_add (4 + 1) 1, run?_add 4 1, hrun4,
+      Option.bind_some, run?_one, hstepM, Option.bind_some, run?_one]
+    exact hstepJ
+  refine ⟨s₆, hrun6, ?_, rfl, rfl, ?_, ?_, ?_, ?_, ?_, hin, hout, hoc⟩
+  · show s₄.a = _
+    rw [hA]; exact hfold
+  · show (m₅.set (Value.ofNat T) (Value.ofNat (encrypt wt))).get (Value.ofNat d₀) = _
+    rw [get_set_ne _ (ofNat_ne (show T ≠ d₀ from fun h => hTd 0 (by omega) (by omega))), hm₅,
+      get_set_ne _ (ofNat_ne (by omega)),
+      show s₄.mem.get (Value.ofNat d₀) = _ from hDs 0 (by omega)]
+    exact hcell0
+  · show (m₅.set (Value.ofNat T) (Value.ofNat (encrypt wt))).get (Value.ofNat (d₀ + 1)) = _
+    rw [get_set_ne _ (ofNat_ne (hTd 1 (by omega))), hm₅,
+      get_set_ne _ (ofNat_ne (by omega)), hDs 1 (by omega)]
+    exact hcell1
+  · show (m₅.set (Value.ofNat T) (Value.ofNat (encrypt wt))).get (Value.ofNat (c₀ + 5)) = _
+    rw [get_set_ne _ (ofNat_ne (hTc 5 (by omega)))]
+    exact hJ
+  · show (m₅.set (Value.ofNat T) (Value.ofNat (encrypt wt))).get (Value.ofNat T) = _
+    rw [get_set_self]
+  · intro x hxc hxd hxT
+    show (m₅.set (Value.ofNat T) (Value.ofNat (encrypt wt))).get (Value.ofNat x) = _
+    rw [get_set_ne _ (ofNat_ne (Ne.symm hxT)), hm₅,
+      get_set_ne _ (ofNat_ne (Ne.symm (hxc 4 (by omega))))]
+    exact hframe _ (fun i hi => ofNat_ne (hxc i (by omega)))
+      (fun k hk => ofNat_ne (hxd k hk))
+
 end Unshackled
 
 end Langlib.Computability

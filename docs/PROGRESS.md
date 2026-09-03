@@ -2,7 +2,31 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-09-03 (latest): a hand-written Turpentine backend for Unlambda
+## 2026-09-03 (latest): Malbolge Unshackled, the core of a pass
+
+On the branch `ilya/malbolge-tc`. `probe_branch_gadget` in
+`Langlib/Computability/MalbolgeUnshackled.lean` puts the register probe
+and the two-operation branch on the machine as one gadget: six
+instructions, five statically placed operands. Four `crazy` cells load the
+test accumulator, read the register cell, and turn what they read into a
+natural address; a `movd` aims `d` at it; a `jmp` takes it. Control lands
+one past `3 ^ j` on a mark and one past `2 * 3 ^ j` on a blank, and the
+register cell is exactly as it was, which is what `sim_frame` needs to
+carry the register file across a pass. Axiom-clean.
+
+Two things about the landing state the rest of a pass will use. `d` has
+advanced exactly four cells whichever way the branch went, so both landing
+sites agree on where the operands are. And the accumulator is known on
+each side, because the branch separated the two cases by the very flag
+that produced it; resetting it for the next probe is a compile-time
+matter.
+
+What remains of a pass is the wrapping `walk_iterate` takes as its
+hypothesis: re-entry of the code cells (`two_sweep`), restocking the two
+branch constants the mark path consumes, and normalising the next slot.
+Still no witness.
+
+## 2026-09-03: a hand-written Turpentine backend for Unlambda
 
 `Langlib/Languages/Turpentine/Compile/Unlambda.lean`, the backend
 `docs/unlambda/compiler.md` had been describing as the most interesting one

@@ -749,6 +749,11 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.get_of_not_mem
 #print axioms Unshackled.fillAt_slot
 
+-- The core of a pass: probe, branch, jump, as one six-instruction gadget.
+#print axioms Unshackled.pass_fold
+#print axioms Unshackled.pass_cell_restored
+#print axioms Unshackled.probe_branch_gadget
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

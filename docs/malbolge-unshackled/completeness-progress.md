@@ -85,6 +85,7 @@ than by taste:
 | A branch into two natural addresses | `flag_branch`, `flagAddr_gadget` — two crazy operations, three instructions |
 | The walk | `walk_iterate`, `walk_run` — iteration whose length is the tape's |
 | Where the walk stops | `walk_branch_target`, `walk_branch_target_q` |
+| The core of a pass | `probe_branch_gadget` — probe, branch, jump in six instructions; the register cell comes back unchanged |
 
 ## Remaining
 
@@ -214,12 +215,26 @@ its exit at the other terminates the walk exactly at the boundary.
 `walk_branch_target_q` is the same on the second tape, the one `dec`
 extends.
 
-**One pass is what is left.** It is the hypothesis `walk_iterate` takes:
-from slot `i`, `k` steps reach slot `i + 1` with the layout intact. Two
-concrete jobs inside it. The pass has to be re-enterable, which is what
-`two_sweep` is for. And it has to **restock**: the mark path of the branch
-consumes both of its constants (the blank path restores the second one by
-itself), so a pass must rewrite them before the next pass reads them.
+**The core of a pass exists.** `probe_branch_gadget` puts the probe, the
+branch and the jump on the machine as one six-instruction gadget with five
+statically placed operands: it loads the test accumulator, reads the
+register cell **without changing it**, turns what it read into a natural
+address, aims `d` at it and jumps. Control lands one past `3 ^ j` on a
+mark and one past `2 * 3 ^ j` on a blank, and `d` has advanced four cells
+whichever way it went. Two facts on landing that the rest of a pass builds
+on: the register file is untouched, so `sim_frame` carries it across; and
+**the accumulator is known on each side**, because the branch separated
+the cases by exactly the flag that determined it, so resetting it to blank
+for the next probe is a compile-time matter.
+
+**What is left of a pass** is the wrapping that `walk_iterate` takes as its
+hypothesis: from slot `i`, `k` steps reach slot `i + 1` with the layout
+intact. Three concrete jobs. The code cells have to be re-enterable, which
+is what `two_sweep` is for (the six cells here are executed once per pass,
+so they alternate instruction and no-op like any other). The pass has to
+**restock**: the mark path consumes both branch constants (the blank path
+restores the second by itself). And it has to normalise and propagate the
+next slot, as the section below explains.
 
 `sim_loop_test` already reduces the loop condition to reading exactly the
 cell a walk halts on, so the data side of the pass is closed.

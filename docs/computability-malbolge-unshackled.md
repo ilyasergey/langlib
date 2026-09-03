@@ -874,12 +874,31 @@ at one address and its exit at the other gets termination at the tape
 boundary for nothing. Both tapes are covered, `inc` walking the first and
 `dec` the second.
 
-What `walk_iterate` takes as a hypothesis is one pass: that from slot `i`,
-`k` steps reach slot `i + 1` with the invariant intact. Building that pass
-is the remaining work, and the narrow question inside it is restocking —
-the mark path consumes both branch constants, so a pass has to restore its
-own operands before the next one runs, which is what the two-sweep
-discipline is for.
+### The core of a pass
+
+`probe_branch_gadget` puts `register_probe` and `flag_branch` on the
+machine back to back: six instructions and five operand cells, all placed
+statically relative to the slot. Four `crazy` cells load the test
+accumulator, read the register cell, and run the two operations of the
+branch; a `movd` aims `d` at the cell now holding the address; a `jmp`
+takes it. The register cell **comes back unchanged** (`pass_cell_restored`
+on values, cashed by the gadget), which is what `sim_frame` needs to carry
+the whole register file across a pass.
+
+Two facts about the landing state matter to the rest of a pass. `d` has
+advanced exactly four cells whichever way the branch went, the `movd`
+having teleported it to a fixed offset, so both landing sites agree on
+where the operands are. And the accumulator is *known* on each side: the
+code at `3 ^ j + 1` holds `3 ^ j`, the code at `2 * 3 ^ j + 1` holds
+`2 * 3 ^ j`, because the branch separated the cases by exactly the flag
+that produced the accumulator. Resetting it to blank for the next probe is
+therefore a compile-time matter, with `crz_two_steps`.
+
+What `walk_iterate` takes as a hypothesis is the whole pass: from slot `i`,
+`k` steps reach slot `i + 1` with the invariant intact. Wrapping the core
+into that is the remaining work: re-entry (`two_sweep`), restocking the
+two branch constants the mark path consumes, and normalising the next
+slot, which the section on the memory fill below explains.
 
 ## What is proved, what is cited, what is open
 
@@ -905,8 +924,9 @@ the address arithmetic
 (`trit_digitAt`, `digitAt_one_eq`, `digitAt_two_eq`, `flag_branch_blank`,
 `flag_branch_mark`, `flag_branch`, `flagAddr_gadget`); and the walk
 (`walk_iterate`, `walk_run`, `walk_branch_target`,
-`walk_branch_target_q`); and the uniformity of the fill across slots
-(`mod6_ofNat`, `get_of_not_mem`, `fillAt_slot`). `scripts/axioms.lean` reports `[propext,
+`walk_branch_target_q`); the core of a pass (`pass_fold`,
+`pass_cell_restored`, `probe_branch_gadget`); and the uniformity of the
+fill across slots (`mod6_ofNat`, `get_of_not_mem`, `fillAt_slot`). `scripts/axioms.lean` reports `[propext,
 Quot.sound]` or less for every one of them.
 
 **Measured, not proved**: the periods of `cat.mu` (3060) and `truth.mu`
