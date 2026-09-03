@@ -896,9 +896,18 @@ therefore a compile-time matter, with `crz_two_steps`.
 
 What `walk_iterate` takes as a hypothesis is the whole pass: from slot `i`,
 `k` steps reach slot `i + 1` with the invariant intact. Wrapping the core
-into that is the remaining work: re-entry (`two_sweep`), restocking the
-two branch constants the mark path consumes, and normalising the next
-slot, which the section on the memory fill below explains.
+into that is the remaining work: re-entry, restocking the two branch
+constants the mark path consumes, and on the loadable route normalising
+the next slot, which the section on the memory fill below explains.
+
+Re-entry now has its second half. `chain_run` was the work sweep of a
+stride-94 chain; `chain_run_nop` is the no-op sweep, in which every
+working cell, now a no-op, encrypts itself once more and the accumulator
+and every operand are untouched, and `chain_restored` says two-cycle words
+come back to where they started. `alternating_at` places a chain: any
+natural address with the table's residue, one check for all its links. So
+the re-enterable form of the pass core is its six operations laid out as a
+chain and run twice.
 
 ## What is proved, what is cited, what is open
 
@@ -925,17 +934,20 @@ the address arithmetic
 `flag_branch_mark`, `flag_branch`, `flagAddr_gadget`); and the walk
 (`walk_iterate`, `walk_run`, `walk_branch_target`,
 `walk_branch_target_q`); the core of a pass (`pass_fold`,
-`pass_cell_restored`, `probe_branch_gadget`); and the uniformity of the
-fill across slots (`mod6_ofNat`, `get_of_not_mem`, `fillAt_slot`). `scripts/axioms.lean` reports `[propext,
+`pass_cell_restored`, `probe_branch_gadget`); the no-op sweep of a chain
+(`chain_link_nop`, `chain_run_nop`, `decode_encrypt_alternating`,
+`chain_restored`, `alternating_at`); and the uniformity of the fill across
+slots (`mod6_ofNat`, `get_of_not_mem`, `fillAt_slot`). `scripts/axioms.lean` reports `[propext,
 Quot.sound]` or less for every one of them.
 
 **Measured, not proved**: the periods of `cat.mu` (3060) and `truth.mu`
 (408), the five-step control cycle above, and that **no pair of printable
-seeds puts `...000` into the memory fill**, so a walk never finds a blank
-cell ahead of itself and every pass must normalise the cells it is about to
-use (`fillAt_slot` is what makes that affordable: with a slot stride
-divisible by 6, the fill value at a given offset is the same in every
-slot). These come from running the
+seeds puts `...000` into the memory fill**, so a *loadable* witness never
+finds a blank cell ahead of a walk and every pass must normalise the cells
+it is about to use (`fillAt_slot` is what makes that affordable: with a
+slot stride divisible by 6, the fill value at a given offset is the same in
+every slot). A witness that builds its `Image` directly, which the
+`ProgLang` instance permits, chooses the fill and is not affected. These come from running the
 reference interpreter, so they are facts about our semantics, but they are
 `#eval` output rather than kernel-checked theorems.
 

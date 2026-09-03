@@ -754,6 +754,13 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.pass_cell_restored
 #print axioms Unshackled.probe_branch_gadget
 
+-- The no-op sweep of a chain, its restoration, and where a chain may sit.
+#print axioms Unshackled.chain_link_nop
+#print axioms Unshackled.chain_run_nop
+#print axioms Unshackled.decode_encrypt_alternating
+#print axioms Unshackled.chain_restored
+#print axioms Unshackled.alternating_at
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.

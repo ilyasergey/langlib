@@ -86,6 +86,8 @@ than by taste:
 | The walk | `walk_iterate`, `walk_run` — iteration whose length is the tape's |
 | Where the walk stops | `walk_branch_target`, `walk_branch_target_q` |
 | The core of a pass | `probe_branch_gadget` — probe, branch, jump in six instructions; the register cell comes back unchanged |
+| The no-op sweep of a chain | `chain_link_nop`, `chain_run_nop`, `chain_restored` — the second run that restores a chain for re-entry |
+| Where a chain may sit | `alternating_at` — one residue check per chain |
 
 ## Remaining
 
@@ -229,12 +231,19 @@ for the next probe is a compile-time matter.
 
 **What is left of a pass** is the wrapping that `walk_iterate` takes as its
 hypothesis: from slot `i`, `k` steps reach slot `i + 1` with the layout
-intact. Three concrete jobs. The code cells have to be re-enterable, which
-is what `two_sweep` is for (the six cells here are executed once per pass,
-so they alternate instruction and no-op like any other). The pass has to
-**restock**: the mark path consumes both branch constants (the blank path
-restores the second by itself). And it has to normalise and propagate the
-next slot, as the section below explains.
+intact. Two concrete jobs on the image route, three on the loadable one. The
+code cells have to be re-enterable: `probe_branch_gadget` is laid out
+contiguously and so runs once, and the re-enterable form is the same six
+operations as a stride-94 chain run twice per pass, the work sweep
+(`chain_run`) and then the no-op sweep (`chain_run_nop`), with
+`chain_restored` closing the circle and `alternating_at` placing it. The
+branch-dependent landing sites return control to the chain for the second
+sweep with `d` offsets that differ by one, so the second sweep's stable
+`jmp` reads a different exit cell on each path, which is how the two exits
+are told apart after the sweep. The pass has to **restock**: the mark path
+consumes both branch constants (the blank path restores the second by
+itself). And on the loadable route it has to normalise the next slot, as
+the section below explains.
 
 `sim_loop_test` already reduces the loop condition to reading exactly the
 cell a walk halts on, so the data side of the pass is closed.
@@ -245,8 +254,17 @@ cell above a tape's length to be blank. Untouched cells hold the memory
 fill, and the fill is **never** blank: searching every pair of printable
 seeds finds no pair putting `...000` anywhere in the six-value table
 (measured, not proved; `leadAt_even` and `crzTrit_zero_ne_zero` are the
-structural reason). So a pass has to normalise the cells it is about to
-use.
+structural reason).
+
+This bites a **loadable** witness, one whose image is `load` of a source
+text. The `ProgLang` instance takes a program to be an `Image`, so a
+witness may instead build the image directly and pick the fill itself, and
+`...000` makes every virgin cell blank for nothing. That route is simpler
+and weaker: it proves the interpreter's memory model Turing complete, not
+that a *source text* exists for every machine. The plan is to take the
+image route first, since every gadget is the same on both, and to close
+the gap with the normalising pass afterwards. On the loadable route a pass
+has to normalise the cells it is about to use.
 
 That is affordable, and `fillAt_slot` is why: with a slot stride divisible
 by 6, a given offset holds the *same* fill value in every slot, because the

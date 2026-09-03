@@ -4474,13 +4474,20 @@ fill term by parity: half of them are not naturals at all, and the crazy
 operation has no column sending two zero trits to zero
 (`crzTrit_zero_ne_zero`).
 
-So a pass has to **normalise** the cells it is about to use, converting
-each from the fill value to blank. That is affordable because of the
-lemmas below: with a slot stride divisible by 6, a given offset holds the
-*same* fill value in every slot, since the fill depends on the address only
-through its residue mod 6 (`fillAt_slot`). The value is therefore a
-compile-time constant, and `crz_two_steps` turns a known value into any
-other in two operations.
+That is an obstruction for a **loadable** witness, one whose image is
+`load` of some source text. The `ProgLang` instance above takes a program
+to be an `Image`, so a witness may instead build its image directly and
+choose the six-value fill itself; choosing `...000` makes every virgin
+register cell blank and the problem disappears. The two routes differ in
+strength, and the tracker says which is being taken.
+
+On the loadable route a pass has to **normalise** the cells it is about to
+use, converting each from the fill value to blank. That is affordable
+because of the lemmas below: with a slot stride divisible by 6, a given
+offset holds the *same* fill value in every slot, since the fill depends
+on the address only through its residue mod 6 (`fillAt_slot`). The value
+is therefore a compile-time constant, and `crz_two_steps` turns a known
+value into any other in two operations.
 
 Which closes the circularity a first design runs into. The constants a pass
 needs sit in the slot it is walking, because `d` only ever advances; slots
@@ -4678,6 +4685,186 @@ theorem probe_branch_gadget (j : Nat) {s₀ : State} {c₀ d₀ : Nat} (w : Nat 
       get_set_ne _ (ofNat_ne (Ne.symm (hxc 4 (by omega))))]
     exact hframe _ (fun i hi => ofNat_ne (hxc i (by omega)))
       (fun k hk => ofNat_ne (hxd k hk))
+
+/-! ## The no-op sweep of a chain
+
+`chain_run` is the work sweep of a chain; every re-enterable chain also
+needs its no-op sweep, and nothing supplied it. A working cell holding a
+two-cycle word is its instruction on the first execution and a no-op on the
+second (`alternatingCell_spec`), so a chain run twice per pass does its
+work once and then restores itself. `chain_run_nop` is the second run:
+the accumulator and every operand are untouched, each working cell is
+encrypted once more, every `jmp` still stands, and control and `d` end
+exactly where the work sweep left them. `chain_restored` then closes the
+circle, and `alternating_at` says where a chain may sit: any natural
+address with the table's residue, one check for the whole chain since its
+links are 94 apart. -/
+
+/-- One link of a chain on its no-op sweep: the working cell, now a no-op,
+encrypts itself and touches nothing else; the stable `jmp` carries control
+on. Two steps, `d` advancing two, the operand cell untouched. -/
+theorem chain_link_nop {s : State} {a D t : Nat} {wc wt : Nat}
+    (hc : s.c = Value.ofNat a) (hd : s.d = Value.ofNat D)
+    (hdecC : decode (s.mem.get (Value.ofNat a)) (Value.ofNat a).modClass = .nop)
+    (hprC : printableCode? (s.mem.get (Value.ofNat a)) = some wc)
+    (hdecJ : decode (s.mem.get (Value.ofNat (a + 1))) (Value.ofNat (a + 1)).modClass = .jmp)
+    (hD1a : D + 1 ≠ a)
+    (htgt : s.mem.get (Value.ofNat (D + 1)) = Value.ofNat t)
+    (hprT : printableCode? (s.mem.get (Value.ofNat t)) = some wt)
+    (htne : t ≠ a) :
+    ∃ s', run? 2 s = some s'
+      ∧ s'.a = s.a
+      ∧ s'.c = Value.ofNat (t + 1)
+      ∧ s'.d = Value.ofNat (D + 2)
+      ∧ s'.mem.get (Value.ofNat a) = Value.ofNat (encrypt wc)
+      ∧ (∀ x : Nat, x ≠ a → x ≠ t →
+          s'.mem.get (Value.ofNat x) = s.mem.get (Value.ofNat x))
+      ∧ s'.input = s.input ∧ s'.output = s.output ∧ s'.outClosed = s.outClosed := by
+  have hstep1 := step1_nop (s := s) (code := wc) (by rw [hc]; exact hdecC) (by rw [hc]; exact hprC)
+  rw [hc, hd] at hstep1
+  set m₁ := s.mem.set (Value.ofNat a) (Value.ofNat (encrypt wc)) with hm₁
+  set s₁ : State := { s with mem := m₁, c := (Value.ofNat a).succ, d := (Value.ofNat D).succ } with hs₁
+  have hc₁ : s₁.c = Value.ofNat (a + 1) := succ_ofNat a
+  have hd₁ : s₁.d = Value.ofNat (D + 1) := succ_ofNat D
+  have hJ₁ : m₁.get (Value.ofNat (a + 1)) = s.mem.get (Value.ofNat (a + 1)) := by
+    rw [hm₁, get_set_ne _ (ofNat_ne (by omega))]
+  have htgt₁ : m₁.get (Value.ofNat (D + 1)) = Value.ofNat t := by
+    rw [hm₁, get_set_ne _ (ofNat_ne (Ne.symm hD1a))]; exact htgt
+  have hT₁ : m₁.get (Value.ofNat t) = s.mem.get (Value.ofNat t) := by
+    rw [hm₁, get_set_ne _ (ofNat_ne (Ne.symm htne))]
+  have hdecJ₁ : decode (s₁.mem.get s₁.c) s₁.c.modClass = Instr.jmp := by
+    rw [hc₁]; show decode (m₁.get (Value.ofNat (a + 1))) _ = _; rw [hJ₁]; exact hdecJ
+  have hprT₁ : printableCode? (s₁.mem.get (s₁.mem.get s₁.d)) = some wt := by
+    rw [hd₁]; show printableCode? (m₁.get (m₁.get (Value.ofNat (D + 1)))) = _
+    rw [htgt₁, hT₁]; exact hprT
+  have hstep2 := step1_jmp (s := s₁) (code := wt) hdecJ₁ hprT₁
+  rw [hd₁] at hstep2
+  rw [show (2 : Nat) = 1 + 1 from rfl]
+  refine ⟨{ s₁ with mem := m₁.set (Value.ofNat t) (Value.ofNat (encrypt wt)), c := (Value.ofNat t).succ, d := (Value.ofNat (D + 1)).succ }, ?_, rfl, ?_, ?_, ?_, ?_, rfl, rfl, rfl⟩
+  · rw [run?_add 1 1, run?_one, hstep1, Option.bind_some, run?_one]
+    show step1 s₁ = _
+    rw [hstep2, htgt₁]
+  · show (Value.ofNat t).succ = _; rw [succ_ofNat]
+  · show (Value.ofNat (D + 1)).succ = _; rw [succ_ofNat]
+  · show (m₁.set (Value.ofNat t) (Value.ofNat (encrypt wt))).get (Value.ofNat a) = _
+    rw [get_set_ne _ (ofNat_ne htne), hm₁, get_set_self]
+  · intro x hxa hxt
+    show (m₁.set (Value.ofNat t) (Value.ofNat (encrypt wt))).get (Value.ofNat x) = _
+    rw [get_set_ne _ (ofNat_ne (Ne.symm hxt)), hm₁, get_set_ne _ (ofNat_ne (Ne.symm hxa))]
+
+/-- **The no-op sweep of a chain.** The same `n` links as `chain_run`, now
+with every working cell a no-op: the accumulator and every operand cell
+are untouched, each working cell is encrypted once more, every `jmp` cell
+still stands, and control and `d` end exactly where the work sweep left
+them. With two-cycle words this is what restores a chain for re-entry. -/
+theorem chain_run_nop (n : Nat) {s : State} {A D : Nat} (wc wt : Nat → Nat)
+    (hc : s.c = Value.ofNat A) (hd : s.d = Value.ofNat D)
+    (hsep : A + 94 * n + 94 ≤ D)
+    (hdecC : ∀ i < n, decode (s.mem.get (Value.ofNat (A + 94 * i)))
+      (Value.ofNat (A + 94 * i)).modClass = .nop)
+    (hprC : ∀ i < n, printableCode? (s.mem.get (Value.ofNat (A + 94 * i))) = some (wc i))
+    (hdecJ : ∀ i < n, decode (s.mem.get (Value.ofNat (A + 94 * i + 1)))
+      (Value.ofNat (A + 94 * i + 1)).modClass = .jmp)
+    (htgt : ∀ i < n, s.mem.get (Value.ofNat (D + 2 * i + 1))
+      = Value.ofNat (A + 94 * i + 93))
+    (hprT : ∀ i < n, printableCode? (s.mem.get (Value.ofNat (A + 94 * i + 93)))
+      = some (wt i)) :
+    ∃ s', run? (2 * n) s = some s'
+      ∧ s'.a = s.a
+      ∧ s'.c = Value.ofNat (A + 94 * n)
+      ∧ s'.d = Value.ofNat (D + 2 * n)
+      ∧ (∀ i < n, s'.mem.get (Value.ofNat (A + 94 * i)) = Value.ofNat (encrypt (wc i)))
+      ∧ (∀ x : Nat, (∀ i < n, x ≠ A + 94 * i) → (∀ i < n, x ≠ A + 94 * i + 93) →
+          s'.mem.get (Value.ofNat x) = s.mem.get (Value.ofNat x))
+      ∧ s'.input = s.input ∧ s'.output = s.output ∧ s'.outClosed = s.outClosed := by
+  induction n with
+  | zero =>
+    exact ⟨s, rfl, rfl, by simpa using hc, by simpa using hd,
+      fun i hi => absurd hi (by omega), fun _ _ _ => rfl, rfl, rfl, rfl⟩
+  | succ n ih =>
+    obtain ⟨sn, hrun, hAcc, hC, hD, hCs, hframe, hin, hout, hoc⟩ :=
+      ih (by omega) (fun i hi => hdecC i (by omega)) (fun i hi => hprC i (by omega))
+        (fun i hi => hdecJ i (by omega))
+        (fun i hi => htgt i (by omega)) (fun i hi => hprT i (by omega))
+    have hu : ∀ x : Nat, (∀ i < n, x ≠ A + 94 * i) → (∀ i < n, x ≠ A + 94 * i + 93) →
+        sn.mem.get (Value.ofNat x) = s.mem.get (Value.ofNat x) := hframe
+    have hC0 : sn.mem.get (Value.ofNat (A + 94 * n)) = s.mem.get (Value.ofNat (A + 94 * n)) :=
+      hu _ (fun i hi => by omega) (fun i hi => by omega)
+    have hJ0 : sn.mem.get (Value.ofNat (A + 94 * n + 1))
+        = s.mem.get (Value.ofNat (A + 94 * n + 1)) :=
+      hu _ (fun i hi => by omega) (fun i hi => by omega)
+    have hT0 : sn.mem.get (Value.ofNat (D + 2 * n + 1))
+        = s.mem.get (Value.ofNat (D + 2 * n + 1)) :=
+      hu _ (fun i hi => by omega) (fun i hi => by omega)
+    have hTC : sn.mem.get (Value.ofNat (A + 94 * n + 93))
+        = s.mem.get (Value.ofNat (A + 94 * n + 93)) :=
+      hu _ (fun i hi => by omega) (fun i hi => by omega)
+    obtain ⟨s', hr', hacc', hc', hd', hcr', hfr', hi', ho', hoc'⟩ :=
+      chain_link_nop (s := sn) (a := A + 94 * n) (D := D + 2 * n)
+        (t := A + 94 * n + 93) (wc := wc n) (wt := wt n)
+        hC hD (by rw [hC0]; exact hdecC n (by omega))
+        (by rw [hC0]; exact hprC n (by omega))
+        (by rw [hJ0]; exact hdecJ n (by omega))
+        (by omega)
+        (by rw [hT0]; exact htgt n (by omega))
+        (by rw [hTC]; exact hprT n (by omega))
+        (by omega)
+    refine ⟨s', ?_, hacc'.trans hAcc, ?_, ?_, ?_, ?_, hi'.trans hin, ho'.trans hout,
+      hoc'.trans hoc⟩
+    · rw [show 2 * (n + 1) = 2 * n + 2 by omega, run?_add (2 * n) 2, hrun,
+        Option.bind_some]
+      exact hr'
+    · rw [hc', show A + 94 * n + 93 + 1 = A + 94 * (n + 1) by omega]
+    · rw [hd', show D + 2 * n + 2 = D + 2 * (n + 1) by omega]
+    · intro i hi
+      by_cases hin' : i = n
+      · subst hin'; exact hcr'
+      · rw [hfr' _ (by omega) (by omega)]
+        exact hCs i (by omega)
+    · intro x hx1 hx3
+      rw [hfr' _ (hx1 n (by omega)) (hx3 n (by omega))]
+      exact hu x (fun i hi => hx1 i (by omega)) (fun i hi => hx3 i (by omega))
+
+
+
+/-- An alternating cell, once encrypted, decodes to a no-op at its residue:
+the second half of `alternatingCell_spec`, read through `decode`. -/
+theorem decode_encrypt_alternating (i : Instr) (h : i ≠ .outOfBounds) :
+    decode (Value.ofNat (encrypt (alternatingCell i).2)) (alternatingCell i).1 = .nop := by
+  cases i <;> first | exact absurd rfl h | decide
+
+/-- **A chain of two-cycle words is restored by its no-op sweep**: the
+stride-94 form of `row_restored`. -/
+theorem chain_restored {m m' : Memory} {A n : Nat} {v : Nat → Nat}
+    (hcycle : ∀ i < n, v i = 70 ∨ v i = 74)
+    (hbefore : ∀ i < n, m.get (Value.ofNat (A + 94 * i)) = Value.ofNat (v i))
+    (hafter : ∀ i < n, m'.get (Value.ofNat (A + 94 * i))
+      = Value.ofNat (encrypt (encrypt (v i)))) :
+    ∀ i < n, m'.get (Value.ofNat (A + 94 * i)) = m.get (Value.ofNat (A + 94 * i)) := by
+  intro i hi
+  rw [hafter i hi, hbefore i hi, encrypt_encrypt_two_cycle (hcycle i hi)]
+
+
+
+/-- **Where a re-enterable cell may sit.** At any natural address whose
+residue is the table's, the word 74 is the instruction and its encryption,
+70, is a no-op. Since all the links of a chain share one residue, one
+residue check places a whole chain. -/
+theorem alternating_at (i : Instr) (h : i ≠ .outOfBounds) {a : Nat}
+    (ha : a % 94 = (alternatingCell i).1) :
+    decode (Value.ofNat 74) (Value.ofNat a).modClass = i
+    ∧ decode (Value.ofNat 70) (Value.ofNat a).modClass = .nop := by
+  have hw : (alternatingCell i).2 = 74 := by cases i <;> rfl
+  have hlt : (alternatingCell i).1 < 94 := by cases i <;> decide
+  have hmod : (Value.ofNat a).modClass % 94 = (alternatingCell i).1 % 94 := by
+    rw [modClass_ofNat, Nat.mod_mod_of_dvd a (by omega), ha, Nat.mod_eq_of_lt hlt]
+  constructor
+  · rw [decode_congr_mod94 hmod]
+    have := (alternatingCell_spec i h).1
+    rwa [hw] at this
+  · rw [decode_congr_mod94 hmod]
+    have := decode_encrypt_alternating i h
+    rwa [hw, encrypt_seventyfour] at this
 
 end Unshackled
 

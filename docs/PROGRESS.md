@@ -21,10 +21,25 @@ each side, because the branch separated the two cases by the very flag
 that produced it; resetting it for the next probe is a compile-time
 matter.
 
+**The no-op sweep of a chain.** `chain_run` was the work sweep of a
+stride-94 chain and nothing supplied the second run that makes a chain
+re-enterable. `chain_run_nop` does: every working cell, now a no-op,
+encrypts itself once more, the accumulator and every operand are untouched,
+every `jmp` still stands, and control and `d` end where the work sweep
+left them. `chain_restored` closes the circle for two-cycle words and
+`alternating_at` places a chain with one residue check.
+
+**A correction to the previous entry.** The finding that the memory fill
+is never blank is an obstruction for a *loadable* witness. The `ProgLang`
+instance takes a program to be an `Image`, so a witness may build its image
+directly and choose the fill, and `...000` makes every virgin cell blank.
+That route is simpler and weaker, and the tracker now says the plan is to
+take it first and close the gap with the normalising pass afterwards.
+
 What remains of a pass is the wrapping `walk_iterate` takes as its
-hypothesis: re-entry of the code cells (`two_sweep`), restocking the two
-branch constants the mark path consumes, and normalising the next slot.
-Still no witness.
+hypothesis: the six operations as a chain run twice, restocking the two
+branch constants the mark path consumes, and on the loadable route
+normalising the next slot. Still no witness.
 
 ## 2026-09-03: a hand-written Turpentine backend for Unlambda
 
