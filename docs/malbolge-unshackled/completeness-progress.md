@@ -17,6 +17,87 @@ below is machine-checked and axiom-clean, and
 All of it lives in one file,
 [`Langlib/Computability/MalbolgeUnshackled.lean`](../../Langlib/Computability/MalbolgeUnshackled.lean).
 
+## Handoff: start here
+
+Read this first. The construction is far along and almost every piece is
+proved, but one question is still genuinely open, and everything downstream
+waits on it. Do not start writing the counter-machine translation until
+this one question is settled, because its answer decides the memory layout.
+
+**The one open question.** A register is a unary tape, and to read or extend
+it the data pointer `d` must sweep along the tape to the first empty cell.
+Sweeping forward is free: `d` advances by one after every instruction, and a
+stable `i`-instruction (which never rewrites itself) carries control from
+one working cell to the next, so a straight run steps `d` along the tape at
+no cost. What is *not* solved is stopping the sweep at a data-dependent
+point, i.e. testing the current cell and, based on what it holds, either
+continuing the sweep or leaving it. Two facts collide:
+
+* Any routine that turns the tape cell into a *computed* destination has to
+  put that destination back under `d` before the outgoing `i`-instruction
+  reads it. But a write lands one cell behind `d` (the pointer moves on
+  after each step), so the destination must be fetched back with a
+  pointer-load, and that pointer is a slot-local absolute address. It
+  differs from tape position to tape position, and nothing can supply it:
+  the six-value background fill is the same in every slot, and a routine
+  cannot compute its own position because `d` is never readable.
+* The one routine that needs no such pointer reads the cell straight into
+  `d` and lands `d` on one of two fixed low addresses. That one throws away
+  the sweep position, and the position cannot be saved and restored, again
+  because `d` is never readable.
+
+So the missing building block is: **a data-dependent two-way choice whose
+only position-varying input is the tape cell itself, and which keeps the
+sweep position on the "continue" side.** The section "The open crux: a
+branch that keeps `d`" below states this in full.
+
+**Two routes worth trying, in this order.**
+
+1. *Store destinations in the tape cells instead of `0` and `1` markers.*
+   Let an occupied cell hold the address that continues the sweep and an
+   empty cell hold the address that leaves it. Then a single stable
+   `i`-instruction reading the current cell chooses between them while `d`
+   advances by one, with no pointer-load and no lost position. This is the
+   promising route. Its cost is that it replaces the current cell encoding
+   (`...000` empty, `...222` occupied), so the whole register layer built
+   on that encoding — the two-tape difference representation, the layout
+   invariant, the routines that extend a tape, and the four simulation
+   lemmas — has to be restated for the new encoding. Sketch the new cell
+   encoding and re-prove the layout invariant *before* touching anything
+   else, so the cost is known before it is paid. The `i`-instruction facts
+   you need are already proved: it never rewrites itself as long as it does
+   not target its own cell, and it advances `d` by one.
+
+2. *Reposition `d` by a value the routine can reconstruct.* The width
+   escalator (rotate the value `1` at width `w` to get `3^(w-1)`, then a
+   pointer-load doubles the width) mints a fresh address without storing
+   it. If each tape position's address is minted this way rather than
+   reached by a raw sweep, the position becomes computable and the branch
+   can reposition `d` even after consuming it. The escalator itself is
+   proved; deciding tape positions from it is not, and this route is more
+   speculative than the first.
+
+**What is already safe to build on.** Start-up is done: on the image route a
+witness builds memory directly and picks the six background values, so the
+initial layout invariant holds with no work (`imageOf`, `imageOf_get`,
+`regAddr_mod6`, `imageOf_regMem_init`). The forward sweep, its restoring
+return pass, and its placement are proved (`chain_run`, `chain_run_nop`,
+`chain_restored`, `alternating_at`). The tape arithmetic, the layout
+invariant, and the four simulation-step lemmas are proved
+(`TapePair`, `RegMem`, `regMem_up`, `regMem_down`, `sim_inc`, `sim_dec`,
+`sim_emit`, `sim_frame`, `sim_loop_test`). The loop rule that consumes a
+strictly-decreasing measure is proved (`run_of_measure`), and so is the
+ending a halting run needs (`exec_halts_of_run?`). None of this changes
+under route 1 except the cell encoding the layout invariant is stated in.
+
+**Discipline for this checkout.** Several sessions share it. Build your own
+targets by name; run `lake test` before pushing, not after; never use
+`git stash` here, it has clobbered other sessions' uncommitted work. Audit
+with a scratch file that imports only
+`Langlib.Computability.MalbolgeUnshackled`, not through
+`scripts/axioms.lean`, which pulls in the whole library. Work on the branch
+`ilya/malbolge-tc`.
+
 ## The route
 
 The target-independent half of every completeness proof already exists:
