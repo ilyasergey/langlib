@@ -3,18 +3,24 @@
 * **Author**: Ørjan Johansen, 2007, as a variant of Ben Olmstead's
   Malbolge (1998).
 * **Year**: 2007.
-* **Canonical reference**: there is no separate specification document. The
-  language is defined by Johansen's Haskell interpreter,
-  http://oerjan.nvg.org/esoteric/Unshackled.hs (header: "By Ørjan Johansen
-  (Feb 2007-). This program is in the public domain."), which this
-  implementation follows step for step, together with the prose description
-  of the deviations from Malbolge on the community page
-  https://esolangs.org/wiki/Malbolge_Unshackled (CC0), which links that
-  interpreter as the reference implementation. Wikipedia has no article
-  of its own for the variant; it is covered in a section of the Malbolge
-  article, https://en.wikipedia.org/wiki/Malbolge#Variants.
-* **Implementation**: [`Langlib/Languages/MalbolgeUnshackled/`](../../Langlib/Languages/MalbolgeUnshackled/).
-* **Examples**: [`Langlib/Examples/MalbolgeUnshackled/`](../../Langlib/Examples/MalbolgeUnshackled/).
+* **Canonical sources**: there is no separate specification document.
+  - Johansen's Haskell interpreter, http://oerjan.nvg.org/esoteric/Unshackled.hs
+    (header: "By Ørjan Johansen (Feb 2007-). This program is in the public
+    domain."), defines the language; this implementation follows it step for
+    step;
+  - the prose description of the deviations from Malbolge on the community
+    page https://esolangs.org/wiki/Malbolge_Unshackled (CC0), which links
+    that interpreter as the reference implementation; and
+  - Wikipedia has no article of its own for the variant; it is covered in a
+    section of the Malbolge article,
+    https://en.wikipedia.org/wiki/Malbolge#Variants.
+* **In LangLib**:
+  - [`Langlib/Languages/MalbolgeUnshackled/`](../../Langlib/Languages/MalbolgeUnshackled/),
+  - runner `lake exe malbolge-unshackled`,
+  - [examples](../../Langlib/Examples/MalbolgeUnshackled/),
+  - tests in [`Langlib/Tests/MalbolgeUnshackled.lean`](../../Langlib/Tests/MalbolgeUnshackled.lean),
+  - the ground floor of a completeness proof, not yet a witness, in [`Langlib/Computability/MalbolgeUnshackled.lean`](../../Langlib/Computability/MalbolgeUnshackled.lean) and [docs/computability-malbolge-unshackled.md](../computability-malbolge-unshackled.md), with running notes in [completeness-progress.md](completeness-progress.md), and
+  - a Turpentine backend over the input-free fragment in [`Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean`](../../Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean) ([docs/malbolge-unshackled/compiler.md](compiler.md))
 * **See also**: [Malbolge](../malbolge/spec.md), the bounded original, and
   [its computability page](../computability-malbolge.md), which proves that
   the bound makes Malbolge's halting problem decidable.

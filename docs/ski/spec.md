@@ -1,16 +1,24 @@
 # SKI combinator calculus
 
 * **Authors**: Moses Schönfinkel (1924) and Haskell Curry (1930).
-* **Canonical reference**: Schönfinkel, *Über die Bausteine der
-  mathematischen Logik*, Mathematische Annalen 92 (1924), pp. 305-316,
-  https://doi.org/10.1007/BF01448013; Curry, *Grundlagen der
-  kombinatorischen Logik*, American Journal of Mathematics 52 (1930),
-  pp. 509-536, https://doi.org/10.2307/2370619. Both are the mathematics,
-  not an implementation; the language below is the mathematics with a file
-  extension. Community page: https://esolangs.org/wiki/Combinatory_logic
-  (CC0); Wikipedia: https://en.wikipedia.org/wiki/SKI_combinator_calculus.
-* **Implementation**: [`Langlib/Languages/Ski/`](../../Langlib/Languages/Ski/).
-* **Examples**: [`Langlib/Examples/Ski/`](../../Langlib/Examples/Ski/).
+* **Canonical sources**:
+  - Schönfinkel, *Über die Bausteine der mathematischen Logik*,
+    Mathematische Annalen 92 (1924), pp. 305-316,
+    https://doi.org/10.1007/BF01448013;
+  - Curry, *Grundlagen der kombinatorischen Logik*, American Journal of
+    Mathematics 52 (1930), pp. 509-536, https://doi.org/10.2307/2370619.
+    Both are the mathematics, not an implementation; the language below is
+    the mathematics with a file extension;
+  - the community page, https://esolangs.org/wiki/Combinatory_logic (CC0);
+    and
+  - Wikipedia, https://en.wikipedia.org/wiki/SKI_combinator_calculus.
+* **In LangLib**:
+  - [`Langlib/Languages/Ski/`](../../Langlib/Languages/Ski/),
+  - runner `lake exe ski`,
+  - [examples](../../Langlib/Examples/Ski/),
+  - tests in [`Langlib/Tests/Ski.lean`](../../Langlib/Tests/Ski.lean),
+  - Turing completeness in [`Langlib/Computability/Ski.lean`](../../Langlib/Computability/Ski.lean) and [docs/computability-ski.md](../computability-ski.md), and
+  - a certified Turpentine compiler derived from the completeness proof, with no hand-written one planned ([docs/ski/compiler.md](compiler.md))
 
 ## Why it is here
 

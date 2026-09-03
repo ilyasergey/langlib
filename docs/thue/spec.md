@@ -2,13 +2,18 @@
 
 * **Author**: John Colagioia
 * **Year**: 2000
-* **Canonical sources**: Colagioia's specification (`thue.txt`) and C
-  interpreter (`thue.c`, rev. 1.5 with Chris Pressey's 2010 fixes), both
-  preserved in Cat's Eye Technologies' distribution at
-  https://github.com/catseye/Thue; the community reference point is
-  https://esolangs.org/wiki/Thue
-* **In LangLib**: `Langlib/Languages/Thue/`, runner `lake exe thue`,
-  examples in `Langlib/Examples/Thue/`
+* **Canonical sources**:
+  - Colagioia's specification (`thue.txt`) and C interpreter (`thue.c`,
+    rev. 1.5 with Chris Pressey's 2010 fixes), both preserved in Cat's Eye
+    Technologies' distribution at https://github.com/catseye/Thue; and
+  - the community reference point, https://esolangs.org/wiki/Thue.
+* **In LangLib**:
+  - `Langlib/Languages/Thue/`,
+  - runner `lake exe thue`,
+  - [examples](../../Langlib/Examples/Thue/),
+  - tests in [`Langlib/Tests/Thue.lean`](../../Langlib/Tests/Thue.lean),
+  - Turing completeness in [`Langlib/Computability/Thue.lean`](../../Langlib/Computability/Thue.lean) and [docs/computability-thue.md](../computability-thue.md), and
+  - a certified Turpentine compiler derived from the completeness proof; the hand-written one is still planned ([docs/thue/compiler.md](compiler.md))
 
 ## History: Axel Thue and semi-Thue systems
 

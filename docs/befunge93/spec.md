@@ -2,18 +2,25 @@
 
 * **Author**: Chris Pressey
 * **Year**: 1993
-* **Canonical sources**: Pressey's Befunge-93 documentation and the original
-  interpreter `bef.c`, both maintained at Cat's Eye Technologies
-  (https://catseye.tc/article/Languages.md#befunge-93, source at
-  https://github.com/catseye/Befunge-93). The reference distribution is
-  freely redistributable: the documentation is under a BSD-compatible
-  licence modelled on the Haskell 98 Report's (copy and modify at will, just
-  do not claim to *be* the definition of Befunge-93), and `bef.c` is under a
-  BSD-style licence. Independent implementations are welcome, of which this
-  is one. Community reference: https://esolangs.org/wiki/Befunge (CC0);
-  Wikipedia: https://en.wikipedia.org/wiki/Befunge.
-* **In LangLib**: `Langlib/Languages/Befunge93/`, runner `lake exe befunge93`,
-  examples in `Langlib/Examples/Befunge93/`
+* **Canonical sources**:
+  - Pressey's Befunge-93 documentation and the original interpreter `bef.c`,
+    both maintained at Cat's Eye Technologies
+    (https://catseye.tc/article/Languages.md#befunge-93, source at
+    https://github.com/catseye/Befunge-93). The reference distribution is
+    freely redistributable: the documentation is under a BSD-compatible
+    licence modelled on the Haskell 98 Report's (copy and modify at will,
+    just do not claim to *be* the definition of Befunge-93), and `bef.c` is
+    under a BSD-style licence. Independent implementations are welcome, of
+    which this is one;
+  - the community reference, https://esolangs.org/wiki/Befunge (CC0); and
+  - Wikipedia, https://en.wikipedia.org/wiki/Befunge.
+* **In LangLib**:
+  - `Langlib/Languages/Befunge93/`,
+  - runner `lake exe befunge93`,
+  - [examples](../../Langlib/Examples/Befunge93/),
+  - tests in [`Langlib/Tests/Befunge93.lean`](../../Langlib/Tests/Befunge93.lean),
+  - a finite-state restriction of the language, with decidable halting, in [`Langlib/Computability/Befunge93.lean`](../../Langlib/Computability/Befunge93.lean) and [docs/computability-befunge93.md](../computability-befunge93.md), and
+  - no Turpentine backend, for reasons recorded in [docs/befunge93/compiler.md](compiler.md)
 
 ## History
 

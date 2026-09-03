@@ -2,25 +2,31 @@
 
 * **Author**: Ben Olmstead
 * **Year**: 1998
-* **Canonical sources**: Olmstead's specification text and reference
-  interpreter (`malbolge.c`), originally at his university site (now dead),
-  archived at
-  https://web.archive.org/web/20000815230017/http://www.mines.edu/students/b/bolmstea/malbolge/
-  and mirrored, with the standard corrections and analysis, on Lou
-  Scheffer's page https://www.lscheffer.com/malbolge.shtml; community
-  reference today: https://esolangs.org/wiki/Malbolge, with the accumulated
-  programming folklore at https://esolangs.org/wiki/Malbolge_programming;
-  Matthias Lutter's collection of programs and tools at
-  https://lutter.cc/malbolge/; Wikipedia:
-  https://en.wikipedia.org/wiki/Malbolge
+* **Canonical sources**:
+  - Olmstead's specification text and reference interpreter (`malbolge.c`),
+    originally at his university site (now dead), archived at
+    https://web.archive.org/web/20000815230017/http://www.mines.edu/students/b/bolmstea/malbolge/
+    and mirrored, with the standard corrections and analysis, on Lou
+    Scheffer's page https://www.lscheffer.com/malbolge.shtml;
+  - the community reference today, https://esolangs.org/wiki/Malbolge, with
+    the accumulated programming folklore at
+    https://esolangs.org/wiki/Malbolge_programming;
+  - Matthias Lutter's collection of programs and tools at
+    https://lutter.cc/malbolge/; and
+  - Wikipedia, https://en.wikipedia.org/wiki/Malbolge.
 * **License**: public domain. The spec states "I hereby relinquish any and
   all copyright on this language, documentation, and interpreter; Malbolge
   is officially public domain", and the interpreter's header repeats it
   ("This interpreter isn't even Copylefted; I hereby place it in the public
   domain"). Scheffer likewise placed all his Malbolge work in the public
   domain.
-* **In LangLib**: `Langlib/Languages/Malbolge/`, runner `lake exe malbolge`,
-  examples in `Langlib/Examples/Malbolge/`
+* **In LangLib**:
+  - `Langlib/Languages/Malbolge/`,
+  - runner `lake exe malbolge`,
+  - [examples](../../Langlib/Examples/Malbolge/),
+  - tests in [`Langlib/Tests/Malbolge.lean`](../../Langlib/Tests/Malbolge.lean),
+  - the finite control space and decidable halting, so Malbolge is not Turing complete, in [`Langlib/Computability/Malbolge.lean`](../../Langlib/Computability/Malbolge.lean) and [docs/computability-malbolge.md](../computability-malbolge.md), and
+  - a Turpentine backend, bounded by the language rather than by us, in [`Langlib/Languages/Turpentine/Compile/Malbolge.lean`](../../Langlib/Languages/Turpentine/Compile/Malbolge.lean) ([docs/malbolge/compiler.md](compiler.md))
 
 ## History
 

@@ -2,16 +2,21 @@
 
 * **Author**: David Morgan-Mar
 * **Year**: ~2002
-* **Canonical sources**: Morgan-Mar's specification at
-  https://www.dangermouse.net/esoteric/piet.html; the community page is
-  https://esolangs.org/wiki/Piet (CC0). The de-facto reference
-  implementation is Erik Schoenfelder's npiet
-  (https://www.bertnase.de/npiet/). Wikipedia has no article of its own
-  for Piet; it is covered in a section of the esoteric-languages
-  article,
-  https://en.wikipedia.org/wiki/Esoteric_programming_language#Piet
-* **In LangLib**: `Langlib/Languages/Piet/`, runner `lake exe piet`,
-  examples in `Langlib/Examples/Piet/`
+* **Canonical sources**:
+  - Morgan-Mar's specification at https://www.dangermouse.net/esoteric/piet.html;
+  - the community page, https://esolangs.org/wiki/Piet (CC0);
+  - the de-facto reference implementation, Erik Schoenfelder's npiet
+    (https://www.bertnase.de/npiet/); and
+  - Wikipedia has no article of its own for Piet; it is covered in a
+    section of the esoteric-languages article,
+    https://en.wikipedia.org/wiki/Esoteric_programming_language#Piet.
+* **In LangLib**:
+  - `Langlib/Languages/Piet/`,
+  - runner `lake exe piet`,
+  - [examples](../../Langlib/Examples/Piet/),
+  - tests in [`Langlib/Tests/Piet.lean`](../../Langlib/Tests/Piet.lean),
+  - Turing completeness in [`Langlib/Computability/Piet.lean`](../../Langlib/Computability/Piet.lean) and [docs/computability-piet.md](../computability-piet.md), and
+  - a hand-written Turpentine backend in [`Langlib/Languages/Turpentine/Compile/Piet.lean`](../../Langlib/Languages/Turpentine/Compile/Piet.lean), plus a certified one derived from the completeness proof ([docs/piet/compiler.md](compiler.md))
 
 ## History
 

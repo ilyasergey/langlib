@@ -9,8 +9,13 @@
   reference implementation it describes.
 * **Inspiration**: [Velvet](https://github.com/verse-lab/velvet), a
   Dafny-flavoured verification language shallowly embedded in Lean
-* **In LangLib**: `Langlib/Languages/Turpentine/`, runner `lake exe turpentine`, examples in
-  `Langlib/Examples/Turpentine/`
+* **In LangLib**:
+  - `Langlib/Languages/Turpentine/`,
+  - runner `lake exe turpentine`,
+  - [examples](../../Langlib/Examples/Turpentine/),
+  - tests in [`Langlib/Tests/Turpentine.lean`](../../Langlib/Tests/Turpentine.lean),
+  - hand-written compilers to the other languages in [`Langlib/Languages/Turpentine/Compile/`](../../Langlib/Languages/Turpentine/Compile/), the certified ones derived from completeness witnesses in [`Compile/Derived.lean`](../../Langlib/Languages/Turpentine/Compile/Derived.lean), and
+  - correctness proofs of the hand-written backends in [`Langlib/Languages/Turpentine/Certified/`](../../Langlib/Languages/Turpentine/Certified/)
 
 ## The name
 

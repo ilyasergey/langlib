@@ -2,13 +2,19 @@
 
 * **Authors**: Edwin Brady and Chris Morris
 * **Year**: 2003 (v0.2); v0.3 added `copy` and `slide` in 2004
-* **Canonical sources**: the original tutorial and the `wspace` interpreter
-  (Haskell, GPL), written at the University of Durham; preserved at
-  https://github.com/wspace/whitespace-haskell. Community reference point:
-  https://esolangs.org/wiki/Whitespace; Wikipedia:
-  https://en.wikipedia.org/wiki/Whitespace_(programming_language)
-* **In LangLib**: `Langlib/Languages/Whitespace/`, runner `lake exe whitespace`,
-  examples in `Langlib/Examples/Whitespace/`
+* **Canonical sources**:
+  - the original tutorial and the `wspace` interpreter (Haskell, GPL),
+    written at the University of Durham; preserved at
+    https://github.com/wspace/whitespace-haskell;
+  - the community reference point, https://esolangs.org/wiki/Whitespace; and
+  - Wikipedia, https://en.wikipedia.org/wiki/Whitespace_(programming_language).
+* **In LangLib**:
+  - `Langlib/Languages/Whitespace/`,
+  - runner `lake exe whitespace`,
+  - [examples](../../Langlib/Examples/Whitespace/),
+  - tests in [`Langlib/Tests/Whitespace.lean`](../../Langlib/Tests/Whitespace.lean),
+  - Turing completeness in [`Langlib/Computability/Whitespace.lean`](../../Langlib/Computability/Whitespace.lean), and
+  - a hand-written Turpentine backend proved correct on a fragment in [`Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean`](../../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean), plus a certified one derived from the completeness proof ([docs/whitespace/compiler.md](compiler.md))
 
 ## History
 

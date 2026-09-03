@@ -75,6 +75,12 @@ taught it to you.
   specification or implementation. Respect copyright: summarise
   specifications in our own words, never paste licensed text or licensed
   example programs. Only implement languages that are freely implementable.
+* Every spec page opens with the same preamble: a bullet list with
+  **Author**, **Year**, **Canonical sources** and **In LangLib**. The last
+  two are nested lists, one item per source and one item per artefact (source
+  folder, runner, examples, tests, computability result, Turpentine
+  backend), each artefact a relative link; a single source stays inline.
+  `docs/velato/spec.md` is the model.
 * Documentation should be precise and entertaining to read. These languages
   are jokes with formal content; keep both.
 * Every spec page has a "Trying it" section: one command per code

@@ -3,8 +3,13 @@
 * **Author**: Lode Vandevenne
 * **Year**: 2005
 * **Canonical source**: https://esolangs.org/wiki/Brainloller (CC0)
-* **In LangLib**: `Langlib/Languages/Brainloller/`, runner
-  `lake exe brainloller`, examples in `Langlib/Examples/Brainloller/`
+* **In LangLib**:
+  - `Langlib/Languages/Brainloller/`,
+  - runner `lake exe brainloller`,
+  - [examples](../../Langlib/Examples/Brainloller/),
+  - tests in [`Langlib/Tests/Brainloller.lean`](../../Langlib/Tests/Brainloller.lean),
+  - Turing completeness, inherited from brainfuck, in [`Langlib/Computability/Brainloller.lean`](../../Langlib/Computability/Brainloller.lean), and
+  - a Turpentine backend via brainfuck in [`Langlib/Languages/Turpentine/Compile/Brainloller.lean`](../../Langlib/Languages/Turpentine/Compile/Brainloller.lean), plus a certified one derived from the completeness proof ([docs/brainloller/compiler.md](compiler.md))
 
 ## The idea
 

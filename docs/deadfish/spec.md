@@ -2,11 +2,16 @@
 
 * **Author**: Jonathan Todd Skinner
 * **Year**: 2006
-* **Canonical sources**: Skinner's original C interpreter, released into the
+* **Canonical source**: Skinner's original C interpreter, released into the
   public domain and preserved (with the language page) at
   https://esolangs.org/wiki/Deadfish (CC0)
-* **In LangLib**: `Langlib/Languages/Deadfish/`, runner `lake exe deadfish`,
-  examples in `Langlib/Examples/Deadfish/`
+* **In LangLib**:
+  - `Langlib/Languages/Deadfish/`,
+  - runner `lake exe deadfish`,
+  - [examples](../../Langlib/Examples/Deadfish/),
+  - tests in [`Langlib/Tests/Deadfish.lean`](../../Langlib/Tests/Deadfish.lean),
+  - exact termination and decidable halting in [`Langlib/Computability/Deadfish.lean`](../../Langlib/Computability/Deadfish.lean) and [docs/computability-deadfish.md](../computability-deadfish.md), and
+  - no Turpentine backend yet ([docs/deadfish/compiler.md](compiler.md))
 
 ## History
 

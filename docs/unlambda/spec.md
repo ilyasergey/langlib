@@ -1,16 +1,22 @@
 # Unlambda
 
 * **Author**: David Madore, 1999.
-* **Canonical reference**: Madore's *The Unlambda Programming Language*
-  page, http://www.madore.org/~david/programs/unlambda/, and the
-  `unlambda-2.0.0.tar.gz` distribution it offers, which ships four
-  interpreters (C, reference-counting C, Java, Scheme) and a specification
-  section. Where they disagree, and they do, this page says which one
-  LangLib follows and why. Community page:
-  https://esolangs.org/wiki/Unlambda (CC0); Wikipedia:
-  https://en.wikipedia.org/wiki/Unlambda.
-* **Implementation**: [`Langlib/Languages/Unlambda/`](../../Langlib/Languages/Unlambda/).
-* **Examples**: [`Langlib/Examples/Unlambda/`](../../Langlib/Examples/Unlambda/).
+* **Canonical sources**:
+  - Madore's *The Unlambda Programming Language* page,
+    http://www.madore.org/~david/programs/unlambda/, and the
+    `unlambda-2.0.0.tar.gz` distribution it offers, which ships four
+    interpreters (C, reference-counting C, Java, Scheme) and a specification
+    section. Where they disagree, and they do, this page says which one
+    LangLib follows and why;
+  - the community page, https://esolangs.org/wiki/Unlambda (CC0); and
+  - Wikipedia, https://en.wikipedia.org/wiki/Unlambda.
+* **In LangLib**:
+  - [`Langlib/Languages/Unlambda/`](../../Langlib/Languages/Unlambda/),
+  - runner `lake exe unlambda`,
+  - [examples](../../Langlib/Examples/Unlambda/),
+  - tests in [`Langlib/Tests/Unlambda.lean`](../../Langlib/Tests/Unlambda.lean),
+  - Turing completeness in [`Langlib/Computability/Unlambda.lean`](../../Langlib/Computability/Unlambda.lean) and [docs/computability-unlambda.md](../computability-unlambda.md), and
+  - a hand-written Turpentine backend in [`Langlib/Languages/Turpentine/Compile/Unlambda.lean`](../../Langlib/Languages/Turpentine/Compile/Unlambda.lean), plus a certified one derived from the completeness proof ([docs/unlambda/compiler.md](compiler.md))
 
 ## The joke
 

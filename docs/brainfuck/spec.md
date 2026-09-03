@@ -2,14 +2,21 @@
 
 * **Author**: Urban Müller
 * **Year**: 1993
-* **Canonical sources**: Müller's original distribution, uploaded by him to
-  Aminet in June 1993 as `brainfuck-2.lha` and still there
-  (http://aminet.net/package/dev/lang/brainfuck-2), including the 240-byte
-  Amiga compiler; the community reference point today is
-  https://esolangs.org/wiki/Brainfuck (CC0); Wikipedia:
-  https://en.wikipedia.org/wiki/Brainfuck
-* **In LangLib**: `Langlib/Languages/Brainfuck/`, runner `lake exe brainfuck`,
-  examples in `Langlib/Examples/Brainfuck/`
+* **Canonical sources**:
+  - Müller's original distribution, uploaded by him to Aminet in June 1993
+    as `brainfuck-2.lha` and still there
+    (http://aminet.net/package/dev/lang/brainfuck-2), including the
+    240-byte Amiga compiler;
+  - the community reference point today, https://esolangs.org/wiki/Brainfuck
+    (CC0); and
+  - Wikipedia, https://en.wikipedia.org/wiki/Brainfuck.
+* **In LangLib**:
+  - `Langlib/Languages/Brainfuck/`,
+  - runner `lake exe brainfuck`,
+  - [examples](../../Langlib/Examples/Brainfuck/),
+  - tests in [`Langlib/Tests/Brainfuck.lean`](../../Langlib/Tests/Brainfuck.lean),
+  - Turing completeness in [`Langlib/Computability/Brainfuck.lean`](../../Langlib/Computability/Brainfuck.lean) and [docs/computability-brainfuck.md](../computability-brainfuck.md), and
+  - a hand-written Turpentine backend in [`Langlib/Languages/Turpentine/Compile/Brainfuck.lean`](../../Langlib/Languages/Turpentine/Compile/Brainfuck.lean), plus a certified one derived from the completeness proof ([docs/brainfuck/compiler.md](compiler.md))
 
 ## History
 

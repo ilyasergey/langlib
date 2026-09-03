@@ -1,29 +1,31 @@
-# velato
+# Velato
 
 * **Author**: Daniel Temkin
 * **Year**: 2009 (a second dialect, driven by whistling rather than by MIDI
   files, followed in 2024)
-* **Canonical sources**: the language's own site, https://velato.net/, whose
-  [intro](https://velato.net/#intro), [language
-  rules](https://velato.net/#commandList) and [Hello World
-  tutorial](https://velato.net/Language/HelloWorld/) are the specification
-  this page follows; the 2009 reference compiler in C#,
-  https://github.com/rottytooth/Velato (MIT); a Python interpreter,
-  https://github.com/rottytooth/VelatoPy (MIT); the whistling dialect,
-  https://github.com/rottytooth/VelatoJS (MIT); an independent JavaScript
-  implementation by Erik Erwitt, https://github.com/eerwitt/velato-js; and
-  the wiki page, https://esolangs.org/wiki/Velato. Velato also appears in
-  Temkin's *Forty-Four Esolangs* (MIT Press, 2025),
+* **Canonical sources**:
+  - the language's own site, https://velato.net/, whose
+    [intro](https://velato.net/#intro), [language
+    rules](https://velato.net/#commandList) and [Hello World
+    tutorial](https://velato.net/Language/HelloWorld/) are the specification
+    this page follows;
+  - the 2009 reference compiler in C#, https://github.com/rottytooth/Velato
+    (MIT);
+  - a Python interpreter, https://github.com/rottytooth/VelatoPy (MIT);
+  - the whistling dialect, https://github.com/rottytooth/VelatoJS (MIT);
+  - an independent JavaScript implementation by Erik Erwitt,
+    https://github.com/eerwitt/velato-js; and
+  - the wiki page, https://esolangs.org/wiki/Velato.
+
+  Velato also appears in Temkin's *Forty-Four Esolangs* (MIT Press, 2025),
   https://mitpress.mit.edu/9780262553087/forty-four-esolangs/
-* **In LangLib**: `Langlib/Languages/Velato/`, runner `lake exe velato`,
-  [examples](../../Langlib/Examples/Velato/), tests in
-  [`Langlib/Tests/Velato.lean`](../../Langlib/Tests/Velato.lean), Turing
-  completeness in [`Langlib/Computability/Velato.lean`](../../Langlib/Computability/Velato.lean)
-  and [docs/computability-velato.md](../computability-velato.md), and a
-  Turpentine backend proved correct on a fragment, behaviourally and input
-  included, in
-  [`Langlib/Languages/Turpentine/Certified/BespokeVelato.lean`](../../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean)
-  ([docs/velato/compiler.md](compiler.md))
+* **In LangLib**:
+  - `Langlib/Languages/Velato/`,
+  - runner `lake exe velato`,
+  - [examples](../../Langlib/Examples/Velato/),
+  - tests in [`Langlib/Tests/Velato.lean`](../../Langlib/Tests/Velato.lean),
+  - Turing completeness in [`Langlib/Computability/Velato.lean`](../../Langlib/Computability/Velato.lean) and [docs/computability-velato.md](../computability-velato.md), and
+  - a hand-written Turpentine backend proved correct on a fragment, behaviourally and input included, in [`Langlib/Languages/Turpentine/Certified/BespokeVelato.lean`](../../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean), plus a certified one derived from the completeness proof ([docs/velato/compiler.md](compiler.md))
 
 ## History
 
