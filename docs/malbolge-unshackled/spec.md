@@ -140,10 +140,14 @@ what can make the rotation width grow.
 
 ## Computational class
 
-**Turing complete.** Unbounded values and unbounded memory remove the
-finiteness argument that settles Malbolge, and the matter was settled
-positively in 2020 when Kamila Szewczyk's MalbolgeLisp — a Lisp interpreter
-written in Malbolge Unshackled — demonstrated arbitrary computation in it.
+**Turing complete, supported by an external construction; not yet proved
+in Lean.** Matthias Lutter's [2016 Brainfuck interpreter](https://lutter.cc/unshackled/brainfuck.html)
+implements a dialect with unbounded cells and tape, and publishes its
+assembly source for inspection. The later
+[MalbolgeLisp](https://github.com/iczelia/malbolge-lisp) is further evidence.
+Removing Malbolge's finite bound alone would not establish universality.
+The [proof audit](proof-audit.md) identifies an impossible invariant in the
+previous Lean approach and gives the revised fixed-counter construction.
 
 LangLib has no machine-checked proof of this yet; the status matrix in
 [docs/README.md](../README.md) tracks it, and

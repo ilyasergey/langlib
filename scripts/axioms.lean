@@ -37,6 +37,7 @@ import Langlib.Computability.Piet
 import Langlib.Computability.Fractran
 import Langlib.Languages.Turpentine.Certified.BespokeSubleq
 import Langlib.Computability.MalbolgeUnshackled
+import Langlib.Computability.MalbolgeUnshackled.Obstructions
 import Langlib.Computability.Unlambda
 import Langlib.Computability.Ski
 
@@ -366,8 +367,8 @@ open Langlib.Turpentine.Compile
 #print axioms bespokeWhitespaceIOErased
 #print axioms BespokeWhitespace.bespokeCompile_core
 #print axioms BespokeWhitespace.bespokeCompile_behaves
-#print axioms BespokeWhitespace.decodeAnswer_epilogue
-#print axioms BespokeWhitespace.evalExpr_hasTy
+#print axioms Langlib.Turpentine.Certified.decodeAnswer_epilogue
+#print axioms Langlib.Turpentine.Certified.evalExpr_hasTy
 #print axioms BespokeWhitespace.reaches_bytesCode
 #print axioms BespokeWhitespace.bespokeCompile
 #print axioms BespokeWhitespace.binOfChars_spell_toDigits
@@ -424,7 +425,7 @@ open Langlib.Turpentine.Compile
 #print axioms BespokeWhitespace.clean_boolTail_jz
 #print axioms BespokeWhitespace.clean_boolTail_jn
 #print axioms BespokeWhitespace.clean_neTail
-#print axioms BespokeWhitespace.mem_of_contains
+#print axioms Langlib.Turpentine.Certified.mem_of_contains
 #print axioms BespokeWhitespace.emitsExpr
 #print axioms BespokeWhitespace.reaches_cast
 #print axioms BespokeWhitespace.CodeAt.head
@@ -435,15 +436,15 @@ open Langlib.Turpentine.Compile
 #print axioms BespokeWhitespace.reaches_boolTail_jz
 #print axioms BespokeWhitespace.reaches_boolTail_jn
 #print axioms BespokeWhitespace.reaches_neTail
-#print axioms BespokeWhitespace.exc_pure
-#print axioms BespokeWhitespace.exc_throw
-#print axioms BespokeWhitespace.exc_bind_ok
-#print axioms BespokeWhitespace.exc_bind_err
-#print axioms BespokeWhitespace.evalExpr_bin_eq
-#print axioms BespokeWhitespace.evalExpr_bin_inv
-#print axioms BespokeWhitespace.evalExpr_and_eq
-#print axioms BespokeWhitespace.evalExpr_or_eq
-#print axioms BespokeWhitespace.evalExpr_var_inv
+#print axioms Langlib.Turpentine.Certified.exc_pure
+#print axioms Langlib.Turpentine.Certified.exc_throw
+#print axioms Langlib.Turpentine.Certified.exc_bind_ok
+#print axioms Langlib.Turpentine.Certified.exc_bind_err
+#print axioms Langlib.Turpentine.Certified.evalExpr_bin_eq
+#print axioms Langlib.Turpentine.Certified.evalExpr_bin_inv
+#print axioms Langlib.Turpentine.Certified.evalExpr_and_eq
+#print axioms Langlib.Turpentine.Certified.evalExpr_or_eq
+#print axioms Langlib.Turpentine.Certified.evalExpr_var_inv
 #print axioms BespokeWhitespace.evalExpr_neg_inv
 #print axioms BespokeWhitespace.evalExpr_not_inv
 #print axioms BespokeWhitespace.encV_bool_eq_ite
@@ -463,13 +464,13 @@ open Langlib.Turpentine.Compile
 #print axioms BespokeWhitespace.slotSize_scalar
 #print axioms BespokeWhitespace.layoutGo_notMem
 #print axioms BespokeWhitespace.layoutGo_ok
-#print axioms BespokeWhitespace.typesGo_notMem
-#print axioms BespokeWhitespace.typesGo_get
+#print axioms Langlib.Turpentine.Certified.typesGo_notMem
+#print axioms Langlib.Turpentine.Certified.typesGo_get
 #print axioms BespokeWhitespace.zeroHeap_empty
 #print axioms BespokeWhitespace.ZeroHeap.insertZero
 #print axioms BespokeWhitespace.emits_declLoop
-#print axioms BespokeWhitespace.initEnv_unfold
-#print axioms BespokeWhitespace.initEnv_forIn
+#print axioms Langlib.Turpentine.Certified.initEnv_unfold
+#print axioms Langlib.Turpentine.Certified.initEnv_forIn
 #print axioms BespokeWhitespace.allZeroEnv_empty
 #print axioms BespokeWhitespace.encV_default
 #print axioms BespokeWhitespace.initGo_zero
@@ -486,8 +487,8 @@ open Langlib.Turpentine.Compile
 #print axioms BespokeWhitespace.emitsS_assert
 #print axioms BespokeWhitespace.emitsStmt
 #print axioms BespokeWhitespace.simStmt
-#print axioms BespokeWhitespace.nodupB_spec
-#print axioms BespokeWhitespace.isIntTy_eq
+#print axioms Langlib.Turpentine.Certified.nodupB_spec
+#print axioms Langlib.Turpentine.Certified.isIntTy_eq
 #print axioms BespokeWhitespace.checkFragment_ok
 #print axioms BespokeWhitespace.emitsS_printAnswer
 #print axioms BespokeWhitespace.compileChecked_of_gen
@@ -516,6 +517,14 @@ open Langlib.Turpentine.Compile
 -- See docs/computability-malbolge-unshackled.md.
 
 -- Addresses, decoding, and the step-level reading of `exec`.
+-- Audit of the proposed MU simulation: conditional gadgets are not a compiler.
+#print axioms Unshackled.finite_natural_support
+#print axioms Unshackled.restTable_adjacent_nonzero_lead
+#print axioms Unshackled.not_regMem_of_natural_fill
+#print axioms Unshackled.no_adjacent_two_cycle_crazy
+#print axioms Unshackled.flag_branch_mark_reuse
+#print axioms Unshackled.widthBounded_update_d
+
 #print axioms Unshackled.toNat?_ofNat
 #print axioms Unshackled.modClass_ofNat
 #print axioms Unshackled.succ_ofNat

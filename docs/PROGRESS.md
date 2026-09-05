@@ -2,7 +2,54 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
-## 2026-09-03 (latest): a hand-written Turpentine backend for Unlambda
+## 2026-09-05: MU proof audit rejects the infinite blank-tail invariant
+
+The MU completeness effort is re-scoped. There is still no
+`TuringComplete MalbolgeUnshackledLang` witness, and the previous assessment
+that a walk pass was the only substantive missing piece was incorrect.
+
+New kernel-checked results in
+`Langlib/Computability/MalbolgeUnshackled/Obstructions.lean`:
+
+* `finite_natural_support` bounds the natural keys of any finite memory map.
+* `restTable_adjacent_nonzero_lead` shows that, with natural fill seeds,
+  at least one of any adjacent pair of natural addresses has a nonzero
+  repeating trit.
+* `not_regMem_of_natural_fill` combines these into a contradiction for the
+  old `RegMem` invariant, for any positive stride and nonempty register
+  file, even after finite writes. It assumes the fill equation; the
+  general mutable-loader invariant remains separate work.
+* `no_adjacent_two_cycle_crazy` rules out instantiating the three-instruction
+  branch as consecutive period-two working cells.
+* `flag_branch_mark_reuse` shows that reusing the marked branch's consumed
+  operands yields zero instead of its intended target.
+* `widthBounded_update_d` makes explicit that the stored-value invariant
+  places no restriction on the data pointer. The old inference from a
+  finite alphabet to bounded storage was unjustified.
+
+The [proof audit](malbolge-unshackled/proof-audit.md) records the corrected
+scope of the existing theorems and a revised fixed-cell counter design.
+It draws on Matthias Lutter's MU Brainfuck interpreter, whose source is
+copyright-dated 2016, predating the MalbolgeLisp evidence cited before.
+The HeLL source, LMFAO 0.1.5, and Johansen's canonical Haskell interpreter
+were inspected; source hashes are recorded, and no external code is copied.
+The useful runtime mechanisms are a rotation-width scan, carry/borrow
+arithmetic, and width growth with a return path. These still need Lean
+operational proofs; the audit gives their contracts and composition with
+`Counter.counterProgram_spec`.
+
+The plan, tracker, spec, and earlier construction notes now distinguish
+these obligations from proved algebra. `CONTRIBUTING.md` records the need
+for reachable invariants and source realization when a target uses raw
+images: a convenient periodic background is not necessarily loadable.
+
+Validation: `lake build` passes. The global axiom audit passes after fixing
+18 pre-existing stale Whitespace references to lemmas moved into
+`Langlib.Turpentine.Certified.Shared`; all audited dependencies are standard
+Lean axioms. `lake test` passes all 1,618 tests and both Velato round-trip
+checks. `git diff --check` is clean.
+
+## 2026-09-03: a hand-written Turpentine backend for Unlambda
 
 `Langlib/Languages/Turpentine/Compile/Unlambda.lean`, the backend
 `docs/unlambda/compiler.md` had been describing as the most interesting one

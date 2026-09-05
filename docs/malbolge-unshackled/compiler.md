@@ -1,5 +1,12 @@
 # Compiling Turpentine to Malbolge Unshackled
 
+**2026-09-05 proof audit:** the straight-line backend below is unchanged,
+but the proposed runtime architecture in this notebook is superseded by
+[the fixed-counter construction](proof-audit.md). The old tape invariant
+is impossible with natural-seeded fill; width bounds alone do not imply
+bounded storage; and code restoration does not restore operands. The
+[progress tracker](completeness-progress.md) gives the current obligations.
+
 * **Status**: **written, over the input-free fragment.** The assembler is
   real and general; the code generator handles every Turpentine program
   that does not read input, which is every program whose control flow can
@@ -351,22 +358,16 @@ theorem no_accumulator_flag {a a' : Value} (ks : List Value) {i : Nat}
     ¬ (crzChain a ks = Value.zero ∧ crzChain a' ks = Value.eof)
 ```
 
-**A chain of crazy operations can produce a uniform value, but not one that
-depends on the accumulator.** The absorber is the degenerate case, uniform
-and constant. So `branch_arith` does not merely happen to take its flag from
-a cell — a flag *has* to be read from something already uniform, which is
-also what forces the unary register encoding rather than merely recommending
-it.
+**Fixed crazy-operation chains cannot broadcast a local difference into a
+uniform flag.** The absorber can produce a constant uniform value. This
+restricts the straight-line algebra; it does not force unary registers or
+rule out control-dependent comparisons. The revised construction tests a
+scratch copy by decrementing it and observing borrow.
 
-Collapsing a comparison therefore needs an instruction that moves a trit
-from one position to another, and `*` is the only one. And rotation is
-mandatory for a second, independent reason, which is the one the development
-actually proves: `widthBounded_step1` says a rot-free run keeps every
-storable value inside a finite alphabet, so every `j` and `i` teleports into
-a fixed finite set of addresses, for ever. Unbounded storage needs `*` for
-**addressing**, whatever happens to flags. Either way the input half of this
-backend is the counter machine rather than a bigger code generator; see
-[completeness-progress.md](completeness-progress.md).
+`widthBounded_step1` bounds stored values and hence stored jump targets in
+a rotation-free run. It does not bound how many cells successor can visit,
+so it is not a proof that rotation is necessary for every universal design.
+The proposed fixed-cell counters do use rotation to grow their values.
 
 There is one thing the straight-line world can do with an unknown value,
 and it is cheaper than the branch pipeline, because a jump does not need a
@@ -610,14 +611,12 @@ preserves any width bound `W ≥ 13` on the accumulator and on all of memory
 `3^13`). Values of width at most `W` form a finite set, and every `j` and
 `i` reads its target from memory, so **in a rot-free run every teleport
 lands in a fixed finite set of addresses, forever**. The only way past
-that set is `d`'s one-cell-per-step walk, in lockstep with a `c` that must
-be executing real code the whole way, which means writing your own code
-ahead of yourself at the frontier. We do not claim that exotic route is
-impossible; we do claim it is not a route a certified compiler wants.
+that set is pointer successor. Control can jump while `d` keeps advancing;
+this theorem alone bounds neither the visited addresses nor the available
+storage.
 
-**`*` is therefore not a convenience the compiler may decline.** It is the
-language's only supply of unboundedly many nameable addresses, and the
-supply mechanism is a feedback loop the escalator theorems pin down:
+Rotation can supply unboundedly wide stored values. The arithmetic
+mechanism is a feedback loop captured by these identities:
 
 ```lean
 theorem rot_one (w : Nat) (hw : 1 ≤ w) :
@@ -630,11 +629,13 @@ Rotating the value `1` at rotation width `w` moves its one set trit to the
 top of the window: the result is `3^(w-1)`, a value of width exactly `w`
 (`width_rot_one`). A `j` through that value raises `maxWidth` to `w`, and
 the rotation width doubles. Rotate `1` again and the next minted address
-has width `2w`. Iterating gives widths `10, 20, 40, …`: this loop is the
-**allocator** of any compiler targeting this language, and the concrete,
-mechanism-level meaning of "Unshackled".
+has width `2w`. Arithmetically this suggests widths `10, 20, 40, …`.
+An operational growth routine still needs a return path after the distant
+`movd`; these identities alone do not construct an allocator. The revised
+fixed-cell design needs growth for its counter values, not a unary tape.
 
-The revised trade, then:
+The earlier tape proposal made the following trade (superseded by the
+fixed-cell representation in the [audit](proof-audit.md)):
 
 * **Control avoids `rot`.** The dispatcher and its gadgets stay inside the
   bounded-width world, where every lemma so far applies unchanged.
@@ -668,8 +669,8 @@ a phase share a parity, and the split is exactly:
 
 Four per phase per 282-cycle, and no other choice. An all-even background
 is a compute engine with no `halt` — attractive until you notice it has no
-`rotr` either, and `widthBounded_step1` says rotation is mandatory for
-unbounded storage. A rotating background is an odd-parity background, and
+`rotr` either. The width theorem bounds its stored values but does not
+prove a storage bound. A rotating background is an odd-parity background, and
 then:
 
 ```lean
@@ -1147,9 +1148,11 @@ art; see `CONTRIBUTING.md`.
 
 ## Turing completeness
 
-Known and positive, and it is the whole point of the variant: Unshackled
-is Turing complete, settled in 2020 when Palaiologos's MalbolgeLisp gave a
-working Lisp interpreter written in it. LangLib has **no machine-checked
+Constructive evidence predates MalbolgeLisp: Matthias Lutter's
+[2016 MU Brainfuck interpreter](https://lutter.cc/unshackled/brainfuck.html)
+implements a dialect with unbounded cells and tape. The
+[proof audit](proof-audit.md) inspects its arithmetic and growth routines
+and proposes a smaller fixed-counter construction to formalize. LangLib has **no machine-checked
 proof yet**, and no `TuringComplete` witness, so the library currently
 asserts nothing about the language's computational class. The entry in
 [docs/README.md](../README.md) tracks it, and

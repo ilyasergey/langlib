@@ -54,7 +54,13 @@ A complete language contribution consists of:
      Stage 8. `docs/agent-brief-completeness.md` is a ready-made brief for
      that work, including the two mistakes people make: overclaiming what
      the theorem says, and choosing a representation that caps the
-     representable range.
+     representable range. For targets represented by a raw loaded image,
+     also provide source text accepted by the loader and prove that its
+     initialization reaches the simulation invariant: arbitrary image
+     backgrounds or initial constants need not be source-realizable. Prove
+     that representation invariants are reachable, not only preserved by
+     mathematical updates. MU's [proof audit](docs/malbolge-unshackled/proof-audit.md)
+     records why these obligations matter.
    * **Not Turing complete** means you can exhibit a bound: a finite state
      space, an absent construct (no loops, no unbounded storage), or a
      decidable halting argument. Say which, and prove it if you can. These

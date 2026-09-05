@@ -8,8 +8,12 @@ import Langlib.Languages.MalbolgeUnshackled
 Malbolge Unshackled (Ørjan Johansen, 2007) is claimed Turing complete, and
 `docs/PLAN.md` Stage 8 wants that claim to be a `TuringComplete` witness:
 a compiler from the unlimited register machine, plus a simulation theorem.
-That witness does not exist yet. This file is the layer underneath it, and
-it has three jobs.
+That witness does not exist yet. The 2026-09-05 audit in
+`MalbolgeUnshackled/Obstructions.lean` proves that the later `RegMem`
+invariant is incompatible with natural-seeded fill. See
+`docs/malbolge-unshackled/proof-audit.md` for the revised fixed-counter
+construction. The local theorems below remain valid, but their hypotheses
+must be established by a runtime compiler. This file has three jobs.
 
 **Name the language.** `MalbolgeUnshackledLang` is the `ProgLang` tag, so
 the eventual claim can be stated at all. A program is a loaded `Image`, the
@@ -28,18 +32,17 @@ rather than checked on examples.
 before a compiler can be written, and both are theorems rather than
 folklore:
 
-* `opcode_ne_encrypt`: after a word executes it is replaced by its image
-  under `xlat2`, and no word at any address decodes to the same opcode
-  twice running. The encryption table has no fixed point, and the 94 codes
-  `33..126` are distinct modulo 94, so a code cell's opcode *always*
-  changes under its own execution. Every loop in the language must
-  therefore be built out of cells that cycle, which is the whole difficulty
-  of Malbolge programming, inherited unchanged.
+* `opcode_ne_encrypt`: no printable word at any address has the same
+  opcode before and after encryption under `xlat2`. The encryption table
+  has no fixed point, and the 94 codes `33..126` are distinct modulo 94,
+  so a code cell's opcode always
+  changes under encryption. A jump encrypts its target instead of itself;
+  reusable control must account for both cases.
 * `restTable_not_printable`: the memory fill that covers the addresses the
   loader never reached produces, at three of its six residues, values that
-  are not printable naturals, so executing one hangs. A program cannot walk
-  off its own end into fresh code. Whatever loops, loops inside the loaded
-  image.
+  are not printable naturals, so executing one hangs. This rules out an
+  uninterrupted walk through untouched fill, not generated code or jumps
+  over bad cells.
 
 `docs/computability-malbolge-unshackled.md` says how the intended proof
 gets past both, and what is still open.
@@ -436,10 +439,9 @@ and from the third term of the iteration onward the repeating trits
 alternate `1, 0, 1, 0, …`. Three of the six entries are therefore not
 naturals at all, so they are not printable, so executing one hangs.
 
-The consequence for a compiler is that a Malbolge Unshackled program cannot
-run off its own end into an infinite supply of fresh instructions. Whatever
-loops has to loop inside the loaded image, over cells that have already
-executed, which is what makes obstruction one bite. -/
+This rules out an uninterrupted walk through untouched fill. It does not
+prove that all execution remains in the loaded image: generated code and
+jumps over unprintable cells require separate analysis. -/
 
 /-- The repeating trit of the `k`-th term of the memory fill, as a function
 of the two seeds' repeating trits alone. -/
@@ -2362,10 +2364,11 @@ theorem hop_hop_hop {v : Value} (hv : v.Normalized) : hop (hop (hop v)) = v := b
   rw [hop_eq_vmap, hop_eq_vmap, hop_eq_vmap, vmap_vmap, vmap_vmap]
   exact vmap_id (fun t => by cases t <;> rfl) hv
 
-/-! ## Why the unbounded part cannot live in fresh memory
+/-! ## Rotation and halt opcodes in a virgin phase
 
 `widthBounded_step1` says a rot-free run keeps every storable value in a
-finite alphabet, so rotation is mandatory for unbounded storage. The
+finite alphabet; it does not bound visited addresses or prove bounded
+storage. Rotation is needed for unbounded values in fixed counter cells. The
 tempting way to dodge self-encryption is then to put the unbounded
 computation in memory the loader never wrote and *never re-execute a cell*:
 a compiler builds its `Image` directly, so unlike a loaded program it may
@@ -2373,8 +2376,9 @@ choose all six entries of `rest` and make fresh memory executable.
 
 The addresses of one such phase are the naturals congruent to `j` modulo 6,
 all holding the same word, so their opcodes are `(w + a) mod 94` as `a`
-runs through that phase. Two consequences, and they are what close the
-question. Opcodes in a phase all have the same parity, because addresses in
+runs through that phase. Two arithmetic consequences follow; neither
+proves that a run reaches a particular address. Opcodes in a phase all
+have the same parity, because addresses in
 a phase do; the four even opcodes are `jmp`, `movd`, `crazy` and `nop`, and
 the four odd ones are `out`, `inp`, `rotr` and `halt`. So a phase that can
 rotate is a phase that can halt, and precisely:
@@ -2387,12 +2391,10 @@ theorem rotr_forces_halt … (hrot : decode (Value.ofNat w) (Value.ofNat a).modC
 
 `81 - 39 = 42`, and 42 is a multiple of 6, so the halt sits in the *same*
 phase, 42 addresses along. A compiler that runs its unbounded computation
-through fresh memory must therefore either forgo rotation, and with it
-unbounded storage, or steer past a halt every 42 addresses of every
-rotating phase. That is not a contradiction, and this file does not claim
-one; it is a standing tax that makes the finite self-modifying code region,
-with its `xlat2` orbits managed across passes, the cheaper architecture.
-`docs/malbolge-unshackled/compiler.md` records the decision. -/
+through untouched memory must account for these halt cells when using a
+rotating phase. Their presence alone does not prove they are reached.
+Finite self-modifying control is a construction choice; see the revised
+proposal in `docs/malbolge-unshackled/proof-audit.md`. -/
 
 /-- Reading an opcode back off a decoded instruction. -/
 theorem opcode_of_decode {w a : Nat} (h₁ : 33 ≤ w) (h₂ : w ≤ 126) {instr : Instr}
@@ -2780,8 +2782,9 @@ followed by one `jmp` cell at `b+L+1`, and it runs in `2L + 2` steps:
 
 `d` walks the operand row during the work sweep and walks past it during
 the no-op sweep, which is why the two table entries sit at `d₀+L` and
-`d₀+2L+1`. Because the gadget restores itself, it may be entered any
-number of times, which is what makes a compiled loop body possible. -/
+`d₀+2L+1`. Two-cycle code words are restored, but the operand cells are
+not: a no-op sweep performs no data restoration. Re-entry requires a
+separate invariant for operands, scratch, pointers, and code phases. -/
 
 /-- A row of pure padding folds to nothing. -/
 theorem rowFold_false (m : Memory) (d₀ : Nat) (a : Value) : ∀ L : Nat,
@@ -3810,8 +3813,12 @@ step from slot `i` to slot `i + 1` with no address arithmetic at all. Every
 cell a gadget needs at index `i` is inside slot `i`, reachable as `d`
 sweeps across it.
 
-`RegMem` is the invariant: every cell of every tape holds a mark exactly
-while its index is below that tape's length. -/
+`RegMem` is an idealized invariant: every cell of every tape holds a mark
+exactly while its index is below that tape's length. The audit in
+`MalbolgeUnshackled/Obstructions.lean` proves it impossible with a
+natural-seeded fill, for any nonempty register file and positive stride.
+The update lemmas below remain conditional algebra, not a reachable
+simulation invariant. -/
 
 /-- The address of cell `i` of one tape of register `r`. `q` selects the
 second tape. -/
@@ -4462,33 +4469,18 @@ theorem walk_branch_target_q {DB SI R : Nat} {f : RegFile} {m : Memory}
 
 /-! ## What a walk finds in untouched memory
 
-A walk steps into cells no loader wrote, and `RegMem` asks every cell above
-a tape's length to hold `cellBlank`. Untouched cells hold the memory fill
-instead, so the two cannot both be true unless the fill is itself blank at
-the register offsets. **It never is**: searching every pair of printable
-seeds (the last two characters of the program are what the fill is
-computed from) finds no pair putting `...000` anywhere in the six-value
-table. That is a measurement rather than a theorem, but the structural
-reason is visible in `leadAt_even`, which pins the leading trit of every
-fill term by parity: half of them are not naturals at all, and the crazy
-operation has no column sending two zero trits to zero
-(`crzTrit_zero_ne_zero`).
+With a stride divisible by six, each slot offset has the same background
+value (`fillAt_slot`). This is useful for an allocator, but does not
+implement one. In particular, initializing a finite prefix cannot establish
+`RegMem`, which requires an infinite blank tail. The stronger obstruction
+is proved in `MalbolgeUnshackled/Obstructions.lean`.
 
-So a pass has to **normalise** the cells it is about to use, converting
-each from the fill value to blank. That is affordable because of the
-lemmas below: with a slot stride divisible by 6, a given offset holds the
-*same* fill value in every slot, since the fill depends on the address only
-through its residue mod 6 (`fillAt_slot`). The value is therefore a
-compile-time constant, and `crz_two_steps` turns a known value into any
-other in two operations.
-
-Which closes the circularity a first design runs into. The constants a pass
-needs sit in the slot it is walking, because `d` only ever advances; slots
-ahead are virgin. But the value at each offset ahead is known in advance,
-so a pass can write the *next* slot's constants using its own, and the
-block propagates one slot per pass. The loader writes slot 0, and the walk
-carries it forward. This is the escalator argument applied to data rather
-than to addresses. -/
+`crz_two_steps` is an algebraic identity with operand constants supplied
+as arguments; it does not prove a reusable in-place initializer for virgin
+cells. A repaired tape design needs an allocated-prefix invariant and an
+operational allocator. The revised proposal in
+`docs/malbolge-unshackled/proof-audit.md` uses fixed cells containing
+unbounded counters instead. -/
 
 theorem mod6_ofNat (n : Nat) : (Value.ofNat n).mod6 = n % 6 := by
   show (Value.ofNat n).modClass % 6 = n % 6

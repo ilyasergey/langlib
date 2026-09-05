@@ -1,9 +1,17 @@
 # Malbolge Unshackled: the ground floor of a completeness proof
 
+**Construction re-scoped on 2026-09-05.** This is a notebook of local
+results. Its proposed unary-tape architecture is superseded by the
+[proof audit and fixed-counter construction](malbolge-unshackled/proof-audit.md):
+`RegMem` cannot hold with natural-seeded fill, operand restoration is
+missing, and the width theorem alone does not bound storage. The remaining
+work is more than a walk pass. See the audit for the current dependencies.
+
 Malbolge Unshackled (Ørjan Johansen, 2007) is claimed Turing complete, and
-the claim is believed on good evidence: Kamila Szewczyk's MalbolgeLisp
-(2020) is a working Lisp interpreter written in it, which nobody would
-mistake for a finite-state device. LangLib wants the claim as a
+constructive evidence includes Matthias Lutter's
+[2016 Brainfuck interpreter](https://lutter.cc/unshackled/brainfuck.html)
+and the later MalbolgeLisp (2020). Inspecting a working interpreter is not
+itself a proof of its unbounded simulation. LangLib wants the claim as a
 `TuringComplete MalbolgeUnshackledLang` witness, in the sense of
 [`Langlib/Common/Computability.lean`](../Langlib/Common/Computability.lean):
 a total compiler from the unlimited register machine, plus a simulation
@@ -38,8 +46,8 @@ formality.
 
 Execution advances `c` and `d` by 3-adic successor and decodes the word at
 `c` against `c`'s residue. Three facts turn that into ordinary arithmetic
-as long as the pointer stays among the naturals, which it does if it starts
-at zero:
+for successor steps while the pointer is natural. Jumps and `movd` can
+leave the naturals even when execution started at zero:
 
 ```lean
 theorem toNat?_ofNat (n : Nat) : (Value.ofNat n).toNat? = some n
@@ -102,11 +110,10 @@ theorem decode_encrypt_ne {w : Nat} (h₁ : 33 ≤ w) (h₂ : w ≤ 126) {m : Na
     decode (Value.ofNat (encrypt w)) m ≠ decode (Value.ofNat w) m
 ```
 
-**No cell executes the same non-`nop` instruction twice running.** The
-obvious compilation strategy, a loop whose body is a fixed instruction
-sequence, is not available in this language at all. Every loop has to be
-assembled from cells whose orbit under `xlat2` brings them back to their
-starting word after a whole number of passes. The orbit lengths are 68, 9,
+**Encryption changes every non-`nop` decoded instruction.** This is about
+a word and its encryption: `jmp` encrypts its target instead of itself.
+Reusable code must account for which cells are actually encrypted and how
+their instruction phases are restored. The orbit lengths are 68, 9,
 6, 5, 4 and 2, so a loop built from arbitrary cells repeats only after
 `lcm = 3060` passes.
 
@@ -135,10 +142,9 @@ The hypotheses say the two seeds are naturals, which the loader guarantees
 because they are character code points. Wiring that guarantee through
 `loadWith`'s mutable loop is an outstanding piece of work, noted below.
 
-The consequence is what matters. A program cannot walk off its own end into
-an infinite supply of fresh, never-yet-encrypted instructions. Whatever
-loops, loops inside the loaded image, over cells that have already
-executed, which is exactly what makes obstruction one bite.
+The consequence is limited: a program cannot execute an uninterrupted
+walk through untouched fill. Generating code beyond the image, or jumping
+over bad cells, is not excluded by this theorem.
 
 This is worth dwelling on because "run forward forever through virgin
 memory" is the one strategy that Unshackled's infinite address space seems
@@ -401,16 +407,16 @@ Rotating `1` at width `w` yields `3^(w-1)`, a value of width exactly `w`
 (`width_rot_one`); a `j` through it doubles the rotation width. Iterating
 mints addresses of width `10, 20, 40, …` This rot/movd feedback is the
 language's only door to unboundedly many nameable addresses, which is the
-mechanism-level content of the name "Unshackled". A completeness witness
-will therefore use `*`, stated against the reference rotation policy that
-the `ProgLang` instance pins; correctness at every legal policy is a
+mechanism-level content of the name "Unshackled". The proposed fixed-counter witness uses `*` to grow counter values,
+stated against the reference rotation policy that the `ProgLang` instance
+pins. The width bound alone does not prove that every universal MU
+construction must use rotation. Correctness at every legal policy is a
 strengthening deliberately deferred.
 
 ## The arithmetic a rot-free backend has
 
-The compiler decision above, avoid `*` and pay for it in width, is only
-worth taking if the crazy operation alone can compute enough. It can, and
-the bound is exact.
+These are useful algebraic capabilities of crazy operations without
+rotation. They are not a runtime compiler or a universality result.
 
 `crz` is tritwise, at every position and in the repeating trit
 (`crz_trit`), so the question is settled row by row of Olmstead's table:
@@ -542,37 +548,17 @@ source cell is consumed, which a move is allowed to do. Together with the
 mux (`branch_arith`) and straight-line rows (`crazy_run`), data movement
 completes the set of value-level primitives a register file needs.
 
-## Why the unbounded part cannot live in fresh memory
+## Rotation and halt opcodes in a virgin phase
 
-A compiler builds its `Image` directly, so it may choose all six entries of
-`rest` and make fresh memory executable: the obstruction in
-`restTable_not_printable` binds `load`, not `compile`. So the escape from
-self-encryption — never re-execute a cell — is genuinely on the table, and
-this is why it was not taken.
-
-One virgin phase is the addresses congruent to `j` modulo 6, all holding
-the same word, so opcodes run `(w + a) mod 94` across the phase. Addresses
-in a phase share a parity, hence so do opcodes (`virgin_phase_parity`), and
-the even opcodes are exactly `jmp`, `movd`, `crazy`, `nop` while the odd
-ones are `out`, `inp`, `rotr`, `halt`. An all-even background has no halt
-and no `rotr`; `widthBounded_step1` says the second is fatal, since
-rotation is the only source of unbounded storage. A rotating background is
-odd, and then
-
-```lean
-theorem rotr_forces_halt {w a : Nat} (h₁ : 33 ≤ w) (h₂ : w ≤ 126)
-    (hrot : decode (Value.ofNat w) (Value.ofNat a).modClass = .rotr) :
-    (a + 42) % 6 = a % 6
-    ∧ decode (Value.ofNat w) (Value.ofNat (a + 42)).modClass = .halt
-```
-
-with `halt_forces_rotr` as the converse: `81 - 39 = 42`, a multiple of 6,
-so the halt is in the same phase 42 addresses along, and the two
-instructions are inseparable. Fresh-memory execution therefore costs a
-halt-dodge every 42 addresses of every rotating phase, on top of the
-computed jump targets the finite route needs anyway. It buys nothing, so
-the development targets a finite self-modifying code region with managed
-`xlat2` orbits.
+An arbitrary `Image` may choose its background freely. Such an image need
+not be produced by `load`; a source-level claim needs an initialization
+proof. For any fixed printable word in one background phase,
+`virgin_phase_parity` proves that its opcodes share a parity, and
+`rotr_forces_halt` proves that a rotate opcode is followed 42 addresses
+later by a halt opcode in the same phase. Neither theorem proves that the
+later address is reached. The recommendation to use finite self-modifying
+control is a construction choice, not an impossibility theorem for all
+fresh-memory designs. See the [audit](malbolge-unshackled/proof-audit.md).
 
 ## Re-enterable gadgets: the two-sweep discipline
 
@@ -588,10 +574,11 @@ after the second.
 
 Traced against the interpreter with two `crazy` cells at residues 82 and
 86, the two cells fire on the work sweep, no-op on the second, hold their
-original words again afterwards, and the next iteration is identical.
+original words again afterwards. This checks code restoration; it does
+not establish that the next iteration has the same data operands.
 
-Layout is easy for the same reason the architecture is available at all:
-`compile` produces an `Image`, so the loader's constraints do not apply.
+For an arbitrary `Image`, layout can ignore loader constraints, but such
+an image still needs a source-realization proof for a source-level claim.
 Every one of the 94 residues admits a code whose whole orbit is harmless,
 so padding is free, and each instruction has exactly two 2-cycle residues
 four apart (`crazy` at 82 or 86, `movd` at 60 or 64, `jmp` at 24 or 28).
@@ -663,11 +650,10 @@ theorem two_sweep (L : Nat) … :
       ∧ …
 ```
 
-Because the row comes back to its starting words, **the gadget may be
-entered any number of times**, which is what makes a compiled loop body
-possible: a loop whose body is a sequence of self-restoring gadgets is
-itself self-restoring after every iteration, and nesting composes. That was
-the obstacle standing between the verified primitives and a compiler.
+This restores two-cycle code words. It does not restore operands or
+establish an invariant for repeated calls; those are separate operational
+obligations. `flag_branch_mark_reuse` in the audit gives a concrete failure
+when changed branch operands are reused.
 
 ## The output side, which is nearly free
 
@@ -875,11 +861,11 @@ boundary for nothing. Both tapes are covered, `inc` walking the first and
 `dec` the second.
 
 What `walk_iterate` takes as a hypothesis is one pass: that from slot `i`,
-`k` steps reach slot `i + 1` with the invariant intact. Building that pass
-is the remaining work, and the narrow question inside it is restocking —
-the mark path consumes both branch constants, so a pass has to restore its
-own operands before the next one runs, which is what the two-sweep
-discipline is for.
+`k` steps reach slot `i + 1` with the invariant intact. That pass has not
+been constructed. The audit further proves the proposed global tape
+invariant impossible with natural-seeded fill. Two sweeps restore code,
+not branch constants. A repaired walk also needs an allocator invariant
+and a means to produce its slot-dependent pointer operands.
 
 ## What is proved, what is cited, what is open
 
@@ -913,34 +899,24 @@ Quot.sound]` or less for every one of them.
 (408), the five-step control cycle above, and that **no pair of printable
 seeds puts `...000` into the memory fill**, so a walk never finds a blank
 cell ahead of itself and every pass must normalise the cells it is about to
-use (`fillAt_slot` is what makes that affordable: with a slot stride
+use (or change the blank encoding). This is not an allocator proof:
+`fillAt_slot` only shows that with a slot stride
 divisible by 6, the fill value at a given offset is the same in every
-slot). These come from running the
+slot. These come from running the
 reference interpreter, so they are facts about our semantics, but they are
 `#eval` output rather than kernel-checked theorems.
 
 **Cited, not proved**: that Malbolge Unshackled is Turing complete at all.
-The evidence is MalbolgeLisp, not a theorem.
+The external constructions include Lutter's 2016 Brainfuck interpreter and
+MalbolgeLisp. The audit describes what still needs a Lean simulation proof.
 
-**Open**:
-
-1. The compiler and the simulation theorem. No `TuringComplete` witness
-   exists, so LangLib currently asserts nothing about the language's
-   computational class.
-2. Reaching the loop. `Loop.neverHalts` covers every state in the cycle,
-   but the 154-step prologue that `loop.mu` uses to get there is checked by
-   running the interpreter, not proved. See the note above.
-3. One pass of a walk. The walk's induction and its exit condition are
-   proved (`walk_iterate`, `walk_branch_target`), and both take a single
-   pass as a hypothesis: from slot `i`, a fixed number of steps reach slot
-   `i + 1` with the layout intact. Building that pass is what remains, and
-   the narrow question inside it is restocking, since the mark path of the
-   branch consumes both of its constants.
-4. `restTable_not_printable` assumes its two seeds are naturals. The loader
-   always supplies naturals, because they are character code points, but
-   proving that means carrying an invariant through `loadWith`'s mutable
-   loop. Until that is done the theorem is about the fill, not about every
-   output of `load`.
+**Open**: the current dependency-ordered obligations are in the
+[proof audit](malbolge-unshackled/proof-audit.md) and
+[progress tracker](malbolge-unshackled/completeness-progress.md). They
+include reusable runtime arithmetic, width growth with a return path,
+a total layout and source initializer, and the counter simulation.
+The older loop prologue and the general loader fill equation also remain
+unproved. No `TuringComplete` witness exists.
 
 When a witness does land, the two traps in
 [`agent-brief-completeness.md`](agent-brief-completeness.md) apply as they
@@ -959,5 +935,6 @@ lake build Langlib.Computability.MalbolgeUnshackled
 lake env lean scripts/axioms.lean
 ```
 
-Every `Unshackled.*` line in the audit must report `[propext,
-Quot.sound]`, `[propext]`, or no axioms at all.
+The audit permits only the standard Lean axioms `propext`,
+`Classical.choice`, and `Quot.sound`. In particular, no entry may depend
+on `sorryAx` or a user axiom. The new obstruction module is included too.
