@@ -798,3 +798,66 @@ original generator, with no output on success:
 ```sh
 python3 scripts/gen-mu-runtime.py --check
 ```
+
+**Calling the same growth code twice** (`grow-twice.mu`) starts with a
+finite initializer, then grows the working width twice using the same code
+and return records. It has 7002 source cells, reads no input and prints
+nothing. Its two separate one-markers avoid assuming that the unfinished
+arithmetic runtime can already rebuild a marker after growth.
+
+Here is the complete program in the same sparse transliteration: addresses
+0 through 7001 contain the unique printable no-op word specified above,
+except for these decimal code-point overrides. Encode as UTF-8 and append
+one newline.
+
+```text
+0:40 1:39 2:96 41:4199 71:2996
+153:74 154:38 181:3103 248:74 249:37
+341:74 342:38 436:74 437:2267 438:180
+439:6567 440:70 441:33 1000:74 1001:95
+1002:72 1003:93 1004:70 1005:69 1006:90
+1007:67 1008:88 1009:65 1010:64 1011:85
+1012:62 1013:83 1014:60 1015:59 1016:116
+1200:62 1201:119 1300:97 2997:150 2998:248
+2999:435 3000:1 3001:153 3002:247 3003:2997
+3100:2265 3101:436 3104:217 3105:437 3108:6561
+3109:438 3197:338 3198:248 3199:435 3200:1
+3201:341 3202:247 3203:3197 4200:999 4201:3099
+5002:436 5007:1199 5008:3196 5009:1299 6568:3107
+7000:5001 7001:5001
+```
+
+The entry jumps to 1000, where three pairs of crazy operations turn the
+non-printable source words at 437–439 into 41, 102 and 96. These belong to
+a five-word encryption orbit whose every phase is a no-op at those three
+addresses. The runtime accepts these no-op phases; the loader would reject
+them if they appeared directly in the source. Initialization supplies the
+missing bridge.
+
+The first marker is at 3000, rotated by code at 153; the second is at 3200,
+rotated by code at 341. Both return through the pointer reset at 248 and
+the growth block at 436. The jump at 441 restores the first move, then a
+four-no-op sweep restores the second. After each eleven-step call, code
+resumes at 1200 with the data pointer at 5008. The move at 1200 becomes a
+no-op after its first execution, so the second return selects the halt
+route instead of starting another call. The final two source words, at
+7000 and 7001, make the sampled distant fill entry 5001.
+
+Run both calls and the halt. The default setup establishes width 18, then
+grows to 36 and 72. The program exits successfully after 63 instructions
+with no output:
+
+```sh
+lake exe malbolge-unshackled --fuel 63 Langlib/Examples/MalbolgeUnshackled/grow-twice.mu
+```
+
+At starting width 37, the same source grows to 74 and 148 and halts after
+the same number of instructions, again without output:
+
+```sh
+lake exe malbolge-unshackled --rot-width 37 --fuel 63 Langlib/Examples/MalbolgeUnshackled/grow-twice.mu
+```
+
+The shared generator and its `--check` cover this program too. Its checked
+runtime contracts and remaining initialization and marker-reset obligations
+are in [runtime-proof.md](runtime-proof.md#reusable-growth-and-initialization).

@@ -5,8 +5,8 @@ import Langlib.Computability.MalbolgeUnshackled.Runtime
 
 A `movd`, three no-ops, and another `movd` enter a wide address and return
 via its periodic background. The code pointer stays in finite code all
-along. This theorem accounts for the actual five-step execution and its
-code writes; it does not yet restore those code phases for another call.
+along. These theorems expose the actual five-step execution and its code
+writes. `ReusableGrowth.lean` adds the restoration and return sweep.
 -/
 
 namespace Langlib.Computability.Unshackled.Runtime
@@ -37,31 +37,32 @@ private theorem succ_iterate_nat (n k : Nat) :
     simp only [Nat.add_assoc]
 
 set_option maxHeartbeats 1000000 in
-/-- Five concrete instructions grow the width and return `d` to a fixed
-fill-derived value. No remote return table is assumed initialized.
+/-- Five concrete instructions grow the width and return `d` through a
+specified distant read. The fill-backed specialization follows below.
 
 The first `movd` reads the result of rotating one at width `w`; the second
-reads untouched memory at `3^(w-1)+4`. Only the five code cells are written.
+reads the specified return word at `3^(w-1)+4`. The read hypothesis is
+extensional, so a memory frame can preserve it across calls. Only the five
+code cells are written.
 Their post-encryption words are exposed so a caller must account for phases.
 The source operand and all counter cells outside that block survive. -/
-theorem grow_return {s : State} {A w : Nat} (codes : Nat → Nat)
+theorem grow_return_of_read {s : State} {A w : Nat} {ret : Value} (codes : Nat → Nat)
     (hc : s.c = Value.ofNat A) (hw : s.rotWidth = w) (hwmin : 2 ≤ w)
     (hm : s.maxWidth < w)
     (hsource : s.mem.get s.d = Value.rot w (Value.ofNat 1))
     (hfar : A + 4 < 3 ^ (w - 1) + 4)
-    (hfresh : ¬ s.mem.cells.contains (Value.ofNat (3 ^ (w - 1) + 4)))
-    (hreturnWidth : (s.mem.rest.getD 1 Value.zero).width ≤ w)
+    (hread : s.mem.get (Value.ofNat (3 ^ (w - 1) + 4)) = ret)
+    (hreturnWidth : ret.width ≤ w)
     (hdec : ∀ i < 5, decode (s.mem.get (Value.ofNat (A + i)))
       (Value.ofNat (A + i)).modClass = if i = 0 ∨ i = 4 then .movd else .nop)
     (hprint : ∀ i < 5, printableCode? (s.mem.get (Value.ofNat (A + i))) = some (codes i)) :
     ∃ t, run? 5 s = some t ∧ t.c = Value.ofNat (A + 5)
-      ∧ t.d = (s.mem.rest.getD 1 Value.zero).succ
+      ∧ t.d = ret.succ
       ∧ t.rotWidth = 2 * w ∧ t.maxWidth = w ∧ t.a = s.a
       ∧ (∀ i < 5, t.mem.get (Value.ofNat (A + i)) = Value.ofNat (encrypt (codes i)))
       ∧ (∀ x, (∀ i < 5, x ≠ Value.ofNat (A + i)) → t.mem.get x = s.mem.get x)
       ∧ t.input = s.input ∧ t.output = s.output ∧ t.outClosed = s.outClosed := by
   let N := 3 ^ (w - 1)
-  let ret := s.mem.rest.getD 1 Value.zero
   let s₁ : State := { s with
     mem := s.mem.set (Value.ofNat A) (Value.ofNat (encrypt (codes 0))),
     c := Value.ofNat (A + 1), d := Value.ofNat (N + 1), rotWidth := 2 * w, maxWidth := w }
@@ -93,7 +94,7 @@ theorem grow_return {s : State} {A w : Nat} (codes : Nat → Nat)
     rw [succ_iterate_nat]
     have hn : N + 1 + 3 = 3 ^ (w - 1) + 4 := by simp [N, Nat.add_assoc]
     rw [hn, hf₄ _ (fun i hi => ofNat_ne (by omega)), hf₁ _ (ofNat_ne (by omega)),
-      get_of_not_mem hfresh, growth_fill s.mem hwmin]
+      hread]
   let t : State := { s₄ with
     mem := s₄.mem.set (Value.ofNat (A + 4)) (Value.ofNat (encrypt (codes 4))),
     c := Value.ofNat (A + 5), d := ret.succ, maxWidth := w }
@@ -126,5 +127,26 @@ theorem grow_return {s : State} {A w : Nat} (codes : Nat → Nat)
     rw [get_set_ne _ (Ne.symm (hx 4 (by omega))),
       hf₄ _ (fun i hi => by simpa only [Nat.add_assoc] using hx (1 + i) (by omega)),
       hf₁ _ (by simpa using hx 0 (by omega))]
+
+/-- The fill-backed specialization: the distant address has no override,
+so its residue selects the original return word. -/
+theorem grow_return {s : State} {A w : Nat} (codes : Nat → Nat)
+    (hc : s.c = Value.ofNat A) (hw : s.rotWidth = w) (hwmin : 2 ≤ w)
+    (hm : s.maxWidth < w)
+    (hsource : s.mem.get s.d = Value.rot w (Value.ofNat 1))
+    (hfar : A + 4 < 3 ^ (w - 1) + 4)
+    (hfresh : ¬ s.mem.cells.contains (Value.ofNat (3 ^ (w - 1) + 4)))
+    (hreturnWidth : (s.mem.rest.getD 1 Value.zero).width ≤ w)
+    (hdec : ∀ i < 5, decode (s.mem.get (Value.ofNat (A + i)))
+      (Value.ofNat (A + i)).modClass = if i = 0 ∨ i = 4 then .movd else .nop)
+    (hprint : ∀ i < 5, printableCode? (s.mem.get (Value.ofNat (A + i))) = some (codes i)) :
+    ∃ t, run? 5 s = some t ∧ t.c = Value.ofNat (A + 5)
+      ∧ t.d = (s.mem.rest.getD 1 Value.zero).succ
+      ∧ t.rotWidth = 2 * w ∧ t.maxWidth = w ∧ t.a = s.a
+      ∧ (∀ i < 5, t.mem.get (Value.ofNat (A + i)) = Value.ofNat (encrypt (codes i)))
+      ∧ (∀ x, (∀ i < 5, x ≠ Value.ofNat (A + i)) → t.mem.get x = s.mem.get x)
+      ∧ t.input = s.input ∧ t.output = s.output ∧ t.outClosed = s.outClosed := by
+  exact grow_return_of_read codes hc hw hwmin hm hsource hfar
+    (by rw [get_of_not_mem hfresh, growth_fill s.mem hwmin]) hreturnWidth hdec hprint
 
 end Langlib.Computability.Unshackled.Runtime

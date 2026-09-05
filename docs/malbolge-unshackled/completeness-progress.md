@@ -38,7 +38,7 @@ proof. Detailed contracts and source hashes are in the [audit](proof-audit.md).
 
 ## Reworked foundations now checked
 
-The new [runtime account](runtime-proof.md) documents five proof modules:
+The new [runtime account](runtime-proof.md) documents the proof modules:
 
 * `Counters.lean`: finite fixed cells, constructive representability over any
   background, frame and register update laws, and capacity after growth.
@@ -50,20 +50,27 @@ The new [runtime account](runtime-proof.md) documents five proof modules:
   passes of its finite code, preserving its return records. It has no exit
   branch; the pass count remains a proof index.
 * `Growth.lean`: five actual instructions growing the width and returning
-  through a fixed phase of untouched fill. Reuse of the growth code remains
-  open; the theorem exposes its changed encryption phases.
+  through a fixed phase of untouched fill, plus an extensional read variant.
+* `ReusableGrowth.lean`: eleven actual steps restore the growth service,
+  preserving its code, return table and return reads for every future width.
+  The no-op orbit is checked, including its need for runtime initialization.
+* `Initialization.lean`: the three-step crazy/move/crazy write primitive
+  used to construct that orbit from legal source data.
 
-Two generated, loadable source examples exercise the loop and one growth
-segment at default and odd widths. Regression tests inspect machine states,
-repeat full cycles, and check the growth example's exact halt boundary.
+Three generated, loadable source examples exercise the loop, one growth
+segment, and two calls of the same growth service at default and odd widths.
+Regression tests inspect machine states,
+repeat full cycles, check no-op phases and unconsumed return records, and
+check the exact halt boundaries. The two-call example uses distinct prepared
+markers; synthesizing the next marker in an unbounded loop remains open.
 General loader reachability of the runtime invariant is still unproved.
 
 ## Remaining, in dependency order
 
-1. Extend the checked working-call convention to branch flags, scratch
-   protocols, and reusable growth; account for every changed phase.
+1. Extend the checked working-call convention to branch flags and scratch
+   protocols; account for every changed phase in the arithmetic caller.
 2. Attach a runtime marker test and exit branch to the checked rotation loop.
-   Make the growth-and-return segment reusable, including its three no-ops.
+   Integrate the resident growth service with marker reset and overflow retry.
 3. Counter read/write, increment with overflow retry, decrement with borrow,
    zero testing on a scratch copy, and output; prove actual finite `run?`
    segments preserving the calling convention.

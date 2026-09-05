@@ -82,6 +82,8 @@ def suite : Suite where
       -- The growth demonstration returns from an address beyond the source.
     , { name := "grow-once example", source := ex "grow-once.mu", fuel := 17,
         expect := .outputs "" }
+    , { name := "same growth code called twice", source := ex "grow-twice.mu", fuel := 63,
+        expect := .outputs "" }
       -- Micro-programs.
     , { name := "halt at address 0", source := .inline "Q'",
         expect := .outputs "" }
@@ -122,7 +124,9 @@ def suiteWidth : Suite where
     , { name := "hello-small example at rotation width 37",
         source := ex "hello-small.mu", expect := .outputs "Hello, world!\n" }
     , { name := "grow-once at rotation width 37", source := ex "grow-once.mu",
-        fuel := 17, expect := .outputs "" } ]
+        fuel := 17, expect := .outputs "" }
+    , { name := "two growth calls at width 37", source := ex "grow-twice.mu",
+        fuel := 63, expect := .outputs "" } ]
 
 /-- Johansen's `-n`: source characters outside 33..126 are a load error
 rather than being loaded unchecked. -/
@@ -142,6 +146,8 @@ def suiteStrict : Suite where
     , { name := "rotation data requires permissive loading", source := ex "rotation-loop.mu",
         expect := .parseError "--strict rejects those" }
     , { name := "growth data requires permissive loading", source := ex "grow-once.mu",
+        expect := .parseError "--strict rejects those" }
+    , { name := "growth initializer needs permissive loading", source := ex "grow-twice.mu",
         expect := .parseError "--strict rejects those" } ]
 
 /-- The cat echoes its input before diverging; compare the echoed prefix. -/
@@ -201,7 +207,49 @@ def suiteRuntimeWidth : Suite where
     , { name := "growth halts at width 74", source := ex "grow-once.mu",
         fuel := 17, expect := .outputs "441,2998,74,37,150094635296999121,0,halt" } ]
 
+/-- Observe code phases and return records across reuse of the same growth
+block. As with `snapshot`, this is diagnostic text from the test adapter. -/
+private def growthSnapshot (w : Nat) (src : String) (input : Input) (fuel : Nat) :
+    Except String RunResult := do
+  let img ← Langlib.MalbolgeUnshackled.load src
+  let (s, exit) := Langlib.MalbolgeUnshackled.exec fuel
+    { mem := img.mem, input, rotWidth := max w Langlib.MalbolgeUnshackled.minRotWidth }
+  let read (a : Nat) := toString (s.mem.get (Langlib.MalbolgeUnshackled.Value.ofNat a))
+  let phases := String.intercalate "," ([436,437,438,439,440,441].map read)
+  let status := match exit with
+    | .halted => "halt"
+    | .outOfFuel => "fuel"
+    | .error e => s!"error: {e}"
+  return {
+    output := (s!"{s.c},{s.d},{s.rotWidth},{s.maxWidth};{phases};{read 3000},{read 3200};{read 5002},{read 5007};{s.output.size},{status}").toUTF8,
+    exit := .halted }
+
+def suiteGrowth : Suite where
+  name := "malbolge-unshackled (reusable growth, default width)"
+  run := growthSnapshot 10
+  cases :=
+    [ { name := "initializer constructs the no-op orbit", source := ex "grow-twice.mu",
+        fuel := 22, expect := .outputs "153,3000,18,9;74,41,102,96,70,33;1,1;436,1199;0,fuel" }
+    , { name := "first call restores both moves", source := ex "grow-twice.mu",
+        fuel := 39, expect := .outputs "1200,5008,36,18;74,96,60,51,70,33;129140163,1;436,1199;0,fuel" }
+    , { name := "second call preserves the same return records", source := ex "grow-twice.mu",
+        fuel := 60, expect := .outputs "1200,5008,72,36;74,51,41,102,70,33;129140163,50031545098999707;436,1199;0,fuel" }
+    , { name := "second return reaches the halt", source := ex "grow-twice.mu",
+        fuel := 63, expect := .outputs "1300,5010,72,36;74,51,41,102,70,33;129140163,50031545098999707;436,1199;0,halt" } ]
+
+def suiteGrowthWidth : Suite where
+  name := "malbolge-unshackled (reusable growth, width 37)"
+  run := growthSnapshot 37
+  cases :=
+    [ { name := "first odd-width growth call", source := ex "grow-twice.mu",
+        fuel := 39, expect := .outputs "1200,5008,74,37;74,96,60,51,70,33;150094635296999121,1;436,1199;0,fuel" }
+    , { name := "second odd-width growth call", source := ex "grow-twice.mu",
+        fuel := 60, expect := .outputs "1200,5008,148,74;74,51,41,102,70,33;150094635296999121,67585198634817523235520443624317923;436,1199;0,fuel" }
+    , { name := "second odd-width return halts", source := ex "grow-twice.mu",
+        fuel := 63, expect := .outputs "1300,5010,148,74;74,51,41,102,70,33;150094635296999121,67585198634817523235520443624317923;436,1199;0,halt" } ]
+
 def suites : List Suite :=
-  [suite, suiteWidth, suiteStrict, suiteEcho, suiteRuntime, suiteRuntimeWidth]
+  [suite, suiteWidth, suiteStrict, suiteEcho, suiteRuntime, suiteRuntimeWidth,
+   suiteGrowth, suiteGrowthWidth]
 
 end Langlib.Tests.MalbolgeUnshackled

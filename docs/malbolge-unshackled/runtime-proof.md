@@ -111,6 +111,68 @@ and runtime invariant. **This segment does not restore its five code phases
 for another call.** In particular three ordinary no-ops cannot simply be
 reused as if they were phase-independent.
 
+## Reusable growth and initialization
+
+[`ReusableGrowth.lean`](../../Langlib/Computability/MalbolgeUnshackled/ReusableGrowth.lean)
+completes the restoration for a concrete growth block at 436 through 441.
+`call` proves eleven actual instructions, for every width at least 10:
+
+1. Execute the five growth instructions. The working words at 436 and 440
+   change from 74/70 to 70/74, and the data pointer returns to 5002.
+2. The jump at 441 reads 436 from cell 5002. Landing on 436 encrypts its
+   word back to 74, then resumes execution at 437 with data pointer 5003.
+3. Execute four no-ops. The last, at 440, encrypts 74 back to 70. The code
+   pointer reaches 441 and the data pointer reaches 5007.
+4. Jump through cell 5007 to the continuation. Both working moves and the
+   stable jump are restored; only the middle no-op phases and the landing
+   word may differ from entry.
+
+The three middle cells use the encryption orbit `41, 102, 96, 60, 51`.
+`nopCycle_closed` and `nopCycle_decode` prove that every phase is printable
+and remains a no-op at 437, 438 and 439. Exact phase restoration is
+unnecessary: the invariant admits the entire orbit. `nopCycle_not_loadable`
+also proves that none of those phases can be placed directly in source at
+those addresses. They decode to runtime no-ops through the interpreter's
+fallback rule, but fail the loader's instruction check.
+
+[`Initialization.lean`](../../Langlib/Computability/MalbolgeUnshackled/Initialization.lean)
+proves `initialize_cell`: a three-step `crazy; movd; crazy` sequence writes
+`crz (crz a firstOperand) secondOperand` at a separate target cell. It
+tracks the scratch write, target write, code writes, pointers and I/O;
+the intermediate move must fit the established address width. Combined
+with the checked `initializer_values`, it supplies the write primitive for
+these three concrete pairs:
+
+| Entry accumulator | First operand | Source target word | Initialized target |
+|---|---|---|---|
+| 0 | 2265 | 2267 | 41 at 437 |
+| 41 | 217 | 180 | 102 at 438 |
+| 102 | 6561 | 6567 | 96 at 439 |
+
+All three target words are legal data under the permissive loader. The
+code cells become printable no-ops only after initialization. The example
+executes the pairs at 1001–1003, 1006–1008 and 1011–1013, with intervening
+pointer resets. The generic write theorem and the three value identities
+are symbolic proofs; the complete loader/prologue composition is currently
+checked by execution tests.
+
+`Returns` constrains the distant read at **every** future width. For source
+ending in two words 5001 at addresses 7000 and 7001, `seed_return` proves
+that fill entry one is 5001. `Returns.of_fill` establishes all the reads
+when explicit source overrides are below 7002. The phase argument to
+`restTable` is 7000, the penultimate address, not the source length.
+`Returns.frame` preserves every future read under the growth call's finite
+write footprint. The more general `grow_return_of_read` exposes a read
+value directly, allowing this extensional invariant to compose without
+re-proving hash-map membership facts after each call.
+
+`Resident` combines the code, these future reads, the two return records,
+and a printable landing at 1199. `call_resident` returns to `c=1200,
+d=5008` with that whole invariant preserved, width doubled, `maxWidth`
+updated, and all other data and I/O unchanged. The caller must still supply
+`rot w 1` for each new call. Restoring the service does not synthesize a new
+one-marker or implement the caller's retry branch.
+
 ## Source-level regression witnesses
 
 The original examples
@@ -134,6 +196,16 @@ fill entry equal to 2997; no distant return record is installed by the
 program. Tests inspect the rotated operand, pointers, widths, output length,
 and the exact halt boundary. Strict loading rejects both examples.
 
+A third example,
+[`grow-twice.mu`](../../Langlib/Examples/MalbolgeUnshackled/grow-twice.mu),
+has 7002 source cells. Its finite initializer constructs the no-op orbit,
+then two distinct one-markers drive the same eleven-step growth service
+twice. The default setup reaches width 18, then the calls grow it to 36
+and 72. At starting width 37 they grow it to 74 and 148. Both runs halt
+after 63 instructions without output. Tests check the intermediate code
+phases, pointers, marker values, return records and halt boundary. This
+uses two prepared markers; it does not demonstrate unlimited marker reuse.
+
 These executions establish concrete loader compatibility by regression
 test. They do not prove a general source initializer, nor do they establish
 source reachability of every state satisfying the runtime hypotheses.
@@ -147,10 +219,11 @@ source reachability of every state satisfying the runtime hypotheses.
 2. Implement carry/borrow transitions using the existing crazy-operation
    algebra. Prove increment, nonzero decrement, and zero-test runs against
    `Registers`, including scratch restoration and all code phases.
-3. Make growth callable repeatedly, restore the one-marker, and return to
-   the scan's entry on overflow. Discharge remote-address freshness from
-   the finite layout. The next acceptance criterion remains a loadable
-   counter increment that crosses a width boundary and remains callable.
+3. Integrate the checked resident growth service into overflow retry:
+   restore the one-marker and return to the scan's entry without losing the
+   original counter. Establish its finite-fill invariant from the eventual
+   compiler layout. The next acceptance criterion remains a loadable counter
+   increment that crosses a width boundary and remains callable.
 4. Prove a total source layout and initialization theorem, then implement
    `Counter.Code` (including output), compose actual runs by induction on
    `Counter.Ev`/`EvN`, and reuse `counterProgram_spec` to obtain the final

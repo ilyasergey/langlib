@@ -66,6 +66,10 @@ A complete language contribution consists of:
      not an implemented branch. For self-modifying code, give frame conditions
      and track data, return records, and encryption phases across reuse; an
      instruction restored to its entry word does not restore its operands.
+     For loader-generated periodic fill, prove the phase from the loader's
+     actual seed address: MU phases from the penultimate character's address,
+     not the source length. Runtime no-ops accepted through a decoder fallback
+     may still be illegal source words and require initialization.
    * **Not Turing complete** means you can exhibit a bound: a finite state
      space, an absent construct (no loops, no unbounded storage), or a
      decidable halting argument. Say which, and prove it if you can. These

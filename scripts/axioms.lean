@@ -43,6 +43,8 @@ import Langlib.Computability.MalbolgeUnshackled.Runtime
 import Langlib.Computability.MalbolgeUnshackled.Rotation
 import Langlib.Computability.MalbolgeUnshackled.RotationLoop
 import Langlib.Computability.MalbolgeUnshackled.Growth
+import Langlib.Computability.MalbolgeUnshackled.ReusableGrowth
+import Langlib.Computability.MalbolgeUnshackled.Initialization
 import Langlib.Computability.Unlambda
 import Langlib.Computability.Ski
 
@@ -788,6 +790,20 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.Runtime.RotationLoop.pass
 #print axioms Unshackled.Runtime.RotationLoop.passes
 #print axioms Unshackled.Runtime.RotationLoop.full_cycle
+
+-- Reusable growth and its initialization primitive. The resident invariant
+-- includes the return table and return reads at every future width.
+#print axioms Unshackled.Runtime.grow_return_of_read
+#print axioms Unshackled.Runtime.initialize_cell
+#print axioms Unshackled.Runtime.ReusableGrowth.nopCycle_closed
+#print axioms Unshackled.Runtime.ReusableGrowth.nopCycle_decode
+#print axioms Unshackled.Runtime.ReusableGrowth.nopCycle_not_loadable
+#print axioms Unshackled.Runtime.ReusableGrowth.call
+#print axioms Unshackled.Runtime.ReusableGrowth.seed_return
+#print axioms Unshackled.Runtime.ReusableGrowth.Returns.of_fill
+#print axioms Unshackled.Runtime.ReusableGrowth.Returns.frame
+#print axioms Unshackled.Runtime.ReusableGrowth.call_resident
+#print axioms Unshackled.Runtime.ReusableGrowth.initializer_values
 
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
