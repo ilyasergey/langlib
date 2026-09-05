@@ -88,6 +88,8 @@ def suite : Suite where
         fuel := 103, expect := .outputs "" }
     , { name := "marker rotation and reset repeat", source := ex "marker-cycle.mu",
         fuel := 526, expect := .diverges }
+    , { name := "one marker grows indefinitely", source := ex "grow-loop.mu",
+        fuel := 1592, expect := .diverges }
       -- Micro-programs.
     , { name := "halt at address 0", source := .inline "Q'",
         expect := .outputs "" }
@@ -134,7 +136,9 @@ def suiteWidth : Suite where
     , { name := "marker reset at width 37", source := ex "marker-reset.mu",
         fuel := 103, expect := .outputs "" }
     , { name := "marker cycle at width 37", source := ex "marker-cycle.mu",
-        fuel := 526, expect := .diverges } ]
+        fuel := 526, expect := .diverges }
+    , { name := "same marker grows repeatedly at width 37", source := ex "grow-loop.mu",
+        fuel := 1592, expect := .diverges } ]
 
 /-- Johansen's `-n`: source characters outside 33..126 are a load error
 rather than being loaded unchecked. -/
@@ -160,6 +164,8 @@ def suiteStrict : Suite where
     , { name := "marker constants require permissive loading", source := ex "marker-reset.mu",
         expect := .parseError "--strict rejects those" }
     , { name := "marker cycle initializer requires permissive loading", source := ex "marker-cycle.mu",
+        expect := .parseError "--strict rejects those" }
+    , { name := "growth loop initializer needs permissive loading", source := ex "grow-loop.mu",
         expect := .parseError "--strict rejects those" } ]
 
 /-- The cat echoes its input before diverging; compare the echoed prefix. -/
@@ -356,8 +362,65 @@ def suiteCycleWidth : Suite where
     , { name := "nine cycles reuse all records", source := ex "marker-cycle.mu", input := "unused",
         fuel := 526, expect := .outputs "529,3200,37,8;1,1;74,74,74,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" } ]
 
+/-- Observe repeated width changes, return routes and regeneration of the
+same marker; the loaded program itself emits no diagnostics. -/
+private def growingSnapshot (w : Nat) (src : String) (input : Input) (fuel : Nat) :
+    Except String RunResult := do
+  let img ← Langlib.MalbolgeUnshackled.load src
+  let (s, exit) := Langlib.MalbolgeUnshackled.exec fuel
+    { mem := img.mem, input, rotWidth := w }
+  let read (a : Nat) := toString (s.mem.get (Langlib.MalbolgeUnshackled.Value.ofNat a))
+  let phases := String.intercalate "," ([436,437,438,439,440,441,529,530].map read)
+  let constants := String.intercalate "," ([3000,3400,3500,3600].map read)
+  let records := String.intercalate "," ([3201,3202,5002,5007].map read)
+  let status := match exit with
+    | .halted => "halt"
+    | .outOfFuel => "fuel"
+    | .error e => s!"error: {e}"
+  return {
+    output := (s!"{s.c},{s.d},{s.rotWidth},{s.maxWidth};{read 3200},{s.a};{phases};{constants};{records};{s.input.pos},{s.output.size},{status}").toUTF8,
+    exit := .halted }
+
+def suiteGrowing : Suite where
+  name := "malbolge-unshackled (growing marker, width 10)"
+  run := growingSnapshot 10
+  cases :=
+    [ { name := "initializer reaches reusable entry", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1331, expect := .outputs "529,3200,18,9;1,1;74,41,102,96,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "same rotated marker enters growth", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1355, expect := .outputs "436,3200,18,9;129140163,129140163;74,41,102,96,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "growth returns with marker intact", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1366, expect := .outputs "1200,5008,36,18;129140163,129140163;74,96,60,51,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "exit route reaches reset at new width", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1377, expect := .outputs "153,3000,36,18;129140163,129140163;74,96,60,51,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "first full cycle regenerates one", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1418, expect := .outputs "529,3200,36,18;1,1;74,96,60,51,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "second doubling reuses the same marker", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1505, expect := .outputs "529,3200,72,36;1,1;74,51,41,102,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "third doubling restores all services", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1592, expect := .outputs "529,3200,144,72;1,1;74,102,96,60,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" } ]
+
+def suiteGrowingWidth : Suite where
+  name := "malbolge-unshackled (growing marker, width 37)"
+  run := growingSnapshot 37
+  cases :=
+    [ { name := "initializer reaches reusable entry", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1331, expect := .outputs "529,3200,37,9;1,1;74,41,102,96,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "same rotated marker enters growth", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1355, expect := .outputs "436,3200,37,9;150094635296999121,150094635296999121;74,41,102,96,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "growth returns with marker intact", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1366, expect := .outputs "1200,5008,74,37;150094635296999121,150094635296999121;74,96,60,51,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "exit route reaches reset at new width", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1377, expect := .outputs "153,3000,74,37;150094635296999121,150094635296999121;74,96,60,51,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "first full cycle regenerates one", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1418, expect := .outputs "529,3200,74,37;1,1;74,96,60,51,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "second doubling reuses the same marker", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1505, expect := .outputs "529,3200,148,74;1,1;74,51,41,102,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "third doubling restores all services", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1592, expect := .outputs "529,3200,296,148;1,1;74,102,96,60,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" } ]
+
 def suites : List Suite :=
   [suite, suiteWidth, suiteStrict, suiteEcho, suiteRuntime, suiteRuntimeWidth,
-   suiteGrowth, suiteGrowthWidth, suiteMarker, suiteMarkerWidth, suiteCycle, suiteCycleWidth]
+   suiteGrowth, suiteGrowthWidth, suiteMarker, suiteMarkerWidth, suiteCycle, suiteCycleWidth, suiteGrowing, suiteGrowingWidth]
 
 end Langlib.Tests.MalbolgeUnshackled

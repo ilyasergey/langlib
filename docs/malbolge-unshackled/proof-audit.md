@@ -20,8 +20,10 @@ working calls, a repeating rotation loop, marker algebra, reusable width
 growth, code-initialization writes, and a 34-step marker reset with preserved
 constants are now checked. A 50-step cycle now connects rotation and reset
 through one unchanged marker record, with arbitrary repetition proved.
-Arithmetic, runtime scan exit, integration with growth for overflow retry, general source
-initialization, and the completeness witness remain open.
+An 87-step cycle now incorporates width growth and regenerates the same
+marker at each new width; arbitrary repetition and unbounded width are
+proved. Arithmetic, runtime scan exit, conditional overflow retry, general
+source initialization, and the completeness witness remain open.
 
 ## What the current proof actually establishes
 

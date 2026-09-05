@@ -3,6 +3,48 @@
 Newest first. Add a dated entry for every substantial batch of work.
 
 
+## 2026-09-06: MU repeatedly grows using one reusable marker
+
+`GrowingMarker.lean` connects rotation, width growth and marker reset in
+87 actual MU instructions. A 15-step entry route and an eleven-step return
+route connect the existing services. `cycle` doubles the width, regenerates
+one in the same marker cell and restores the complete resident invariant.
+`repeat_cycles` reaches width `2^n*w`; `unbounded_width` gives actual runs
+above every fixed bound, and `neverHalts` covers every fuel prefix. Input,
+output, constants, marker-adjacent records and future distant return reads
+are preserved. This is unconditional growth; scan exit, carry/borrow,
+conditional overflow retry and the completeness simulation remain open.
+
+`MarkerCycle` now supports either its original reset continuation or the
+growth continuation, with a precise memory footprint for each. Its original
+public interfaces remain available. `Routing.lean` extracts the control-step
+lemmas shared by both cycles. The new routes use eighteen additional no-op
+cells; kernel-checked encryption orbits describe every reachable phase.
+
+The sixth generated source, `grow-loop.mu`, initializes all 24 runtime
+no-ops and the reset constants in a finite startup. It reaches the first
+rotation entry at instruction 1331 and returns every 87 steps thereafter.
+The default setup reaches width 18, then grows to 36, 72 and 144; starting
+at 37 reaches 74, 148 and 296. Seventeen new tests inspect both routes,
+restored marker and code, constant values, records, and untouched nonempty
+input. The source has 12006 cells; `returns_of_fill` checks the new seed
+phase and proves that even the smallest permitted distant read lies beyond
+the source. `CONTRIBUTING.md` records this source-size check for future
+initializer changes. Finite synthesis identities are proved; the complete
+source-to-resident-invariant theorem remains open and is tested by execution.
+
+The runtime account, proof tracker, audit, plan, spec and README now track
+this milestone and its remaining obligations. The spec includes a complete
+sparse transliteration of the new source.
+
+Validation: full `lake build`, all 1685 `lake test` cases and both Velato
+round-trip checks pass. All 654 axiom-audit reports use only standard
+logical axioms. The runtime generator's `--check` passes, and the spec's
+new transliteration matches the generated source byte for byte. Both
+documented 1592-step runs produce the expected fuel diagnostic with exit
+status 2 and no program output.
+
+
 ## 2026-09-06: MU rotation and reset share one reusable marker record
 
 `MarkerCycle.lean` closes the routing gap between rotation and marker reset.

@@ -112,6 +112,99 @@ def marker_cycle() -> bytes:
     return ("".join(map(chr, words)) + "\n").encode("utf-8")
 
 
+def growing_marker() -> bytes:
+    # The same marker drives every growth. A finite startup at 8000
+    # initializes all no-op orbits, then constructs the reset constants.
+    base = list(map(ord, marker_cycle().decode("utf-8").removesuffix("\n")))
+    words = base + [word_for(68, i) for i in range(len(base), 12006)]
+    for i in range(1000, 1032):
+        words[i] = word_for(68, i)
+    cells = {
+        41: 7799, 7800: 7999, 7801: 5999,
+        2999: 1399, 1404: 104, 3004: 247, 3005: 3190,
+        3191: 248, 3192: 428, 1200: 120, 5008: 247, 5009: 2990,
+        2991: 248, 2992: 145,
+        436: 74, 440: 70, 441: 33, 5002: 436, 5007: 1199,
+        3000: 317, 3400: 243, 3600: 243, 3200: 1,
+        12004: 5001, 12005: 5001,
+    }
+    cells.update({a: 5999 for a in [39, 42, 52, 61, 71, 75, 83, 97, 103, 105]})
+    for i, v in cells.items():
+        words[i] = v
+    known = dict(enumerate(words))
+    code, data, record = 8000, 7801, 0
+
+    def emit(op: int) -> None:
+        nonlocal code
+        words[code] = word_for(op, code)
+        code += 1
+
+    def scratch() -> int:
+        nonlocal data, record
+        for _ in range(10):
+            if data == 6000:
+                break
+            emit(40)
+            data = known[data] + 1
+        assert data == 6000
+        for _ in range(3 * record):
+            emit(68)
+            data += 1
+        record += 1
+        return data
+
+    table = [[1, 1, 2], [0, 0, 2], [0, 2, 1]]
+
+    def pair(a: int, out: int) -> tuple[int, int]:
+        x, b, power = 0, 0, 1
+        for i in range(9):
+            choices = [(u, v) for u in range(3) for v in range(3)
+                       if table[table[a % 3][u]][v] == out % 3]
+            u, v = (1, 1) if i == 8 else choices[0]
+            assert (u, v) in choices
+            x += u * power
+            b += v * power
+            power *= 3
+            a //= 3
+            out //= 3
+        return x, b
+
+    targets = {a: 74 for a in [*range(146, 153), *range(429, 436),
+                               *range(526, 529), *range(1400, 1404)]}
+    targets.update({435: 41, 437: 41, 438: 102, 439: 96, 1402: 41})
+    acc = 0
+    for target, value in sorted(targets.items(), reverse=True):
+        slot = scratch()
+        x, b = pair(acc, value)
+        words[slot], words[slot + 1], words[target] = x, target - 1, b
+        emit(62)
+        emit(40)
+        emit(62)
+        data, acc, known[target] = target + 1, value, value
+    assert acc == 74
+    slot = scratch()
+    words[slot] = 2999
+    emit(40)
+    emit(62)  # crz 74 317 = all-ones at 3000
+    data = 3001
+    for target, operand in [(3400, 243), (3600, 245)]:
+        slot = scratch()
+        words[slot], words[slot + 1] = operand, target - 1
+        emit(62)
+        emit(40)
+        emit(62)
+        data = target + 1
+    slot = scratch()
+    words[slot] = 5006
+    emit(40)
+    emit(4)  # enter the shared growth-to-reset route at 1200/5008
+    assert code < 12004
+    assert all(n not in (9, 10, 11, 12, 13, 32) for n in words)
+    assert all(n < 33 or n > 126 or (n + i) % 94 in (4, 5, 23, 39, 40, 62, 68, 81)
+               for i, n in enumerate(words))
+    return ("".join(map(chr, words)) + "\n").encode("utf-8")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
@@ -121,7 +214,8 @@ def main() -> None:
                        ("grow-once.mu", program(True)),
                        ("grow-twice.mu", repeated_growth()),
                        ("marker-reset.mu", marker_reset()),
-                       ("marker-cycle.mu", marker_cycle())):
+                       ("marker-cycle.mu", marker_cycle()),
+                       ("grow-loop.mu", growing_marker())):
         path = root / "Langlib/Examples/MalbolgeUnshackled" / name
         if args.check:
             if not path.exists() or path.read_bytes() != data:

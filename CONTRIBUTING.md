@@ -76,7 +76,10 @@ A complete language contribution consists of:
      are interchangeable. If a jump landing also serves as executable code,
      track its exact encryption history: preserving printability alone does
      not preserve its instruction. MU's shared marker rotor at 529 is
-     restored by exactly two reset-return encryptions.
+     restored by exactly two reset-return encryptions. When enlarging an
+     initializer, recheck that every required distant read still lies beyond
+     the source prefix, including at the smallest width allowed by the
+     invariant; preserving the seed phase alone is insufficient.
    * **Not Turing complete** means you can exhibit a bound: a finite state
      space, an absent construct (no loops, no unbounded storage), or a
      decidable halting argument. Say which, and prove it if you can. These

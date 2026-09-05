@@ -47,6 +47,7 @@ import Langlib.Computability.MalbolgeUnshackled.ReusableGrowth
 import Langlib.Computability.MalbolgeUnshackled.Initialization
 import Langlib.Computability.MalbolgeUnshackled.MarkerReset
 import Langlib.Computability.MalbolgeUnshackled.MarkerCycle
+import Langlib.Computability.MalbolgeUnshackled.GrowingMarker
 import Langlib.Computability.Unlambda
 import Langlib.Computability.Ski
 
@@ -927,3 +928,23 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.Runtime.MarkerCycle.repeat_cycles
 #print axioms Unshackled.Runtime.MarkerCycle.neverHalts
 #print axioms Unshackled.Runtime.MarkerCycle.initializer_values
+
+-- One marker drives arbitrarily many real width changes and returns.
+#print axioms Unshackled.Runtime.Routing.get_set_nat
+#print axioms Unshackled.Runtime.Routing.jump
+#print axioms Unshackled.Runtime.Routing.move
+#print axioms Unshackled.Runtime.Routing.noop
+#print axioms Unshackled.Runtime.Routing.printable_after
+#print axioms Unshackled.Runtime.MarkerCycle.rotate_to
+#print axioms Unshackled.Runtime.MarkerCycle.Links.reset_frame
+#print axioms Unshackled.Runtime.GrowingMarker.orbit_valid
+#print axioms Unshackled.Runtime.GrowingMarker.orbit_not_loadable
+#print axioms Unshackled.Runtime.GrowingMarker.enter_growth
+#print axioms Unshackled.Runtime.GrowingMarker.leave_growth
+#print axioms Unshackled.Runtime.GrowingMarker.cycle
+#print axioms Unshackled.Runtime.GrowingMarker.repeat_cycles
+#print axioms Unshackled.Runtime.GrowingMarker.neverHalts
+#print axioms Unshackled.Runtime.GrowingMarker.unbounded_width
+#print axioms Unshackled.Runtime.GrowingMarker.returns_of_fill
+#print axioms Unshackled.Runtime.MarkerCycle.return_route
+#print axioms Unshackled.Runtime.GrowingMarker.initializer_values

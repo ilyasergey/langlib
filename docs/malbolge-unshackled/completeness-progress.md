@@ -68,16 +68,25 @@ The new [runtime account](runtime-proof.md) documents the proof modules:
   fuel prefix survives. The reset proof now tracks the exact two encryptions
   of the shared rotor/landing at 529.
 
-Five generated, loadable source examples exercise the loop, one growth
+* `Routing.lean`: the natural-address control-step facts shared by both
+  cycles; existing marker-route APIs retain their direct-reset behavior.
+* `GrowingMarker.lean`: an 87-step cycle rotates, grows, resets the same
+  marker at the new width, and returns. All resident services and future
+  remote reads survive. Arbitrary repetition reaches width `2^n*w`;
+  actual runs exceed every fixed width bound.
+
+Six generated, loadable source examples exercise the loop, one growth
 segment, two calls of the same growth service, and rotation/reset of the
-same marker cell, including a closed repeating cycle, at default and odd
-widths. Regression tests inspect machine states,
+same marker cell, including closed reset-only and growing cycles, at default
+and odd widths. Regression tests inspect machine states,
 repeat full cycles, check no-op phases and unconsumed return records, and
 check the exact halt boundaries. The two-call example uses distinct prepared
 markers. The reset example bootstraps constants, rotates its one marker,
 and regenerates one, but its rotation wrapper is single-use. The new cycle
 example initializes its no-ops and repeats rotation/reset indefinitely.
-Entering and leaving width growth from this routing remains open.
+The growth-loop example initializes all services and reuses the same marker
+through successive width changes. Detecting overflow and resuming a
+terminating arithmetic scan remains open.
 General loader reachability of the runtime invariant is still unproved.
 
 ## Remaining, in dependency order
@@ -85,7 +94,7 @@ General loader reachability of the runtime invariant is still unproved.
 1. Extend the checked working-call convention to branch flags and scratch
    protocols; account for every changed phase in the arithmetic caller.
 2. Attach a runtime marker test and exit branch to the checked rotation loop.
-   Integrate the resident growth service with marker reset and overflow retry.
+   Use the checked growth/reset routes to implement conditional overflow retry.
 3. Counter read/write, increment with overflow retry, decrement with borrow,
    zero testing on a scratch copy, and output; prove actual finite `run?`
    segments preserving the calling convention.

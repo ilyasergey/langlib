@@ -1,4 +1,5 @@
 import Langlib.Computability.MalbolgeUnshackled.MarkerReset
+import Langlib.Computability.MalbolgeUnshackled.Routing
 
 /-!
 # Repeating rotation and reset on the same marker
@@ -13,112 +14,67 @@ namespace Langlib.Computability.Unshackled.Runtime.MarkerCycle
 open Langlib.Common Langlib.MalbolgeUnshackled
 open Marker
 
-private theorem get_set_nat (m : Memory) (a b : Nat) (v : Value) :
-    (m.set (Value.ofNat a) v).get (Value.ofNat b) =
-      if a = b then v else m.get (Value.ofNat b) := by
-  by_cases h : a = b
-  · subst b; simp [get_set_self]
-  · rw [if_neg h, get_set_ne _ (ofNat_ne h)]
+open Routing
 
-private theorem jump {s : State} {C D T k : Nat}
-    (hc : s.c = Value.ofNat C) (hd : s.d = Value.ofNat D)
-    (hj : decode (s.mem.get (Value.ofNat C)) (Value.ofNat C).modClass = .jmp)
-    (hp : s.mem.get (Value.ofNat D) = Value.ofNat T)
-    (hk : printableCode? (s.mem.get (Value.ofNat T)) = some k) :
-    step1 s = some { s with
-      mem := s.mem.set (Value.ofNat T) (Value.ofNat (encrypt k)),
-      c := Value.ofNat (T + 1), d := Value.ofNat (D + 1) } := by
-  have hh := step1_jmp (s := s) (by rw [hc]; exact hj)
-    (by rw [hd, hp]; exact hk)
-  simpa only [hd, hp, succ_ofNat] using hh
-
-private theorem move {s : State} {C D T k : Nat}
-    (hc : s.c = Value.ofNat C) (hd : s.d = Value.ofNat D)
-    (hj : decode (s.mem.get (Value.ofNat C)) (Value.ofNat C).modClass = .movd)
-    (hp : s.mem.get (Value.ofNat D) = Value.ofNat T)
-    (hk : printableCode? (s.mem.get (Value.ofNat C)) = some k)
-    (hw : (Value.ofNat T).width ≤ s.maxWidth) :
-    step1 s = some { s with
-      mem := s.mem.set (Value.ofNat C) (Value.ofNat (encrypt k)),
-      c := Value.ofNat (C + 1), d := Value.ofNat (T + 1) } := by
-  have hh := step1_movd (s := s) (by rw [hc]; exact hj) (by rw [hc]; exact hk)
-  rw [hd, hp, if_neg (by omega), if_neg (by omega)] at hh
-  simpa only [hc, succ_ofNat] using hh
-
-private theorem noop {s : State} {C D k : Nat}
-    (hc : s.c = Value.ofNat C) (hd : s.d = Value.ofNat D)
-    (hj : decode (s.mem.get (Value.ofNat C)) (Value.ofNat C).modClass = .nop)
-    (hk : printableCode? (s.mem.get (Value.ofNat C)) = some k) :
-    step1 s = some { s with
-      mem := s.mem.set (Value.ofNat C) (Value.ofNat (encrypt k)),
-      c := Value.ofNat (C + 1), d := Value.ofNat (D + 1) } := by
-  have hh := step1_nop (s := s) (by rw [hc]; exact hj) (by rw [hc]; exact hk)
-  simpa only [hc, hd, succ_ofNat] using hh
-
-def cells : List (Nat × Nat) :=
-  [(110,82), (272,247), (273,2995), (2996,248), (2997,529), (2999,152),
+def cells (T : Nat := 152) : List (Nat × Nat) :=
+  [(110,82), (272,247), (273,2995), (2996,248), (2997,529), (2999,T),
    (1300,114), (3205,247), (3206,3194), (3195,248), (3196,525)]
 
-def landings : List Nat := [109, 152, 525]
+def landings (T : Nat := 152) : List Nat := [109, T, 525]
 
 def noops : List Nat := [526, 527, 528]
 
 /-- Additional static routing records and the three initialized no-ops. -/
-structure Links (m : Memory) : Prop where
-  static : ∀ a v, (a,v) ∈ cells → m.get (Value.ofNat a) = Value.ofNat v
-  landing : ∀ a ∈ landings, ∃ k, printableCode? (m.get (Value.ofNat a)) = some k
+structure Links (m : Memory) (T : Nat := 152) : Prop where
+  static : ∀ a v, (a,v) ∈ cells T → m.get (Value.ofNat a) = Value.ofNat v
+  landing : ∀ a ∈ landings T, ∃ k, printableCode? (m.get (Value.ofNat a)) = some k
   nops : ∀ a ∈ noops, ∃ k, (k = 74 ∨ k = 70) ∧ m.get (Value.ofNat a) = Value.ofNat k
 
 /-- Possible changes over one complete cycle. The rotor and router are
 restored exactly and so are absent from this list. -/
-def changed : List Nat := [3200, 109, 152, 247, 269, 525, 526, 527, 528, 1299]
+def changed (T : Nat := 152) : List Nat := [3200, 109, T, 247, 269, 525, 526, 527, 528, 1299]
 
-structure Segment (n : Nat) (s t : State) : Prop where
+structure Segment (n : Nat) (s t : State) (T : Nat := 152) : Prop where
   run : run? n s = some t
-  frame : ∀ x, (∀ a ∈ changed, x ≠ Value.ofNat a) → t.mem.get x = s.mem.get x
+  frame : ∀ x, (∀ a ∈ changed T, x ≠ Value.ofNat a) → t.mem.get x = s.mem.get x
   width : t.rotWidth = s.rotWidth
   maxWidth : t.maxWidth = s.maxWidth
   input : t.input = s.input
   output : t.output = s.output
   outClosed : t.outClosed = s.outClosed
 
-private theorem Segment.trans {m n : Nat} {s u t : State}
-    (h : Segment m s u) (h' : Segment n u t) : Segment (m + n) s t := by
+private theorem Segment.trans {m n T : Nat} {s u t : State}
+    (h : Segment m s u T) (h' : Segment n u t T) : Segment (m + n) s t T := by
   refine ⟨?_, fun x hx => (h'.frame x hx).trans (h.frame x hx),
     h'.width.trans h.width, h'.maxWidth.trans h.maxWidth, h'.input.trans h.input,
     h'.output.trans h.output, h'.outClosed.trans h.outClosed⟩
   rw [run?_add, h.run, Option.bind_some, h'.run]
 
-private theorem printable_after {v : Value} {k : Nat}
-    (h : printableCode? v = some k) :
-    ∃ j, printableCode? (Value.ofNat (encrypt k)) = some j := by
-  have hb := printableCode?_bounds h
-  have he := encrypt_range hb.1 hb.2
-  exact ⟨encrypt k, printableCode?_ofNat he.1 he.2⟩
 
 set_option maxHeartbeats 2000000 in
 /-- Rotate the shared marker and enter reset, restoring both working words.
 The adjacent record remains the reset's crazy-operation record throughout. -/
-theorem rotate {s : State} {w : Nat} {a v : Value}
+theorem rotate_to {s : State} {w T : Nat} {a v : Value}
     (h : MarkerReset.At w a v false 529 3200 s)
-    (hl : Links s.mem) (hr : s.mem.get (Value.ofNat 529) = Value.ofNat 74) :
-    ∃ t, Segment 9 s t ∧
-      MarkerReset.At w (Value.rot w v) (Value.rot w v) false 153 3000 t ∧
-      Links t.mem ∧ t.mem.get (Value.ofNat 529) = Value.ofNat 74 := by
-  obtain ⟨k109, hk109⟩ := hl.landing 109 (by decide)
-  obtain ⟨k152, hk152⟩ := hl.landing 152 (by decide)
+    (hl : Links s.mem T) (hT : T = 152 ∨ T = 1399) (hr : s.mem.get (Value.ofNat 529) = Value.ofNat 74) :
+    ∃ t, Segment 9 s t T ∧
+      MarkerReset.At w (Value.rot w v) (Value.rot w v) false (T + 1) 3000 t ∧
+      Links t.mem T ∧ t.mem.get (Value.ofNat 529) = Value.ofNat 74 := by
+  have hsepT : T ≠ 529 ∧ T ≠ 530 ∧ T ≠ 248 ∧ T ≠ 3200 ∧ T ≠ 109 ∧ T ≠ 247 := by omega
+  obtain ⟨k109, hk109⟩ := hl.landing 109 (by simp [landings])
+  obtain ⟨k152, hk152⟩ := hl.landing T (by simp [landings])
   obtain ⟨k247, hk247⟩ := h.resident.landing 247 (by decide)
   have h3201 := h.resident.static 3201 (Value.ofNat 270) (by decide)
   have h271 := h.resident.static 271 (Value.ofNat 109) (by decide)
   have h531 := h.resident.static 531 (Value.ofNat 37) (by decide)
   have h248 := h.resident.static 248 (Value.ofNat 74) (by decide)
   have h249 := h.resident.static 249 (Value.ofNat 37) (by decide)
-  have h110 := hl.static 110 82 (by decide)
-  have h272 := hl.static 272 247 (by decide)
-  have h273 := hl.static 273 2995 (by decide)
-  have h2996 := hl.static 2996 248 (by decide)
-  have h2997 := hl.static 2997 529 (by decide)
-  have h2999 := hl.static 2999 152 (by decide)
+  have h110 := hl.static 110 82 (by simp [cells])
+  have h272 := hl.static 272 247 (by simp [cells])
+  have h273 := hl.static 273 2995 (by simp [cells])
+  have h2996 := hl.static 2996 248 (by simp [cells])
+  have h2997 := hl.static 2997 529 (by simp [cells])
+  have h2999 := hl.static 2999 T (by simp [cells])
   have h530 : s.mem.get (Value.ofNat 530) = Value.ofNat 74 := h.router
   let s1 : State := { s with
     mem := ((s.mem.set (Value.ofNat 3200) (Value.rot w v)).set (Value.ofNat 529) (Value.ofNat 70)),
@@ -194,70 +150,70 @@ theorem rotate {s : State} {w : Nat} {a v : Value}
       (by simp [s1, s2, s3, s4, s5, s6, s7, get_set_nat]; decide)
     exact hh
   let s9 : State := { s8 with
-    mem := (s8.mem.set (Value.ofNat 152) (Value.ofNat (encrypt k152))),
-    c := Value.ofNat 153, d := Value.ofNat 3000 }
+    mem := (s8.mem.set (Value.ofNat T) (Value.ofNat (encrypt k152))),
+    c := Value.ofNat (T + 1), d := Value.ofNat 3000 }
   have hs9 : step1 s8 = some s9 := by
-    have hh := jump (s := s8) (C := 531) (D := 2999) (T := 152) (k := k152) rfl rfl
+    have hh := jump (s := s8) (C := 531) (D := 2999) (T := T) (k := k152) rfl rfl
       (by simp [s1, s2, s3, s4, s5, s6, s7, s8, get_set_nat, h531]; decide)
       (by simp [s1, s2, s3, s4, s5, s6, s7, s8, get_set_nat, h2999])
-      (by simp [s1, s2, s3, s4, s5, s6, s7, s8, get_set_nat, hk152])
+      (by rcases hT with rfl | rfl <;> simpa [s1, s2, s3, s4, s5, s6, s7, s8, get_set_nat] using hk152)
     exact hh
-  have hf : ∀ x, (∀ b ∈ ([3200,109,152,247] : List Nat), x ≠ Value.ofNat b) →
+  have hf : ∀ x, (∀ b ∈ ([3200,109,T,247] : List Nat), x ≠ Value.ofNat b) →
       s9.mem.get x = s.mem.get x := by
     intro x hx
     have h3200 := hx 3200 (by simp)
     have h109 := hx 109 (by simp)
-    have h152 := hx 152 (by simp)
+    have h152 := hx T (by simp)
     have h247 := hx 247 (by simp)
     by_cases h529 : x = Value.ofNat 529
     · subst x
-      simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat,hr]
+      simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat,hr, hsepT.1]
     by_cases h530' : x = Value.ofNat 530
     · subst x
-      simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat,h530]
+      simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat,h530, hsepT.2.1]
     by_cases h248' : x = Value.ofNat 248
     · subst x
-      simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat,h248]
+      simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat,h248, hsepT.2.2.1]
     simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_ne,Ne.symm h3200,Ne.symm h109,
       Ne.symm h152,Ne.symm h247,Ne.symm h529,Ne.symm h530',Ne.symm h248']
   have hres : MarkerReset.Resident s9.mem := by
     constructor
     · intro b v hb
-      have hdis : ∀ e ∈ MarkerReset.cells, ∀ z ∈ ([3200,109,152,247] : List Nat), e.1 ≠ z := by
-        unfold MarkerReset.cells; decide
+      have hdis : ∀ e ∈ MarkerReset.cells, ∀ z ∈ ([3200,109,T,247] : List Nat), e.1 ≠ z := by
+        rcases hT with rfl | rfl <;> unfold MarkerReset.cells <;> decide
       rw [hf _ (fun z hz => ofNat_ne (hdis (b,v) hb z hz))]
       exact h.resident.static b v hb
     · intro b hb
       by_cases he : b = 247
       · subst b
         have heq : s9.mem.get (Value.ofNat 247) = Value.ofNat (encrypt k247) := by
-          simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat]
+          simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat, hsepT.2.2.2.2.2]
         rw [heq]; exact printable_after hk247
-      · have hd : ∀ z ∈ ([3200,109,152,247] : List Nat), b ≠ z := by
+      · have hd : ∀ z ∈ ([3200,109,T,247] : List Nat), b ≠ z := by
           intro z hz
           simp at hz
           simp [MarkerReset.landings] at hb
           omega
         rw [hf _ (fun z hz => ofNat_ne (hd z hz))]
         exact h.resident.landing b hb
-  have hlinks : Links s9.mem := by
+  have hlinks : Links s9.mem T := by
     constructor
     · intro b v hb
-      have hdis : ∀ e ∈ cells, ∀ z ∈ ([3200,109,152,247] : List Nat), e.1 ≠ z := by
-        unfold cells; decide
+      have hdis : ∀ e ∈ cells T, ∀ z ∈ ([3200,109,T,247] : List Nat), e.1 ≠ z := by
+        rcases hT with rfl | rfl <;> unfold cells <;> decide
       rw [hf _ (fun z hz => ofNat_ne (hdis (b,v) hb z hz))]
       exact hl.static b v hb
     · intro b hb
       simp [landings] at hb
       rcases hb with rfl | rfl | rfl
       · have heq : s9.mem.get (Value.ofNat 109) = Value.ofNat (encrypt k109) := by
-          simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat]
+          simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat, hsepT.2.2.2.2.1]
         rw [heq]; exact printable_after hk109
-      · have heq : s9.mem.get (Value.ofNat 152) = Value.ofNat (encrypt k152) := by
+      · have heq : s9.mem.get (Value.ofNat b) = Value.ofNat (encrypt k152) := by
           simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat]
         rw [heq]; exact printable_after hk152
       · rw [hf _ (by intro z hz; simp at hz; exact ofNat_ne (by omega))]
-        exact hl.landing 525 (by decide)
+        exact hl.landing 525 (by simp [landings])
     · intro b hb
       obtain ⟨k,hk,hv⟩ := hl.nops b hb
       refine ⟨k,hk,?_⟩
@@ -283,11 +239,20 @@ theorem rotate {s : State} {w : Nat} {a v : Value}
     change (step1 s8).bind some = _
     rw [hs9,Option.bind_some]
   · intro x hx
-    have hsub : ∀ z ∈ ([3200,109,152,247] : List Nat), z ∈ changed := by decide
+    have hsub : ∀ z ∈ ([3200,109,T,247] : List Nat), z ∈ changed T := by rcases hT with rfl | rfl <;> decide
     exact hf x (fun z hz => hx z (hsub z hz))
-  · simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat]
-  · simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat]
-  · simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat]
+  · simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat, hsepT.2.2.2.1]
+  · simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat, hsepT.2.1]
+  · simp [s9,s8,s7,s6,s5,s4,s3,s2,s1,get_set_nat, hsepT.1]
+
+/-- The original rotation route returns directly to reset. -/
+theorem rotate {s : State} {w : Nat} {a v : Value}
+    (h : MarkerReset.At w a v false 529 3200 s)
+    (hl : Links s.mem) (hr : s.mem.get (Value.ofNat 529) = Value.ofNat 74) :
+    ∃ t, Segment 9 s t ∧
+      MarkerReset.At w (Value.rot w v) (Value.rot w v) false 153 3000 t ∧
+      Links t.mem ∧ t.mem.get (Value.ofNat 529) = Value.ofNat 74 :=
+  rotate_to h hl (Or.inl rfl) hr
 
 theorem nop_phase {b k : Nat} (hb : b ∈ noops) (hk : k = 74 ∨ k = 70) :
     decode (Value.ofNat k) (Value.ofNat b).modClass = .nop ∧
@@ -304,23 +269,23 @@ theorem nop_not_loadable {b k : Nat} (hb : b ∈ noops) (hk : k = 74 ∨ k = 70)
 set_option maxHeartbeats 2000000 in
 /-- Return from reset to the rotation entry. Each no-op flips within a
 closed orbit; no operand or return record is modified. -/
-theorem return_to_rotation {s : State} {w : Nat} {a v : Value}
+theorem return_route {s : State} {w T : Nat} {a v : Value}
     (h : MarkerReset.At w a v false 1300 3205 s)
-    (hl : Links s.mem) (hr : s.mem.get (Value.ofNat 529) = Value.ofNat 74) :
-    ∃ t, Segment 7 s t ∧ MarkerReset.At w a v false 529 3200 t ∧
-      Links t.mem ∧ t.mem.get (Value.ofNat 529) = Value.ofNat 74 := by
+    (hl : Links s.mem T) (hT : T = 152 ∨ T = 1399) (hr : s.mem.get (Value.ofNat 529) = Value.ofNat 74) :
+    ∃ t, Segment 7 s t T ∧ MarkerReset.At w a v false 529 3200 t ∧
+      Links t.mem T ∧ t.mem.get (Value.ofNat 529) = Value.ofNat 74 := by
   obtain ⟨k247, hk247⟩ := h.resident.landing 247 (by decide)
-  obtain ⟨k525, hk525⟩ := hl.landing 525 (by decide)
+  obtain ⟨k525, hk525⟩ := hl.landing 525 (by simp [landings])
   obtain ⟨k526, hp526, hv526⟩ := hl.nops 526 (by decide)
   obtain ⟨k527, hp527, hv527⟩ := hl.nops 527 (by decide)
   obtain ⟨k528, hp528, hv528⟩ := hl.nops 528 (by decide)
   have h248 := h.resident.static 248 (Value.ofNat 74) (by decide)
   have h249 := h.resident.static 249 (Value.ofNat 37) (by decide)
-  have h1300 := hl.static 1300 114 (by decide)
-  have h3205 := hl.static 3205 247 (by decide)
-  have h3206 := hl.static 3206 3194 (by decide)
-  have h3195 := hl.static 3195 248 (by decide)
-  have h3196 := hl.static 3196 525 (by decide)
+  have h1300 := hl.static 1300 114 (by simp [cells])
+  have h3205 := hl.static 3205 247 (by simp [cells])
+  have h3206 := hl.static 3206 3194 (by simp [cells])
+  have h3195 := hl.static 3195 248 (by simp [cells])
+  have h3196 := hl.static 3196 525 (by simp [cells])
   let s1 : State := { s with
     mem := s.mem.set (Value.ofNat 247) (Value.ofNat (encrypt k247)),
     c := Value.ofNat 248, d := Value.ofNat 3206 }
@@ -416,11 +381,11 @@ theorem return_to_rotation {s : State} {w : Nat} {a v : Value}
           intro z hz; simp at hz; simp [MarkerReset.landings] at hb; omega
         rw [hf _ (fun z hz => ofNat_ne (hd z hz))]
         exact h.resident.landing b hb
-  have hlinks : Links s7.mem := by
+  have hlinks : Links s7.mem T := by
     constructor
     · intro b v hb
-      have hdis : ∀ e ∈ cells, ∀ z ∈ ([247,525,526,527,528] : List Nat), e.1 ≠ z := by
-        unfold cells; decide
+      have hdis : ∀ e ∈ cells T, ∀ z ∈ ([247,525,526,527,528] : List Nat), e.1 ≠ z := by
+        rcases hT with rfl | rfl <;> unfold cells <;> decide
       rw [hf _ (fun z hz => ofNat_ne (hdis (b,v) hb z hz))]
       exact hl.static b v hb
     · intro b hb
@@ -456,18 +421,26 @@ theorem return_to_rotation {s : State} {w : Nat} {a v : Value}
     change (step1 s6).bind some = _
     rw [hs7,Option.bind_some]
   · intro x hx
-    have hsub : ∀ z ∈ ([247,525,526,527,528] : List Nat), z ∈ changed := by decide
+    have hsub : ∀ z ∈ ([247,525,526,527,528] : List Nat), z ∈ changed T := by rcases hT with rfl | rfl <;> decide
     exact hf x (fun z hz => hx z (hsub z hz))
   · rw [hf _ (by intro z hz; simp at hz; exact ofNat_ne (by omega))]; exact h.marker
   · rw [hf _ (by intro z hz; simp at hz; exact ofNat_ne (by omega))]; exact h.router
   · rw [hf _ (by intro z hz; simp at hz; exact ofNat_ne (by omega))]; exact hr
 
-private theorem Links.reset_frame {s t : State} {n : Nat}
-    (h : Links s.mem) (hs : MarkerReset.Segment n s t) : Links t.mem := by
-  have hc : ∀ e ∈ cells, MarkerReset.Protected (Value.ofNat e.1) := by
-    unfold cells MarkerReset.Protected MarkerReset.landings; decide
-  have hl : ∀ b ∈ landings, MarkerReset.Protected (Value.ofNat b) := by
-    unfold landings MarkerReset.Protected MarkerReset.landings; decide
+/-- The original return contract, for the direct rotation/reset cycle. -/
+theorem return_to_rotation {s : State} {w : Nat} {a v : Value}
+    (h : MarkerReset.At w a v false 1300 3205 s)
+    (hl : Links s.mem) (hr : s.mem.get (Value.ofNat 529) = Value.ofNat 74) :
+    ∃ t, Segment 7 s t ∧ MarkerReset.At w a v false 529 3200 t ∧
+      Links t.mem ∧ t.mem.get (Value.ofNat 529) = Value.ofNat 74 :=
+  return_route h hl (Or.inl rfl) hr
+
+theorem Links.reset_frame {s t : State} {n T : Nat}
+    (h : Links s.mem T) (hT : T = 152 ∨ T = 1399) (hs : MarkerReset.Segment n s t) : Links t.mem T := by
+  have hc : ∀ e ∈ cells T, MarkerReset.Protected (Value.ofNat e.1) := by
+    rcases hT with rfl | rfl <;> unfold cells MarkerReset.Protected MarkerReset.landings <;> decide
+  have hl : ∀ b ∈ landings T, MarkerReset.Protected (Value.ofNat b) := by
+    rcases hT with rfl | rfl <;> unfold landings MarkerReset.Protected MarkerReset.landings <;> decide
   have hn : ∀ b ∈ noops, MarkerReset.Protected (Value.ofNat b) := by
     unfold noops MarkerReset.Protected MarkerReset.landings; decide
   constructor
@@ -508,7 +481,7 @@ theorem cycle {s : State} {w : Nat} (h : Ready w s) (hw : 1 ≤ w) :
     · exact hx 269 (by decide)
     · exact he
     · exact hx 1299 (by decide)
-  obtain ⟨t,ht,htat,htl,htr⟩ := return_to_rotation hvat (hl.reset_frame hvseg) hvr
+  obtain ⟨t,ht,htat,htl,htr⟩ := return_to_rotation hvat (hl.reset_frame (Or.inl rfl) hvseg) hvr
   exact ⟨t, hu.trans (hseg.trans ht), ⟨htat,htl,htr⟩⟩
 
 /-- Arbitrarily many cycles of one finite resident program. The count is

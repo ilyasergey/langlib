@@ -271,6 +271,61 @@ branch** and does **not call the width-growth service**. This closes shared
 routing between rotation and reset; it does not yet implement a terminating
 scan, overflow retry, counter arithmetic, or a general source initializer.
 
+## A closed growth cycle on one marker
+
+[`GrowingMarker.lean`](../../Langlib/Computability/MalbolgeUnshackled/GrowingMarker.lean)
+connects rotation, width growth, and reset in **87 actual instructions**.
+`Ready w` includes all resident services, marker one at 3200, the rotation
+entry `c=529,d=3200`, `maxWidth ≥ 8`, `maxWidth < w`, and `w ≥ 10`.
+`cycle` returns to `Ready (2*w)` with `maxWidth = w` and the same physical
+marker equal to one. Input, output, and the output-closed flag are preserved.
+
+| Segment | Steps | Exit code/data pointers | Effect |
+|---|---:|---|---|
+| rotate and restore | 9 | `1400/3000` | marker becomes `3^(w-1)` |
+| enter growth | 15 | `436/3200` | marker and both widths unchanged |
+| grow and return | 11 | `1200/5008` | width doubles; marker unchanged |
+| leave growth | 11 | `153/3000` | enters reset at the new width |
+| reset marker | 34 | `1300/3205` | same marker becomes one |
+| return to rotation | 7 | `529/3200` | all services callable again |
+
+`MarkerCycle.rotate_to` allows two checked continuation landings: 152 for
+its original reset-only cycle, or 1399 for this growth cycle. The adjacent
+marker records remain `3201:270` and `3202:529`. The rotation route's own
+record at 2999 now holds 1399. Its memory frame is parameterized by that
+continuation, so it does not incorrectly exclude the new no-op at 152.
+The original `rotate` and `return_to_rotation` interfaces are retained.
+[`Routing.lean`](../../Langlib/Computability/MalbolgeUnshackled/Routing.lean)
+holds the shared natural-address jump, move and no-op steps.
+
+The entry bridge skips four data cells with no-ops at 1400–1403, then
+jumps to the existing pointer reset at 248. New records at 3191–3192 send
+it to seven no-ops at 429–435; these align the pointers with the growth
+service and the rotated marker. On return from growth, the jump at 1200
+uses records at 2991–2992 to reach seven no-ops at 146–152, aligning the
+pointers with reset. All pointer moves fit the established address width.
+
+Sixteen of these eighteen new no-ops use the two-word orbit 74/70. The
+remaining two, at 435 and 1402, use the existing five-word orbit. Every
+phase is a runtime no-op, and none is a legal direct source instruction.
+`orbit_valid`, `orbit_not_loadable`, and `initializer_values` check their
+closure, source restrictions, and the finite synthesis identities.
+
+`Context` combines reset, routing, growth, and the new bridge records and
+phases. The proof preserves the growth service's distant return reads at
+**every future width**, through every intervening segment. `repeat_cycles`
+executes `87*n` steps and returns with width `2^n*w`. `unbounded_width`
+therefore proves that actual runs reach widths above any prescribed bound;
+`neverHalts` covers every fuel prefix. These are resource-growth results,
+not a universality theorem. The cycle grows unconditionally: it still needs
+a terminating scan, counter arithmetic, and an overflow test/retry caller.
+
+The larger source initializer ends at 12006 cells. `returns_of_fill` checks
+the seed phase at the penultimate address 12004 and proves all remote reads
+lie beyond the explicit source: even at width ten the first is 19687.
+The complete loader-to-`Ready` composition remains tested by execution;
+the symbolic cycle theorem starts from the resident invariant.
+
 ## Source-level regression witnesses
 
 The original examples
@@ -330,6 +385,18 @@ records through nine cycles. Both default width 16 (after setup) and width
 37 leave nonempty input unconsumed. These checks establish concrete source
 reachability by execution; the symbolic cycle theorem starts from `Ready`.
 
+A sixth example,
+[`grow-loop.mu`](../../Langlib/Examples/MalbolgeUnshackled/grow-loop.mu),
+initializes all 24 no-op cells used by the three services and their routes,
+constructs the reset constants, and then grows indefinitely. Its startup
+at 8000 reuses an anchor at 6000 but advances past consumed scratch records;
+this is a finite initializer, not the runtime's calling convention. The
+first rotation entry is reached at instruction 1331. Three further cycles
+return at 1418, 1505 and 1592 with widths 36, 72 and 144 from the default
+setup width 18, or 74, 148 and 296 from starting width 37. Tests inspect
+both connecting routes, the marker before and after reset, restored code
+and no-op phases, unchanged records, and unconsumed nonempty input.
+
 These executions establish concrete loader compatibility by regression
 test. They do not prove a general source initializer, nor do they establish
 source reachability of every state satisfying the runtime hypotheses.
@@ -343,11 +410,10 @@ source reachability of every state satisfying the runtime hypotheses.
 2. Implement carry/borrow transitions using the existing crazy-operation
    algebra. Prove increment, nonzero decrement, and zero-test runs against
    `Registers`, including scratch restoration and all code phases.
-3. Integrate the checked resident growth service into overflow retry:
-   extend the checked rotation/reset routing to enter and leave growth, then
-   return to the scan's entry without losing the original counter. Establish
-   its finite-fill invariant from the eventual compiler layout. The next
-   acceptance criterion remains a loadable counter increment that crosses a width boundary and remains callable.
+3. Turn unconditional growth into overflow retry: detect overflow in the
+   arithmetic scan, use the checked growth/reset routes, and resume without
+   losing the original counter. Establish the finite-fill invariant for the
+   eventual compiler layout. The next acceptance criterion remains a loadable counter increment that crosses a width boundary and remains callable.
 4. Prove a total source layout and initialization theorem, then implement
    `Counter.Code` (including output), compose actual runs by induction on
    `Counter.Ev`/`EvN`, and reuse `counterProgram_spec` to obtain the final

@@ -1012,3 +1012,130 @@ fuel prefixes. Tests establish this concrete source's initialization at
 both widths; a general loader-reachability theorem remains open. The cycle
 does not yet call the width-growth service or implement a terminating
 arithmetic scan. `scripts/gen-mu-runtime.py --check` covers this source too.
+
+
+**Growing forever with one marker** (`grow-loop.mu`) connects the rotation,
+growth and reset services into an 87-instruction cycle. Each pass doubles
+the rotation width, regenerates one at address 3200 and restores the
+resident services for another call. It consumes no input and produces no
+output. Growth is unconditional; this is not yet a counter increment or a
+Turing-completeness witness.
+
+The program has 12006 source cells. This is its complete sparse
+transliteration: addresses 0 through 12005 contain the unique printable
+no-op word defined above, except for these decimal code-point overrides.
+Encode as UTF-8 and append one newline.
+
+```text
+0:40 1:39 2:96 39:5999 41:7799
+42:5999 52:5999 61:5999 71:5999 75:5999
+83:5999 97:5999 103:5999 105:5999 110:82
+146:6635 147:6635 148:6635 149:6635 150:6635
+151:6635 152:6635 153:74 154:38 248:74
+249:37 270:74 271:109 272:247 273:2995
+429:6635 430:6635 431:6635 432:6635 433:6635
+434:6635 435:6563 436:74 437:6617 438:6579
+439:6729 440:70 441:33 526:6635 527:6635
+528:6635 529:74 530:74 531:37 1200:120
+1300:114 1400:6635 1401:6635 1402:6569 1403:6635
+1404:104 2225:6598 2226:526 2468:6598 2469:527
+2991:248 2992:145 2996:248 2997:529 2999:1399
+3000:317 3001:153 3002:247 3003:3197 3004:247
+3005:3190 3100:243 3101:3399 3191:248 3192:428
+3195:248 3196:525 3198:248 3199:269 3200:1
+3201:270 3202:529 3203:3398 3204:1299 3205:247
+3206:3194 3399:269 3400:243 3401:270 3402:247
+3403:3497 3498:248 3499:269 3500:2 3501:270
+3502:247 3503:3597 3598:248 3599:269 3600:243
+3601:270 3602:247 3603:3197 3800:6617 3801:525
+4200:999 4201:3799 5002:436 5007:1199 5008:247
+5009:2990 6000:6561 6001:1402 6003:6567 6004:1401
+6006:6567 6007:1400 6009:6561 6010:1399 6012:6561
+6013:527 6015:6561 6016:526 6018:6561 6019:525
+6021:6751 6022:438 6024:6561 6025:437 6027:6777
+6028:436 6030:6561 6031:434 6033:6567 6034:433
+6036:6561 6037:432 6039:6561 6040:431 6042:6561
+6043:430 6045:6561 6046:429 6048:6561 6049:428
+6051:6561 6052:151 6054:6561 6055:150 6057:6561
+6058:149 6060:6561 6061:148 6063:6561 6064:147
+6066:6561 6067:146 6069:6561 6070:145 6072:2999
+6075:243 6076:3399 6078:245 6079:3599 6081:5006
+7800:7999 7801:5999 8000:124 8001:51 8002:122
+8003:49 8004:120 8005:119 8009:43 8010:114
+8011:41 8012:112 8013:111 8020:126 8021:103
+8022:124 8023:101 8024:100 8034:112 8035:89
+8036:110 8037:87 8038:86 8051:95 8052:72
+8053:93 8054:70 8055:69 8071:75 8072:52
+8073:73 8074:50 8075:49 8094:52 8095:123
+8096:50 8097:121 8098:120 8120:120 8121:97
+8122:118 8123:95 8124:94 8149:91 8150:68
+8151:89 8152:66 8153:65 8181:59 8182:36
+8183:57 8184:34 8185:33 8216:118 8217:95
+8218:116 8219:93 8220:92 8254:80 8255:57
+8256:78 8257:55 8258:54 8295:39 8296:110
+8297:37 8298:108 8299:107 8339:89 8340:66
+8341:87 8342:64 8343:63 8386:42 8387:113
+8388:40 8389:111 8390:110 8436:86 8437:63
+8438:84 8439:61 8440:60 8489:33 8490:104
+8491:125 8492:102 8493:101 8545:71 8546:48
+8547:69 8548:46 8549:45 8604:106 8605:83
+8606:104 8607:81 8608:80 8666:44 8667:115
+8668:42 8669:113 8670:112 8731:73 8732:50
+8733:71 8734:48 8735:47 8799:99 8800:76
+8801:97 8802:74 8803:73 8870:122 8871:99
+8872:120 8873:97 8874:96 8944:48 8945:119
+8946:46 8947:117 8948:116 9021:43 9022:64
+9023:41 9024:40 9025:39 9101:79 9102:56
+9103:77 9104:54 9105:53 9106:52 9107:51
+9186:88 9187:65 9188:86 9189:63 9190:62
+9191:61 9192:60 9274:72 9275:35 12004:5001
+12005:5001
+```
+
+The initializer at 8000 synthesizes 24 runtime no-ops, using pairs of crazy
+operations with natural operands stored at 6000 and above. These no-op
+phases cannot be loaded directly as source instructions. The initializer
+then constructs the reset constants and enters the shared return route.
+It reaches the rotation entry at instruction 1331, with marker one and all
+resident code ready. The final two source cells seed the periodic fill:
+the first distant return read, even at the proof's minimum width ten,
+lies beyond this longer source prefix.
+
+A cycle rotates the marker, restores the rotor, and follows a 15-step
+bridge to the growth service. After eleven steps of growth, an eleven-step
+bridge enters the 34-step reset. Seven more steps return to the rotation
+entry. The marker's adjacent records, `3201:270` and `3202:529`, remain
+unchanged. The [growth-cycle proof](runtime-proof.md#a-closed-growth-cycle-on-one-marker)
+proves arbitrary repetition from the resident invariant and widths beyond
+any fixed bound. Full source initialization is checked by execution at the
+two widths below; its symbolic proof remains open.
+
+Run initialization and three full growth cycles. The default setup reaches
+width 18, then the cycles reach 36, 72 and 144. The runner exits with status
+2 and reports the fuel limit on stderr; the program itself emits no bytes:
+
+```sh
+lake exe malbolge-unshackled --fuel 1592 Langlib/Examples/MalbolgeUnshackled/grow-loop.mu
+```
+
+Output:
+
+```text
+malbolge-unshackled: out of fuel after 1592 steps (raise with --fuel)
+```
+
+Starting at width 37, the same cycles reach 74, 148 and 296. The fuel boundary
+and diagnostic are unchanged:
+
+```sh
+lake exe malbolge-unshackled --rot-width 37 --fuel 1592 Langlib/Examples/MalbolgeUnshackled/grow-loop.mu
+```
+
+Output:
+
+```text
+malbolge-unshackled: out of fuel after 1592 steps (raise with --fuel)
+```
+
+`python3 scripts/gen-mu-runtime.py --check` checks this source together with
+the preceding five runtime examples. Strict loading rejects their data cells.
