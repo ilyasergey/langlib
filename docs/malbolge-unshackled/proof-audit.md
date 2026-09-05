@@ -14,6 +14,12 @@ This page supersedes the construction recommendations in the earlier
 [compiler notebook](compiler.md). It distinguishes a proposed construction
 from the operational theorems still needed to establish it.
 
+The implementation following this audit is described in
+[runtime-proof.md](runtime-proof.md): fixed-cell representation, reusable
+working calls, a repeating rotation loop, marker algebra, and one width-growth
+and return segment are now checked. Arithmetic, runtime scan exit, reusable
+growth, source initialization, and the completeness witness remain open.
+
 ## What the current proof actually establishes
 
 The shared interface is

@@ -1639,12 +1639,10 @@ theorem step_widthBounded {W : Nat} (hW : 13 ≤ W) {instr : Instr} {s s₁ : St
     exact ⟨ha, hm⟩
 
 /-- **A step that does not rotate preserves any width bound `W ≥ 13`.**
-The consequence for architecture: in a run that never executes `*`, every
-storable value lives in the finite set of values at most `W` trits wide, so
-every `j` and `i` teleports into a finite set of addresses, for the whole
-of the run. Rotation is not a convenience the compiler may decline; the
-`rot`/`movd` width-doubling feedback is the language's only supply of
-unboundedly many nameable addresses. -/
+This bounds stored values, not visited addresses: successor increments can
+still move a pointer outside this finite alphabet. In particular it is not
+a bounded-storage or incompleteness theorem. Rotation supplies unbounded
+values for the revised fixed-cell counter representation. -/
 private theorem widthBounded_step1_generic {W : Nat} (hW : 13 ≤ W)
     {instr : Instr} {s s' : State}
     (_ : decode (s.mem.get s.c) s.c.modClass = instr)
@@ -1676,12 +1674,10 @@ private theorem widthBounded_step1_generic {W : Nat} (hW : 13 ≤ W)
           (Nat.le_trans (width_encrypt_le hc₁ hc₂) (by omega)) s₁.c⟩
 
 /-- **A step that does not rotate preserves any width bound `W ≥ 13`.**
-The consequence for architecture: in a run that never executes `*`, every
-storable value lives in the finite set of values at most `W` trits wide, so
-every `j` and `i` teleports into a finite set of addresses, for the whole
-of the run. Rotation is not a convenience the compiler may decline; the
-`rot`/`movd` width-doubling feedback is the language's only supply of
-unboundedly many nameable addresses. -/
+This bounds stored values, not visited addresses: successor increments can
+still move a pointer outside this finite alphabet. In particular it is not
+a bounded-storage or incompleteness theorem. Rotation supplies unbounded
+values for the revised fixed-cell counter representation. -/
 theorem widthBounded_step1 {W : Nat} (hW : 13 ≤ W) {s s' : State}
     (h : WidthBounded W s)
     (hrot : decode (s.mem.get s.c) s.c.modClass ≠ .rotr)
@@ -1703,9 +1699,10 @@ wide value. Rotating the value `1` at rotation width `w` moves its single
 set trit to the top of the window, producing `3^(w-1)`, a value of width
 exactly `w`. A `j` through that value then raises `maxWidth` to `w` and the
 rotation width to `2w` (`growRotWidth`). Rotate `1` again and the next
-value has width `2w`. Iterating mints addresses of width `10, 20, 40, …`:
-this loop is the allocator of any compiler targeting this language, and the
-concrete meaning of "Unshackled". -/
+value has width `2w`. These are algebraic identities, not yet a loop: the
+caller must restore one, return the data pointer, and account for code
+phases. `MalbolgeUnshackled/Growth.lean` supplies a five-instruction growth
+and return segment; reusable growth and arithmetic remain separate work. -/
 
 theorem trits3_three_mul {m : Nat} (hm : 0 < m) :
     trits3 (3 * m) = .t0 :: trits3 m := by

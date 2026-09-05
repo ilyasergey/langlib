@@ -79,6 +79,9 @@ def suite : Suite where
       -- size of the program, and at a hundred kilobytes one run takes the
       -- better part of a minute. That is too much to spend on every
       -- `lake test`; the spec page carries the command instead.
+      -- The growth demonstration returns from an address beyond the source.
+    , { name := "grow-once example", source := ex "grow-once.mu", fuel := 17,
+        expect := .outputs "" }
       -- Micro-programs.
     , { name := "halt at address 0", source := .inline "Q'",
         expect := .outputs "" }
@@ -117,7 +120,9 @@ def suiteWidth : Suite where
     , { name := "banner example at rotation width 37", source := ex "banner.mu",
         expect := .outputs "MALBOLGE" }
     , { name := "hello-small example at rotation width 37",
-        source := ex "hello-small.mu", expect := .outputs "Hello, world!\n" } ]
+        source := ex "hello-small.mu", expect := .outputs "Hello, world!\n" }
+    , { name := "grow-once at rotation width 37", source := ex "grow-once.mu",
+        fuel := 17, expect := .outputs "" } ]
 
 /-- Johansen's `-n`: source characters outside 33..126 are a load error
 rather than being loaded unchecked. -/
@@ -133,6 +138,10 @@ def suiteStrict : Suite where
       -- under the default loader and is refused by Johansen's `-n`.
     , { name := "hello-small is refused by strict loading",
         source := ex "hello-small.mu",
+        expect := .parseError "--strict rejects those" }
+    , { name := "rotation data requires permissive loading", source := ex "rotation-loop.mu",
+        expect := .parseError "--strict rejects those" }
+    , { name := "growth data requires permissive loading", source := ex "grow-once.mu",
         expect := .parseError "--strict rejects those" } ]
 
 /-- The cat echoes its input before diverging; compare the echoed prefix. -/
@@ -143,6 +152,56 @@ def suiteEcho : Suite where
     [ { name := "cat example echoes its input", source := ex "cat.mu",
         input := "meow", fuel := 5_000_000, expect := .outputs "meow" } ]
 
-def suites : List Suite := [suite, suiteWidth, suiteStrict, suiteEcho]
+/-- Observe the actual machine after a bounded run. The diagnostic includes
+its exit status; the adapter's halt only tells the harness the observation
+finished, and does not claim the MU program halted. -/
+private def snapshot (w : Nat) (src : String) (input : Input) (fuel : Nat) :
+    Except String RunResult := do
+  let img ← Langlib.MalbolgeUnshackled.load src
+  let (s, exit) := Langlib.MalbolgeUnshackled.exec fuel
+    { mem := img.mem, input, rotWidth := max w Langlib.MalbolgeUnshackled.minRotWidth }
+  let status := match exit with
+    | .halted => "halt"
+    | .outOfFuel => "fuel"
+    | .error e => s!"error: {e}"
+  let operand := s.mem.get (Langlib.MalbolgeUnshackled.Value.ofNat 3000)
+  return {
+    output := (s!"{s.c},{s.d},{s.rotWidth},{s.maxWidth},{operand},{s.output.size},{status}").toUTF8,
+    exit := .halted }
+
+/-- Loadable witnesses for the new fixed-cell runtime: inspect pointer
+restoration, the operand, width growth and the exact halt boundary. -/
+def suiteRuntime : Suite where
+  name := "malbolge-unshackled (runtime state, default width)"
+  run := snapshot 10
+  cases :=
+    [ { name := "rotation prologue reaches header", source := ex "rotation-loop.mu",
+        fuel := 3, expect := .outputs "153,3000,16,8,243,0,fuel" }
+    , { name := "one rotation returns", source := ex "rotation-loop.mu",
+        fuel := 9, expect := .outputs "153,3000,16,8,81,0,fuel" }
+    , { name := "full rotation cycle", source := ex "rotation-loop.mu",
+        fuel := 99, expect := .outputs "153,3000,16,8,243,0,fuel" }
+    , { name := "second cycle reuses records", source := ex "rotation-loop.mu",
+        fuel := 195, expect := .outputs "153,3000,16,8,243,0,fuel" }
+    , { name := "growth returns through untouched fill", source := ex "grow-once.mu",
+        fuel := 16, expect := .outputs "441,2998,32,16,14348907,0,fuel" }
+    , { name := "growth reaches halt", source := ex "grow-once.mu",
+        fuel := 17, expect := .outputs "441,2998,32,16,14348907,0,halt" } ]
+
+def suiteRuntimeWidth : Suite where
+  name := "malbolge-unshackled (runtime state, width 37)"
+  run := snapshot 37
+  cases :=
+    [ { name := "full odd-width rotation cycle", source := ex "rotation-loop.mu",
+        fuel := 225, expect := .outputs "153,3000,37,8,243,0,fuel" }
+    , { name := "second odd-width cycle", source := ex "rotation-loop.mu",
+        fuel := 447, expect := .outputs "153,3000,37,8,243,0,fuel" }
+    , { name := "growth returns at width 74", source := ex "grow-once.mu",
+        fuel := 16, expect := .outputs "441,2998,74,37,150094635296999121,0,fuel" }
+    , { name := "growth halts at width 74", source := ex "grow-once.mu",
+        fuel := 17, expect := .outputs "441,2998,74,37,150094635296999121,0,halt" } ]
+
+def suites : List Suite :=
+  [suite, suiteWidth, suiteStrict, suiteEcho, suiteRuntime, suiteRuntimeWidth]
 
 end Langlib.Tests.MalbolgeUnshackled

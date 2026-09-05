@@ -38,6 +38,11 @@ import Langlib.Computability.Fractran
 import Langlib.Languages.Turpentine.Certified.BespokeSubleq
 import Langlib.Computability.MalbolgeUnshackled
 import Langlib.Computability.MalbolgeUnshackled.Obstructions
+import Langlib.Computability.MalbolgeUnshackled.Counters
+import Langlib.Computability.MalbolgeUnshackled.Runtime
+import Langlib.Computability.MalbolgeUnshackled.Rotation
+import Langlib.Computability.MalbolgeUnshackled.RotationLoop
+import Langlib.Computability.MalbolgeUnshackled.Growth
 import Langlib.Computability.Unlambda
 import Langlib.Computability.Ski
 
@@ -757,6 +762,32 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.mod6_ofNat
 #print axioms Unshackled.get_of_not_mem
 #print axioms Unshackled.fillAt_slot
+
+-- MU's revised fixed-cell runtime. These are operational components,
+-- not a completeness instance or an implemented terminating width scan.
+#print axioms Unshackled.FixedCounter.addr_inj
+#print axioms Unshackled.FixedCounter.initMemory_get
+#print axioms Unshackled.FixedCounter.initMemory_frame
+#print axioms Unshackled.FixedCounter.initMemory_rest
+#print axioms Unshackled.FixedCounter.registers_exist
+#print axioms Unshackled.FixedCounter.registers_set
+#print axioms Unshackled.FixedCounter.increment_fits_after_growth
+#print axioms Unshackled.Runtime.work_step
+#print axioms Unshackled.Runtime.work_call
+#print axioms Unshackled.Runtime.movd_call
+#print axioms Unshackled.Runtime.rot_window
+#print axioms Unshackled.Runtime.rotateTimes_window
+#print axioms Unshackled.Runtime.window_eq
+#print axioms Unshackled.Runtime.rotateTimes_full_cycle
+#print axioms Unshackled.Runtime.marker_low
+#print axioms Unshackled.Runtime.marker_no_early_return
+#print axioms Unshackled.Runtime.pow3_mod6
+#print axioms Unshackled.Runtime.growth_fill
+#print axioms Unshackled.Runtime.grow_return
+#print axioms Unshackled.Runtime.RotationLoop.Static.frame
+#print axioms Unshackled.Runtime.RotationLoop.pass
+#print axioms Unshackled.Runtime.RotationLoop.passes
+#print axioms Unshackled.Runtime.RotationLoop.full_cycle
 
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine

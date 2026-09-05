@@ -60,7 +60,12 @@ A complete language contribution consists of:
      backgrounds or initial constants need not be source-realizable. Prove
      that representation invariants are reachable, not only preserved by
      mathematical updates. MU's [proof audit](docs/malbolge-unshackled/proof-audit.md)
-     records why these obligations matter.
+     records why these obligations matter. In staged runtime proofs, distinguish
+     a loop repeated an arbitrary number of times by the theorem from a
+     program that detects its own exit condition. A symbolic fuel bound is
+     not an implemented branch. For self-modifying code, give frame conditions
+     and track data, return records, and encryption phases across reuse; an
+     instruction restored to its entry word does not restore its operands.
    * **Not Turing complete** means you can exhibit a bound: a finite state
      space, an absent construct (no loops, no unbounded storage), or a
      decidable halting argument. Say which, and prove it if you can. These
