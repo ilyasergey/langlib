@@ -72,12 +72,24 @@ structure Segment (n : Nat) (s t : State) : Prop where
   output : t.output = s.output
   outClosed : t.outClosed = s.outClosed
 
-private theorem Segment.trans {m n : Nat} {s u t : State}
-    (h : Segment m s u) (h' : Segment n u t) : Segment (m + n) s t := by
-  refine ⟨?_, fun x hx => (h'.frame x hx).trans (h.frame x hx),
+/-- Encryption of a printable landing, extended by identity outside its domain. -/
+def encryptLanding (v : Value) : Value :=
+  match printableCode? v with
+  | some k => Value.ofNat (encrypt k)
+  | none => v
+
+/-- Track exactly how often the shared rotation landing is encrypted. -/
+structure Traced (n r : Nat) (s t : State) : Prop extends Segment n s t where
+  landing529 : t.mem.get (Value.ofNat 529) =
+    (encryptLanding^[r]) (s.mem.get (Value.ofNat 529))
+
+private theorem Traced.trans {m n r q : Nat} {s u t : State}
+    (h : Traced m r s u) (h' : Traced n q u t) : Traced (m + n) (r + q) s t := by
+  refine ⟨⟨?_, fun x hx => (h'.frame x hx).trans (h.frame x hx),
     h'.maxWidth.trans h.maxWidth, h'.input.trans h.input,
-    h'.output.trans h.output, h'.outClosed.trans h.outClosed⟩
-  rw [run?_add, h.run, Option.bind_some, h'.run]
+    h'.output.trans h.output, h'.outClosed.trans h.outClosed⟩, ?_⟩
+  · rw [run?_add, h.run, Option.bind_some, h'.run]
+  · rw [h'.landing529, h.landing529, Nat.add_comm r q, Function.iterate_add_apply]
 
 private theorem encrypted_printable {v : Value} {k : Nat}
     (h : printableCode? v = some k) :
@@ -94,7 +106,7 @@ private theorem work {s : State} {w A D T : Nat} {a v q : Value} {phase : Bool}
     (hr : (D + 1, Value.ofNat A) ∈ cells) (ht : (D + 2, Value.ofNat T) ∈ cells)
     (hq : s.mem.get (Value.ofNat D) = q)
     (hkeep : D = 3200 ∨ op.apply w a q = q) :
-    ∃ t, Segment 3 s t ∧
+    ∃ t, Traced 3 (if T = 529 then 1 else 0) s t ∧
       At w (op.apply w a q) (if D = 3200 then op.apply w a q else v)
         phase (T + 1) (D + 3) t := by
   have hTb := landing_bounds hT
@@ -124,8 +136,12 @@ private theorem work {s : State} {w A D T : Nat} {a v q : Value} {phase : Bool}
     · subst b; refine ⟨encrypt k, ?_⟩; rw [hland]; exact encrypted_printable hk
     · rw [hf _ (ofNat_ne (by have := (landing_bounds hb).1; omega)) (ofNat_ne hbT)]
       exact h.resident.landing b hb
-  refine ⟨t, ⟨hrun, hf', hm, hi, ho, hx⟩,
+  refine ⟨t, ⟨⟨hrun, hf', hm, hi, ho, hx⟩, ?_⟩,
     h.resident.frame hf' hl', hc, hd, ha', hw.trans h.width, ?_, ?_, ?_⟩
+  · by_cases hT529 : T = 529
+    · subst T
+      simpa [encryptLanding, hk] using hland
+    · simpa [hT529] using hf _ (ofNat_ne (by omega)) (ofNat_ne (Ne.symm hT529))
   · rw [hm]; exact h.bound
   · by_cases hDm : D = 3200
     · subst D; simpa using hoperand.trans ha'
@@ -139,7 +155,7 @@ private theorem reset {s : State} {w D P : Nat} {a v : Value} {phase : Bool}
     (hptr : (P, Value.ofNat (D - 3)) ∈ cells)
     (hr : (D - 2, Value.ofNat 248) ∈ cells)
     (ht : (D - 1, Value.ofNat 269) ∈ cells) :
-    ∃ t, Segment 3 s t ∧ At w a v phase 270 D t := by
+    ∃ t, Traced 3 0 s t ∧ At w a v phase 270 D t := by
   obtain ⟨k, hk⟩ := h.resident.landing 269 (by decide)
   have hwide : (Value.ofNat (D - 3)).width ≤ 8 := by
     apply width_ofNat_le
@@ -159,8 +175,9 @@ private theorem reset {s : State} {w D P : Nat} {a v : Value} {phase : Bool}
     by_cases h269 : b = 269
     · subst b; refine ⟨encrypt k, ?_⟩; rw [hland]; exact encrypted_printable hk
     · rw [hf _ (ofNat_ne h269)]; exact h.resident.landing b hb
-  refine ⟨t, ⟨hrun, hf', hm, hi, ho, hx⟩,
+  refine ⟨t, ⟨⟨hrun, hf', hm, hi, ho, hx⟩, ?_⟩,
     h.resident.frame hf' hl', hc, ?_, ha.trans h.acc, hw.trans h.width, ?_, ?_, ?_⟩
+  · exact hf _ (by decide)
   · simpa only [show D - 3 + 3 = D by omega] using hd
   · rw [hm]; exact h.bound
   · rw [hf _ (by decide), h.marker]
@@ -171,7 +188,7 @@ set_option maxHeartbeats 1000000 in
 phase while selecting different code and data continuations. -/
 private theorem route {s : State} {w : Nat} {a v : Value} {phase : Bool}
     (h : At w a v phase 530 3203 s) :
-    ∃ t, Segment 2 s t ∧
+    ∃ t, Traced 2 0 s t ∧
       At w a v (!phase) (if phase then 1300 else 270) (if phase then 3205 else 3400) t := by
   let T := if phase then 1299 else 269
   have hT : T ∈ landings := by cases phase <;> decide
@@ -236,10 +253,12 @@ private theorem route {s : State} {w : Nat} {a v : Value} {phase : Bool}
       exact encrypted_printable hk
     · rw [hft _ (ofNat_ne hbT), hf₁ _ (ofNat_ne (landing_bounds hb).2.1)]
       exact h.resident.landing b hb
-  refine ⟨t, ⟨?_, hf, rfl, rfl, rfl, rfl⟩,
+  refine ⟨t, ⟨⟨?_, hf, rfl, rfl, rfl, rfl⟩, ?_⟩,
     h.resident.frame hf hl, ?_, rfl, h.acc, h.width, h.bound, ?_, ?_⟩
   · change (step1 s).bind (fun u => (step1 u).bind some) = _
     rw [hr₁, Option.bind_some, hrt, Option.bind_some]
+  · change t.mem.get (Value.ofNat 529) = s.mem.get (Value.ofNat 529)
+    rw [hft _ (ofNat_ne (by cases phase <;> decide)), hf₁ _ (by decide)]
   · cases phase <;> rfl
   · rw [hft _ (ofNat_ne (by omega)), hf₁ _ (by decide), h.marker]
   · rw [hft _ (ofNat_ne (Ne.symm hTb.2.1)), get_set_self]
@@ -249,9 +268,9 @@ set_option maxHeartbeats 1500000 in
 /-- Thirty-four actual steps regenerate one and restore the resident
 constants and router phase. The entry marker can be arbitrarily wide;
 only its trit alphabet is constrained. The incoming accumulator is arbitrary. -/
-theorem call {s : State} {w : Nat} {a v : Value}
+theorem call_traced {s : State} {w : Nat} {a v : Value}
     (h : At w a v false 153 3000 s) (hv : ZeroOne v) :
-    ∃ t, Segment 34 s t ∧ At w (Value.ofNat 1) (Value.ofNat 1) false 1300 3205 t := by
+    ∃ t, Traced 34 2 s t ∧ At w (Value.ofNat 1) (Value.ofNat 1) false 1300 3205 t := by
   obtain ⟨s₃, hs₃, h₃⟩ := work (T := 247) h .rotate (by simp) (by omega) (by decide)
     (by decide) (by decide) (h.resident.static 3000 ones (by decide))
     (Or.inr (rotate_ones w))
@@ -290,6 +309,25 @@ theorem call {s : State} {w : Nat} {a v : Value}
   refine ⟨t, ?_, hat⟩
   exact hs₃.trans (hs₆.trans (hs₉.trans (hs₁₁.trans (hs₁₄.trans (hs₁₇.trans
     (hs₂₀.trans (hs₂₃.trans (hs₂₆.trans (hs₂₉.trans (hs₃₂.trans ht))))))))))
+
+/-- The original reset contract, with the exact landing trace hidden. -/
+theorem call {s : State} {w : Nat} {a v : Value}
+    (h : At w a v false 153 3000 s) (hv : ZeroOne v) :
+    ∃ t, Segment 34 s t ∧ At w (Value.ofNat 1) (Value.ofNat 1) false 1300 3205 t := by
+  obtain ⟨t, ht, hat⟩ := call_traced h hv
+  exact ⟨t, ht.toSegment, hat⟩
+
+/-- Word 74 is restored by the two marker-return jumps. It can also be
+used as a rotation instruction at address 529 between reset calls. -/
+theorem call_rotator {s : State} {w : Nat} {a v : Value}
+    (h : At w a v false 153 3000 s) (hv : ZeroOne v)
+    (hr : s.mem.get (Value.ofNat 529) = Value.ofNat 74) :
+    ∃ t, Segment 34 s t ∧ At w (Value.ofNat 1) (Value.ofNat 1) false 1300 3205 t ∧
+      t.mem.get (Value.ofNat 529) = Value.ofNat 74 := by
+  obtain ⟨t, ht, hat⟩ := call_traced h hv
+  refine ⟨t, ht.toSegment, hat, ?_⟩
+  rw [ht.landing529, hr]
+  rfl
 
 /-- In particular, the reset accepts a marker rotated to any position,
 independently of the working width at which the reset is called. -/

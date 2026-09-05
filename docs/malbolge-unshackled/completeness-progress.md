@@ -2,7 +2,7 @@
 
 ## Status
 
-**Reworked foundations 2026-09-05; no `TuringComplete MalbolgeUnshackledLang` witness.**
+**Reworked foundations, updated 2026-09-06; no `TuringComplete MalbolgeUnshackledLang` witness.**
 The previous assessment that only one walk pass and assembly remained was
 incorrect. The [proof audit](proof-audit.md) gives the checked obstructions,
 primary sources, and a revised construction.
@@ -62,16 +62,22 @@ The new [runtime account](runtime-proof.md) documents the proof modules:
 * `MarkerReset.lean`: 34 actual steps reset the marker to one and restore
   resident constants and a two-phase router, preserving input and widths.
   `call_power` accepts `3^k` independently of the working width.
+* `MarkerCycle.lean`: a nine-step rotation route, seven-step return route,
+  and their 50-step composition with reset on the same physical marker.
+  Arbitrarily many iterations preserve the calling invariant, and every
+  fuel prefix survives. The reset proof now tracks the exact two encryptions
+  of the shared rotor/landing at 529.
 
-Four generated, loadable source examples exercise the loop, one growth
+Five generated, loadable source examples exercise the loop, one growth
 segment, two calls of the same growth service, and rotation/reset of the
-same marker cell at default and odd widths.
-Regression tests inspect machine states,
+same marker cell, including a closed repeating cycle, at default and odd
+widths. Regression tests inspect machine states,
 repeat full cycles, check no-op phases and unconsumed return records, and
 check the exact halt boundaries. The two-call example uses distinct prepared
 markers. The reset example bootstraps constants, rotates its one marker,
-and regenerates one, but its rotation wrapper is single-use. Integrating
-rotation, reset, and growth through compatible return records remains open.
+and regenerates one, but its rotation wrapper is single-use. The new cycle
+example initializes its no-ops and repeats rotation/reset indefinitely.
+Entering and leaving width growth from this routing remains open.
 General loader reachability of the runtime invariant is still unproved.
 
 ## Remaining, in dependency order

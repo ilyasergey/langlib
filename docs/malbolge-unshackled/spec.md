@@ -923,8 +923,92 @@ lake exe malbolge-unshackled --rot-width 37 --fuel 103 Langlib/Examples/Malbolge
 
 The rotation wrapper and final halt selection are single-use. The program
 demonstrates the resident reset on a rotated marker, not a complete
-repeating overflow loop. Rotation and reset at different working addresses
-still need a compatible shared-record convention in that loop. The
+repeating overflow loop. The following example supplies a compatible shared-record convention for
+repeating rotation and reset. The
 [reset contract](runtime-proof.md#reusable-marker-reset) states the exact
 preservation and initialization obligations. The common runtime generator
 and its `--check` also cover this example; strict loading rejects its data.
+
+
+**Repeating rotation and reset** (`marker-cycle.mu`) removes the single-use
+rotation wrapper. One physical marker, one adjacent return record, and one
+finite set of constants support a 50-step cycle indefinitely. This program
+has 4202 source cells and consumes no input. It has no halt or exit branch
+on the initialized cycle.
+
+This is the complete source in sparse transliteration: addresses 0 through
+4201 hold the unique printable no-op word defined above, except for the
+following decimal code-point overrides. Encode as UTF-8 and append a newline.
+
+```text
+0:40 1:39 2:96 39:3099 41:4199
+75:2998 83:3599 110:82 153:74 154:38
+248:74 249:37 270:74 271:109 272:247
+273:2995 526:127 527:2224 528:2467 529:74
+530:74 531:37 1000:74 1001:95 1002:72
+1003:93 1004:70 1005:91 1006:68 1007:89
+1008:66 1009:87 1010:64 1011:85 1012:62
+1013:61 1015:81 1016:58 1017:57 1018:56
+1019:77 1020:54 1021:75 1022:52 1023:51
+1024:50 1025:49 1026:70 1028:46 1029:45
+1030:44 1031:101 1300:114 2225:6598 2226:526
+2468:6598 2469:527 2996:248 2997:529 2999:152
+3000:317 3001:153 3002:247 3003:3197 3100:243
+3101:3399 3195:248 3196:525 3198:248 3199:269
+3200:243 3201:270 3202:529 3203:3398 3204:1299
+3205:247 3206:3194 3399:269 3400:243 3401:270
+3402:247 3403:3497 3498:248 3499:269 3500:2
+3501:270 3502:247 3503:3597 3598:248 3599:269
+3600:243 3601:270 3602:247 3603:3197 3800:6617
+3801:525 4200:999 4201:3799
+```
+
+The first initializer writes 74 into 526, 527 and 528. At these addresses
+both 74 and its encryption 70 are runtime no-ops, but neither is a legal
+source instruction; the initial words 127, 2224 and 2467 are therefore
+converted by pairs of crazy operations. The same startup then constructs
+the reset's constants. It reaches the reset at instruction 35, finishes
+bootstrapping at 69, and first reaches the rotation entry at 76.
+
+Address 529 is both a rotation instruction and a reset landing. Rotating
+cell 3200 changes word 74 at 529 to 70; the nine-step route jumps back to
+529 to restore it before entering reset at 153. The reset itself lands on
+529 twice, preserving its entry word. A seven-step return through the three
+no-ops closes the cycle. Each pass flips those no-op phases; the next pass
+uses them just as successfully. The marker's adjacent words, `3201:270`
+and `3202:529`, stay unchanged throughout.
+
+Run initialization and nine full cycles. The marker repeatedly becomes
+`3^15 = 14348907` and returns to one at working width 16. The program emits
+no bytes; the runner exits with status 2 and reports the fuel limit on stderr:
+
+```sh
+lake exe malbolge-unshackled --fuel 526 Langlib/Examples/MalbolgeUnshackled/marker-cycle.mu
+```
+
+Output:
+
+```text
+malbolge-unshackled: out of fuel after 526 steps (raise with --fuel)
+```
+
+At starting width 37, the marker instead becomes `3^36 = 150094635296999121`.
+The same nine cycles finish at the same fuel boundary, again with no program
+output and the runner's diagnostic on stderr:
+
+```sh
+lake exe malbolge-unshackled --rot-width 37 --fuel 526 Langlib/Examples/MalbolgeUnshackled/marker-cycle.mu
+```
+
+Output:
+
+```text
+malbolge-unshackled: out of fuel after 526 steps (raise with --fuel)
+```
+
+The [cycle proof](runtime-proof.md#a-closed-rotationreset-cycle) proves
+arbitrary repetition from the resident invariant, including all intermediate
+fuel prefixes. Tests establish this concrete source's initialization at
+both widths; a general loader-reachability theorem remains open. The cycle
+does not yet call the width-growth service or implement a terminating
+arithmetic scan. `scripts/gen-mu-runtime.py --check` covers this source too.

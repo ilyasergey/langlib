@@ -46,6 +46,7 @@ import Langlib.Computability.MalbolgeUnshackled.Growth
 import Langlib.Computability.MalbolgeUnshackled.ReusableGrowth
 import Langlib.Computability.MalbolgeUnshackled.Initialization
 import Langlib.Computability.MalbolgeUnshackled.MarkerReset
+import Langlib.Computability.MalbolgeUnshackled.MarkerCycle
 import Langlib.Computability.Unlambda
 import Langlib.Computability.Ski
 
@@ -914,3 +915,15 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.Runtime.Marker.rotate_ones
 #print axioms Unshackled.Runtime.MarkerReset.call
 #print axioms Unshackled.Runtime.MarkerReset.call_power
+
+-- A closed rotation/reset cycle on one physical marker and one return record.
+#print axioms Unshackled.Runtime.MarkerReset.call_traced
+#print axioms Unshackled.Runtime.MarkerReset.call_rotator
+#print axioms Unshackled.Runtime.MarkerCycle.rotate
+#print axioms Unshackled.Runtime.MarkerCycle.nop_phase
+#print axioms Unshackled.Runtime.MarkerCycle.nop_not_loadable
+#print axioms Unshackled.Runtime.MarkerCycle.return_to_rotation
+#print axioms Unshackled.Runtime.MarkerCycle.cycle
+#print axioms Unshackled.Runtime.MarkerCycle.repeat_cycles
+#print axioms Unshackled.Runtime.MarkerCycle.neverHalts
+#print axioms Unshackled.Runtime.MarkerCycle.initializer_values

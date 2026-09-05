@@ -73,7 +73,10 @@ A complete language contribution consists of:
      return record may bind the operand to a particular operation address:
      MU rotation and crazy-write calls on the same cell need an explicit
      shared routing convention, not an assumption that their restored records
-     are interchangeable.
+     are interchangeable. If a jump landing also serves as executable code,
+     track its exact encryption history: preserving printability alone does
+     not preserve its instruction. MU's shared marker rotor at 529 is
+     restored by exactly two reset-return encryptions.
    * **Not Turing complete** means you can exhibit a bound: a finite state
      space, an absent construct (no loops, no unbounded storage), or a
      decidable halting argument. Say which, and prove it if you can. These

@@ -86,6 +86,8 @@ def suite : Suite where
         expect := .outputs "" }
     , { name := "same physical marker rotated and reset", source := ex "marker-reset.mu",
         fuel := 103, expect := .outputs "" }
+    , { name := "marker rotation and reset repeat", source := ex "marker-cycle.mu",
+        fuel := 526, expect := .diverges }
       -- Micro-programs.
     , { name := "halt at address 0", source := .inline "Q'",
         expect := .outputs "" }
@@ -130,7 +132,9 @@ def suiteWidth : Suite where
     , { name := "two growth calls at width 37", source := ex "grow-twice.mu",
         fuel := 63, expect := .outputs "" }
     , { name := "marker reset at width 37", source := ex "marker-reset.mu",
-        fuel := 103, expect := .outputs "" } ]
+        fuel := 103, expect := .outputs "" }
+    , { name := "marker cycle at width 37", source := ex "marker-cycle.mu",
+        fuel := 526, expect := .diverges } ]
 
 /-- Johansen's `-n`: source characters outside 33..126 are a load error
 rather than being loaded unchecked. -/
@@ -154,6 +158,8 @@ def suiteStrict : Suite where
     , { name := "growth initializer needs permissive loading", source := ex "grow-twice.mu",
         expect := .parseError "--strict rejects those" }
     , { name := "marker constants require permissive loading", source := ex "marker-reset.mu",
+        expect := .parseError "--strict rejects those" }
+    , { name := "marker cycle initializer requires permissive loading", source := ex "marker-cycle.mu",
         expect := .parseError "--strict rejects those" } ]
 
 /-- The cat echoes its input before diverging; compare the echoed prefix. -/
@@ -297,8 +303,61 @@ def suiteMarkerWidth : Suite where
     , { name := "caller halts without consuming input", source := ex "marker-reset.mu", input := "unused",
         fuel := 103, expect := .outputs "1400,3212,1,37,8;1;...11,...11,2,...10,74;0,0,halt" } ]
 
+/-- Observe every boundary of the repeating rotation/reset route, including
+its no-op phases and the unchanged adjacent marker return record. -/
+private def cycleSnapshot (w : Nat) (src : String) (input : Input) (fuel : Nat) :
+    Except String RunResult := do
+  let img ← Langlib.MalbolgeUnshackled.load src
+  let (s, exit) := Langlib.MalbolgeUnshackled.exec fuel
+    { mem := img.mem, input, rotWidth := w }
+  let read (a : Nat) := toString (s.mem.get (Langlib.MalbolgeUnshackled.Value.ofNat a))
+  let phases := String.intercalate "," ([526,527,528,529,530].map read)
+  let constants := String.intercalate "," ([3000,3400,3500,3600].map read)
+  let records := String.intercalate "," ([3201,3202,3195,3196,2996,2997].map read)
+  let status := match exit with
+    | .halted => "halt"
+    | .outOfFuel => "fuel"
+    | .error e => s!"error: {e}"
+  return {
+    output := (s!"{s.c},{s.d},{s.rotWidth},{s.maxWidth};{s.a},{read 3200};{phases};{constants};{records};{s.input.pos},{s.output.size},{status}").toUTF8,
+    exit := .halted }
+
+def suiteCycle : Suite where
+  name := "malbolge-unshackled (marker cycle, width 10)"
+  run := cycleSnapshot 10
+  cases :=
+    [ { name := "initializer and return reach rotor", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 76, expect := .outputs "529,3200,16,8;1,1;70,70,70,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "same marker rotated in place", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 77, expect := .outputs "530,3201,16,8;14348907,14348907;70,70,70,70,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "rotation route restores both words", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 85, expect := .outputs "153,3000,16,8;14348907,14348907;70,70,70,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "one complete cycle", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 126, expect := .outputs "529,3200,16,8;1,1;74,74,74,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "second cycle reuses changed no-op phases", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 176, expect := .outputs "529,3200,16,8;1,1;70,70,70,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "nine cycles reuse all records", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 526, expect := .outputs "529,3200,16,8;1,1;74,74,74,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" } ]
+
+def suiteCycleWidth : Suite where
+  name := "malbolge-unshackled (marker cycle, width 37)"
+  run := cycleSnapshot 37
+  cases :=
+    [ { name := "initializer and return reach rotor", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 76, expect := .outputs "529,3200,37,8;1,1;70,70,70,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "same marker rotated in place", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 77, expect := .outputs "530,3201,37,8;150094635296999121,150094635296999121;70,70,70,70,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "rotation route restores both words", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 85, expect := .outputs "153,3000,37,8;150094635296999121,150094635296999121;70,70,70,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "one complete cycle", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 126, expect := .outputs "529,3200,37,8;1,1;74,74,74,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "second cycle reuses changed no-op phases", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 176, expect := .outputs "529,3200,37,8;1,1;70,70,70,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "nine cycles reuse all records", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 526, expect := .outputs "529,3200,37,8;1,1;74,74,74,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" } ]
+
 def suites : List Suite :=
   [suite, suiteWidth, suiteStrict, suiteEcho, suiteRuntime, suiteRuntimeWidth,
-   suiteGrowth, suiteGrowthWidth, suiteMarker, suiteMarkerWidth]
+   suiteGrowth, suiteGrowthWidth, suiteMarker, suiteMarkerWidth, suiteCycle, suiteCycleWidth]
 
 end Langlib.Tests.MalbolgeUnshackled

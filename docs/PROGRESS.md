@@ -3,6 +3,53 @@
 Newest first. Add a dated entry for every substantial batch of work.
 
 
+## 2026-09-06: MU rotation and reset share one reusable marker record
+
+`MarkerCycle.lean` closes the routing gap between rotation and marker reset.
+A nine-instruction route rotates the marker at 3200 using code at 529,
+restores the rotor and router, and enters the existing reset. A seven-step
+return route closes the cycle. `cycle` proves the resulting 50 actual MU
+steps restore `Ready w`; `repeat_cycles` proves arbitrary repetition;
+`neverHalts` covers all fuel prefixes, including those inside a cycle.
+Both widths and all input/output state are preserved. The marker's adjacent
+records remain `3201:270` and `3202:529` throughout; no fresh marker,
+constant or record is consumed.
+
+Address 529 is both a rotation instruction and a reset landing. Preserving
+its printability was insufficient to compose the old reset theorem with
+this route. `MarkerReset.Traced` now records the exact number of encryptions
+there, and `call_traced` proves there are two. `call_rotator` specializes
+this to preservation of word 74. The old `call` and `call_power` contracts
+remain available. `CONTRIBUTING.md` records the need to track exact phases
+when a landing also serves as executable code.
+
+The return route uses three no-ops at 526–528, alternating independently
+between 74 and 70. Their closure, decoding, and rejection as direct source
+instructions are kernel-checked. `initializer_values` checks the natural
+operand pairs that synthesize them. The original `marker-cycle.mu`, generated
+by `scripts/gen-mu-runtime.py`, contains 4202 source cells. Initialization
+and a bootstrap reset reach the rotation entry after 76 instructions;
+subsequent visits occur every 50 steps. The default setup reaches width 16,
+and the same source works at 37. Fifteen new tests inspect both routes,
+changed no-op phases, restored working words, constants and records through
+nine cycles, with nonempty input left unconsumed.
+
+This is a repeating rotation/reset routine, not a terminating scan or an
+overflow loop: it has no exit branch and does not enter the growth service.
+The symbolic theorem starts from `Ready`; complete loader/prologue
+reachability is still tested by execution. The plan, runtime account,
+proof tracker, spec and README now distinguish the completed shared-record
+routing from integration with growth, scan exit, counter arithmetic,
+source initialization and the remaining completeness theorem.
+
+Validation: full `lake build`, all 1668 `lake test` cases and both Velato
+round-trip checks pass. All 636 axiom-audit reports use only standard
+logical axioms. The runtime generator's `--check` passes, the spec's
+complete sparse transliteration matches the generated source byte for byte,
+and both documented 526-step runs return the expected fuel diagnostic and
+exit status 2 with no program output.
+
+
 ## 2026-09-05: MU regenerates a rotated marker without consuming constants
 
 `Marker.lean` proves a constant-preserving path that clears any natural

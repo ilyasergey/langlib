@@ -85,6 +85,33 @@ def marker_reset() -> bytes:
     return ("".join(map(chr, words)) + "\n").encode("utf-8")
 
 
+def marker_cycle() -> bytes:
+    # Extend the reset layout with the shared rotor and two reusable routes.
+    # Bootstrap three no-ops before building the reset's resident constants.
+    words = list(map(ord, marker_reset().decode("utf-8").removesuffix("\n")))
+    for i in [*range(1301, 1307), 1400, 3211]:
+        words[i] = word_for(68, i)
+    cells = {
+        4201: 3799, 3800: 6617, 3801: 525,
+        526: 127, 527: 2224, 528: 2467, 529: 74,
+        2225: 6598, 2226: 526, 2468: 6598, 2469: 527,
+        3000: 317, 83: 3599, 110: 82,
+        272: 247, 273: 2995, 2996: 248, 2997: 529,
+        1300: 114, 3205: 247, 3206: 3194, 3195: 248, 3196: 525,
+    }
+    # Synthesize 526, 527, 528; load all-ones; continue constant bootstrap.
+    startup = [40, 62, 40, 62, 40, 62, 40, 62, 40, 62, 40, 62,
+               40, 40, 68, 62,
+               40, 40, 40, 62, 40, 62, 40, 40, 40, 40, 62, 68, 40, 40, 40, 4]
+    cells.update({1000 + i: word_for(op, 1000 + i) for i, op in enumerate(startup)})
+    for i, v in cells.items():
+        words[i] = v
+    assert all(n not in (9, 10, 11, 12, 13, 32) for n in words)
+    assert all(n < 33 or n > 126 or (n + i) % 94 in (4, 5, 23, 39, 40, 62, 68, 81)
+               for i, n in enumerate(words))
+    return ("".join(map(chr, words)) + "\n").encode("utf-8")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
@@ -93,7 +120,8 @@ def main() -> None:
     for name, data in (("rotation-loop.mu", program(False)),
                        ("grow-once.mu", program(True)),
                        ("grow-twice.mu", repeated_growth()),
-                       ("marker-reset.mu", marker_reset())):
+                       ("marker-reset.mu", marker_reset()),
+                       ("marker-cycle.mu", marker_cycle())):
         path = root / "Langlib/Examples/MalbolgeUnshackled" / name
         if args.check:
             if not path.exists() or path.read_bytes() != data:
