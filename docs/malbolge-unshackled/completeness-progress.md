@@ -56,13 +56,22 @@ The new [runtime account](runtime-proof.md) documents the proof modules:
   The no-op orbit is checked, including its need for runtime initialization.
 * `Initialization.lean`: the three-step crazy/move/crazy write primitive
   used to construct that orbit from legal source data.
+* `Marker.lean`: clearing an arbitrarily wide zero/one marker and rebuilding
+  one along a path of unchanged constants; rotating all-ones loads the
+  accumulator without reading input.
+* `MarkerReset.lean`: 34 actual steps reset the marker to one and restore
+  resident constants and a two-phase router, preserving input and widths.
+  `call_power` accepts `3^k` independently of the working width.
 
-Three generated, loadable source examples exercise the loop, one growth
-segment, and two calls of the same growth service at default and odd widths.
+Four generated, loadable source examples exercise the loop, one growth
+segment, two calls of the same growth service, and rotation/reset of the
+same marker cell at default and odd widths.
 Regression tests inspect machine states,
 repeat full cycles, check no-op phases and unconsumed return records, and
 check the exact halt boundaries. The two-call example uses distinct prepared
-markers; synthesizing the next marker in an unbounded loop remains open.
+markers. The reset example bootstraps constants, rotates its one marker,
+and regenerates one, but its rotation wrapper is single-use. Integrating
+rotation, reset, and growth through compatible return records remains open.
 General loader reachability of the runtime invariant is still unproved.
 
 ## Remaining, in dependency order

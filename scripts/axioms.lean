@@ -45,6 +45,7 @@ import Langlib.Computability.MalbolgeUnshackled.RotationLoop
 import Langlib.Computability.MalbolgeUnshackled.Growth
 import Langlib.Computability.MalbolgeUnshackled.ReusableGrowth
 import Langlib.Computability.MalbolgeUnshackled.Initialization
+import Langlib.Computability.MalbolgeUnshackled.MarkerReset
 import Langlib.Computability.Unlambda
 import Langlib.Computability.Ski
 
@@ -905,3 +906,11 @@ open Langlib.Turpentine.Compile
 #print axioms Langlib.Whitespace.eval_faithful
 #print axioms Langlib.Subleq.eval_faithful
 #print axioms Langlib.Common.Input.readLineGo_faithful
+
+-- Reusable one-marker regeneration, without consuming constants or input.
+#print axioms Unshackled.Runtime.Marker.zeroOne_power
+#print axioms Unshackled.Runtime.Marker.clear
+#print axioms Unshackled.Runtime.Marker.constants
+#print axioms Unshackled.Runtime.Marker.rotate_ones
+#print axioms Unshackled.Runtime.MarkerReset.call
+#print axioms Unshackled.Runtime.MarkerReset.call_power

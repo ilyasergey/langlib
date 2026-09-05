@@ -17,8 +17,9 @@ from the operational theorems still needed to establish it.
 The implementation following this audit is described in
 [runtime-proof.md](runtime-proof.md): fixed-cell representation, reusable
 working calls, a repeating rotation loop, marker algebra, reusable width
-growth and its code-initialization write primitive are now checked.
-Arithmetic, runtime scan exit, marker reset/overflow retry, general source
+growth, code-initialization writes, and a 34-step marker reset with preserved
+constants are now checked. Arithmetic, runtime scan exit, integration of
+rotation/reset/growth for overflow retry, general source
 initialization, and the completeness witness remain open.
 
 ## What the current proof actually establishes

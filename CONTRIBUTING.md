@@ -69,7 +69,11 @@ A complete language contribution consists of:
      For loader-generated periodic fill, prove the phase from the loader's
      actual seed address: MU phases from the penultimate character's address,
      not the source length. Runtime no-ops accepted through a decoder fallback
-     may still be illegal source words and require initialization.
+     may still be illegal source words and require initialization. A working-call
+     return record may bind the operand to a particular operation address:
+     MU rotation and crazy-write calls on the same cell need an explicit
+     shared routing convention, not an assumption that their restored records
+     are interchangeable.
    * **Not Turing complete** means you can exhibit a bound: a finite state
      space, an absent construct (no loops, no unbounded storage), or a
      decidable halting argument. Say which, and prove it if you can. These

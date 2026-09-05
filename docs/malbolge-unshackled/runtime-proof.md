@@ -173,6 +173,53 @@ updated, and all other data and I/O unchanged. The caller must still supply
 `rot w 1` for each new call. Restoring the service does not synthesize a new
 one-marker or implement the caller's retry branch.
 
+## Reusable marker reset
+
+[`Marker.lean`](../../Langlib/Computability/MalbolgeUnshackled/Marker.lean)
+and [`MarkerReset.lean`](../../Langlib/Computability/MalbolgeUnshackled/MarkerReset.lean)
+close the marker-regeneration obligation at the level of an actual callable
+routine. `MarkerReset.call` proves 34 MU instructions from `c=153,d=3000`
+to `c=1300,d=3205`, replacing cell 3200 with one. Its incoming accumulator
+is arbitrary. The marker may be any natural whose ternary expansion contains
+only zeros and ones; `call_power` specializes this to `3^k` for arbitrary
+`k`, independently of the current rotation width.
+
+Write `U` for the uniform all-ones value, and `M` for the value with low
+trit zero and all higher trits one. The six working operations are:
+
+| Operation | Operand cell | Result in accumulator and operand |
+|---|---:|---|
+| rotate `U` | 3000 | `U`, at every width |
+| crazy with accumulator `U` | 3200 (marker) | zero |
+| crazy with accumulator zero | 3400 (`U`) | `U` |
+| crazy with accumulator `U` | 3500 (two) | two |
+| crazy with accumulator two | 3600 (`M`) | `M` |
+| crazy with accumulator `M` | 3200 (now zero) | one |
+
+All four constant cells retain their entry values. Loading `U` by rotation
+avoids an input instruction: the theorem preserves arbitrary input, output,
+and the output-closed flag. Both widths are unchanged; `maxWidth ≥ 8`
+bounds the fixed pointer-reset destinations. No bound relates `k` to either
+width, and no fresh marker or constant is consumed.
+
+Both writes to the marker return through the same record. A router at 530
+starts as word 74 (move), becomes 70 (no-op) on the first visit, and returns
+to 74 on the second. The jump at 531 selects the constant path first and
+the caller continuation second. The complete cost is six three-step work
+calls, four three-step pointer resets, and two two-step router visits.
+`At` tracks the resident code, constants, records, printable landings,
+marker, and phase; `Segment` supplies the actual `run?` equation and frame.
+Only the marker, router, and four landing words are excluded from that
+frame. The router is separately proved restored, and the landing words
+remain printable for future calls.
+
+Composition with a repeating rotation/growth caller is still work to do.
+The working-call record at `D+1` names the operation's restoration address.
+Rotating a marker and crazy-writing it at a different code address cannot
+share that unchanged record without additional routing or operand transfer.
+The loadable example below uses a single-use rotation wrapper; the reset
+contract does not silently provide that missing calling convention.
+
 ## Source-level regression witnesses
 
 The original examples
@@ -206,6 +253,21 @@ after 63 instructions without output. Tests check the intermediate code
 phases, pointers, marker values, return records and halt boundary. This
 uses two prepared markers; it does not demonstrate unlimited marker reuse.
 
+A fourth example,
+[`marker-reset.mu`](../../Langlib/Examples/MalbolgeUnshackled/marker-reset.mu),
+has 4202 source cells and consumes no input. A finite initializer followed
+by a bootstrap pass through the reset constructs the four resident
+constants and marker one. At instruction 54 it has returned to the caller;
+the bootstrap enters with the mask still zero, so this first pass is not
+an instance of `call`. The caller rotates the same physical marker cell,
+then reaches the proved reset entry at instruction 61. At instruction 95
+the marker is one again and the resident constants and router are restored.
+The program halts at instruction 103 without output. The default setup
+reaches width 16, while a run starting at 37 retains that width. Tests
+inspect all four boundaries at both widths, with nonempty input left
+unconsumed. The caller's rotation wrapper and halt selection are single-use;
+this example does not implement an unbounded growth loop.
+
 These executions establish concrete loader compatibility by regression
 test. They do not prove a general source initializer, nor do they establish
 source reachability of every state satisfying the runtime hypotheses.
@@ -220,9 +282,10 @@ source reachability of every state satisfying the runtime hypotheses.
    algebra. Prove increment, nonzero decrement, and zero-test runs against
    `Registers`, including scratch restoration and all code phases.
 3. Integrate the checked resident growth service into overflow retry:
-   restore the one-marker and return to the scan's entry without losing the
-   original counter. Establish its finite-fill invariant from the eventual
-   compiler layout. The next acceptance criterion remains a loadable counter
+   compose the checked marker reset with rotation and return to the scan's
+   entry without losing the original counter. Resolve the shared marker
+   record's operation-dependent restoration address. Establish its finite-fill
+   invariant from the eventual compiler layout. The next acceptance criterion remains a loadable counter
    increment that crosses a width boundary and remains callable.
 4. Prove a total source layout and initialization theorem, then implement
    `Counter.Code` (including output), compose actual runs by induction on

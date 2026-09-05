@@ -859,5 +859,72 @@ lake exe malbolge-unshackled --rot-width 37 --fuel 63 Langlib/Examples/MalbolgeU
 ```
 
 The shared generator and its `--check` cover this program too. Its checked
-runtime contracts and remaining initialization and marker-reset obligations
+runtime contracts and remaining initialization and overflow-retry obligations
 are in [runtime-proof.md](runtime-proof.md#reusable-growth-and-initialization).
+
+
+**Regenerating the same marker** (`marker-reset.mu`) constructs resident
+constants, rotates its marker at address 3200, resets that same cell to one,
+and halts. It has 4202 source cells, consumes no input and prints nothing.
+Here is its complete sparse transliteration: addresses 0 through 4201
+contain the unique printable no-op word specified above, except for these
+decimal code-point overrides. Encode as UTF-8 and append one newline.
+
+```text
+0:40 1:39 2:96 39:3099 41:4199
+75:2998 110:3599 153:74 154:38 248:74
+249:37 270:74 271:109 530:74 531:37
+1000:74 1001:95 1002:72 1003:71 1004:70
+1005:91 1006:68 1007:89 1008:66 1009:65
+1010:64 1011:85 1013:61 1014:60 1015:59
+1016:116 1300:56 1301:54 1303:53 1304:52
+1305:51 1306:108 1400:91 2999:152 3000:243
+3001:153 3002:247 3003:3197 3100:243 3101:3399
+3198:248 3199:269 3200:243 3201:270 3202:529
+3203:3398 3204:1299 3205:3199 3211:1399 3399:269
+3400:243 3401:270 3402:247 3403:3497 3498:248
+3499:269 3500:2 3501:270 3502:247 3503:3597
+3598:248 3599:269 3600:243 3601:270 3602:247
+3603:3197 4200:999 4201:2999
+```
+
+The initializer synthesizes two uniform all-ones constants at 3000 and
+3400, and clears the future mask at 3600. A first pass through the reset
+code constructs that mask (zero in the low trit, ones above it) and the
+marker one. At instruction 54 the resident constants are ready. This
+bootstrap is checked by execution; the reset theorem assumes the completed
+resident constants on entry.
+
+The caller at 1300 then rotates cell 3200 and re-enters the reset at 153.
+The reset loads all-ones by rotating the constant at 3000, clears the marker
+with a crazy operation, and follows the constant path all-ones → two → mask
+before writing one back to the marker. Every constant keeps its value.
+A router at 530 changes from move to no-op and back, directing the two
+marker writes through the same return record to different continuations.
+The proved reset takes 34 instructions, from instruction 61 to 95 of this
+source execution. Its contract accepts a marker at any ternary position,
+without a bound imposed by the current rotation width.
+
+Run the bootstrap, rotation, reset, and halt. The setup reaches width 16;
+the marker temporarily becomes `3^15 = 14348907` before returning to one.
+The program exits successfully after 103 instructions with no output:
+
+```sh
+lake exe malbolge-unshackled --fuel 103 Langlib/Examples/MalbolgeUnshackled/marker-reset.mu
+```
+
+At width 37 the same cell temporarily holds `3^36 = 150094635296999121`.
+The program again resets it to one and halts after 103 instructions without
+output:
+
+```sh
+lake exe malbolge-unshackled --rot-width 37 --fuel 103 Langlib/Examples/MalbolgeUnshackled/marker-reset.mu
+```
+
+The rotation wrapper and final halt selection are single-use. The program
+demonstrates the resident reset on a rotated marker, not a complete
+repeating overflow loop. Rotation and reset at different working addresses
+still need a compatible shared-record convention in that loop. The
+[reset contract](runtime-proof.md#reusable-marker-reset) states the exact
+preservation and initialization obligations. The common runtime generator
+and its `--check` also cover this example; strict loading rejects its data.
