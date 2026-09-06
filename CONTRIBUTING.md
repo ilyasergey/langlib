@@ -79,7 +79,11 @@ A complete language contribution consists of:
      restored by exactly two reset-return encryptions. When enlarging an
      initializer, recheck that every required distant read still lies beyond
      the source prefix, including at the smallest width allowed by the
-     invariant; preserving the seed phase alone is insufficient.
+     invariant; preserving the seed phase alone is insufficient. When connecting
+     arithmetic to a branch, check the result cell's adjacent records: a
+     working call's restoration/return words may occupy the very cells the
+     branch needs for its two continuations. A value equation does not prove
+     that this record handoff is implementable.
    * **Not Turing complete** means you can exhibit a bound: a finite state
      space, an absent construct (no loops, no unbounded storage), or a
      decidable halting argument. Say which, and prove it if you can. These

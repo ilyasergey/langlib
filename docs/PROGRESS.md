@@ -3,6 +3,64 @@
 Newest first. Add a dated entry for every substantial batch of work.
 
 
+## 2026-09-06: MU extracts marker bits and branches through reusable code
+
+`LowTrit.lean` extracts the low bit of an arbitrarily wide zero/one marker
+with two crazy operations. The first scratch starts at `...2220`; the
+second can contain either previous result bit. The first operation collapses
+all higher trits, and the second leaves the marker's low bit as natural zero
+or one. Running the same operations with an all-ones accumulator restores
+the first scratch and leaves one in the second. `pair_call` executes both
+operations and the connecting pointer reset in nine real steps, preserving
+code, records, both widths and I/O. `test` and `reset` specialize it;
+`marker_zeroOne` establishes the extraction precondition throughout a
+rotation, and `test_marker` connects an actual call's result to divisibility
+of the rotation count by the state's current width.
+
+`BitBranch.lean` proves a conditional jump through a natural bit in two
+steps for one and three for zero. The zero path executes the no-op at
+address 1 before the stable jump at 2; the one path lands on 1 and proceeds
+directly to 2. The extra data-pointer increment selects the other adjacent
+continuation word. Both paths encrypt address 1 exactly once within its
+`74/70` no-op orbit, preserve both continuation landings, and leave the
+accumulator, widths and I/O unchanged. Its frame preserves caller code,
+flags and records placed outside addresses 0, 1 and the two target landings.
+
+`bit-branch.mu`, the seventh generated runtime source, initializes that
+no-op and tries flags `0,1,1,0`. Each outcome runs in both no-op phases;
+the four continuations are reached at instructions 10, 13, 16 and 20,
+followed by a halt at 21. Fifteen new tests cover initialization, flags,
+records, both phases, untouched nonempty input, strict loading, and the
+halt boundary at starting widths 10 and 37. The complete source is given
+in sparse transliteration in the spec.
+
+The nine-step extractor's result is adjacent to fixed restoration/return
+words, rather than independent branch continuations. `PaddedCrazy.lean`
+resolves that record-space conflict: its seven-step working call visits
+two no-ops twice, restores every code word, and leaves two free slots
+immediately after the result. Two adjacent operand records execute in
+fourteen steps without a pointer reset. `LowTrit.test_padded` proves the
+marker test through this layout, preserving both branch continuations,
+return landings, code, widths, I/O and the remaining memory frame.
+
+This does not yet close a marker scan. The padded test returns with its
+data pointer beyond the result and records; the caller must reposition it
+for dispatch, restore that move's code on both paths, reload the marker and
+all-ones constant, and connect scratch reset to the next iteration.
+`CONTRIBUTING.md` records the need to check record compatibility. The plan,
+audit and runtime account distinguish these proved primitives from a
+terminating scan and the remaining completeness simulation. The new source
+tests dispatch on prepared flags; it does not claim to initialize or connect
+the extractor.
+
+Validation: full `lake build`, all 1700 `lake test` cases and both Velato
+round-trip checks pass. All 672 axiom-audit reports use only standard
+logical axioms. The generator's `--check` passes; the new source's sparse
+transliteration matches byte for byte. Both documented 21-step runs halt
+successfully with no output. The padded-call additions are proof-only and
+were built and audited after the unchanged executable regression run.
+
+
 ## 2026-09-06: MU repeatedly grows using one reusable marker
 
 `GrowingMarker.lean` connects rotation, width growth and marker reset in

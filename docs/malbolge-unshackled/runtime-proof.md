@@ -326,6 +326,100 @@ lie beyond the explicit source: even at width ten the first is 19687.
 The complete loader-to-`Ready` composition remains tested by execution;
 the symbolic cycle theorem starts from the resident invariant.
 
+## Low-trit extraction and conditional dispatch
+
+[`LowTrit.lean`](../../Langlib/Computability/MalbolgeUnshackled/LowTrit.lean)
+extracts the low trit of any natural containing only zero and one trits.
+The operand `mask = ...2220` collapses all higher marker trits to two.
+A second crazy operation against either natural zero or one collapses
+those higher twos to zero, leaving the original low bit:
+
+| Marker low trit | First scratch after use | Second scratch/result |
+|---|---|---|
+| zero | `...2221` | `0` |
+| one | `...2220` | `1` |
+
+Both rows accept **either previous result bit** as the second operand.
+`extract_first`, `extract_second` and `extract` prove this without a width
+bound. `marker_zeroOne` proves that every position of a rotating one-marker
+satisfies the extraction precondition. `low_marker` identifies the test
+with `n % w = 0` for the marker rotated `n` times at positive width `w`.
+
+The changed first scratch still needs restoration. With an all-ones
+accumulator, the same pair of operations restores `...2220` there and
+leaves one in the second scratch. `reset_first` and `reset_second` prove
+this for both branch outcomes. Reloading all-ones can use the checked
+constant-preserving rotation operation; no input or EOF assumption is needed.
+
+`pair_call` executes the arithmetic in **nine actual instructions**: a
+three-step crazy call on cell 4000, a three-step pointer reset, and a
+three-step crazy call on cell 4200. It enters at `270/4000` and returns at
+`600/4203`. `Trace` records both scratch results and restores code and return
+records, preserving both widths and all I/O. `test` and `reset` specialize
+this same operational theorem. `test_marker` specializes the actual run to
+a marker rotated at the state's current width: the result is one exactly
+when the rotation count is a multiple of that width. Their callers must
+still load the appropriate
+accumulator and re-enter the routine with the proved pointer convention.
+
+[`BitBranch.lean`](../../Langlib/Computability/MalbolgeUnshackled/BitBranch.lean)
+implements a separate **two/three-step conditional branch** through a cell
+containing natural zero or one. Address 1 holds a no-op in the `74/70`
+orbit; address 2 holds a stable jump. A first jump through the bit reaches
+address 1 for zero, or address 2 for one. The extra no-op on the zero path
+advances the data pointer by one, selecting a different continuation record.
+
+| Flag at `D` | Continuation read | Instructions | Exit data pointer |
+|---|---|---:|---|
+| `1` | `mem[D+1] = T1` | 2 | `D+2` |
+| `0` | `mem[D+2] = T0` | 3 | `D+3` |
+
+Control resumes at `T1+1` or `T0+1`. On both paths address 1 is encrypted
+exactly once, staying in its no-op orbit. Address 0 and the selected target
+are only jump landings; their printability survives. The theorem preserves
+the accumulator, both widths, I/O, and memory outside `0,1,T0,T1`.
+Caller code, flags and records placed outside this frame therefore survive
+reuse. Both destination landings remain printable, even if they coincide.
+The source initializer must install the no-op at address 1 before calling
+the branch: neither phase is a legal direct source instruction there.
+
+The nine-step extractor's result at 4200 has fixed work-call records
+`4201:270` and `4202:599` beside it. These are not freely chosen branch
+continuations. [`PaddedCrazy.lean`](../../Langlib/Computability/MalbolgeUnshackled/PaddedCrazy.lean)
+provides a checked extension that reserves space for them:
+
+| Code address | Instruction | Operand record used |
+|---|---|---|
+| 364 | crazy | result cell `D` |
+| 365–366 | two no-ops | skip `D+1,D+2` |
+| 367 | jump to 364 | restoration word at `D+3` |
+| 365–366 | same no-ops again | skip `D+4,D+5` |
+| 367 | jump to continuation | return word at `D+6` |
+
+`call` executes these **seven steps**, restores every code word, and
+preserves the two unconstrained continuation slots at `D+1,D+2`. The no-ops
+are visited twice, restoring their phases; both phases still require
+initialization before execution. The fresh code at 364–367 does not replace
+the original working calls. Its contract accepts `D ≥ 368` and a printable
+return landing below 364, including the shared pointer-reset landing 247.
+
+`pair_call` executes two adjacent operand records in **fourteen steps**.
+The first returns to 363, immediately re-entering the crazy instruction
+with `d=D+7`. The second returns to its chosen continuation with `d=D+14`.
+Both code and return-landings remain reusable. `LowTrit.test_padded`
+specializes this actual run to a rotating marker: the result at `D+7` is
+one exactly when the rotation count is a multiple of the current width,
+and `D+8,D+9` retain arbitrary branch continuations. Both scratch cells,
+the precise frame, widths and I/O are accounted for.
+
+**A terminating scan still needs a caller.** The fourteen-step extractor
+has the branch's record space, but it returns with `d=D+14`, while dispatch
+must read the bit at `D+7`. The connecting pointer move and its code
+restoration still need to be composed with both branch paths, scratch
+reset, marker reload/rotation and the scan's exit. The source example below
+checks branch initialization and both outcomes; it does not connect
+extraction to dispatch or establish general source reachability.
+
 ## Source-level regression witnesses
 
 The original examples
@@ -397,15 +491,26 @@ setup width 18, or 74, 148 and 296 from starting width 37. Tests inspect
 both connecting routes, the marker before and after reset, restored code
 and no-op phases, unchanged records, and unconsumed nonempty input.
 
+A seventh example,
+[`bit-branch.mu`](../../Langlib/Examples/MalbolgeUnshackled/bit-branch.mu),
+synthesizes the no-op at address 1, then visits the same low-memory branch
+with flags `0,1,1,0`. Each outcome is exercised in both no-op phases.
+Initialization reaches the first branch after seven instructions; the four
+continuations are reached at instructions 10, 13, 16 and 20, followed by a
+halt at 21. Flags, continuation records and nonempty input remain untouched.
+The caller chain is finite and uses prepared flags; it does not implement
+a marker-driven loop.
+
 These executions establish concrete loader compatibility by regression
 test. They do not prove a general source initializer, nor do they establish
 source reachability of every state satisfying the runtime hypotheses.
 
 ## Next proof obligations
 
-1. Attach a reusable marker test and exit branch to a scan. Rotate both the
-   scratch value and marker; preserve the original counter and handle every
-   starting width allowed by the interpreter. Prove termination from
+1. Connect the padded low-trit test to dispatch, restoring its pointer-move
+   code on both branch paths. Combine scratch reset with marker reload and
+   rotation; preserve the original counter and rotate its scratch value.
+   Handle every starting width allowed by the interpreter. Prove termination from
    `marker_low`, not from an externally chosen number of passes.
 2. Implement carry/borrow transitions using the existing crazy-operation
    algebra. Prove increment, nonzero decrement, and zero-test runs against

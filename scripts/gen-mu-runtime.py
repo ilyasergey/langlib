@@ -205,6 +205,26 @@ def growing_marker() -> bytes:
     return ("".join(map(chr, words)) + "\n").encode("utf-8")
 
 
+def bit_branch() -> bytes:
+    # Synthesize the runtime no-op at address 1, then visit the same branch
+    # with flags 0, 1, 1, 0. The callers form a finite chain ending in halt.
+    cells = {0: 98, 1: 6635, 2: 96,
+             97: 1999, 2000: 0, 2001: 699, 2002: 799, 2003: 9999,
+             10000: 1, 10001: 899, 10002: 10099,
+             10100: 1, 10101: 999, 10102: 10199,
+             10200: 0, 10201: 699, 10202: 699,
+             6636: 6561, 6637: 0}
+    code = {99: 40, 100: 62, 101: 40, 102: 62, 103: 40, 104: 40, 105: 4,
+            700: 81, 800: 40, 801: 4,
+            900: 40, 901: 4, 1000: 40, 1001: 4}
+    cells.update({i: word_for(op, i) for i, op in code.items()})
+    words = [cells.get(i, word_for(68, i)) for i in range(10204)]
+    assert all(n not in (9, 10, 11, 12, 13, 32) for n in words)
+    assert all(n < 33 or n > 126 or (n + i) % 94 in (4, 5, 23, 39, 40, 62, 68, 81)
+               for i, n in enumerate(words))
+    return ("".join(map(chr, words)) + "\n").encode("utf-8")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
@@ -215,7 +235,8 @@ def main() -> None:
                        ("grow-twice.mu", repeated_growth()),
                        ("marker-reset.mu", marker_reset()),
                        ("marker-cycle.mu", marker_cycle()),
-                       ("grow-loop.mu", growing_marker())):
+                       ("grow-loop.mu", growing_marker()),
+                       ("bit-branch.mu", bit_branch())):
         path = root / "Langlib/Examples/MalbolgeUnshackled" / name
         if args.check:
             if not path.exists() or path.read_bytes() != data:

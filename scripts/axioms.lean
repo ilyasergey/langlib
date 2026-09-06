@@ -48,6 +48,7 @@ import Langlib.Computability.MalbolgeUnshackled.Initialization
 import Langlib.Computability.MalbolgeUnshackled.MarkerReset
 import Langlib.Computability.MalbolgeUnshackled.MarkerCycle
 import Langlib.Computability.MalbolgeUnshackled.GrowingMarker
+import Langlib.Computability.MalbolgeUnshackled.BitBranch
 import Langlib.Computability.Unlambda
 import Langlib.Computability.Ski
 
@@ -948,3 +949,25 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.Runtime.GrowingMarker.returns_of_fill
 #print axioms Unshackled.Runtime.MarkerCycle.return_route
 #print axioms Unshackled.Runtime.GrowingMarker.initializer_values
+
+-- Low-trit extraction, scratch reset, and reusable conditional dispatch.
+#print axioms Unshackled.Runtime.LowTrit.extract_first
+#print axioms Unshackled.Runtime.LowTrit.extract_second
+#print axioms Unshackled.Runtime.LowTrit.extract
+#print axioms Unshackled.Runtime.LowTrit.reset_first
+#print axioms Unshackled.Runtime.LowTrit.reset_second
+#print axioms Unshackled.Runtime.LowTrit.low_marker
+#print axioms Unshackled.Runtime.LowTrit.pair_call
+#print axioms Unshackled.Runtime.LowTrit.test
+#print axioms Unshackled.Runtime.LowTrit.reset
+#print axioms Unshackled.Runtime.BitBranch.nop_phase
+#print axioms Unshackled.Runtime.BitBranch.nop_not_loadable
+#print axioms Unshackled.Runtime.BitBranch.call
+#print axioms Unshackled.Runtime.LowTrit.marker_zeroOne
+#print axioms Unshackled.Runtime.LowTrit.test_marker
+
+-- Padded work records retain the branch's adjacent continuation slots.
+#print axioms Unshackled.Runtime.PaddedCrazy.phases
+#print axioms Unshackled.Runtime.PaddedCrazy.call
+#print axioms Unshackled.Runtime.PaddedCrazy.pair_call
+#print axioms Unshackled.Runtime.LowTrit.test_padded

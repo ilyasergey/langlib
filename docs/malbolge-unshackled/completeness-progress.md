@@ -67,15 +67,23 @@ The new [runtime account](runtime-proof.md) documents the proof modules:
   Arbitrarily many iterations preserve the calling invariant, and every
   fuel prefix survives. The reset proof now tracks the exact two encryptions
   of the shared rotor/landing at 529.
-
 * `Routing.lean`: the natural-address control-step facts shared by both
   cycles; existing marker-route APIs retain their direct-reset behavior.
 * `GrowingMarker.lean`: an 87-step cycle rotates, grows, resets the same
   marker at the new width, and returns. All resident services and future
   remote reads survive. Arbitrary repetition reaches width `2^n*w`;
   actual runs exceed every fixed width bound.
+* `LowTrit.lean`: two crazy operations extract a marker's low bit, accepting
+  either previous result bit; the same operations with all-ones restore
+  scratch. Nine-step operational calls prove both contracts and code reuse;
+  `test_marker` returns one exactly at a multiple of the current width.
+* `BitBranch.lean`: a two/three-step conditional jump through natural bits,
+  preserving the low-memory no-op orbit and continuation landings.
+* `PaddedCrazy.lean`: a seven-step working call reserves two adjacent branch
+  continuations and restores all code. Its fourteen-step pair supports
+  `LowTrit.test_padded`, a marker test with that compatible record space.
 
-Six generated, loadable source examples exercise the loop, one growth
+Seven generated, loadable source examples exercise the loop, one growth
 segment, two calls of the same growth service, and rotation/reset of the
 same marker cell, including closed reset-only and growing cycles, at default
 and odd widths. Regression tests inspect machine states,
@@ -86,14 +94,17 @@ and regenerates one, but its rotation wrapper is single-use. The new cycle
 example initializes its no-ops and repeats rotation/reset indefinitely.
 The growth-loop example initializes all services and reuses the same marker
 through successive width changes. Detecting overflow and resuming a
-terminating arithmetic scan remains open.
+terminating arithmetic scan remains open. The bit-branch example initializes
+low memory and exercises both branch outcomes in both no-op phases, then
+halts. Its prepared flags are not computed from a marker.
 General loader reachability of the runtime invariant is still unproved.
 
 ## Remaining, in dependency order
 
-1. Extend the checked working-call convention to branch flags and scratch
-   protocols; account for every changed phase in the arithmetic caller.
-2. Attach a runtime marker test and exit branch to the checked rotation loop.
+1. Connect the padded extractor's result to dispatch with an actual pointer
+   move and prove that both branch paths restore the move's code. The padded
+   records now leave both adjacent branch continuations unconstrained.
+2. Connect the checked marker test, scratch reset and exit branch to rotation.
    Use the checked growth/reset routes to implement conditional overflow retry.
 3. Counter read/write, increment with overflow retry, decrement with borrow,
    zero testing on a scratch copy, and output; prove actual finite `run?`

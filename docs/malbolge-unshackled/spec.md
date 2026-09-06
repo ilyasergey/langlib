@@ -1139,3 +1139,63 @@ malbolge-unshackled: out of fuel after 1592 steps (raise with --fuel)
 
 `python3 scripts/gen-mu-runtime.py --check` checks this source together with
 the preceding five runtime examples. Strict loading rejects their data cells.
+
+
+**A branch that keeps its code** (`bit-branch.mu`) visits the same
+low-memory conditional branch with flags `0, 1, 1, 0`, exercising each
+outcome in both phases of its no-op. It halts after 21 instructions without
+reading input or printing anything. The flags are prepared data, and its
+callers form a finite chain; this example does not compute a marker test.
+
+This is the complete source in sparse transliteration. Addresses 0 through
+10203 hold the unique printable no-op word defined above, except for these
+decimal code-point overrides. Encode as UTF-8 and append one newline.
+
+```text
+0:98 1:6635 2:96 97:1999 99:35
+100:56 101:33 102:54 103:125 104:124
+105:87 700:39 800:86 801:49 900:80
+901:43 1000:74 1001:37 2000:0 2001:699
+2002:799 2003:9999 6636:6561 6637:0 10000:1
+10001:899 10002:10099 10100:1 10101:999 10102:10199
+10200:0 10201:699 10202:699
+```
+
+The jump at address 0 skips the initially nonprintable word at 1. Startup
+at 99 follows that word as a pointer, performs a crazy/move/crazy synthesis
+that writes 74 into address 1, and reaches the first branch after seven
+instructions. The bit zero at 2000 jumps to landing 0, so execution performs
+the no-op at 1 and then the jump at 2. That extra no-op advances the data
+pointer to the second continuation word, 799; execution resumes at 800.
+
+The next caller loads the address of a prepared one. This time the jump
+lands on 1 and execution resumes directly at the jump at 2, selecting the
+first continuation word. Two further calls try one and zero again. Address
+1 alternates `74 → 70 → 74 → 70 → 74`: each call encrypts it once, whether
+as a landing or as an executed no-op. Address 2 holds a stable jump throughout.
+All four flags and all continuation words keep their values.
+
+The [branch theorem](runtime-proof.md#low-trit-extraction-and-conditional-dispatch)
+proves both paths, their memory frames and the preserved code invariant.
+Separate nine-step routines extract a marker's low bit and restore scratch.
+A fourteen-step variant reserves compatible branch continuation slots.
+Connecting its result pointer to dispatch and restoring the caller remain
+open, as does a terminating marker scan. This example's complete loader/startup reachability is checked
+by execution.
+
+Run the initializer, all four branches and the final halt. The default
+startup reaches width 18; the program exits successfully with no output:
+
+```sh
+lake exe malbolge-unshackled --fuel 21 Langlib/Examples/MalbolgeUnshackled/bit-branch.mu
+```
+
+Starting at width 37, the same source follows the same branches and halts
+at the same instruction boundary, again with no output:
+
+```sh
+lake exe malbolge-unshackled --rot-width 37 --fuel 21 Langlib/Examples/MalbolgeUnshackled/bit-branch.mu
+```
+
+The runtime generator's `--check` includes this seventh example. Strict
+loading rejects the natural data used by its initializer.

@@ -22,7 +22,13 @@ constants are now checked. A 50-step cycle now connects rotation and reset
 through one unchanged marker record, with arbitrary repetition proved.
 An 87-step cycle now incorporates width growth and regenerates the same
 marker at each new width; arbitrary repetition and unbounded width are
-proved. Arithmetic, runtime scan exit, conditional overflow retry, general
+proved. Low-trit extraction and scratch reset now have nine-step runtime
+contracts, and a separate two/three-step bit branch preserves its code.
+A seven-step padded working call now reserves the branch's continuation
+slots; the fourteen-step padded marker test preserves them. Connecting its
+result pointer to dispatch and restoring the caller remain open. Arithmetic,
+a closed terminating scan,
+conditional overflow retry, general
 source initialization, and the completeness witness remain open.
 
 ## What the current proof actually establishes

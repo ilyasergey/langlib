@@ -90,6 +90,8 @@ def suite : Suite where
         fuel := 526, expect := .diverges }
     , { name := "one marker grows indefinitely", source := ex "grow-loop.mu",
         fuel := 1592, expect := .diverges }
+    , { name := "reusable bit branch takes both paths", source := ex "bit-branch.mu",
+        fuel := 21, expect := .outputs "" }
       -- Micro-programs.
     , { name := "halt at address 0", source := .inline "Q'",
         expect := .outputs "" }
@@ -138,7 +140,9 @@ def suiteWidth : Suite where
     , { name := "marker cycle at width 37", source := ex "marker-cycle.mu",
         fuel := 526, expect := .diverges }
     , { name := "same marker grows repeatedly at width 37", source := ex "grow-loop.mu",
-        fuel := 1592, expect := .diverges } ]
+        fuel := 1592, expect := .diverges }
+    , { name := "bit branch at width 37", source := ex "bit-branch.mu",
+        fuel := 21, expect := .outputs "" } ]
 
 /-- Johansen's `-n`: source characters outside 33..126 are a load error
 rather than being loaded unchecked. -/
@@ -166,6 +170,8 @@ def suiteStrict : Suite where
     , { name := "marker cycle initializer requires permissive loading", source := ex "marker-cycle.mu",
         expect := .parseError "--strict rejects those" }
     , { name := "growth loop initializer needs permissive loading", source := ex "grow-loop.mu",
+        expect := .parseError "--strict rejects those" }
+    , { name := "bit branch initializer needs permissive loading", source := ex "bit-branch.mu",
         expect := .parseError "--strict rejects those" } ]
 
 /-- The cat echoes its input before diverging; compare the echoed prefix. -/
@@ -419,8 +425,59 @@ def suiteGrowingWidth : Suite where
     , { name := "third doubling restores all services", source := ex "grow-loop.mu", input := "unused",
         fuel := 1592, expect := .outputs "529,3200,296,148;1,1;74,102,96,60,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" } ]
 
+/-- Observe both branch outcomes in both no-op phases. This diagnostic
+adapter does not add an output instruction to the source program. -/
+private def branchSnapshot (w : Nat) (src : String) (input : Input) (fuel : Nat) :
+    Except String RunResult := do
+  let img ← Langlib.MalbolgeUnshackled.load src
+  let (s, exit) := Langlib.MalbolgeUnshackled.exec fuel { mem := img.mem, input, rotWidth := w }
+  let read (a : Nat) := toString (s.mem.get (Langlib.MalbolgeUnshackled.Value.ofNat a))
+  let flags := String.intercalate "," ([2000,10000,10100,10200].map read)
+  let records := String.intercalate "," ([2001,2002,10001,10002,10101,10102,10201,10202].map read)
+  let status := match exit with
+    | .halted => "halt"
+    | .outOfFuel => "fuel"
+    | .error e => s!"error: {e}"
+  return {
+    output := (s!"{s.c},{s.d},{s.rotWidth},{s.maxWidth};{s.a},{read 1};{flags};{records};{s.input.pos},{s.output.size},{status}").toUTF8,
+    exit := .halted }
+
+def suiteBranch : Suite where
+  name := "malbolge-unshackled (bit branch, width 10)"
+  run := branchSnapshot 10
+  cases :=
+    [ { name := "initializer installs low-memory no-op", source := ex "bit-branch.mu", input := "unused",
+        fuel := 7, expect := .outputs "105,2000,18,9;74,74;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "zero takes extra no-op from phase 74", source := ex "bit-branch.mu", input := "unused",
+        fuel := 10, expect := .outputs "800,2003,18,9;74,70;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "one branches directly from phase 70", source := ex "bit-branch.mu", input := "unused",
+        fuel := 13, expect := .outputs "900,10002,18,9;74,74;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "one branches directly from phase 74", source := ex "bit-branch.mu", input := "unused",
+        fuel := 16, expect := .outputs "1000,10102,18,9;74,70;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "zero takes extra no-op from phase 70", source := ex "bit-branch.mu", input := "unused",
+        fuel := 20, expect := .outputs "700,10203,18,9;74,74;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "halt occurs after all four branches", source := ex "bit-branch.mu", input := "unused",
+        fuel := 21, expect := .outputs "700,10203,18,9;74,74;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,halt" } ]
+
+def suiteBranchWidth : Suite where
+  name := "malbolge-unshackled (bit branch, width 37)"
+  run := branchSnapshot 37
+  cases :=
+    [ { name := "initializer installs low-memory no-op", source := ex "bit-branch.mu", input := "unused",
+        fuel := 7, expect := .outputs "105,2000,37,9;74,74;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "zero takes extra no-op from phase 74", source := ex "bit-branch.mu", input := "unused",
+        fuel := 10, expect := .outputs "800,2003,37,9;74,70;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "one branches directly from phase 70", source := ex "bit-branch.mu", input := "unused",
+        fuel := 13, expect := .outputs "900,10002,37,9;74,74;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "one branches directly from phase 74", source := ex "bit-branch.mu", input := "unused",
+        fuel := 16, expect := .outputs "1000,10102,37,9;74,70;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "zero takes extra no-op from phase 70", source := ex "bit-branch.mu", input := "unused",
+        fuel := 20, expect := .outputs "700,10203,37,9;74,74;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "halt occurs after all four branches", source := ex "bit-branch.mu", input := "unused",
+        fuel := 21, expect := .outputs "700,10203,37,9;74,74;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,halt" } ]
+
 def suites : List Suite :=
   [suite, suiteWidth, suiteStrict, suiteEcho, suiteRuntime, suiteRuntimeWidth,
-   suiteGrowth, suiteGrowthWidth, suiteMarker, suiteMarkerWidth, suiteCycle, suiteCycleWidth, suiteGrowing, suiteGrowingWidth]
+   suiteGrowth, suiteGrowthWidth, suiteMarker, suiteMarkerWidth, suiteCycle, suiteCycleWidth, suiteGrowing, suiteGrowingWidth, suiteBranch, suiteBranchWidth]
 
 end Langlib.Tests.MalbolgeUnshackled
