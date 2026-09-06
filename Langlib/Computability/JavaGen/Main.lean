@@ -13,7 +13,8 @@ natural representation, generated sweeping machines with checked symbolic
 lookup certificates, and an executable experimental URM compiler.
 The sweep simulation preserves halting and positive-cost divergence under
 those certificates. The register-tape bridge and URM halting/divergence
-preservation are proved for successful compilation. Uniform compiler success,
-source realization and textual answer decoding remain pending. No `javaGenComplete` is claimed.
+preservation are proved for the total generated artifact. All register,
+validation and symbolic lookup checks succeed uniformly. Source realization
+and textual answer decoding remain pending. No `javaGenComplete` is claimed.
 See `docs/javagen/computability.md` and `docs/PLAN.md`.
 -/

@@ -124,6 +124,13 @@ A complete language contribution consists of:
    actual initial query and execution mode. Its local simulation guarantees
    do not prove that generation always succeeds or that an earlier compiler
    stage preserves source behavior; keep those obligations explicit.
+   When the compiler uses a finite validator, prove its actual failure gates
+   unreachable for generated programs, including preprocessing fuel and
+   duplicate-head checks. Acyclic inheritance can coexist with infinite
+   subtype execution; never use the preprocessing budget as an execution
+   bound. JavaGen's [totality proof](Langlib/Computability/JavaGen/CompilerTotality.lean)
+   connects generated invariants to the ordinary indexed validator and its
+   finite lookup certificate.
 
 ## Adding a compiler from Turpentine
 

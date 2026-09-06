@@ -168,8 +168,9 @@ and forward URM answers now reach the flow graph's actual terminal node.
 A search of the pinned dependencies found a single-tape machine definition
 but no ready-made executable URM-to-tape bridge. Reusing the structured
 counter arithmetic and the paper's sweeping mechanism gives a working
-prototype with fewer new adapters. Its register invariant, decoder theorem
-and uniform generation-success proof are still required. The paper's
+prototype with fewer new adapters. Its register invariant and uniform
+generation-success proof are complete; source realization and the textual
+decoder theorem remain required. The paper's
 polynomial bounds for Simper are not claimed for this counter route.
 
 The existing URM compiler imports computability dependencies. Therefore
@@ -270,11 +271,11 @@ modules and the standalone runner stay free of Mathlib and cslib.
 | JG0: initial design (done) | This note, project-plan integration, reviewed result-observation choice |
 | JG1: executable core (done) | Spec first; `Syntax`, `Parser`, `Semantics`, `Stability`, `Main`, language README, Lake/root-module registration, original examples and golden tests |
 | JG2: sweep construction and Java export (done) | Finite-control sweeper generation, checked lookup/initialization certificates, read/turn/halt simulation, growing-source divergence and real-Java probes |
-| JG3: URM bridge (operational proof done; totality/decoder pending) | Existing counter program to finite flow graph to sweeper; register-tape simulation and URM halting/divergence proved for successful compilations; decoder, source realization and uniform success still required |
+| JG3: URM bridge (operational proof and totality done; source/decoder pending) | Existing counter program to finite flow graph to sweeper; all compiler checks succeed uniformly; register-tape simulation, URM halting/divergence and retained answers proved for the total artifact; decoder and source realization still required |
 | JG4: certification | Forward answers, source realization, lawfulness and positive-cost divergence; public witness and derived Turpentine CLI/tests |
 | JG5: documentation and performance | Final spec/compiler/computability accounts, verified examples, status matrices and site catalogue, generated-size/fuel measurements; maintain the hand-written Minsky backend alongside the pending certified URM route |
 
-The next priority is JG3 uniform compilation, source realization and the
+The next priority is JG3 source realization and the
 textual answer decoder, followed by assembling JG4. Completed foundations include
 `LawfulProgLang`, injective unbounded numerals and an all-fuel theorem for
 one source-realizable loop; they are not a completeness witness. Do not build Simper or the fluent-interface parser generator

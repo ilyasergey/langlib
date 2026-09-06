@@ -1,10 +1,11 @@
 import Langlib.Computability.JavaGen.TapeProof
+import Langlib.Computability.JavaGen.CompilerTotality
 
 /-! # URM execution through the register-tape invariant
 
 The theorems concern the public JavaGen evaluator under the generated
-machine's finite `Ready` certificate. Uniform production of that certificate
-and correctness of the final textual answer decoder are separate obligations.
+machine's finite `Ready` certificate, now produced uniformly by the total
+compiler. Correctness of the final textual answer decoder remains separate.
 -/
 
 namespace Langlib.Computability.JavaGen.CounterCompiler
@@ -111,5 +112,12 @@ theorem compileURM_halting {program : Cslib.URM.Program} {inputs : List Nat} {p 
     (halt : Cslib.URM.HaltsWithResult program inputs answer) :
     ∃ fuel, (evalPrepared p fuel).exit = .halted :=
   urm_ready_halting program inputs answer ⟨p, compileFlow_ready compiled⟩ halt
+
+/-- The total artifact function preserves source halting, with no compilation
+success hypothesis. Serialization and numeric decoding are separate theorems. -/
+theorem urmPrepared_halting {program : Cslib.URM.Program} {inputs : List Nat} {answer : Nat}
+    (halt : Cslib.URM.HaltsWithResult program inputs answer) :
+    ∃ fuel, (evalPrepared (urmPrepared program inputs) fuel).exit = .halted :=
+  compileURM_halting (compileURM_eq program inputs) halt
 
 end Langlib.Computability.JavaGen.CounterCompiler

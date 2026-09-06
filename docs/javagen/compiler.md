@@ -311,8 +311,8 @@ by the standard JavaGen loader.
 The shared sweeper has [local simulation proofs](computability.md).
 The hand-written Turpentine pass, its counter-to-sweeper translation and
 answer observation still require an end-to-end proof. The separate
-URM construction proves halting and divergence preservation for successfully
-compiled artifacts. Uniform generation, source realization and textual
+URM construction proves uniform compiler success, halting and divergence
+preservation for the total generated artifact. Source realization and textual
 answer decoding remain before it can provide `javaGenComplete` and a
 certified backend in
 [Compile/Derived.lean](../../Langlib/Languages/Turpentine/Compile/Derived.lean).

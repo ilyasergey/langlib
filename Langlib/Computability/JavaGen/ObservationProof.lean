@@ -57,4 +57,14 @@ theorem urm_answer_record (program : Cslib.URM.Program) (inputs : List Nat) (ans
   refine ⟨cost + fuel, final, recorded, ?_, hr, ha⟩
   simpa [compiled.property.2.1, represent, machine] using (hh fuel).trans he
 
+/-- The total compiled artifact retains the source answer in its actual
+successful proof record, without a compiler-success premise. -/
+theorem urmPrepared_answer_record (program : Cslib.URM.Program) (inputs : List Nat) (answer : Nat)
+    (halt : Cslib.URM.HaltsWithResult program inputs answer) :
+    ∃ fuel final recorded,
+      exec (urmPrepared program inputs) fuel ⟨(urmPrepared program inputs).source.query, []⟩ =
+        (final, .halted) ∧
+      final.history[2]? = some recorded ∧ recorded.query.lhs.count "Letter_1" = answer :=
+  urm_answer_record program inputs answer ⟨urmPrepared program inputs, urmPrepared_ready program inputs⟩ halt
+
 end Langlib.Computability.JavaGen.CounterCompiler

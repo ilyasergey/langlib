@@ -80,10 +80,11 @@ Stages 1, 2, 4, 6 and 8 on branch `ilya/java-generics`:
 * [~] Implement URM → existing counter program → flow graph → sweeper (JG3).
   All URM instruction forms, distinct input-dependent results and self-jumps
   have compiler regressions. Generated flow locations, structured-counter
-  simulation, the register-tape invariant and URM halting/divergence for
-  successful compilations are proved. The actual retained answer frame is
-  proved to contain the source result. Prove uniform generation success,
-  source realization and the final textual answer decoder.
+  simulation, the register-tape invariant and URM halting/divergence are
+  proved. The actual retained answer frame contains the source result.
+  All register, validator and symbolic lookup checks now succeed uniformly;
+  the operational theorems apply to the total artifact without assuming
+  compilation succeeds. Prove source realization and the final textual decoder.
 * [ ] Connect the universal compiler's closed proof-record readout to a
   numeric Java candidate query. Existing answer-hole examples still work;
   compiled universal programs currently use closed queries.
@@ -871,9 +872,10 @@ development under `Langlib/Computability/JavaGen/`. The lawful executable
 instance, injective numeral encoding and source-realizable stationary and
 growing infinite executions are proved. An experimental URM compiler and
 checked lower-level sweep simulation are implemented. The register-tape
-invariant and URM halting/divergence preservation now hold for every
-successfully compiled artifact. Uniform generation success, source realization
-and textual answer decoding remain pending. Do not register `TuringComplete` before those exist.
+invariant and URM halting/divergence preservation now hold for the total
+generated artifact. Every register, validator and symbolic lookup check
+succeeds uniformly. Source realization and textual answer decoding remain
+pending. Do not register `TuringComplete` before those exist.
 
 | Language | Claim | Route |
 |---|---|---|

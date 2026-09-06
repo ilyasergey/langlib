@@ -36,9 +36,9 @@ The [subtype core, numeric inference and Java export](javagen/spec.md) are
 implemented, with real-`javac` conformance tests. An [experimental URM
 compiler](javagen/universal-compiler.md) now uses the existing counter
 translation and a checked sweep layer. Its register-tape simulation now
-preserves URM halting/divergence for successfully compiled artifacts. The
-textual answer decoder, uniform generation success and source realization
-remain pending. A separate
+preserves URM halting/divergence for the total generated artifact; every
+register, validation and lookup check succeeds uniformly. The textual answer
+decoder and source realization remain pending. A separate
 [hand-written Turpentine backend](javagen/compiler.md) compiles closed
 nonnegative computations with scalars and fixed-size arrays and observes
 their final answer register. The paper's halting reduction alone does not supply

@@ -439,9 +439,10 @@ bridge to the paper's construction, preserving both the answer and positive
 execution cost. The [experimental URM compiler](universal-compiler.md) now
 uses the existing counter translation, finite flow control and unary register
 sweeps. The register-tape simulation now proves URM halting and all-fuel
-divergence for every successfully compiled artifact against the public
-evaluator. Uniform compilation, source realization and the textual answer
-decoder proof remain pending.
+divergence against the public evaluator for the total generated artifact.
+Register bounds, ordinary class validation and the symbolic lookup certificate
+are proved for every source program, regardless of halting. Source realization
+and the textual answer decoder proof remain pending.
 Its result decoder reads a closed proof record. It does not yet generate
 numeric `answer`-hole queries for independent Java result certification.
 See the [design](design.md) for the remaining proof gates.

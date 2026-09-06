@@ -5,7 +5,7 @@ import Langlib.Computability.Common.Divergence
 /-! # JavaGen: operational divergence preservation
 
 The original source-realizable loop remains a small regression. The URM
-theorems below preserve divergence for every successfully compiled artifact,
+theorems below preserve divergence for the total generated artifact,
 using the register-tape invariant and a positive-cost dispatcher cycle.
 -/
 
@@ -136,5 +136,12 @@ theorem compileURM_divergence {program : Cslib.URM.Program} {inputs : List Nat} 
     (diverges : Cslib.URM.Diverges program inputs) (fuel : Nat) :
     (evalPrepared p fuel).exit = .outOfFuel :=
   urm_ready_divergence program inputs ⟨p, compileFlow_ready compiled⟩ diverges fuel
+
+/-- The total compiler preserves divergence operationally at every finite
+budget. This result does not inspect or assume anything about the decoder. -/
+theorem urmPrepared_divergence {program : Cslib.URM.Program} {inputs : List Nat}
+    (diverges : Cslib.URM.Diverges program inputs) (fuel : Nat) :
+    (evalPrepared (urmPrepared program inputs) fuel).exit = .outOfFuel :=
+  compileURM_divergence (compileURM_eq program inputs) diverges fuel
 
 end Langlib.Computability.JavaGen.CounterCompiler

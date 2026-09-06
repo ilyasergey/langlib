@@ -5,8 +5,8 @@ import Langlib.Common.Divergence
 
 `Implements` states finite symbolic lookup obligations. The simulation below
 uses the actual JavaGen evaluator, with positive costs for reading and turning.
-Proving the generated validator result satisfies these obligations uniformly
-is a separate compiler-validation theorem, not an assumed TC witness.
+GeneratedReady proves the generated validator result satisfies these obligations
+uniformly. Source realization and byte decoding remain separate TC obligations.
 -/
 
 namespace Langlib.Computability.JavaGen.Sweep
@@ -46,7 +46,7 @@ instance (p : Prepared) (m : Machine states symbols) (input : List (Fin symbols)
     Decidable (Ready p m input) := inferInstanceAs (Decidable (_ ∧ _ ∧ _))
 
 /-- Finite checking certifies the full lower simulation premise for an emitted class table.
-A uniform theorem that generation never fails remains a separate obligation. -/
+GeneratedReady proves separately that generation and this check never fail. -/
 def checkedCompile (m : Machine states symbols) (input : List (Fin symbols)) :
     Except String { p : Prepared // Ready p m input } := do
   let p ← compile m input

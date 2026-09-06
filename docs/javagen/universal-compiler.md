@@ -99,7 +99,10 @@ URM answer. `compileURM_halting` additionally proves normal termination.
 divergent URM input. Both statements require
 `compileURM program inputs = Except.ok artifact`: the finite checking done by
 that executable compilation supplies the lookup and initialization certificate.
-Neither theorem assumes the source halts in order to construct the artifact.
+`compileURM_eq` now proves that success equation for every program and input.
+The resulting `urmPrepared_halting` and `urmPrepared_divergence` corollaries
+have no compilation-success premise. Neither theorem assumes the source halts
+in order to construct the artifact.
 
 For divergence, the prologue reaches a dispatcher invariant containing an
 actual reachable URM state, matching source registers, the encoded program
@@ -156,8 +159,12 @@ The hypotheses are explicit finite symbolic lookup equations, packaged as
 absence of an answer hole. `ready_halting` and `ready_divergence` therefore
 apply to the **public `evalPrepared` evaluator** of every successfully
 certified artifact. These are checked lower-level compiler guarantees,
-not an assumed URM simulation. A uniform theorem that generation always
-passes validation and certificate checking is still required.
+not an assumed URM simulation.
+[GeneratedReady.lean](../../Langlib/Computability/JavaGen/GeneratedReady.lean)
+now proves that every generated machine passes validation and this certificate
+check. Its inheritance walk terminates by a three-level head rank and contains
+no repeated head. This finite preprocessing bound does not bound the tape or
+the number of subtype execution steps.
 
 [Growth.lean](../../Langlib/Computability/JavaGen/Growth.lean) instantiates
 that interface for a one-state sweeper that duplicates every visited symbol
@@ -166,6 +173,52 @@ the specified machine, that its lookup certificate holds, and that every
 finite target fuel is exhausted. The query changes as the tape grows; this
 is a stronger operational example than a stationary query cycle. It is
 still an example, not a universality theorem.
+
+## Why compilation always succeeds
+
+`urmPrepared` is now a total executable artifact function.
+`compileURM_eq` proves that the ordinary checked compiler returns exactly
+that artifact for every source program and input. It does not evaluate the
+URM program, guess a halting time or replace a failed check with a default
+program. The proof discharges the executable compiler's checks:
+
+1. Counter registers are strictly below `counterBound`. Shifting them by
+   one fits the sweeper's inclusive bound, while register zero is reserved
+   for output. The proof covers all syntactic branches, even unreachable ones.
+2. Generated names are legal, distinct and declared everywhere they occur.
+   Variable superclasses have odd depth, and direct superclass heads are
+   distinct.
+3. Inheritance edges strictly decrease the rank `State = 2`, `End = 1`,
+   `Letter = Turn = ScanPad = 0`. The validator's actual class-count-plus-one
+   traversal budget suffices. Nested argument constructors are not inheritance
+   edges. The subtype machine can still run forever with an ever-growing tape.
+4. Each ancestor head occurs once. The validator's duplicate-head filter
+   therefore retains every symbolic template and its path in source order.
+5. First-match lookup returns the exact read, end, padding and turn templates
+   required by `Implements`. The initial query and closed execution mode also
+   match, so the finite `Ready` check succeeds.
+
+The public proof interface can be used as follows. These Lean examples
+quantify over arbitrary programs and inputs, including divergent ones:
+
+```lean
+import Langlib.Computability.JavaGen.Main
+open Langlib.JavaGen Langlib.Computability.JavaGen.CounterCompiler
+
+example (p : Cslib.URM.Program) (inputs : List Nat) :
+    compileURM p inputs = .ok (urmPrepared p inputs) :=
+  compileURM_eq p inputs
+
+example (p : Cslib.URM.Program) (inputs : List Nat)
+    (h : Cslib.URM.Diverges p inputs) (fuel : Nat) :
+    (evalPrepared (urmPrepared p inputs) fuel).exit = .outOfFuel :=
+  urmPrepared_divergence h fuel
+```
+
+These theorems concern the actual prepared evaluator artifact. They do not
+yet establish that rendering and reparsing every generated artifact returns
+that same value, or that its serialized output decodes to the source answer.
+Those are the two remaining proof gates for the full public TC contract.
 
 ## Reading an answer
 
@@ -236,14 +289,20 @@ trips compare the full prepared machine, including inheritance paths.
    including loop continuations and the shifted register/output convention;
    compose forward answers from URM.
 2. **Done:** prove the register/tape invariant and every forward/return sweep;
-   compose URM halting and all-fuel divergence for successfully compiled
-   artifacts, including positive progress for self-jumps.
-3. Prove generated tables always validate and satisfy `Ready`, and prove
-   source realization uniformly. Returning `Except.error` is a real compiler
-   failure; it cannot be silently replaced by a claimed completeness witness.
-4. Prove the final proof-record decoder returns the URM answer. Connect a
-   numeric candidate query as well for independent Java result certification.
-5. Assemble `javaGenComplete` only after forward answers and all-fuel
+   compose URM halting and all-fuel divergence, including positive progress
+   for self-jumps.
+3. **Done:** prove all register references are allocated, generated tables
+   always validate and satisfy `Ready`. `compileURM_eq` in
+   [CompilerTotality.lean](../../Langlib/Computability/JavaGen/CompilerTotality.lean)
+   identifies the checked compiler's result with the total `urmPrepared`
+   artifact. Halting, divergence and retained-frame answer theorems now apply
+   without any compilation-success premise.
+4. Prove source realization uniformly through rendering and the ordinary
+   parser. Concrete round-trip tests are not this universal theorem.
+5. Prove the final proof-record byte decoder returns the URM answer. The
+   structured retained-frame theorem is complete. Connect a numeric candidate
+   query as well for independent Java result certification.
+6. Assemble `javaGenComplete` only after forward answers and all-fuel
    divergence hold for the same runnable compiler. Then enable the derived
    Turpentine backend and its compiler tests.
 

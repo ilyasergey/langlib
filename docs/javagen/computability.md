@@ -3,11 +3,11 @@
 **No `TuringComplete JavaGenLang` witness exists yet.** Grigore's
 [*Java Generics Are Turing Complete*](https://doi.org/10.1145/3009837.3009871)
 (2017), §§4–5, supplies the mathematical subtyping-machine construction.
-LangLib now has an experimental executable URM compiler. Its register-tape simulation now
-preserves halting and divergence in the actual evaluator for every successfully
-compiled artifact. Uniform compilation and textual decoding remain pending:
-recognizing halting is weaker than
-preserving the natural-number answer required by our interface.
+LangLib now has a total executable URM compiler. Its register-tape simulation
+preserves halting and divergence in the actual evaluator, and its retained
+proof frame contains the source answer. Source-text realization and byte-level
+answer decoding remain pending: the final public contract must concern the
+ordinary parser and the output bytes it returns.
 
 The public entry point is
 [Main.lean](../../Langlib/Computability/JavaGen/Main.lean). The current
@@ -72,10 +72,10 @@ executions to the ordinary subtype transitions.
 
 [URMProof.lean](../../Langlib/Computability/JavaGen/URMProof.lean) proves that
 halting URM executions reach the represented answer register and normally halt.
-`compileURM_halting` is stated about the actual artifact returned by the
-executable compiler. [Divergence.lean](../../Langlib/Computability/JavaGen/Divergence.lean)
-proves `compileURM_divergence`: on divergent inputs, successful compilation
-produces an artifact whose public `evalPrepared` returns `.outOfFuel` at
+`urmPrepared_halting` applies to the total generated artifact without a
+compilation-success premise. [Divergence.lean](../../Langlib/Computability/JavaGen/Divergence.lean)
+proves `urmPrepared_divergence`: on divergent inputs, that same artifact's
+public `evalPrepared` returns `.outOfFuel` at
 **every** finite fuel. The proof composes the generated prologue, reachable
 URM states and a dispatcher cycle with strictly positive target cost;
 it does not depend on the output decoder.
@@ -88,10 +88,30 @@ frame recovers the arbitrary natural answer. `Names.lean` proves generated
 names are valid and injective; the tape count also respects constructor padding
 and reversal. This is a structured-history theorem, not yet the byte decoder.
 
-Still required: uniform successful validation/certification and source
-realization, and correctness of the textual answer decoder.
-The compiler currently returns `Except`, so proving that it always succeeds
-is a real part of obtaining the total compiler field of `TuringComplete`.
+[CompilerTotality.lean](../../Langlib/Computability/JavaGen/CompilerTotality.lean)
+proves `compileURM_eq`: the executable `Except`-returning compiler always
+returns exactly `urmPrepared`. This holds independently of source halting.
+The proof covers all three failure gates:
+
+* [Bounds.lean](../../Langlib/Computability/JavaGen/Bounds.lean) proves every
+  generated register reference fits the allocation, including scratch
+  registers, the input prologue and unreachable dispatcher branches.
+* [GeneratedTable.lean](../../Langlib/Computability/JavaGen/GeneratedTable.lean)
+  proves legal, distinct names, declared arguments, odd variable-superclass
+  depth and distinct direct heads. Generated inheritance has ranks 2, 1 and
+  0, and no repeated ancestor head. Subtype execution can still be infinite.
+* [ValidationProof.lean](../../Langlib/Computability/JavaGen/ValidationProof.lean)
+  proves the actual indexed inheritance walk succeeds at the validator's
+  own budget, retaining direct superclasses and their paths.
+  [ValidationTotality.lean](../../Langlib/Computability/JavaGen/ValidationTotality.lean)
+  proves the ordinary `prepare` returns precisely that closure.
+  [GeneratedReady.lean](../../Langlib/Computability/JavaGen/GeneratedReady.lean)
+  proves all five symbolic lookup obligations, initial query and mode, so
+  `checkedCompile` also succeeds uniformly.
+
+`urmPrepared_answer_record` now gives the structured-history answer theorem
+without a compilation-success premise. Still required: source realization
+through the ordinary parser and correctness of the textual answer decoder.
 
 The prototype uses closed proof records. Generating a numeric candidate query
 for independent Java certification remains pending for this compiler; the

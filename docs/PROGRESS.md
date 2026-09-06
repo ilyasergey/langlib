@@ -6,6 +6,35 @@ interface in the first two proof milestones was superseded by the combined
 `TuringComplete` interface below.
 
 
+## 2026-09-06: JavaGen compiler totality proved
+
+Proved that the executable URM compiler always returns its generated artifact,
+including on divergent inputs. The
+[totality proof](../Langlib/Computability/JavaGen/CompilerTotality.lean)
+covers shifted register allocation, legal and distinct generated names,
+declared constructor arguments, superclass parity, acyclic inheritance and
+all finite symbolic lookup obligations. The ordinary indexed validator's
+walk succeeds at its own class-count budget; ancestor heads are distinct,
+so its diamond filter retains every row and path. The proof applies to the
+real validator loops by definitional equality.
+
+`urmPrepared_halting`, `urmPrepared_divergence` and
+`urmPrepared_answer_record` now apply to the total artifact without assuming
+successful compilation. Divergence still means `.outOfFuel` at every finite
+budget, independently of decoding. The answer theorem still concerns the
+actual third most recent proof frame.
+
+The full `TuringComplete` witness remains pending: generated-source
+realization and the byte-level answer decoder are the remaining proof gates.
+No completeness witness or derived Turpentine backend is registered yet.
+
+Validation: `lake build`, all 1,852 golden tests and five property groups
+pass. All 34 real-`javac` conformance cases pass with no inconclusive result.
+The regenerated site passes 315 structural checks; repository-wide local
+links and exact numbered source targets resolve. The totality and unconditional
+operational/retained-answer theorems use only Lean's standard logical axioms.
+
+
 ## 2026-09-06: JavaGen arrays and runnable examples
 
 Extended the [Turpentine backend](javagen/compiler.md) to fixed-size integer
