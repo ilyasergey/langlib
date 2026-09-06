@@ -361,6 +361,72 @@ use `--java FILE` directly. `--java-declarations FILE` exports only the
 baseline used by conformance. A candidate is never substituted into the
 class declarations, only into the query's marked hole.
 
+#### A small candidate check
+
+The [add-two example](../../Langlib/Examples/JavaGen/add-two.jgen) computes
+`2 + 2`. Its `answer` token is the open hole:
+
+```text
+zero Z;
+interface Succ<x> {}
+interface Pad<x> {}
+interface Result<x> {}
+interface AddTwo<x> extends Result<Succ<Pad<Succ<Pad<x>>>>> {}
+check AddTwo<Succ<Pad<Succ<Z>>>> <: Result<answer>;
+```
+
+Export the query with the expected answer `4` substituted into that hole.
+
+```sh
+lake exe javagen --answer 4 --java Langlib/Examples/JavaGen/add-two.jgen > /tmp/JavaGenCheck.java
+```
+
+Check the candidate with Java. This succeeds silently.
+
+```sh
+javac -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
+```
+
+Now export the same program with the incorrect candidate `5`.
+
+```sh
+lake exe javagen --answer 5 --java Langlib/Examples/JavaGen/add-two.jgen > /tmp/JavaGenCheck.java
+```
+
+Repeat the Java check. This exits with status 1 and an incompatible-types
+diagnostic: the proposed answer does not satisfy the original query.
+
+```sh
+javac -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
+```
+
+Export only the declaration baseline, with the checking method omitted.
+
+```sh
+lake exe javagen --java-declarations Langlib/Examples/JavaGen/add-two.jgen > /tmp/JavaGenCheck.java
+```
+
+Check this baseline independently; it succeeds silently. The interface
+declarations are identical in the baseline and the exports for `4` and `5`.
+Only the query's checking method differs between those candidates.
+
+```sh
+javac -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
+```
+
+For comparison, the [reflexive example](../../Langlib/Examples/JavaGen/reflexive.jgen)
+checks `Box<Z> <: Box<Z>`. It has no answer hole, so export it directly.
+
+```sh
+lake exe javagen --java Langlib/Examples/JavaGen/reflexive.jgen > /tmp/JavaGenCheck.java
+```
+
+Check that closed query with Java; it also succeeds silently.
+
+```sh
+javac -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
+```
+
 ## Computational class and compiler work
 
 Grigore's paper supplies the Turing-machine halting reduction for the unary
