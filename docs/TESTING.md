@@ -396,3 +396,9 @@ compare emitted-and-reparsed JavaGen execution with Turpentine's reference
 interpreter, printing `answer` for the reference run. Additional tests cover
 nested/infinite loops, failed assertions, unsupported constructs and agreement
 of `--compiled-answer` with ordinary proof-record execution at several fuels.
+Array fixtures cover integer/Boolean defaults, adjacent arrays, computed and
+nested indexing, read/write aliasing, short-circuit bounds guards, and both
+constant and computed out-of-bounds accesses. The four new array examples
+(prefix sums, histogram, Boolean marks and Fibonacci table), plus the existing
+maximum and sieve, are compared with the source interpreter. Bounds errors
+are checked separately: a source runtime error becomes target divergence.

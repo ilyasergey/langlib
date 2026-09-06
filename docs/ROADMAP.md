@@ -40,7 +40,8 @@ preserves URM halting/divergence for successfully compiled artifacts. The
 textual answer decoder, uniform generation success and source realization
 remain pending. A separate
 [hand-written Turpentine backend](javagen/compiler.md) compiles closed
-nonnegative scalar computations and observes their final answer register. The paper's halting reduction alone does not supply
+nonnegative computations with scalars and fixed-size arrays and observes
+their final answer register. The paper's halting reduction alone does not supply
 LangLib's answer-preserving, divergence-preserving completeness witness.
 
 ## Strong candidates

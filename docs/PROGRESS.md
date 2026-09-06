@@ -6,6 +6,35 @@ interface in the first two proof milestones was superseded by the combined
 `TuringComplete` interface below.
 
 
+## 2026-09-06: JavaGen arrays and runnable examples
+
+Extended the [Turpentine backend](javagen/compiler.md) to fixed-size integer
+and Boolean arrays. Each cell occupies a counter register; computed indices
+select through a finite dispatch chain, and nested reads preserve temporary
+values. Boolean guards short-circuit, including guarded out-of-bounds reads.
+An invalid access loops in the target; the source interpreter reports a
+runtime error. The shared FRACTRAN frontend retains its scalar-only default.
+
+Added prefix sums, histogram, Boolean marks and Fibonacci-table examples,
+with full source in the [specification](javagen/spec.md#turpentine-array-examples)
+and commands in both JavaGen documents. Their answers, `10`, `2`, `3` and
+`8`, agree with the Turpentine interpreter. Array tests additionally cover
+initialization, adjacent arrays, aliasing, bounds traps and the existing
+maximum and sieve examples. Corrected the AST comment to match the reference
+evaluator's RHS-before-index order for indexed writes.
+
+Profiling the large sieve exposed repeated linear declaration searches in
+JavaGen validation. Indexed names, declarations and superclass heads now
+avoid those searches; reverse accumulation also removes repeated copying
+of expanding ancestor lists. Closure order and first-path selection for
+equal diamonds are preserved.
+
+Validation: all 1,852 golden tests and five property groups pass, including
+40 array/source/bounds checks. All 34 real-`javac` conformance cases and 315
+site checks pass; the four new examples produce `10`, `2`, `3` and `8`, and
+the existing maximum and sieve produce `9` and `15`. All tracked Lean modules
+build, including the validator's kernel-checked source-realization examples.
+
 ## 2026-09-06: JavaGen URM register-tape simulation and divergence
 
 Proved the unbounded register representation and every complete instruction

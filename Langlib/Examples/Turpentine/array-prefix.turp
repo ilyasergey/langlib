@@ -1,0 +1,16 @@
+// Replace four values by their prefix sums; the last is 10.
+// Usage: lake exe turpentine exec --via javagen Langlib/Examples/Turpentine/array-prefix.turp
+var answer : int;
+var values : int[4];
+var total : int;
+var i : int;
+values[0] := 1;
+values[1] := 2;
+values[2] := 3;
+values[3] := 4;
+while i < len(values) {
+  values[i] := total + values[i];
+  total := values[i];
+  i := i + 1;
+}
+answer := values[3];

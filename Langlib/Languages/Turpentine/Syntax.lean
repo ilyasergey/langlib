@@ -80,7 +80,7 @@ inductive Stmt where
   /-- `x := readByte();` : read one byte (`0..255`), or `-1` at EOF. -/
   | readByte (x : String)
   /-- `a[i] := e;` : write an array element. Out of bounds is a runtime
-  error, and the index is evaluated before the right-hand side. -/
+  error; the right-hand side is evaluated before the index. -/
   | assignIndex (x : String) (i : Expr) (e : Expr)
   /-- `a[i] := readInt();` -/
   | readIntIndex (x : String) (i : Expr)

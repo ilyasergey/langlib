@@ -13,7 +13,7 @@
   - [Real-Java conformance suite](../../scripts/javagen-conformance.py).
   - [Single-command answer certification](../../scripts/javagen-certify.py).
   - [Computability development](../../Langlib/Computability/JavaGen/Main.lean), [current proof boundary](computability.md).
-  - [Experimental URM compiler](universal-compiler.md); [Turpentine backend plan](compiler.md).
+  - [Experimental URM compiler](universal-compiler.md); [Turpentine backend](compiler.md).
   - [Design and pending compiler/proof milestones](design.md).
 
 ## Why generics can run a program
@@ -366,8 +366,8 @@ class declarations, only into the query's marked hole.
 Grigore's paper supplies the Turing-machine halting reduction for the unary
 core. JavaGen currently has executable semantics, numeric inference, Java
 conformance and stability proofs. It also has a
-[hand-written Turpentine compiler](compiler.md) for closed nonnegative scalar
-computations, but no LangLib `TuringComplete` witness. The priority is the
+[hand-written Turpentine compiler](compiler.md) for closed nonnegative
+computations with scalars and fixed-size arrays, but no LangLib `TuringComplete` witness. The priority is the
 URM-based public contract, with a tape-machine or existing counter-machine
 bridge to the paper's construction, preserving both the answer and positive
 execution cost. The [experimental URM compiler](universal-compiler.md) now
@@ -893,4 +893,150 @@ without executing their source. Check that the committed files match:
 
 ```sh
 lake env lean --run scripts/gen-javagen-compiler-examples.lean --check
+```
+
+### Turpentine array examples
+
+The [Turpentine backend](compiler.md#array-examples) compiles these complete
+Turpentine programs into JavaGen inheritance declarations and closed subtype
+queries. Integer array cells start at zero; Boolean cells start at false.
+The commands compile and run each program through JavaGen and print `answer`.
+The compiler guide also gives the separate compilation and execution steps.
+
+#### Prefix sums
+
+[array-prefix.turp](../../Langlib/Examples/Turpentine/array-prefix.turp).
+Each iteration reads a cell, replaces it with the running sum, and reads it
+back. The array becomes `[1, 3, 6, 10]`; the last cell supplies `answer`.
+
+```text
+var answer : int;
+var values : int[4];
+var total : int;
+var i : int;
+values[0] := 1;
+values[1] := 2;
+values[2] := 3;
+values[3] := 4;
+while i < len(values) {
+  values[i] := total + values[i];
+  total := values[i];
+  i := i + 1;
+}
+answer := values[3];
+```
+
+Compile and run; the result is `10`.
+
+```sh
+lake exe turpentine exec --via javagen Langlib/Examples/Turpentine/array-prefix.turp
+```
+
+Output:
+
+```text
+10
+```
+
+#### A histogram with nested indices
+
+[array-histogram.turp](../../Langlib/Examples/Turpentine/array-histogram.turp).
+The values in `data` select cells of `counts`. Both sides of
+`counts[data[i]] := counts[data[i]] + 1` use nested indexing; category
+`1` occurs twice.
+
+```text
+var answer : int;
+var data : int[4];
+var counts : int[3];
+var i : int;
+data[0] := 1;
+data[1] := 0;
+data[2] := 1;
+data[3] := 2;
+while i < len(data) {
+  counts[data[i]] := counts[data[i]] + 1;
+  i := i + 1;
+}
+answer := counts[1];
+```
+
+Compile and run; the result is `2`.
+
+```sh
+lake exe turpentine exec --via javagen Langlib/Examples/Turpentine/array-histogram.turp
+```
+
+Output:
+
+```text
+2
+```
+
+#### Boolean marks with a bounds guard
+
+[array-marks.turp](../../Langlib/Examples/Turpentine/array-marks.turp).
+The first loop marks the even indices `0`, `2` and `4`. The second
+counts them and deliberately reaches `i = len(marked)`: `&&` then skips
+the invalid read. This exercises Boolean arrays and short-circuiting.
+
+```text
+var answer : int;
+var marked : bool[5];
+var i : int;
+while i < len(marked) {
+  marked[i] := i % 2 == 0;
+  i := i + 1;
+}
+i := 0;
+while i <= len(marked) {
+  if i < len(marked) && marked[i] {
+    answer := answer + 1;
+  }
+  i := i + 1;
+}
+```
+
+Compile and run; the result is `3`.
+
+```sh
+lake exe turpentine exec --via javagen Langlib/Examples/Turpentine/array-marks.turp
+```
+
+Output:
+
+```text
+3
+```
+
+#### A Fibonacci table
+
+[array-fibonacci.turp](../../Langlib/Examples/Turpentine/array-fibonacci.turp).
+Starting from two ones, each iteration fills the next cell from the
+previous two. Computed reads and writes build `[1, 1, 2, 3, 5, 8]`
+without subtraction.
+
+```text
+var answer : int;
+var fib : int[6];
+var i : int;
+fib[0] := 1;
+fib[1] := 1;
+while i + 2 < len(fib) {
+  fib[i + 2] := fib[i] + fib[i + 1];
+  i := i + 1;
+}
+answer := fib[5];
+```
+
+Compile and run; the result is `8`.
+
+```sh
+lake exe turpentine exec --via javagen Langlib/Examples/Turpentine/array-fibonacci.turp
+```
+
+Output:
+
+```text
+8
 ```

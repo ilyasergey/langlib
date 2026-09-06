@@ -81,7 +81,9 @@ Run `lake build turpentine` again after changing the compiler. Alternatively,
 build instead of recompiling it.
 
 The [JavaGen backend](../../../docs/javagen/compiler.md) accepts closed,
-nonnegative scalar computations and reports the final integer `answer`.
+nonnegative computations with scalars and fixed-size integer/Boolean arrays,
+and reports the final integer `answer`. The [array examples](../../../docs/javagen/compiler.md#array-examples)
+exercise computed indices, nested reads, table filling and short-circuit guards.
 Compile and run a counted sum:
 
 ```sh
@@ -98,6 +100,10 @@ Output:
 
 | File | What it does | Written for |
 |------|--------------|-------------|
+| [`array-prefix.turp`](../../Examples/Turpentine/array-prefix.turp) | in-place prefix sums; answer 10 | `--via javagen` |
+| [`array-histogram.turp`](../../Examples/Turpentine/array-histogram.turp) | nested indices into a frequency table; answer 2 | `--via javagen` |
+| [`array-marks.turp`](../../Examples/Turpentine/array-marks.turp) | Boolean array with a bounds guard; answer 3 | `--via javagen` |
+| [`array-fibonacci.turp`](../../Examples/Turpentine/array-fibonacci.turp) | Fibonacci table; answer 8 | `--via javagen` |
 | `hello.turp` | prints a greeting | any backend |
 | `cat.turp` | copies input to output | any backend |
 | `isqrt.turp` | integer square root (ported from Velvet) | any backend |

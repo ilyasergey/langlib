@@ -63,8 +63,8 @@ outside it by name:
 
 * no `-`, unary minus or negative literals: a register cannot hold one;
 * no `readInt`, `readByte`, `print`, `println` or `printByte`;
-* no arrays: one register per element and a dispatch chain per access is
-  possible, and is not done here;
+* no arrays in the FRACTRAN frontend; the shared Minsky pass supports them
+  only when a client (currently JavaGen) opts into the array layout;
 * a scalar `int` variable named `answer` must be declared.
 
 `/` and `%` are in, Euclidean on non-negative operands. Division by zero
@@ -97,6 +97,9 @@ deriving Repr, Inhabited, BEq
 numbered from zero; `answer` is register zero so that it gets the prime 2. -/
 structure Layout where
   reg : Std.HashMap String Nat
+  /-- Optional fixed-size array blocks, used by the JavaGen client of this pass.
+  The FRACTRAN frontend continues to reject array declarations. -/
+  arrays : Std.HashMap String (Nat × Nat) := {}
   /-- One past the last variable register. -/
   scratchBase : Nat
   /-- Scratch registers reserved per expression nesting level. -/
@@ -289,8 +292,31 @@ private def compileExpr (l : Layout) (e : Expr) (dst d : Nat) (k : Nat) : M Nat 
       let t := l.slot d 0
       let s ← copyAddR r dst t k
       clearR dst s
-  | .len x => fail s!"len({x}) needs an array, which the fractran backend does not lay out"
-  | .index x _ => fail s!"the array access {x}[..] is outside the fractran backend"
+  | .len x =>
+    match l.arrays[x]? with
+    | none => fail s!"len({x}) needs an array, which the fractran backend does not lay out"
+    | some (_, len) => setConst dst len k
+  | .index x index => do
+    let some (base, len) := l.arrays[x]?
+      | fail s!"the array access {x}[..] is outside the fractran backend"
+    let idx := l.slot d 0
+    let tmp := l.slot d 1
+    let read := fun r => do
+      let s ← copyAddR r dst tmp k
+      let s ← clearR tmp s
+      clearR dst s
+    match index with
+    | .intLit n =>
+      if 0 ≤ n && n < len then read (base + n.toNat)
+      else
+        let stop ← trap tmp
+        compileExpr l (.intLit n) idx (d + 1) stop
+    | other =>
+      let mut dispatch ← trap tmp
+      for j in (List.range len).reverse do
+        let selected ← read (base + j)
+        dispatch ← emit (.dec idx dispatch selected)
+      compileExpr l other idx (d + 1) dispatch
   | .un .neg _ =>
     fail "unary minus is outside the fractran backend: a register holds a natural"
   | .un .not e₁ => do
@@ -323,6 +349,11 @@ private def compileBin (l : Layout) (op : BinOp) (e₁ e₂ : Expr) (dst d : Nat
   | .div => divModCode l e₁ e₂ dst (l.slot d 4) d k
   | .mod => divModCode l e₁ e₂ (l.slot d 4) dst d k
   | .and => do
+    if !l.arrays.isEmpty then
+      let rhs ← compileExpr l e₂ dst (d + 1) k
+      let no ← setConst dst 0 k
+      let branch ← emit (.dec t0 rhs no)
+      return ← compileExpr l e₁ t0 (d + 1) branch
     -- both operands are 0 or 1, so conjunction is multiplication
     let cleanup ← clearR t1 k
     let head ← reserve
@@ -332,6 +363,11 @@ private def compileBin (l : Layout) (op : BinOp) (e₁ e₂ : Expr) (dst d : Nat
     let s2 ← compileExpr l e₂ t1 (d + 1) s3
     compileExpr l e₁ t0 (d + 1) s2
   | .or => do
+    if !l.arrays.isEmpty then
+      let rhs ← compileExpr l e₂ dst (d + 1) k
+      let yes ← setConst dst 1 k
+      let branch ← emit (.dec t0 yes rhs)
+      return ← compileExpr l e₁ t0 (d + 1) branch
     let s ← toBool t0 dst k
     let s3 ← moveR t1 t0 s
     let s2 ← compileExpr l e₂ t1 (d + 1) s3
@@ -435,8 +471,29 @@ private def compileStmt (l : Layout) : Stmt → Nat → M Nat
     fail "printing a string is outside the fractran backend: fractran has no output"
   | .printByte _, _ =>
     fail "printByte is outside the fractran backend: fractran has no output"
-  | .assignIndex x _ _, _ =>
-    fail s!"the array write {x}[..] := .. is outside the fractran backend"
+  | .assignIndex x index value, k => do
+    let some (base, len) := l.arrays[x]?
+      | fail s!"the array write {x}[..] := .. is outside the fractran backend"
+    let val := l.slot 0 0
+    let idx := l.slot 0 1
+    let write := fun r => do
+      let s ← moveR val r k
+      clearR r s
+    let selected ← match index with
+      | .intLit n =>
+        if 0 ≤ n && n < len then write (base + n.toNat)
+        else
+          let stop ← trap (l.slot 0 2)
+          compileExpr l index idx 1 stop
+      | _ => do
+        let mut dispatch ← trap (l.slot 0 2)
+        for j in (List.range len).reverse do
+          let selected ← write (base + j)
+          dispatch ← emit (.dec idx dispatch selected)
+        compileExpr l index idx 1 dispatch
+    -- The current reference evaluator computes the RHS before storeIndex.
+    -- Depth-zero val survives all depth-one scratch work on the index.
+    compileExpr l value val 1 selected
 
 /-! ## Primes -/
 
@@ -498,12 +555,13 @@ def toFractions (code : Array MInstr) (nregs : Nat) : Except String Prog := do
 
 /-- Build the register layout: `answer` is register zero, so it gets the
 prime two and the final value is `2 ^ answer`. -/
-def layoutOf (p : Program) : Except String Layout := do
+def layoutOf (p : Program) (allowArrays : Bool := false) : Except String Layout := do
   let mut names : List String := ["answer"]
   for (x, ty, _) in p.decls do
     match ty with
     | .array _ _ =>
-      throw s!"the array '{x}' is outside the fractran backend: it lays out one register per variable and no dispatch chain for a computed index"
+      unless allowArrays do
+        throw s!"the array '{x}' is outside the fractran backend: it lays out one register per variable and no dispatch chain for a computed index"
     | _ => if x != "answer" then names := names ++ [x]
   if !(p.decls.any fun d => d.1 == "answer") then
     throw "the fractran backend needs a variable named 'answer' to hold the result: fractran has no output, so the final value is all there is"
@@ -513,7 +571,13 @@ def layoutOf (p : Program) : Except String Layout := do
   let mut m : Std.HashMap String Nat := {}
   for (x, i) in names.zipIdx do
     m := m.insert x i
-  return { reg := m, scratchBase := names.length, maxDepth := 12 }
+  let mut arrays : Std.HashMap String (Nat × Nat) := {}
+  let mut next := names.length
+  for (x, ty, _) in p.decls do
+    if let .array _ len := ty then
+      arrays := arrays.insert x (next, len)
+      next := next + len
+  return { reg := m, arrays, scratchBase := next, maxDepth := 12 }
 
 /-- Declarations with initialisers become assignments at the head of the
 body, in declaration order, which is what `Turpentine.initEnv` computes.
@@ -543,8 +607,9 @@ continuation and exists only to find out which registers the program
 touches; the second recompiles with an epilogue that clears exactly those,
 so the final value is `2 ^ answer` and nothing is spent on scratch the
 program never reached. -/
-def buildChecked (p : Program) : Except String (Array MInstr × Nat × Layout) := do
-  let l ← layoutOf p
+def buildChecked (p : Program) (allowArrays : Bool := false) :
+    Except String (Array MInstr × Nat × Layout) := do
+  let l ← layoutOf p allowArrays
   let stmt := Stmt.seq (declPrelude p) p.body
   let probe : M Nat := do
     let halt ← emit .stop

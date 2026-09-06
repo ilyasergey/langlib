@@ -192,6 +192,14 @@ taught it to you.
   not installed.
 * Compiler tests: compile Turpentine examples to each target and compare the
   target-language run against the Turpentine reference interpreter's run.
+* JavaGen reuses the FRACTRAN Minsky pass with `allowArrays := true`; the
+  FRACTRAN frontend keeps its scalar-only default. Array cells have distinct
+  registers, and Boolean guards must short-circuit to skip invalid indices.
+  Indexed writes evaluate the RHS before the index, matching Turpentine's
+  `exec`/`storeIndex` order. Generated JavaGen tables can be large: validation
+  lookups are indexed, while closure rows and equal-diamond paths retain
+  source order. The validator uses ordered maps so its concrete
+  `decide +kernel` regressions can also reduce the lookup structures cheaply.
 * JavaGen's hand-written Turpentine backend reuses the Mathlib-free Minsky
   pass in `Compile/Fractran.lean`. The executable sweep generator lives in
   `Langlib/Languages/JavaGen/Sweep.lean`; the computability module re-exports

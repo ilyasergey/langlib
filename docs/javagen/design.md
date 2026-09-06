@@ -123,7 +123,7 @@ Available commands include `lake exe javagen file.jgen` and
 `lake exe javagen --java file.jgen` for concrete queries. Answer queries
 use the [inference and certification workflow](spec.md#evaluate-and-certify-with-one-command).
 `lake exe turpentine compile --to javagen file.turp` now uses the
-[hand-written scalar backend](compiler.md). The `--tc` variant remains planned.
+[hand-written scalar and array backend](compiler.md). The `--tc` variant remains planned.
 Follow the shared runner's fuel flags and exit codes. Java export tests
 observe type-check acceptance; `javac` does not print a Turpentine answer.
 

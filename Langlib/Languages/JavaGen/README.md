@@ -34,7 +34,8 @@ See the [examples](../../Examples/JavaGen/),
 [golden/property tests](../../Tests/JavaGen.lean),
 [computability account](../../../docs/javagen/computability.md) and
 [Turpentine backend](../../../docs/javagen/compiler.md). The hand-written
-backend supports closed nonnegative scalar computations; its end-to-end
+backend supports closed nonnegative computations with scalars and fixed-size
+integer/Boolean arrays; its end-to-end
 certificate and the answer/divergence-preserving TC witness remain pending.
 
 Compile and run a Turpentine sum through JavaGen:

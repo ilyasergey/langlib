@@ -1,0 +1,17 @@
+// Mark the even indices 0, 2 and 4, then count them: 3.
+// The last iteration visits i = len(marked); && skips that invalid access.
+// Usage: lake exe turpentine exec --via javagen Langlib/Examples/Turpentine/array-marks.turp
+var answer : int;
+var marked : bool[5];
+var i : int;
+while i < len(marked) {
+  marked[i] := i % 2 == 0;
+  i := i + 1;
+}
+i := 0;
+while i <= len(marked) {
+  if i < len(marked) && marked[i] {
+    answer := answer + 1;
+  }
+  i := i + 1;
+}

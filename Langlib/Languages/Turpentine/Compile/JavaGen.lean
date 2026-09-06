@@ -8,13 +8,16 @@ Reuse the FRACTRAN backend's syntax-to-Minsky pass, then generate JavaGen
 inheritance rules through a finite sweeping transducer. Compilation never
 evaluates the source. This backend has no end-to-end correctness certificate.
 
-The fragment is closed, nonnegative scalar computations with an integer
+The fragment is closed, nonnegative computations with scalars, fixed-size
+integer and Boolean arrays, and an integer
 `answer`: initializers, arithmetic (+, *, /, %), comparisons, Boolean logic,
-conditionals, loops and assertions. Arrays, I/O, subtraction and negation
+conditionals, loops and assertions. I/O, subtraction and negation
 are rejected. The shared pass limits expression nesting to twelve levels;
 failed assertions become nonterminating target computations. Division by zero
 yields zero and remainder by zero yields the dividend, whereas Turpentine
 reports runtime errors. Runtime-error preservation is not claimed.
+Array bounds failures also loop forever. Boolean operators short-circuit
+when arrays are present, so guards can safely skip invalid accesses.
 
 Register zero is `answer`. Each tape block has a distinct marker and unary
 unit symbol. An increment inserts one unit at its marker; a conditional
@@ -107,7 +110,7 @@ def machine (code : Array Instr) (entry bound : Nat) :
 
 /-- Compile syntax to a finite class table, including all variable initializers. -/
 def compile (p : Turpentine.Program) : Except String Langlib.JavaGen.Program := do
-  let (code, entry, _) ← Fractran.buildChecked p |>.mapError
+  let (code, entry, _) ← Fractran.buildChecked p (allowArrays := true) |>.mapError
     (fun message => "javagen: " ++ (message.replace "fractran" "javagen").replace
       "the answer is the exponent of two in the final value"
       "the answer is the final value of register zero")

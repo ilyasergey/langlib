@@ -100,7 +100,7 @@ status matrix, including compilers):
 | [unlambda](docs/unlambda/spec.md) | yes | **[yes](docs/unlambda/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L137) (certified), and [bespoke](docs/unlambda/compiler.md) (trusted) |
 | [ski](docs/ski/spec.md) | yes | **[yes](docs/ski/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L144) (certified); [bespoke: compile to unlambda instead](docs/ski/compiler.md) |
 | [velato](docs/velato/spec.md) | [yes, with unbounded ints](docs/velato/spec.md#computational-class) | **[yes](docs/velato/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L158) (certified), and [bespoke](docs/velato/compiler.md) ([certified on a fragment, behaviourally, input included](docs/velato/compiler.md)) |
-| [JavaGen](docs/javagen/spec.md) | [paper core; answer bridge pending](docs/javagen/computability.md) | [pending](docs/javagen/computability.md) | [closed scalars](docs/javagen/compiler.md) |
+| [JavaGen](docs/javagen/spec.md) | [paper core; answer bridge pending](docs/javagen/computability.md) | [pending](docs/javagen/computability.md) | [scalars and arrays](docs/javagen/compiler.md) |
 | [Turpentine](docs/turpentine/spec.md) | yes | open | [(it is the source)](docs/turpentine/spec.md) |
 
 

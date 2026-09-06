@@ -1,4 +1,5 @@
 import Langlib.Languages.JavaGen.Syntax
+import Std.Data.TreeMap
 
 /-!
 # JavaGen: checked inheritance closure
@@ -28,11 +29,11 @@ structure Prepared where
   closure : List (String × List Ancestor)
 deriving Repr, BEq, DecidableEq, Inhabited
 
-private def checkNames (names : List String) (t : List String) : Except String Unit := do
+private def checkNames (names : Std.TreeMap String Decl) (t : List String) : Except String Unit := do
   for name in t do
     unless names.contains name do throw s!"unknown constructor '{name}'"
 
-private def walk (decls : List Decl) : Nat → List String → Template →
+private def walk (decls : Std.TreeMap String Decl) : Nat → List String → Template →
     List Template → Except String (List Ancestor)
   | 0, _, _, _ => .error "cyclic inheritance (head-depth bound exceeded)"
   | fuel + 1, seen, t, path => do
@@ -41,51 +42,57 @@ private def walk (decls : List Decl) : Nat → List String → Template →
     | [] => return [here]
     | name :: rest =>
       if seen.contains name then throw s!"cyclic inheritance through '{name}'"
-      let some decl := decls.find? (·.name == name)
+      let some decl := decls[name]?
         | throw s!"unknown constructor '{name}'"
       let mut result := [here]
       for base in decl.bases do
         let next := base.subst ⟨rest, t.tail⟩
         let ancestors ← walk decls fuel (name :: seen) next (path ++ [next])
-        result := result ++ ancestors
-      return result
+        result := ancestors.reverse ++ result
+      return result.reverse
 
 /-- Check syntax-level invariants and compute deterministic symbolic closure.
 Equal diamonds retain their first path; unequal diamonds are invalid. -/
 def prepare (p : Program) : Except String Prepared := do
   let names := p.classes.map Decl.name
-  let mut seen : List String := []
+  -- Indices accelerate validation of generated tables; lists below retain
+  -- source order and the first path through equal inheritance diamonds.
+  let decls := Std.TreeMap.ofList (p.classes.map fun d => (d.name, d))
+  let mut seen : Std.TreeMap String Unit := {}
   for d in p.classes do
     unless validName d.name do throw s!"invalid constructor name '{d.name}'"
     if seen.contains d.name then throw s!"duplicate constructor '{d.name}'"
-    seen := d.name :: seen
-    let mut direct : List (Option String) := []
+    seen := seen.insert d.name ()
+    let mut direct : Std.TreeMap (Option String) Unit := {}
     for base in d.bases do
-      checkNames names base.ctors
+      checkNames decls base.ctors
       if base.tail == .var && base.ctors.length % 2 != 1 then
         throw s!"'{d.name}': variable superclass must have odd constructor depth"
       let head := base.ctors.head?
       if direct.contains head then throw s!"'{d.name}': repeated direct superclass"
-      direct := head :: direct
-  checkNames names p.query.lhs
-  checkNames names p.query.rhs
+      direct := direct.insert head ()
+  checkNames decls p.query.lhs
+  checkNames decls p.query.rhs
   if p.answerSide.isSome then
     for digit in ["Succ", "Pad"] do
-      let some decl := p.classes.find? (·.name == digit)
+      let some decl := decls[digit]?
         | throw ("answer queries require 'interface " ++ digit ++ "<x> {}'")
       unless decl.bases.isEmpty do throw s!"answer constructor '{digit}' must have no superclasses"
   let mut closure := []
   for name in names do
-    let paths ← walk p.classes (names.length + 1) [] ⟨[name], .var⟩ []
+    let paths ← walk decls (names.length + 1) [] ⟨[name], .var⟩ []
     let mut unique : List Ancestor := []
+    let mut byHead : Std.TreeMap (Option String) Ancestor := {}
     for a in paths do
-      match unique.find? (fun b => b.type.ctors.head? == a.type.ctors.head?) with
-      | none => unique := unique ++ [a]
+      match byHead[a.type.ctors.head?]? with
+      | none =>
+        unique := a :: unique
+        byHead := byHead.insert a.type.ctors.head? a
       | some previous =>
         if previous.type != a.type then
           throw s!"'{name}': multiple instantiation of '{a.type.ctors.headD "Z"}'"
-    closure := closure ++ [(name, unique)]
-  return { source := p, closure }
+    closure := (name, unique.reverse) :: closure
+  return { source := p, closure := closure.reverse }
 
 /-- Resolve a closed source type to one superclass head, including `Z` (`none`).
 The returned path records actual closed inheritance rewrites. -/

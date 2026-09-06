@@ -1,8 +1,9 @@
 # Turpentine to JavaGen
 
 **The hand-written backend is implemented.** It compiles closed,
-nonnegative scalar computations to ordinary `.jgen` source. Conditionals
-and loops become inheritance rules; compilation traverses source syntax
+nonnegative computations with scalars and fixed-size arrays to ordinary
+`.jgen` source. Conditionals and loops become inheritance rules; compilation
+traverses source syntax
 without running the program. The backend has regression tests, but no
 end-to-end correctness certificate or `--tc` entry.
 
@@ -55,10 +56,12 @@ nothing unless a print statement is added for comparison.
 | --- | --- |
 | Scalar `int` and `bool`, default values and initializers | Yes; integers must remain nonnegative |
 | `+`, `*`, `/`, `%` | Yes; division by zero yields zero, remainder by zero yields the dividend |
-| Comparisons, `!`, `&&`, `||` | Yes; operands are total in this fragment |
+| Fixed-size `int[n]` and `bool[n]` arrays | Yes; cells default to zero or false |
+| `len(a)`, `a[i]`, `a[i] := e` | Yes; constant, computed and nested indices |
+| Comparisons, `!`, `&&`, `||` | Yes; Boolean guards short-circuit when arrays are present |
 | Assignment, `if`/`else`, `while` | Yes, including nested and infinite loops |
 | `assert` | Passing assertions continue; a failed assertion loops forever |
-| Arrays, input, printing | Rejected |
+| Input, printing, whole-array assignment | Rejected |
 | Subtraction, unary minus, negative literals | Rejected |
 | Result | A declared scalar `int` named `answer` |
 
@@ -67,15 +70,31 @@ The limit concerns source syntax; target register values and tape growth
 have no fixed semantic bound. Turpentine reports runtime errors for zero
 divisors and failed assertions; the counter pass instead uses the arithmetic
 results above and loops on failed assertions. Runtime-error preservation
-is therefore outside this backend's contract.
+is therefore outside this backend's contract. An out-of-bounds array access
+also loops in the target instead of reporting the source runtime error.
+A guard such as `i < len(a) && a[i]` safely skips the access when `i`
+reaches the length. Array lengths are fixed by declarations; their integer
+elements have no fixed numeric bound.
 
 ## Translation and answer observation
 
 [Compile/JavaGen.lean](../../Langlib/Languages/Turpentine/Compile/JavaGen.lean)
 reuses the [FRACTRAN backend's counter pass](../../Langlib/Languages/Turpentine/Compile/Fractran.lean),
 which generates increments and conditional decrements, with `answer` in
-register zero. It then builds a finite sweeping transducer and uses the
+register zero. JavaGen enables this pass's optional array layout: each cell
+gets its own register. A literal index selects a register directly; a
+computed index is evaluated into a temporary and decremented through a
+finite dispatch chain until its cell is selected. Reads preserve the cell;
+writes replace it. Nested indexing evaluates the inner read first, and
+indexed writes preserve the right-hand-side value while computing the
+index. Generated code grows with the declared array length. The ordinary
+FRACTRAN frontend still rejects arrays.
+
+It then builds a finite sweeping transducer and uses the
 shared [JavaGen generator](../../Langlib/Languages/JavaGen/Sweep.lean).
+The loader indexes declaration names and superclass heads while retaining
+source order and the first path through equal inheritance diamonds. This
+avoids repeated linear searches through large generated tables.
 This path imports neither Mathlib nor cslib. It is independent of the
 [experimental URM bridge](universal-compiler.md).
 
@@ -122,12 +141,91 @@ tape, not an evaluated execution trace.
 Each counter instruction scans unary register blocks, so target execution
 can require substantially more fuel than the source interpreter.
 
+## Array examples
+
+These examples use the same backend, with no extra flags. Their complete
+source programs also appear in the [specification](spec.md#turpentine-array-examples).
+
+| Source | What it exercises | Answer |
+| --- | --- | ---: |
+| [array-prefix.turp](../../Langlib/Examples/Turpentine/array-prefix.turp) | Prefix sums | 10 |
+| [array-histogram.turp](../../Langlib/Examples/Turpentine/array-histogram.turp) | A histogram with nested indices | 2 |
+| [array-marks.turp](../../Langlib/Examples/Turpentine/array-marks.turp) | Boolean marks with a bounds guard | 3 |
+| [array-fibonacci.turp](../../Langlib/Examples/Turpentine/array-fibonacci.turp) | A Fibonacci table | 8 |
+
+Compile prefix sums to an ordinary JavaGen file.
+
+```sh
+lake exe turpentine compile --to javagen -o /tmp/array-prefix.jgen Langlib/Examples/Turpentine/array-prefix.turp
+```
+
+Run the generated file with the numeric answer observer.
+
+```sh
+lake exe javagen --compiled-answer --fuel 200000000 /tmp/array-prefix.jgen
+```
+
+Output:
+
+```text
+10
+```
+
+Compile and run a histogram with nested indices; expect `2`.
+
+```sh
+lake exe turpentine exec --via javagen Langlib/Examples/Turpentine/array-histogram.turp
+```
+
+Output:
+
+```text
+2
+```
+
+Compile and run Boolean marks with a bounds guard; expect `3`.
+
+```sh
+lake exe turpentine exec --via javagen Langlib/Examples/Turpentine/array-marks.turp
+```
+
+Output:
+
+```text
+3
+```
+
+Compile and run a Fibonacci table; expect `8`.
+
+```sh
+lake exe turpentine exec --via javagen Langlib/Examples/Turpentine/array-fibonacci.turp
+```
+
+Output:
+
+```text
+8
+```
+
+The existing [maximum](../../Langlib/Examples/Turpentine/maxelem-tc.turp)
+and [prime sieve](../../Langlib/Examples/Turpentine/sieve-tc.turp) are also
+covered by the array regression suite. Sorting examples that use subtraction
+remain outside this backend's fragment.
+
+These generated programs have closed queries, so exporting them to Java
+checks halting acceptance, as explained above; `javac` does not independently
+validate the numeric `answer` printed by the observer.
+
 ## Validation and proof boundary
 
 [Compiler tests](../../Langlib/Tests/CompileJavaGen.lean) run the existing
 arithmetic and control-flow fixtures both through this backend and through
 the Turpentine interpreter with `println(answer)` appended. Zero-divisor
 cases explicitly check the different source-error and target-result behavior.
+Array cases cover default initialization, adjacent arrays, computed and
+nested indices, read/write aliasing, short-circuit guards and bounds traps.
+The four examples above and the existing maximum and sieve programs run
+against the source interpreter as well.
 They also test
 unsupported constructs, finite compilation of infinite loops, failing
 assertions, and agreement between numeric observation and ordinary proof
@@ -137,7 +235,8 @@ by the standard JavaGen loader.
 The shared sweeper has [local simulation proofs](computability.md).
 The hand-written Turpentine pass, its counter-to-sweeper translation and
 answer observation still require an end-to-end proof. The separate
-URM construction must establish uniform generation success and preserve
-both answers and divergence before it can provide `javaGenComplete` and
-a certified backend in
+URM construction proves halting and divergence preservation for successfully
+compiled artifacts. Uniform generation, source realization and textual
+answer decoding remain before it can provide `javaGenComplete` and a
+certified backend in
 [Compile/Derived.lean](../../Langlib/Languages/Turpentine/Compile/Derived.lean).

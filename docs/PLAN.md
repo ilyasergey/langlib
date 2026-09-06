@@ -124,9 +124,10 @@ state first-order, I/O explicit.
 ## Stage 4: compilers from Turpentine `[~]`
 
 * Turpentine -> JavaGen `[~]`: the [hand-written backend](javagen/compiler.md)
-  compiles closed nonnegative scalars through the shared Minsky pass and a
-  JavaGen sweeper. `--compiled-answer` observes the final answer register.
-  Arithmetic, branches, loops and existing examples have differential tests.
+  compiles closed nonnegative scalars and fixed-size arrays through the shared
+  Minsky pass and a JavaGen sweeper. `--compiled-answer` observes the final answer register.
+  Arithmetic, branches, loops, computed/nested array indices, bounds guards
+  and four new array examples have differential tests.
   End-to-end certification, the separate URM-derived `--tc` route, numeric
   Java certification of compiled answers, and I/O remain pending.
 * Turpentine -> brainfuck `[~]`: the scalar language, with 16-bit
