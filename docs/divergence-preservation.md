@@ -3,10 +3,8 @@
 [`TuringComplete`](../Langlib/Common/Computability.lean) establishes **forward
 answer preservation**: if a URM program halts with result `r`, its compiled
 target halts at some fuel and its output decodes to `r`. All eleven existing
-witnesses retain that type and their existing compilers. Ten separate
-`DivergencePreservingTC` witnesses now establish the stronger property;
-Unlambda’s full divergence proof remains open, with operational groundwork
-checked in.
+witnesses retain that type and their existing compilers. Eleven separate
+`DivergencePreservingTC` witnesses now establish the stronger property.
 
 `DivergencePreservingTC` extends that interface with an independent constraint
 on execution:
@@ -74,7 +72,7 @@ The stronger URM interface does not by itself strengthen the Turpentine-to-URM
 translation or `CertifiedCompiler`; those still have their own forward
 correctness specifications.
 
-The interface and ten witness upgrades are complete. Each stronger witness
+The interface and eleven witness upgrades are complete. Each stronger witness
 inherits the corresponding original `<lang>Complete` value exactly.
 
 | Stronger witness | Proved route |
@@ -87,20 +85,21 @@ inherits the corresponding original `<lang>Complete` value exactly.
 | [`pietDivergencePreserving`](../Langlib/Computability/Piet/Divergence.lean) | Positive execution through the compiled codel dispatcher and its looping branch. |
 | [`ookDivergencePreserving`](../Langlib/Computability/Ook/Divergence.lean) | Transfer of the proved Brainfuck property through its existing runner correspondence. |
 | [`brainlollerDivergencePreserving`](../Langlib/Computability/Brainloller/Divergence.lean) | Transfer of the proved Brainfuck property for the existing decoded-program interface; the pixel-walk obligation remains separate. |
+| [`unlambdaDivergencePreserving`](../Langlib/Computability/Unlambda/Divergence.lean) | Positive CEK prefixes through the strict fixed point, terminating guard and body, and recursive call. |
 | [`skiDivergencePreserving`](../Langlib/Computability/Ski/Divergence.lean) | Positive head reduction of recursive calls; strict compiled continuations force the dispatcher under normal order. |
 | [`velatoDivergencePreserving`](../Langlib/Computability/Velato/Divergence.lean) | Induction on while-loop fuel using terminating dispatcher bodies, then stability across the initial prefix. |
 
-**Unlambda remains in progress.**
-[`Unlambda/Divergence.lean`](../Langlib/Computability/Unlambda/Divergence.lean)
-proves `run_reaches_progress`, exact buffer preservation for zero-output
-fragment jobs, and `selfE_unfold_progress`: the strict fixed point reaches
-its functional applied to itself after a nonempty execution prefix, under
-any continuation. It also proves unconditional evaluator error freedom.
-What remains is the guard/body path back to a recursive call representing
-the next URM state, with enough operational information to iterate the
-shared progress theorem. The existing `EqE` lemmas describe terminating
-answers without execution costs; they cannot by themselves discharge that
-obligation. No stronger Unlambda witness is declared.
+**Unlambda is now complete.**
+[`unlambdaDivergencePreserving`](../Langlib/Computability/Unlambda/Divergence.lean)
+uses positive CEK execution prefixes under arbitrary continuations. The
+fixed point unfolds, the guard terminates with the selected branch closure,
+and the terminating dispatcher body supplies the next represented state.
+`lam_app_prefix` stops before calling the resulting function, so the proof
+reaches the recursive call without assuming that call terminates. This is
+what the old whole-expression `EqE` statements alone did not provide.
+Initialization contains only increments; `inc_prefix` reaches the dispatcher
+from the unchanged compiler’s actual initial state. The shared fuel theorem
+then excludes every finite halt or error.
 
 An existential `Reaches` proof alone allows zero-cost steps. A divergence
 argument based on arbitrarily long source prefixes must also establish
@@ -135,7 +134,7 @@ lake test
 ```
 
 Check axiom dependencies, including the interface consequences, shared
-progress lemmas, all ten stronger witnesses, and Unlambda’s groundwork:
+progress lemmas, all eleven stronger witnesses, including Unlambda’s operational lemmas:
 
 ```sh
 lake env lean scripts/axioms.lean
@@ -146,7 +145,7 @@ Every report must use only the standard logical axioms `propext`,
 looping examples cannot establish the universally quantified divergence
 field; the kernel-checked theorems are the validation for this interface.
 
-Validation on 2026-09-06: `lake build` passes all 8,945 jobs, including MU;
+Validation of the preceding ten-witness checkpoint on 2026-09-06: `lake build` passes all 8,945 jobs, including MU;
 `lake test` passes all 1,700 cases and both Velato round-trip checks. The
 expanded axiom audit has 758 clean reports: 725 use only the standard
 logical axioms and 33 use none. Available external differential tests pass

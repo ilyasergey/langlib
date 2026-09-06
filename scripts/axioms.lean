@@ -1070,3 +1070,16 @@ open Langlib.Turpentine.Compile
 #print axioms Langlib.Computability.URMWhitespace.preserves_divergence
 #print axioms Langlib.Computability.whitespaceDivergencePreserving
 #print axioms Langlib.Computability.URMFractran.instrRules_J_distinct_equal_progress
+
+#print axioms Langlib.Computability.URMUnlambda.isVal_app_false
+#print axioms Langlib.Computability.URMUnlambda.lam_app_prefix
+#print axioms Langlib.Computability.URMUnlambda.ap_of_ev_app
+#print axioms Langlib.Computability.URMUnlambda.loop_iteration_progress
+#print axioms Langlib.Computability.URMUnlambda.codeE_value
+#print axioms Langlib.Computability.URMUnlambda.compE_enter
+#print axioms Langlib.Computability.URMUnlambda.eval_values_prefix
+#print axioms Langlib.Computability.URMUnlambda.initCode_only_inc
+#print axioms Langlib.Computability.URMUnlambda.inc_prefix
+#print axioms Langlib.Computability.URMUnlambda.dispatcher_diverges
+#print axioms Langlib.Computability.URMUnlambda.preserves_divergence
+#print axioms Langlib.Computability.unlambdaDivergencePreserving

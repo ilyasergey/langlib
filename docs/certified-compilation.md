@@ -120,8 +120,7 @@ The separate [`DivergencePreservingTC`](divergence-preservation.md)
 extension now states divergence-preserving URM simulation and proves
 halting/result equivalence, output validity and error freedom. Existing TC
 witnesses and derived compilers still establish forward answer preservation.
-Ten URM-to-target witnesses now have separately proved upgrades; Unlambda’s
-full divergence proof remains open. Upgrading a witness does
+All eleven URM-to-target witnesses now have separately proved upgrades. Upgrading a witness does
 not automatically strengthen the Turpentine-to-URM translation.
 
 ### 1.2 Behaviour preservation

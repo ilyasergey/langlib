@@ -16,12 +16,11 @@ The proof uses `s`, `k`, `i`, `.x` and application, and nothing else: `d`
 never appears, so the delay rule never fires, and `c` never appears, so no
 continuation is reified.
 
-The TC witness retains **forward answer preservation**.
-[Operational divergence groundwork](../../Computability/Unlambda/Divergence.lean) now
-proves positive execution of fragment jobs and fixed-point unfolding, and
-unconditional error freedom. The guard/body path back to the recursive call
-still needs a continuing simulation proof; there is no
-`unlambdaDivergencePreserving` witness yet.
+The original TC witness retains **forward answer preservation**. The separate
+[`unlambdaDivergencePreserving`](../../Computability/Unlambda/Divergence.lean)
+witness now proves divergence preservation for that same compiler: every
+finite budget on a divergent URM input yields `.outOfFuel`. Its positive CEK
+prefixes follow the guard and terminating body back to the recursive call.
 
 ## Modules
 

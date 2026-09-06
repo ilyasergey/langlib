@@ -681,6 +681,12 @@ per-language proof notes for the precise scopes.
 
 ### Stage 8 divergence-preserving interface and migration `[~]`
 
+Current continuation: finish Unlambda for the unchanged compiler, validate all
+eleven stronger witnesses, then commit and push that milestone. Afterward
+fold `preserves_divergence` into `TuringComplete`, remove the separate
+`DivergencePreservingTC` structure and witnesses, and migrate all clients,
+audits, policies and documentation. MU’s existing proofs remain unchanged.
+
 * [x] **2026-09-06:** add `DivergencePreservingTC`, extending the existing
   forward answer-preservation witness with `.outOfFuel` for every finite
   target budget on divergent URM inputs, independently of decoding.
@@ -702,17 +708,17 @@ per-language proof notes for the precise scopes.
 * [x] Start Unlambda’s operational proof: positive fragment-job execution,
   exact zero-output buffer preservation, positive fixed-point unfolding under
   arbitrary continuations, and unconditional error freedom.
-* [ ] Complete Unlambda’s guard/body simulation back to the recursive call
+* [x] Complete Unlambda’s guard/body simulation back to the recursive call
   with the next represented URM state, establish continuing positive
-  execution, and declare `unlambdaDivergencePreserving`. Its existing `EqE`
-  lemmas do not track execution costs and cannot establish progress alone.
+  execution, and declare `unlambdaDivergencePreserving`. The proof uses `EqE`
+  only for terminating pieces and actual CEK prefixes for recursive progress.
 * [x] Validate the checkpoint: full build (8,945 jobs), all 1,700 tests and
   both Velato round trips, 758 clean axiom reports, and six available
   external differential cases. MU’s Lean sources remain unchanged.
 
 All eleven existing witnesses remain `TuringComplete`; none is automatically
 promoted. [The migration table](divergence-preservation.md#witness-migration)
-records the ten proved upgrades and Unlambda’s remaining obligation.
+records all eleven proved upgrades.
 MU has no witness to upgrade; its current proofs
 remain unchanged and must still build and pass the axiom audit.
 

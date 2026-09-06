@@ -2,6 +2,23 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-09-06: all eleven divergence-preserving witnesses
+
+Unlambda now preserves divergence for its unchanged compiler. The decisive
+lemma stops an abstracted application just before its call: the guard can
+terminate with a branch closure, and the dispatcher body can terminate with
+the next encoded state, without assuming the recursive call terminates.
+Positive CEK prefixes compose through that call under arbitrary
+continuations. An increment-only initialization lemma reaches the loop from
+the actual compiled term. `unlambdaDivergencePreserving` inherits
+`unlambdaComplete` exactly; all eleven stronger witnesses are now proved.
+
+Next, as requested, move divergence preservation into `TuringComplete` and
+remove the temporary extension, migrating every client and document. MU’s
+Lean sources remain unchanged. Validation of this proof-only milestone:
+full build passes (8,945 jobs), and all 770 axiom reports are clean.
+The complete test suite will be rerun after the interface refactor.
+
 ## 2026-09-06: divergence interface, ten stronger witnesses, and Unlambda groundwork
 
 Added `DivergencePreservingTC` in `Langlib/Common/Computability.lean` as a

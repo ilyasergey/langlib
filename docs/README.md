@@ -40,9 +40,8 @@ preservation**. The new `DivergencePreservingTC` interface additionally
 requires every finite compiled run on a divergent URM input to return
 `.outOfFuel`, excluding errors and even undecodable normal halts. Halting
 and result equivalence, output validity, and error freedom are proved once
-for that interface. Existing witnesses remain unchanged. Ten separate upgrades
-are proved; Unlambda has operational groundwork and its full divergence proof
-remains [tracked separately](divergence-preservation.md#witness-migration).
+for that interface. Existing witnesses remain unchanged. All eleven separate upgrades
+are proved and [documented together](divergence-preservation.md#witness-migration).
 MU's proof development is unchanged and has no TC witness yet.
 
 ### Hosts full Turpentine

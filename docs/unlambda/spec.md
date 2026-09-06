@@ -18,12 +18,11 @@
   - Turing completeness in [`Langlib/Computability/Unlambda.lean`](../../Langlib/Computability/Unlambda.lean) and [docs/computability-unlambda.md](../computability-unlambda.md), and
   - a hand-written Turpentine backend in [`Langlib/Languages/Turpentine/Compile/Unlambda.lean`](../../Langlib/Languages/Turpentine/Compile/Unlambda.lean), plus a certified one derived from the completeness proof ([docs/unlambda/compiler.md](compiler.md))
 
-The TC witness retains **forward answer preservation**.
-[Operational divergence groundwork](../../Langlib/Computability/Unlambda/Divergence.lean) now
-proves positive execution of fragment jobs and fixed-point unfolding, and
-unconditional error freedom. The guard/body path back to the recursive call
-still needs a continuing simulation proof; there is no
-`unlambdaDivergencePreserving` witness yet.
+The original TC witness retains **forward answer preservation**. The separate
+[`unlambdaDivergencePreserving`](../../Langlib/Computability/Unlambda/Divergence.lean)
+witness now proves divergence preservation for that same compiler: every
+finite budget on a divergent URM input yields `.outOfFuel`. Its positive CEK
+prefixes follow the guard and terminating body back to the recursive call.
 
 ## The joke
 

@@ -403,10 +403,9 @@ freedom from runtime errors, including on divergent inputs. A decoded-result
 iff alone does not exclude a spurious halt whose output decodes to `none`.
 
 The existing eleven TC witnesses and the derived Turpentine compilers remain
-unchanged. Ten separate divergence-preserving witnesses are proved. Unlambda
-has operational groundwork but still needs the guard/body path back to its
-recursive call; the [interface and migration notes](divergence-preservation.md)
-record the exact status. An upgraded URM-to-target witness does not automatically
+unchanged. All eleven separate divergence-preserving witnesses are proved; the
+[interface and migration notes](divergence-preservation.md) record their
+operational proof routes. An upgraded URM-to-target witness does not automatically
 supply divergence preservation for the Turpentine-to-URM half.
 
 ## Later

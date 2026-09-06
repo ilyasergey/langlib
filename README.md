@@ -258,9 +258,7 @@ outputs on every normal halt, and freedom from runtime errors. An iff about
 decoded results alone would still allow a spurious halt with undecodable
 output. The eleven existing `TuringComplete` witnesses remain unchanged and
 establish forward answer preservation; each stronger witness needs its own
-proof. Ten now have separately proved `DivergencePreservingTC` upgrades;
-Unlambda has operational groundwork with its full divergence proof still
-open. See [the interface and migration status](docs/divergence-preservation.md).
+proof. All eleven now have separately proved `DivergencePreservingTC` upgrades. See [the interface and migration status](docs/divergence-preservation.md).
 MU's existing proof development is unchanged; it has no TC witness yet.
 
 **[`BoundedStorage L`](Langlib/Common/Computability.lean#L355)** is the
