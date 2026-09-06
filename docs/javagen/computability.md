@@ -3,8 +3,10 @@
 **No `TuringComplete JavaGenLang` witness exists yet.** Grigore's
 [*Java Generics Are Turing Complete*](https://doi.org/10.1145/3009837.3009871)
 (2017), §§4–5, supplies the mathematical subtyping-machine construction.
-LangLib now has an experimental executable URM compiler. Its end-to-end
-correctness proof against the actual evaluator remains pending. In particular, recognizing halting is weaker than
+LangLib now has an experimental executable URM compiler. Its register-tape simulation now
+preserves halting and divergence in the actual evaluator for every successfully
+compiled artifact. Uniform compilation and textual decoding remain pending:
+recognizing halting is weaker than
 preserving the natural-number answer required by our interface.
 
 The public entry point is
@@ -62,10 +64,32 @@ proves generated instruction/continuation locations and preservation of
 arbitrary structured-counter executions. `urm_flow_simulation` composes the
 existing URM theorem, preserving halting answers at the flow terminal node.
 
-Still required: the flow/tape simulation invariant, uniform successful
-validation/certification and source realization, and correctness of the answer
-decoder. Connect continuing URM execution to the proved positive-cost sweep
-simulation to exclude errors and premature halts at every target budget.
+[TapeProof.lean](../../Langlib/Computability/JavaGen/TapeProof.lean) proves the
+unbounded register-tape invariant, symbol separation, insertion, single-unit
+deletion, zero testing, forward/return passes and positive target cost even
+for self-jumps. `counter_target_simulation` lifts arbitrary located counter
+executions to the ordinary subtype transitions.
+
+[URMProof.lean](../../Langlib/Computability/JavaGen/URMProof.lean) proves that
+halting URM executions reach the represented answer register and normally halt.
+`compileURM_halting` is stated about the actual artifact returned by the
+executable compiler. [Divergence.lean](../../Langlib/Computability/JavaGen/Divergence.lean)
+proves `compileURM_divergence`: on divergent inputs, successful compilation
+produces an artifact whose public `evalPrepared` returns `.outOfFuel` at
+**every** finite fuel. The proof composes the generated prologue, reachable
+URM states and a dispatcher cycle with strictly positive target cost;
+it does not depend on the output decoder.
+
+[ObservationProof.lean](../../Langlib/Computability/JavaGen/ObservationProof.lean)
+proves `urm_answer_record`: a successful actual execution retains the source
+answer in its third most recent frame. The live query has already been
+erased by ground inheritance, but counting `Letter_1` constructors in that
+frame recovers the arbitrary natural answer. `Names.lean` proves generated
+names are valid and injective; the tape count also respects constructor padding
+and reversal. This is a structured-history theorem, not yet the byte decoder.
+
+Still required: uniform successful validation/certification and source
+realization, and correctness of the textual answer decoder.
 The compiler currently returns `Except`, so proving that it always succeeds
 is a real part of obtaining the total compiler field of `TuringComplete`.
 

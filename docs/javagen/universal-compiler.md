@@ -38,7 +38,11 @@ loop continuation occupies the required position in the graph.
 including nested loops and their full register/output state.
 `urm_flow_simulation` composes that theorem with the existing URM translation,
 preserving every halting source answer at the flow graph's terminal node.
-The register-to-sweep simulation and URM divergence composition remain open.
+The register-to-sweep simulation is proved in
+[TapeProof.lean](../../Langlib/Computability/JavaGen/TapeProof.lean).
+[URMProof.lean](../../Langlib/Computability/JavaGen/URMProof.lean) and
+[Divergence.lean](../../Langlib/Computability/JavaGen/Divergence.lean) compose
+halting and divergence through to the actual JavaGen evaluator.
 
 
 Counter register `r` becomes tape register `r + 1`. Tape register zero counts
@@ -62,7 +66,60 @@ unit was seen and chooses the zero/nonzero continuation at the boundary.
 A return sweep copies the tape and restores the original scanning direction.
 The flow machine saturates decrement at zero; the existing counter semantics
 only derives executions with a positive decremented register, which the
-pending simulation must respect.
+proved counter simulation respects.
+
+## Register invariant and URM execution
+
+`registerTape bound values` concatenates, for each register `r ≤ bound`,
+its marker and exactly `values r` copies of its unit symbol. `represent`
+places this word on the unread side, leaves the written side empty, and
+selects mode zero at the flow program counter. The all-zero representation
+is exactly the generated `initialTape`; initialization is not an assumed
+invariant on an unreachable configuration.
+
+The proofs establish the following equations for arbitrary natural values:
+
+* Increment expands the selected marker and adds exactly one unit.
+* Decrement erases the first selected unit and preserves every other block.
+  On an empty block it leaves the tape unchanged.
+* The selected unit occurs in the tape exactly when its register is nonzero.
+* The return sweep reverses the nearest-first written representation back
+  into the original register order and resets the control mode.
+
+`instruction_pass` combines the forward scan with the chosen return address.
+`flow_step_moves` adds the ordinary JavaGen turn and return transitions.
+Its cost is strictly positive even when the program counter and tape return
+to their starting values. `counter_target_simulation` then preserves every
+finite structured-counter execution, including nested loops, in the actual
+subtype machine.
+
+`urm_target_simulation` reaches the final represented counter output with the
+URM answer. `compileURM_halting` additionally proves normal termination.
+`compileURM_divergence` proves exhaustion at every finite target fuel for a
+divergent URM input. Both statements require
+`compileURM program inputs = Except.ok artifact`: the finite checking done by
+that executable compilation supplies the lookup and initialization certificate.
+Neither theorem assumes the source halts in order to construct the artifact.
+
+For divergence, the prologue reaches a dispatcher invariant containing an
+actual reachable URM state, matching source registers, the encoded program
+counter and clean scratch registers. Every divergent source state has a
+successor. The counter dispatcher simulates that successor, and its initial
+loop test ensures a positive target cost. Completed-run stability then rules
+out both premature halts and runtime errors at any smaller target budget.
+
+[ObservationProof.lean](../../Langlib/Computability/JavaGen/ObservationProof.lean)
+closes the structured result-observation obligation. The final three frames,
+newest first, are the accepted `Z <: Z` query, `End<Z> <: End<Z>`, and the
+terminal boundary query containing the final tape. `halt_record` proves this
+exact layout, independently of earlier history. `urm_answer_record` proves
+that counting `Letter_1` constructors in the third frame returns the source
+answer for every halting URM execution. Symbol-name injectivity and tape
+padding/reversal are covered by the proof, with no bound on the answer.
+
+These theorems still do not prove that compilation always succeeds or that
+serializing and decoding the final proof record returns the represented
+answer. Those are the remaining gates before the public TC witness.
 
 ## What is proved at the subtype boundary
 
@@ -178,9 +235,9 @@ trips compare the full prepared machine, including inheritance paths.
 1. **Done:** prove generated flow locations and structured-counter execution,
    including loop continuations and the shifted register/output convention;
    compose forward answers from URM.
-2. Prove the register/tape invariant and each forward/return sweep, then
-   connect continuing URM execution to positive target progress. A finite
-   test of a self-jump is not this theorem.
+2. **Done:** prove the register/tape invariant and every forward/return sweep;
+   compose URM halting and all-fuel divergence for successfully compiled
+   artifacts, including positive progress for self-jumps.
 3. Prove generated tables always validate and satisfy `Ready`, and prove
    source realization uniformly. Returning `Except.error` is a real compiler
    failure; it cannot be silently replaced by a claimed completeness witness.

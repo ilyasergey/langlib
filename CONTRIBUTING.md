@@ -110,6 +110,12 @@ A complete language contribution consists of:
    reduction rules erase machine state. JavaGen's
    [design gate](docs/javagen/design.md#answers-are-the-first-proof-gate)
    records this obligation for the subtyping-machine construction.
+   Reaching a state with the right register is not the final observation
+   theorem: follow terminal transitions through any erasure. JavaGen's
+   [retained-frame proof](Langlib/Computability/JavaGen/ObservationProof.lean)
+   finds the answer in the third most recent successful proof frame; its
+   live terminal query no longer contains the tape. Serialization and byte
+   decoding remain separate from this structured-history guarantee.
    Result certification must check the original query specialized with the
    candidate, retaining its computation. For Java export, check declarations
    separately before treating an incompatible query as rejection; compiler

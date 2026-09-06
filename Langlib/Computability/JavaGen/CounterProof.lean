@@ -3,7 +3,7 @@ import Langlib.Computability.JavaGen.CounterCompiler
 /-! # Finite control generation for the counter bridge
 
 These are properties of the executable generator. They do not replace the
-pending register/tape invariant and counter execution simulation.
+register/tape invariant and execution simulation in `TapeProof.lean`.
 -/
 
 namespace Langlib.Computability.JavaGen.CounterCompiler

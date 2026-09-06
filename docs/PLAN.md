@@ -80,8 +80,10 @@ Stages 1, 2, 4, 6 and 8 on branch `ilya/java-generics`:
 * [~] Implement URM → existing counter program → flow graph → sweeper (JG3).
   All URM instruction forms, distinct input-dependent results and self-jumps
   have compiler regressions. Generated flow locations, structured-counter
-  simulation and URM-to-flow forward answers are proved. Prove the flow/tape
-  invariant, uniform generation success, source realization and final answer decoder.
+  simulation, the register-tape invariant and URM halting/divergence for
+  successful compilations are proved. The actual retained answer frame is
+  proved to contain the source result. Prove uniform generation success,
+  source realization and the final textual answer decoder.
 * [ ] Connect the universal compiler's closed proof-record readout to a
   numeric Java candidate query. Existing answer-hole examples still work;
   compiled universal programs currently use closed queries.
@@ -867,10 +869,10 @@ JavaGen's [proof boundaries](javagen/design.md#proof-boundaries) add a
 development under `Langlib/Computability/JavaGen/`. The lawful executable
 instance, injective numeral encoding and source-realizable stationary and
 growing infinite executions are proved. An experimental URM compiler and
-checked lower-level sweep simulation are implemented. Grigore's paper
-supplies the halting-recognition
-argument; uniform generation success, forward answers and URM divergence
-preservation remain pending. Do not register `TuringComplete` before those exist.
+checked lower-level sweep simulation are implemented. The register-tape
+invariant and URM halting/divergence preservation now hold for every
+successfully compiled artifact. Uniform generation success, source realization
+and textual answer decoding remain pending. Do not register `TuringComplete` before those exist.
 
 | Language | Claim | Route |
 |---|---|---|

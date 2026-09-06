@@ -372,8 +372,10 @@ URM-based public contract, with a tape-machine or existing counter-machine
 bridge to the paper's construction, preserving both the answer and positive
 execution cost. The [experimental URM compiler](universal-compiler.md) now
 uses the existing counter translation, finite flow control and unary register
-sweeps. The sweep layer has checked halting/divergence guarantees against
-the public evaluator; the full counter and answer proofs remain pending.
+sweeps. The register-tape simulation now proves URM halting and all-fuel
+divergence for every successfully compiled artifact against the public
+evaluator. Uniform compilation, source realization and the textual answer
+decoder proof remain pending.
 Its result decoder reads a closed proof record. It does not yet generate
 numeric `answer`-hole queries for independent Java result certification.
 See the [design](design.md) for the remaining proof gates.

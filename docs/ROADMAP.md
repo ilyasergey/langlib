@@ -35,8 +35,10 @@ Turpentine and plans a certified route through the existing URM compiler.
 The [subtype core, numeric inference and Java export](javagen/spec.md) are
 implemented, with real-`javac` conformance tests. An [experimental URM
 compiler](javagen/universal-compiler.md) now uses the existing counter
-translation and a checked sweep layer. Its full answer/divergence proof
-and uniform generation-success theorem remain pending. A separate
+translation and a checked sweep layer. Its register-tape simulation now
+preserves URM halting/divergence for successfully compiled artifacts. The
+textual answer decoder, uniform generation success and source realization
+remain pending. A separate
 [hand-written Turpentine backend](javagen/compiler.md) compiles closed
 nonnegative scalar computations and observes their final answer register. The paper's halting reduction alone does not supply
 LangLib's answer-preserving, divergence-preserving completeness witness.

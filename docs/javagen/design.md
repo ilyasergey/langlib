@@ -270,12 +270,12 @@ modules and the standalone runner stay free of Mathlib and cslib.
 | JG0: initial design (done) | This note, project-plan integration, reviewed result-observation choice |
 | JG1: executable core (done) | Spec first; `Syntax`, `Parser`, `Semantics`, `Stability`, `Main`, language README, Lake/root-module registration, original examples and golden tests |
 | JG2: sweep construction and Java export (done) | Finite-control sweeper generation, checked lookup/initialization certificates, read/turn/halt simulation, growing-source divergence and real-Java probes |
-| JG3: URM bridge (code generated; proof pending) | Existing counter program to finite flow graph to sweeper; all URM instruction forms tested; register/tape invariant, decoder and uniform success still required |
+| JG3: URM bridge (operational proof done; totality/decoder pending) | Existing counter program to finite flow graph to sweeper; register-tape simulation and URM halting/divergence proved for successful compilations; decoder, source realization and uniform success still required |
 | JG4: certification | Forward answers, source realization, lawfulness and positive-cost divergence; public witness and derived Turpentine CLI/tests |
 | JG5: documentation and performance | Final spec/compiler/computability accounts, verified examples, status matrices and site catalogue, generated-size/fuel measurements; maintain the hand-written Minsky backend alongside the pending certified URM route |
 
-The next priority is the JG3 flow/tape invariant and universal
-answer proof, followed by JG4. Completed foundations include
+The next priority is JG3 uniform compilation, source realization and the
+textual answer decoder, followed by assembling JG4. Completed foundations include
 `LawfulProgLang`, injective unbounded numerals and an all-fuel theorem for
 one source-realizable loop; they are not a completeness witness. Do not build Simper or the fluent-interface parser generator
 as prerequisites.

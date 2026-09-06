@@ -4,7 +4,7 @@ import Langlib.Languages.JavaGen.AnswerStability
 /-!
 # JavaGen: language instances and answer representation
 
-Foundations for the URM simulation, which is not implemented yet.
+Language foundations; the URM simulation is developed in `URMProof.lean`.
 Both concrete queries and numeric answer queries use the runnable core.
 There is no TuringComplete witness in this module.
 -/

@@ -10,7 +10,7 @@ instruction scans the whole tape and returns to the initial direction;
 tape growth is unbounded. This is code generation, not source evaluation.
 
 The sweep-to-subtyping simulation is proved under checked lookup obligations.
-Counter-to-sweep simulation and uniform compiler success remain pending;
+Counter-to-sweep simulation is proved; uniform compiler success remains pending;
 this module does not assemble a TuringComplete witness.
 -/
 

@@ -6,6 +6,39 @@ interface in the first two proof milestones was superseded by the combined
 `TuringComplete` interface below.
 
 
+## 2026-09-06: JavaGen URM register-tape simulation and divergence
+
+Proved the unbounded register representation and every complete instruction
+sweep in [TapeProof.lean](../Langlib/Computability/JavaGen/TapeProof.lean).
+Increment, saturating decrement and both test branches preserve all register
+blocks; a return pass restores tape orientation. Every flow instruction has
+strictly positive subtype cost, including self-jumps. Arbitrary located
+structured-counter executions now simulate in the ordinary target evaluator.
+
+[URMProof.lean](../Langlib/Computability/JavaGen/URMProof.lean) composes the
+existing URM forward theorem through the tape invariant to the represented
+answer and normal halting. [Divergence.lean](../Langlib/Computability/JavaGen/Divergence.lean)
+connects the generated prologue and continuing dispatcher invariant to
+all-fuel exhaustion for divergent URM inputs. `compileURM_halting` and
+`compileURM_divergence` concern the actual successfully returned artifact.
+The latter is independent of output decoding and excludes runtime errors.
+
+[ObservationProof.lean](../Langlib/Computability/JavaGen/ObservationProof.lean)
+locates the exact final answer frame in the actual successful execution and
+proves its `Letter_1` count equals the arbitrary source answer. Ground
+inheritance erases the live query but preserves that frame. Generated-name
+validity and injectivity, constructor padding, reversal and unbounded unit
+counting are proved separately; textual serialization/decoding remains open.
+
+No `TuringComplete` witness yet: uniform compilation, generated-source
+realization and correctness of the textual result decoder remain open.
+
+Validation: the isolated checkpoint passes `lake build`, all 1,813 tests
+and five property groups. Real Java conformance passes all 34 probes; the
+site passes 315 checks. Documentation links and declaration anchors resolve.
+The new main theorems use only `propext`, `Classical.choice` and `Quot.sound`;
+there are no proof placeholders or custom axioms.
+
 ## 2026-09-06: hand-written Turpentine-to-JavaGen compiler
 
 Implemented [the JavaGen backend](javagen/compiler.md) for closed nonnegative

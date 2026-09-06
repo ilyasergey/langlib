@@ -234,4 +234,35 @@ theorem ready_divergence {m : Machine states symbols} {input : List (Fin symbols
   have hf := divergence_simulation compiled.property.1 I progress _ initial fuel []
   simpa [evalPrepared, evalProg, compiled.property.2.1, compiled.property.2.2, result] using hf
 
+
+/-- Ground inheritance erases the live tape but retains its exact boundary
+query as the third most recent frame in the successful proof record. -/
+theorem halt_record {m : Machine states symbols} {p : Prepared} (h : Implements p m)
+    (s : Fin states) (hb : m.boundary s = none) (left : List (Fin symbols))
+    (history : List Frame) :
+    ∃ f g,
+      f.query = query ⟨s, left, []⟩ ∧ g.query = ⟨["End"], ["End"]⟩ ∧
+      exec p 3 ⟨query ⟨s, left, []⟩, history⟩ =
+        (⟨⟨[], []⟩, ⟨⟨[], []⟩, []⟩ :: g :: f :: history⟩, .halted) := by
+  obtain ⟨path, hp⟩ := resolve_lookup (h.boundary s) (tape left)
+  have hbase : (endBase m s).instantiate (tape left) = ["End", "End"] := by
+    simp [endBase, hb, Template.instantiate]
+  rw [hbase] at hp
+  let f : Frame := ⟨query ⟨s, left, []⟩, path⟩
+  have hf : Langlib.JavaGen.step p (query ⟨s, left, []⟩) =
+      .next f ⟨["End"], ["End"]⟩ := by
+    change Langlib.JavaGen.step p ⟨stateName s :: tape left, ["End", "End"]⟩ = _
+    simp only [Langlib.JavaGen.step, List.head?_cons, hp]
+    rfl
+  obtain ⟨endPath, he⟩ := resolve_lookup h.endSelf []
+  have he' : p.resolve ["End"] (some "End") = some (["End"], endPath) := by
+    simpa [Template.instantiate] using he
+  let g : Frame := ⟨⟨["End"], ["End"]⟩, endPath⟩
+  refine ⟨f, g, rfl, rfl, ?_⟩
+  have hg : Langlib.JavaGen.step p ⟨["End"], ["End"]⟩ = .next g ⟨[], []⟩ := by
+    simp only [Langlib.JavaGen.step, List.head?_cons, he']
+    rfl
+  simp only [exec, hf, hg]
+  rfl
+
 end Langlib.Computability.JavaGen.Sweep
