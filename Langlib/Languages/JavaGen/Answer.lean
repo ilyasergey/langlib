@@ -11,7 +11,7 @@ no superclasses. Erasing an unconstrained hole is an error, not answer zero.
 
 The original query is then specialized and run by the concrete evaluator.
 Java certification independently checks that same specialization. This
-is executable inference and checking, not yet a proved universal compiler.
+protocol is separate from the universal compiler's closed proof-record decoder.
 -/
 
 namespace Langlib.JavaGen

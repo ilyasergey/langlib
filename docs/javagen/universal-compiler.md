@@ -1,10 +1,10 @@
-# JavaGen: the universal compiler under construction
+# JavaGen: the verified universal compiler
 
-An experimental, executable URM compiler now exists in
+A total, verified executable URM compiler lives in
 [CounterCompiler.lean](../../Langlib/Computability/JavaGen/CounterCompiler.lean).
 It generates ordinary JavaGen declarations and a closed subtype query,
 using the ordinary validator. It does not execute the source to generate
-code. **The URM correctness theorem and `javaGenComplete` are still pending.**
+code. **The URM answer/divergence theorem and `javaGenComplete` are proved.**
 
 The route is:
 
@@ -120,9 +120,10 @@ that counting `Letter_1` constructors in the third frame returns the source
 answer for every halting URM execution. Symbol-name injectivity and tape
 padding/reversal are covered by the proof, with no bound on the answer.
 
-These theorems still do not prove that compilation always succeeds or that
-serializing and decoding the final proof record returns the represented
-answer. Those are the remaining gates before the public TC witness.
+Compiler totality and source realization are proved below.
+[AnswerProof.lean](../../Langlib/Computability/JavaGen/AnswerProof.lean) now
+connects these retained frames to the executable byte decoder, completing
+the public TC witness.
 
 ## What is proved at the subtype boundary
 
@@ -198,6 +199,10 @@ program. The proof discharges the executable compiler's checks:
    required by `Implements`. The initial query and closed execution mode also
    match, so the finite `Ready` check succeeds.
 
+`generatedPrepared_shared` proves that the executable implementation may build
+the declaration index once and reuse it across closure rows. The `csimp`
+rewrite is proved by reflexivity; the artifact and validator paths are unchanged.
+
 The public proof interface can be used as follows. These Lean examples
 quantify over arbitrary programs and inputs, including divergent ones:
 
@@ -217,7 +222,7 @@ example (p : Cslib.URM.Program) (inputs : List Nat)
 
 These theorems concern the actual prepared evaluator artifact. The next
 section connects it to ordinary source text. Correct decoding of the serialized
-output remains the final proof gate for the full public TC contract.
+output is proved by `urmPrepared_answer`, completing the public TC contract.
 
 ## Ordinary source realization
 
@@ -263,7 +268,7 @@ Generate the JavaGen file; this command prints nothing.
 lake env lean /tmp/javagen-source-example.lean
 ```
 
-Run it with the ordinary JavaGen runner and its experimental numeric readout.
+Run it with the ordinary JavaGen runner and its compact numeric readout.
 
 ```sh
 lake exe javagen --compiled-answer --fuel 10000 /tmp/javagen-successor.jgen
@@ -276,19 +281,20 @@ Output:
 ```
 
 This observed result is a regression example. The universal source theorem
-is already proved; the universal byte-level answer theorem remains pending.
+and the universal byte-level answer theorem are both proved.
 
 ## Reading an answer
 
 A closed JavaGen execution already retains the successful subtype derivation.
-`decodeOutput` finds its final `State_` query and counts `Letter_1<` occurrences.
+`decodeOutput` finds its final `State_` query and counts whole `Letter_1` names
+after splitting at `<`.
 `Letter_1` is the output register's unit constructor, independent of the
 source program's size. At a boundary halt the unread side is empty, so the
 answer-bearing tape is on the written side. The decoder sees actual target
 execution, not the URM program or its reference evaluator.
 
-The theorem that this count equals every source result is pending. This
-prototype uses the closed-query proof record. It does **not** yet generate
+`urmPrepared_answer` proves that this count equals every source result. This
+compiler uses the closed-query proof record. It does **not** yet generate
 the numeric `answer`-hole query used by `javagen-certify.py`. For these
 compiled programs, exporting Java currently checks halting acceptance only;
 that does not independently certify the decoded number. The existing
@@ -296,7 +302,7 @@ numeric recurrence examples retain their full answer-certification workflow.
 
 ## Trying the compiler
 
-Build the library and experimental compiler modules:
+Build the library and compiler modules:
 
 ```sh
 lake build
@@ -341,7 +347,7 @@ and nested loops, every URM instruction form, input-dependent answers,
 out-of-range registers and finite prefixes of a self-jump. Source round
 trips compare the full prepared machine, including inheritance paths.
 
-## The remaining TC obligations
+## The completed TC obligations
 
 1. **Done:** prove generated flow locations and structured-counter execution,
    including loop continuations and the shifted register/output convention;
@@ -359,12 +365,17 @@ trips compare the full prepared machine, including inheritance paths.
    loads to exactly `urmPrepared`, through the ordinary lexer, parser and
    validator. Both frontend budgets are proved sufficient; no concrete
    round-trip test is used as a universal premise.
-5. Prove the final proof-record byte decoder returns the URM answer. The
-   structured retained-frame theorem is complete. Connect a numeric candidate
-   query as well for independent Java result certification.
-6. Assemble `javaGenComplete` only after forward answers and all-fuel
-   divergence hold for the same runnable compiler. Then enable the derived
-   Turpentine backend and its compiler tests.
+5. **Done:** prove the exact terminal inheritance paths and serialization,
+   backward selection of the answer line independently of earlier history,
+   UTF-8 round-trip, and whole-constructor counting. `urmPrepared_answer`
+   returns the URM answer from the actual public evaluator's output bytes.
+6. **Done:** assemble `javaGenComplete` from forward answers and all-fuel
+   divergence for the same runnable compiler. `derivedJavaGen` supplies
+   the certified Turpentine backend, ordinary source emission and CLI tests.
+
+A separate remaining feature is a numeric candidate query for independent
+Java result certification of universal compiled programs. It is not needed
+to decode the closed proof record used by the completeness theorem.
 
 The [workplan](../PLAN.md) tracks this boundary. SKI remains an alternative,
 but the current route reuses the existing counter arithmetic proofs and a

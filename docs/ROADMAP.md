@@ -28,22 +28,15 @@ also confirmed wanted: **Piet** and **Brainloller** form the second wave
 ## Implementation in progress
 
 **JavaGen** (based on Radu Grigore's *Java Generics Are Turing Complete*,
-POPL 2017): a language whose interpreter searches for a Java-style subtype
-proof. Work has started on `ilya/java-generics`; the
-[design note](javagen/design.md) replaces the paper's Simper source with
-Turpentine and plans a certified route through the existing URM compiler.
-The [subtype core, numeric inference and Java export](javagen/spec.md) are
-implemented, with real-`javac` conformance tests. An [experimental URM
-compiler](javagen/universal-compiler.md) now uses the existing counter
-translation and a checked sweep layer. Its register-tape simulation now
-preserves URM halting/divergence for the total generated artifact; every
-register, validation and lookup check succeeds uniformly. The textual answer
-decoder remains pending; ordinary source realization is now proved for the
-total token-separated renderer. A separate
-[hand-written Turpentine backend](javagen/compiler.md) compiles closed
-nonnegative computations with scalars and fixed-size arrays and observes
-their final answer register. The paper's halting reduction alone does not supply
-LangLib's answer-preserving, divergence-preserving completeness witness.
+POPL 2017) is implemented on `ilya/java-generics`, with real-`javac`
+conformance tests and a proved [completeness witness](javagen/computability.md).
+The [universal compiler](javagen/universal-compiler.md) uses the existing
+URM/counter translation and unary register sweeps. Totality, ordinary source
+realization, exact byte-level answer preservation and all-fuel divergence
+are proved. The [Turpentine compiler](javagen/compiler.md) offers a certified
+`--tc` route and a hand-written Minsky backend for scalars and arrays.
+Independent Java certification of universal compiled answers remains open;
+the finite numeric recurrence examples already support it.
 
 ## Strong candidates
 

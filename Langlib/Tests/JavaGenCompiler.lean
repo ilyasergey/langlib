@@ -5,7 +5,7 @@ import Langlib.Computability.JavaGen.Growth
 
 URM instructions and inputs are compiled as syntax. Expected answers are
 independent constants; no source interpreter supplies the target's answer.
-These finite tests do not establish the pending URM simulation theorem.
+The universal theorem is assembled separately in `JavaGen.Main`.
 -/
 
 namespace Langlib.Tests.JavaGenCompiler
@@ -20,6 +20,19 @@ def examples : List (String × Code × Nat × Option Nat) :=
 
 def checks : IO (List String) := do
   let mut failures := []
+  -- Reject incomplete/rejected records, prefer the last state query, and
+  -- distinguish Letter_1 from neighbouring constructor names.
+  let records : List (String × String × Option Nat) :=
+    [("missing acceptance", "State_0<Letter_1<Z>> <: Z\n", none),
+     ("missing control query", "accepted\nZ <: Z\n", none),
+     ("rejected", "rejected\nState_0<Letter_1<Z>> <: Z\n", none),
+     ("last query", "accepted\nState_0<Letter_1<Z>> <: Z\nState_1<Z> <: Z\n", some 0),
+     ("whole names", "accepted\nState_0<Letter_11<Letter_10<Letter_1<Z>>>> <: Z\n", some 1)]
+  for (name, text, want) in records do
+    unless CounterCompiler.decodeOutput text.toUTF8 == want do
+      failures := s!"decoder {name}: wrong answer" :: failures
+  unless CounterCompiler.decodeOutput (ByteArray.mk #[255]) == none do
+    failures := "decoder accepted invalid UTF-8" :: failures
   -- Both zero/nonzero loop paths, nested loops, and deletion of the last unit.
   let flows := examples ++
     [("zero-loop", [.loop 0 [.emit]], 1, some 0),

@@ -1,14 +1,19 @@
 # JavaGen: computability
 
-**No `TuringComplete JavaGenLang` witness exists yet.** Grigore's
+**JavaGen is Turing complete in LangLib's unbounded executable semantics.**
+[`javaGenComplete`](../../Langlib/Computability/JavaGen/Main.lean#L21) is a
+runnable witness: every halting URM input produces the same natural answer
+through the public evaluator's output bytes, and every divergent URM input
+returns `.outOfFuel` at every finite target budget. The compiler does not
+run the source program. The axiom audit contains only `propext`,
+`Classical.choice` and `Quot.sound`.
+
+The construction adopts Radu Grigore's
 [*Java Generics Are Turing Complete*](https://doi.org/10.1145/3009837.3009871)
-(2017), §§4–5, supplies the mathematical subtyping-machine construction.
-LangLib now has a total executable URM compiler. Its register-tape simulation
-preserves halting and divergence in the actual evaluator, and its retained
-proof frame contains the source answer. Every generated artifact now has
-ordinary source text that the existing loader recovers exactly. Byte-level
-answer decoding remains pending: the final public contract must recover the
-source answer from the output bytes the evaluator returns.
+(2017), §§4–5, with LangLib's existing URM/counter compiler supplying the
+source bridge. Ordinary generated text loads to exactly the artifact used
+by the proof. This result concerns JavaGen's Lean semantics; Java export
+correctness and unbounded behavior of a physical `javac` are separate claims.
 
 The public entry point is
 [Main.lean](../../Langlib/Computability/JavaGen/Main.lean). The current
@@ -33,7 +38,7 @@ evaluator separately: [Stability.lean](../../Langlib/Languages/JavaGen/Stability
 and [AnswerStability.lean](../../Langlib/Languages/JavaGen/AnswerStability.lean).
 Increasing fuel preserves completed runs, including their output bytes.
 
-## The universal compiler and remaining construction
+## The universal compiler
 
 The implemented route is URM → existing structured-counter program → finite
 flow graph → sweeping transducer → JavaGen. The
@@ -57,7 +62,7 @@ stationary-loop theorem remains available separately.
 generates the URM bridge without evaluating the source. Counter registers
 become unary tape blocks; a designated register counts emitted answer units.
 `flatten_length` in [CounterProof.lean](../../Langlib/Computability/JavaGen/CounterProof.lean)
-proves loop bodies are emitted once. The experimental byte decoder counts
+proves loop bodies are emitted once. The verified byte decoder counts
 output-register units in the final control query of the retained proof record.
 
 [FlowProof.lean](../../Langlib/Computability/JavaGen/FlowProof.lean) additionally
@@ -87,7 +92,7 @@ answer in its third most recent frame. The live query has already been
 erased by ground inheritance, but counting `Letter_1` constructors in that
 frame recovers the arbitrary natural answer. `Names.lean` proves generated
 names are valid and injective; the tape count also respects constructor padding
-and reversal. This is a structured-history theorem, not yet the byte decoder.
+and reversal. This structured-history theorem is extended to output bytes below.
 
 [CompilerTotality.lean](../../Langlib/Computability/JavaGen/CompilerTotality.lean)
 proves `compileURM_eq`: the executable `Except`-returning compiler always
@@ -127,16 +132,33 @@ proves complete closed-program parsing with arbitrary token coordinates.
 [SourceSyntax.lean](../../Langlib/Computability/JavaGen/SourceSyntax.lean)
 proves the token-count budget covers all nested types and declaration lists,
 then composes both stages. No special loader branch or hidden initial state
-is introduced. Correctness of the textual answer decoder remains required.
+is introduced.
 
-The prototype uses closed proof records. Generating a numeric candidate query
-for independent Java certification remains pending for this compiler; the
-existing numeric recurrence examples already support that workflow. Neither
-the finite regression tests nor the checked lower-level simulation fills this
-universal answer gap. Only after the full answer and divergence proofs may
-`javaGenComplete` enable the derived Turpentine backend. A separate
-[hand-written backend](compiler.md) is already runnable through the shared
-Minsky pass; it has differential tests and no end-to-end certificate.
+[TerminalOutput.lean](../../Langlib/Computability/JavaGen/TerminalOutput.lean)
+proves the exact final three frames, including their instantiated inheritance
+paths, and their UTF-8 serialization. The final control query is followed only
+by the fixed `via End<End<Z>>`, `End<Z> <: End<Z>` and `Z <: Z` lines.
+[RecordDecoding.lean](../../Langlib/Computability/JavaGen/RecordDecoding.lean)
+proves that the executable decoder selects that query independently of earlier
+history. Valid generated names contain neither newlines nor `<`; splitting
+at `<` and counting whole `Letter_1` names therefore counts exactly the
+output-register units. Names such as `Letter_10` cannot contribute.
+
+[AnswerProof.lean](../../Langlib/Computability/JavaGen/AnswerProof.lean)
+composes serialization, decoding and the register-tape simulation into
+`urmPrepared_answer`. Together with `urmPrepared_divergence`, it supplies
+both fields of `javaGenComplete` for the same runnable artifact.
+[`derivedJavaGen`](../../Langlib/Languages/Turpentine/Compile/Derived.lean)
+then composes the existing certified Turpentine-to-URM pass. The CLI exposes
+it as `--to javagen --tc` and `--via javagen --tc`, with
+[tests](../../Langlib/Tests/DerivedJavaGen.lean) that render, reparse, execute
+and decode the generated source.
+
+The universal compiler uses closed proof records. Generating a numeric candidate
+query for independent Java certification remains pending for this route;
+the existing numeric recurrence examples already support that workflow.
+The separate [hand-written backend](compiler.md) supports scalars and arrays
+through the Minsky pass and has differential tests, but no end-to-end certificate.
 
 ## Why not start with SKI?
 

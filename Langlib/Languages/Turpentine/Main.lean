@@ -263,7 +263,18 @@ def backends : List Backend :=
     , bespoke := some (fun src => do
         let text ← Compile.JavaGen.compileSource src
         return { text, run := Langlib.JavaGen.CompiledAnswer.run text
-               , runNote := some "lake exe javagen --compiled-answer --fuel 200000000 <file>" }) }
+               , runNote := some "lake exe javagen --compiled-answer --fuel 200000000 <file>" })
+    , certified := some (fun src => do
+        let p ← Compile.derivedJavaGen.compileSource src
+        let text := Langlib.Computability.JavaGen.Source.sourceText p.source
+        let run : Input → Nat → Except String RunResult := fun _input fuel => do
+          let parsed ← Langlib.JavaGen.parse text
+          let result := Langlib.JavaGen.evalPrepared parsed fuel
+          if result.exit != .halted then return result
+          let some answer := Compile.derivedJavaGen.decodeOutput result.output
+            | throw "the compiled JavaGen proof record did not decode"
+          return { result with output := (toString answer ++ "\n").toUTF8 }
+        return { text := text, run := run, runNote := some "lake exe javagen --compiled-answer --fuel 200000000 <file>" }) }
   , { name := "thue"
       -- `finalState` is what makes the answer visible: Thue's only output
       -- primitive is `~`, and the compiled program does not use it, so the

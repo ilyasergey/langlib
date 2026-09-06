@@ -4,7 +4,7 @@
 **forward answer preservation** and **divergence preservation**. If a URM
 program halts with result `r`, its compiled target halts at some fuel and
 its output decodes to `r`. If the source diverges, every finite target fuel
-budget is exhausted. All eleven witnesses prove both fields for their
+budget is exhausted. All twelve witnesses prove both fields for their
 existing runnable compilers.
 
 The independent execution obligation is this field of `TuringComplete`:
@@ -83,7 +83,7 @@ The proof files have an acyclic dependency order:
    remain available; imports now name the language’s `Main` module.
 
 The Turpentine-to-URM translation has its own operational divergence proof;
-composing it with these witnesses strengthens all eleven derived compilers.
+composing it with these witnesses strengthens all twelve derived compilers.
 Both `CertifiedCompilerNoIO` and `CertifiedCompiler` now require divergence
 preservation. `CertifiedCompilerNoIO` has closed source predicates and an
 empty target stream. Only `CertifiedCompiler` quantifies over runtime input
@@ -103,6 +103,7 @@ and takes an explicit input-encoding parameter. See
 | [`unlambdaComplete`](../Langlib/Computability/Unlambda/Main.lean) | Positive CEK prefixes through the strict fixed point, terminating guard and body, and recursive call. |
 | [`skiComplete`](../Langlib/Computability/Ski/Main.lean) | Positive head reduction of recursive calls; strict compiled continuations force the dispatcher under normal order. |
 | [`velatoComplete`](../Langlib/Computability/Velato/Main.lean) | Induction on while-loop fuel using terminating dispatcher bodies, then stability across the initial prefix. |
+| [`javaGenComplete`](../Langlib/Computability/JavaGen/Main.lean) | Positive-cost register sweeps and the continuing URM dispatcher; every finite subtype budget is exhausted. |
 
 **Unlambda is now complete.**
 [The Unlambda divergence proof](../Langlib/Computability/Unlambda/Divergence.lean)
@@ -149,7 +150,7 @@ Run the golden and compiler test suites:
 lake test
 ```
 
-Check the interface consequences, shared progress lemmas, all eleven
+Check the interface consequences, shared progress lemmas, all twelve
 witnesses and their operational proof lemmas:
 
 ```sh

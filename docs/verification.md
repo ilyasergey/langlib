@@ -312,17 +312,17 @@ as the proof.
 
 | Backend | Effective compiler | Simulation | End-to-end theorem | Derived compiler | Behavioural (I/O) |
 |---------|--------------------|------------|--------------------|------------------|-------------------|
-| whitespace | yes | [yes](../Langlib/Languages/Turpentine/Compile/Certified/Whitespace/Simulation.lean#L2695) | [yes, scalars and output](../Langlib/Languages/Turpentine/Compile/Certified/Whitespace/Simulation.lean#L3744) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L95) | [**yes**, output only, `encodeTrace = id`](../Langlib/Languages/Turpentine/Compile/Certified/BespokeWhitespace.lean#L43) |
-| subleq | yes | [yes](../Langlib/Languages/Turpentine/Compile/Certified/BespokeSubleq.lean#L656) | [yes, two shapes](../Langlib/Languages/Turpentine/Compile/Certified/BespokeSubleq.lean#L656) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L99) | - |
-| velato | yes | [yes](../Langlib/Languages/Turpentine/Compile/Certified/Velato/Simulation.lean#L1252) | [yes, scalars, output and `readByte`](../Langlib/Languages/Turpentine/Compile/Certified/Velato/Simulation.lean#L1981) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L158) | [**yes**, input included, `encodeTrace = targetInput = id`, NUL-free streams](../Langlib/Languages/Turpentine/Compile/Certified/BespokeVelato.lean#L24) |
-| brainfuck | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L103) | - |
-| fractran | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L108) | n/a (no I/O) |
-| thue | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | - |
-| piet | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L120) | - |
-| ook | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L126) | - |
-| brainloller | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L131) | - |
-| unlambda | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L137) | - |
-| ski | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L144) | n/a (no I/O) |
+| whitespace | yes | [yes](../Langlib/Languages/Turpentine/Compile/Certified/Whitespace/Simulation.lean#L2695) | [yes, scalars and output](../Langlib/Languages/Turpentine/Compile/Certified/Whitespace/Simulation.lean#L3744) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L100) | [**yes**, output only, `encodeTrace = id`](../Langlib/Languages/Turpentine/Compile/Certified/BespokeWhitespace.lean#L43) |
+| subleq | yes | [yes](../Langlib/Languages/Turpentine/Compile/Certified/BespokeSubleq.lean#L656) | [yes, two shapes](../Langlib/Languages/Turpentine/Compile/Certified/BespokeSubleq.lean#L656) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L104) | - |
+| velato | yes | [yes](../Langlib/Languages/Turpentine/Compile/Certified/Velato/Simulation.lean#L1252) | [yes, scalars, output and `readByte`](../Langlib/Languages/Turpentine/Compile/Certified/Velato/Simulation.lean#L1981) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L163) | [**yes**, input included, `encodeTrace = targetInput = id`, NUL-free streams](../Langlib/Languages/Turpentine/Compile/Certified/BespokeVelato.lean#L24) |
+| brainfuck | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L108) | - |
+| fractran | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L113) | n/a (no I/O) |
+| thue | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L119) | - |
+| piet | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L125) | - |
+| ook | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L131) | - |
+| brainloller | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L136) | - |
+| unlambda | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L142) | - |
+| ski | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L149) | n/a (no I/O) |
 | deadfish | - | - | - | n/a (not complete) | - |
 | malbolge | - | - | - | n/a (not complete) | - |
 
@@ -386,14 +386,14 @@ to close the gap.
 ## Divergence-preserving completeness
 
 [`TuringComplete`](divergence-preservation.md) now requires both forward
-answer preservation and divergence-preserving URM simulation. All eleven
+answer preservation and divergence-preserving URM simulation. All twelve
 witnesses prove `.outOfFuel` at **every** finite target fuel on divergent
 source inputs, independently of decoding. The shared consequences are
 halting and result equivalences, output validity, and error freedom.
 An iff about decoded results alone would still permit undecodable halts.
 
 The runnable compilers are unchanged. The Turpentine-to-URM pass now also
-preserves divergence, so all eleven derived compiler contracts include both
+preserves divergence, so all twelve derived compiler contracts include both
 proofs. The existing certified bespoke Whitespace, Subleq and Velato fragments,
 including the Whitespace and Velato I/O witnesses, satisfy the stronger
 contracts too. See [certified compilation](certified-compilation.md).

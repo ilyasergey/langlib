@@ -1,11 +1,39 @@
 # Turpentine to JavaGen
 
-**The hand-written backend is implemented.** It compiles closed,
+**Both a hand-written backend and a certified `--tc` backend are implemented.** It compiles closed,
 nonnegative computations with scalars and fixed-size arrays to ordinary
 `.jgen` source. Conditionals and loops become inheritance rules; compilation
 traverses source syntax
 without running the program. The backend has regression tests, but no
-end-to-end correctness certificate or `--tc` entry.
+end-to-end correctness certificate. The separate URM-derived route has
+both answer- and divergence-preservation proofs.
+
+## Certified URM route
+
+`derivedJavaGen` composes the shared certified Turpentine-to-URM pass with
+[`javaGenComplete`](computability.md). It supports that pass's closed,
+nonnegative fragment: scalars, fixed-size arrays, arithmetic except subtraction,
+branches and loops. Reads, printing and assertions are rejected. See the [URM fragment](../../Langlib/Languages/Turpentine/Compile/URM.lean)
+for the precise accepted syntax.
+
+The [spec's complete workflow](spec.md#a-certified-turpentine-computation)
+shows source, compilation and execution. `--tc` emits the verified spaced
+source representation. `exec` reparses it, runs the ordinary JavaGen evaluator,
+and uses the byte decoder proved in `AnswerProof.lean`. With insufficient fuel
+it preserves `.outOfFuel`; it does not try to decode an incomplete history.
+The standalone `--compiled-answer` observer is also useful on emitted files,
+but is not the decoder used by the completeness witness.
+
+The URM route carries a unary register file, a dispatcher and a full proof
+history. It is intended to expose the verified construction, and can be much
+larger and slower than the default Minsky backend. Use the default route for
+the larger Fibonacci/factorial and array examples below. No fixed execution
+budget is a guarantee that every terminating source program will finish.
+The constant `answer := 2` example emits 2,089,853 bytes; 100,000 target steps
+are insufficient. The spec uses 2,000,000 steps.
+
+Numeric Java candidate queries for these universal compiled answers remain
+separate work; the finite recurrence examples already have that feature.
 
 ## Using it
 
@@ -157,7 +185,7 @@ The loader indexes declaration names and superclass heads while retaining
 source order and the first path through equal inheritance diamonds. This
 avoids repeated linear searches through large generated tables.
 This path imports neither Mathlib nor cslib. It is independent of the
-[experimental URM bridge](universal-compiler.md).
+[certified URM bridge](universal-compiler.md).
 
 Each register occupies a marked unary block on the tape. An increment
 inserts one unit; a conditional decrement removes the first unit if one

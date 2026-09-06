@@ -34,7 +34,7 @@ nine were the initial batch; the last three landed later):
 | unlambda   | David Madore, 1999               | a functional tarpit: prefix application, no variables, no lambdas, and call/cc |
 | ski        | Schönfinkel 1924, Curry 1930     | not an esolang; the calculus Unlambda is, and the functional route to universality |
 | velato     | Daniel Temkin, 2009              | programs are MIDI files: pitch and order are the code. The first musical language here, and the one whose 128-variable ceiling forced a different shape of completeness proof |
-| JavaGen | Radu Grigore, 2017 (core); LangLib, 2026 | Java-generics subtyping as execution; [spec and executable core](javagen/spec.md), universal compiler pending |
+| JavaGen | Radu Grigore, 2017 (core); LangLib, 2026 | Java-generics subtyping as execution; [spec and executable core](javagen/spec.md), universal compiler and TC proved |
 
 Each spec must pin down the exact semantics our interpreter implements
 (cell width, EOF, bounds, errors), with sources. Also: `docs/ROADMAP.md`
@@ -60,7 +60,7 @@ git diffs and tests. Piet semantics per Morgan-Mar's spec (colour blocks,
 DP/CC, the 17-operation colour wheel, codel size flag); brainloller is a
 pixel-decoder front end onto the brainfuck core.
 
-### JavaGen `[~]` — runnable core; TC is the next priority
+### JavaGen `[~]` — TC proved; Java certification and performance follow-up
 
 The [design and checkpoints](javagen/design.md#delivery-checkpoints) cover
 Stages 1, 2, 4, 6 and 8 on branch `ilya/java-generics`:
@@ -77,7 +77,7 @@ Stages 1, 2, 4, 6 and 8 on branch `ilya/java-generics`:
   end-turn mechanism; prove halting and positive-cost divergence under
   decidable lookup/initialization certificates. Prove a growing source
   machine diverges at every fuel (JG2).
-* [~] Implement URM → existing counter program → flow graph → sweeper (JG3).
+* [x] Implement URM → existing counter program → flow graph → sweeper (JG3).
   All URM instruction forms, distinct input-dependent results and self-jumps
   have compiler regressions. Generated flow locations, structured-counter
   simulation, the register-tape invariant and URM halting/divergence are
@@ -86,24 +86,24 @@ Stages 1, 2, 4, 6 and 8 on branch `ilya/java-generics`:
   the operational theorems apply to the total artifact without assuming
   compilation succeeds. `urmSource_realized` now proves ordinary spaced
   source loads to the exact artifact, including all inheritance paths.
-  Prove the final textual answer decoder.
+  The final textual answer decoder is proved.
 * [ ] Connect the universal compiler's closed proof-record readout to a
   numeric Java candidate query. Existing answer-hole examples still work;
   compiled universal programs currently use closed queries.
-* [ ] Complete byte-level forward answer preservation; combine the proved
+* [x] Complete byte-level forward answer preservation; combine the proved
   source realization and all-fuel divergence into `javaGenComplete` and derived
   Turpentine support (JG4).
 * [x] Add a hand-written Turpentine backend through the existing Minsky
   pass, with standalone numeric observation and compiler differential tests.
-  This is separate from the pending certified URM route.
+  This is separate from the certified URM route.
 * [~] Maintain spec/compiler/computability accounts and runnable examples;
   measure generated size and fuel after the universal compiler exists (JG5).
 
 This starts with the existing closed, nonnegative URM fragment of Turpentine.
 SKI is an alternative bridge, but would need a new tree/duplication simulation;
 continue the implemented counter/sweeper bridge. The finite arithmetic
-examples are not Turpentine compilations. The experimental URM compiler and
-checked sweep simulation exist; no completeness witness is claimed. See the
+examples are not Turpentine compilations. The total URM compiler, `javaGenComplete`, and the derived `--tc` backend
+are implemented and proved. See the
 [current proof boundary](javagen/computability.md).
 
 ## Stage 3: Turpentine front end `[x]`
@@ -131,8 +131,9 @@ state first-order, I/O explicit.
   Minsky pass and a JavaGen sweeper. `--compiled-answer` observes the final answer register.
   Arithmetic, branches, loops, computed/nested array indices, bounds guards
   and four new array examples have differential tests.
-  End-to-end certification, the separate URM-derived `--tc` route, numeric
-  Java certification of compiled answers, and I/O remain pending.
+  The separate URM-derived `--tc` route is certified and registered.
+  Hand-written-backend certification, numeric Java certification of compiled
+  answers, and I/O remain pending.
 * Turpentine -> brainfuck `[~]`: the scalar language, with 16-bit
   two's-complement integers in two cells each. Arrays are not supported
   yet. See `docs/brainfuck/compiler.md`.
@@ -330,7 +331,7 @@ target:
 
 * `CertifiedCompilerNoIO spec diverges L` — closed computations, preserving
   answers and divergence. Source predicates have no runtime input argument;
-  the target runs on `Input.empty`. All eleven derived compilers and the
+  the target runs on `Input.empty`. All twelve derived compilers and the
   direct bespoke Subleq and Whitespace certificates use this interface.
 * `CertifiedCompiler spec diverges targetInput L` — input-parametrised
   computations, preserving answers, completed traces and divergence on all
@@ -684,7 +685,7 @@ exhibit the bound and conclude that its halting problem is decidable.
 
 ### One statement for every language
 
-The claims in the table below must not be eleven unrelated theorems. They
+The claims in the table below must share a common contract. They
 should use shared definitions, so that "LangLib proves X
 is Turing complete" means the same thing every time and the reader learns
 the shape once. Concretely, in `Langlib/Common/Compilation.lean` (the
@@ -784,7 +785,7 @@ MU’s proof terms remain unchanged; only documentation-path comments changed.
   jobs, all 1,700 tests plus two property checks, 761 clean axiom reports,
   and 1,099 valid local documentation links (240 exact declaration anchors).
 
-All eleven `<lang>Complete` witnesses now supply both proof fields.
+All twelve `<lang>Complete` witnesses now supply both proof fields.
 [The proof table](divergence-preservation.md#witness-migration)
 records their operational routes.
 MU has no witness to upgrade; its current proofs
@@ -877,11 +878,12 @@ checked lower-level sweep simulation are implemented. The register-tape
 invariant and URM halting/divergence preservation now hold for the total
 generated artifact. Every register, validator and symbolic lookup check
 succeeds uniformly. A total spaced source renderer loads to the exact artifact
-through the ordinary lexer, parser and validator. Textual answer decoding
-remains pending. Do not register `TuringComplete` before it is proved.
+through the ordinary lexer, parser and validator. Exact textual answer
+decoding is now proved; `javaGenComplete` and `derivedJavaGen` are registered.
 
 | Language | Claim | Route |
 |---|---|---|
+| JavaGen | **complete, PROVED** (`Langlib/Computability/JavaGen/Main.lean`, axiom-clean) | URM through structured counters, flow control and unary register sweeps; exact source realization and byte-record decoding, with all-fuel operational divergence. |
 | whitespace | **complete, PROVED** (`Langlib/Computability/Whitespace/Main.lean`, axiom-clean) | was the first target. Unbounded heap indexed by integer, arbitrary-precision integers, labels and conditional jumps: a URM register is a heap cell, a URM instruction is a labelled block. The most direct simulation in the library. |
 | subleq | **complete, PROVED** (`Langlib/Computability/Subleq/Main.lean`, axiom-clean) | classic OISC result. URM registers map to memory words; increment and decrement are single instructions, and the conditional jump is what subleq *is*. |
 | brainfuck | **complete, PROVED** (`Langlib/Computability/Brainfuck/Main.lean`, axiom-clean) | the textbook proof, but the honest one is fiddly: byte cells mean a URM register needs a multi-cell bignum representation, or a two-counter (Minsky) machine argument with unary counters on the tape. Prefer Minsky: two counters, each a tape region, and `>` `<` for selection. |

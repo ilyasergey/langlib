@@ -1,22 +1,27 @@
 import Langlib.Computability.JavaGen.Simulation
 import Langlib.Computability.JavaGen.Divergence
-import Langlib.Computability.JavaGen.SweepProof
-import Langlib.Computability.JavaGen.FlowProof
 import Langlib.Computability.JavaGen.Growth
-import Langlib.Computability.JavaGen.ObservationProof
+import Langlib.Computability.JavaGen.AnswerProof
 import Langlib.Computability.JavaGen.SourceRealization
 
-/-!
-# JavaGen: public computability entry point
+/-! # JavaGen: divergence-preserving Turing completeness
 
-Available: the lawful executable language instance, an injective unbounded
-natural representation, generated sweeping machines with checked symbolic
-lookup certificates, and an executable experimental URM compiler.
-The sweep simulation preserves halting and positive-cost divergence under
-those certificates. The register-tape bridge and URM halting/divergence
-preservation are proved for the total generated artifact. All register,
-validation and symbolic lookup checks succeed uniformly. Every artifact has
-ordinary source text accepted by the existing loader. Textual answer decoding
-remains pending. No `javaGenComplete` is claimed.
-See `docs/javagen/computability.md` and `docs/PLAN.md`.
+The runnable compiler generates a JavaGen class table and a concrete query
+without evaluating the source. Ordinary source realization recovers the exact
+prepared artifact. `AnswerProof` preserves answers through the public evaluator's
+UTF-8 proof record; `Divergence` proves exhaustion at every finite target fuel
+for divergent URM inputs. The witness concerns the unbounded Lean semantics;
+it does not assert that a resource-limited JVM or javac can decide every query.
 -/
+
+namespace Langlib.Computability
+open Langlib.Common
+
+/-- JavaGen is Turing complete via the total URM-to-register-tape compiler. -/
+def javaGenComplete : TuringComplete JavaGenLang where
+  compile := JavaGen.CounterCompiler.urmPrepared
+  decodeOutput := JavaGen.CounterCompiler.decodeOutput
+  simulates := JavaGen.CounterCompiler.urmPrepared_answer
+  preserves_divergence := fun _ _ => JavaGen.CounterCompiler.urmPrepared_divergence
+
+end Langlib.Computability

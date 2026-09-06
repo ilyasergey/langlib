@@ -70,7 +70,7 @@ theorem urm_target_simulation (program : Cslib.URM.Program) (inputs : List Nat) 
   exact ⟨registers, cost, path⟩
 
 /-- A checked generated artifact normally halts whenever its URM source does.
-This theorem does not yet assert that the textual output decoder returns the answer. -/
+`AnswerProof.lean` extends this result to decoded output bytes. -/
 theorem urm_ready_halting (program : Cslib.URM.Program) (inputs : List Nat) (answer : Nat)
     (compiled : {p : Prepared // Sweep.Ready p
       (machine (counterFlow (counterProgram program inputs)) (counterBound (sourceBound program inputs)))

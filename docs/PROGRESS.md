@@ -5,6 +5,21 @@ Entries describe their dated checkpoints; the temporary separate divergence
 interface in the first two proof milestones was superseded by the combined
 `TuringComplete` interface below.
 
+## 2026-09-06 — JavaGen Turing completeness and documentation audit
+
+Proved exact terminal serialization and byte decoding, then assembled
+`javaGenComplete` from URM answer preservation and all-fuel divergence.
+The witness and source-realization theorem use only Lean's standard axioms.
+Registered `derivedJavaGen` with the Turpentine CLI and added source-round-trip,
+answer, divergence and decoder regressions. A reflexive `csimp` proof lets
+the compiler share its declaration index across closure rows.
+
+Updated the spec, proof account and implementation comments. README language
+matrices now use consistent notation and alphabetical order. Checked local
+links and exact declaration anchors; replaced unavailable source pages with
+verified archives. Validation: `lake build`, 1,856 golden tests, five property
+groups, 34 javac cases, 315 site checks, and link/axiom audits all pass.
+
 
 ## 2026-09-06: JavaGen source realization proved
 

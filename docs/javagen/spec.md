@@ -14,7 +14,7 @@
   - [Single-command answer certification](../../scripts/javagen-certify.py).
   - [Computability development](../../Langlib/Computability/JavaGen/Main.lean), [current proof boundary](computability.md).
   - [Experimental URM compiler](universal-compiler.md); [Turpentine backend](compiler.md).
-  - [Design and pending compiler/proof milestones](design.md).
+  - [Design and compiler/proof milestones](design.md).
 
 ## Why generics can run a program
 
@@ -316,9 +316,8 @@ This is **independent checking by a Java compiler**, not a Lean
 `CertifiedCompiler` theorem. The Java compiler, exporter, inference-to-query
 correspondence and intended arithmetic interpretation are not all formally
 verified here. In particular the arithmetic examples are finite type
-recurrences, not yet output from a certified Turpentine backend. The planned
-Turing-completeness result must establish answer and divergence preservation
-for a total executable compiler from URM programs.
+recurrences. The separate certified Turpentine backend uses the proved URM
+compiler and a closed proof-record decoder.
 
 ### Failure behavior and controls
 
@@ -431,26 +430,26 @@ javac -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
 
 ## Computational class and compiler work
 
-Grigore's paper supplies the Turing-machine halting reduction for the unary
-core. JavaGen currently has executable semantics, numeric inference, Java
-conformance and stability proofs. It also has a
-[hand-written Turpentine compiler](compiler.md) for closed nonnegative
-computations with scalars and fixed-size arrays, but no LangLib `TuringComplete` witness. The priority is the
-URM-based public contract, with a tape-machine or existing counter-machine
-bridge to the paper's construction, preserving both the answer and positive
-execution cost. The [experimental URM compiler](universal-compiler.md) now
-uses the existing counter translation, finite flow control and unary register
-sweeps. The register-tape simulation now proves URM halting and all-fuel
-divergence against the public evaluator for the total generated artifact.
-Register bounds, ordinary class validation and the symbolic lookup certificate
-are proved for every source program, regardless of halting. The
-[verified source renderer](universal-compiler.md#ordinary-source-realization)
-emits ordinary JavaGen with spaces between tokens; the unchanged loader
-recovers exactly the artifact used by the simulation. The textual answer
-decoder proof remains pending.
-Its result decoder reads a closed proof record. It does not yet generate
-numeric `answer`-hole queries for independent Java result certification.
-See the [design](design.md) for the remaining proof gates.
+JavaGen has a proved [`javaGenComplete`](computability.md) witness for its
+unbounded Lean semantics. The runnable URM compiler preserves answers through
+the evaluator's UTF-8 proof record and preserves divergence at every finite
+fuel budget. Its [generated source](universal-compiler.md#ordinary-source-realization)
+loads to the exact artifact used in the proof. The axiom audit reports only
+`propext`, `Classical.choice` and `Quot.sound`.
+
+The final ground inheritance step erases the live tape. The verified decoder
+therefore finds the last `State_` query in the accepted proof record, splits
+it at `<`, and counts whole `Letter_1` names. Later lines contain only fixed
+`End`/`Z` queries; `Letter_10` cannot contribute. The proof covers arbitrary
+prior history and unbounded answers.
+
+The [certified Turpentine backend](compiler.md#certified-urm-route), selected
+with `--tc`, composes this witness with the shared URM pass. The default
+Minsky backend supports scalars and arrays but has no end-to-end certificate.
+Universal compiled programs use closed queries; independent Java certification
+of their numeric answers remains open. The finite recurrence examples already
+support that workflow. The Lean theorem does not prove Java-export correctness
+or unbounded behavior of a physical `javac`.
 
 The finite Fibonacci and factorial class families are useful arithmetic
 regressions, but do not themselves demonstrate universality or compile
@@ -458,9 +457,58 @@ arbitrary loops. They mirror the results of
 [fib-tc.turp](../../Langlib/Examples/Turpentine/fib-tc.turp) and
 [fact-tc.turp](../../Langlib/Examples/Turpentine/fact-tc.turp).
 Their generator emits recurrence syntax without calculating the answers.
-The [Turpentine backend](compiler.md) now generates code from source syntax,
+The hand-written [Turpentine backend](compiler.md) generates code from source syntax,
 including loops, using a counter machine and a sweeper. It does not evaluate
 the source during compilation. Its end-to-end correctness proof remains pending.
+
+### A certified Turpentine computation
+
+Save this complete source as `/tmp/javagen-derived-example.turp`. It leaves
+`2` in the source answer variable; the certified compiler emits code for the
+computation and its output epilogue.
+
+```turpentine
+var answer : int := 2;
+```
+
+Compile, render, reparse, run the ordinary subtype evaluator and decode its
+proof-record bytes in one command. Expect `2`.
+
+```sh
+lake exe turpentine exec --via javagen --tc --fuel 2000000 /tmp/javagen-derived-example.turp
+```
+
+Output:
+
+```text
+2
+```
+
+Emit the same certified computation as an ordinary `.jgen` file.
+
+```sh
+lake exe turpentine compile --to javagen --tc -o /tmp/javagen-derived-example.jgen /tmp/javagen-derived-example.turp
+```
+
+The standalone compact observer also prints `2` for this emitted file.
+The completeness witness itself uses the ordinary evaluator and its verified
+proof-record decoder; the compact observer is a separate runtime optimization.
+
+```sh
+lake exe javagen --compiled-answer --fuel 2000000 /tmp/javagen-derived-example.jgen
+```
+
+Output:
+
+```text
+2
+```
+
+Changing the source to `var answer : int; while answer == 0 { }` creates a
+nonterminating computation. The theorem guarantees exhaustion at every finite
+JavaGen budget for its compiled artifact, not merely at the budgets used in tests.
+The certified fragment and practical cost of the URM route are described in
+the [compiler guide](compiler.md#certified-urm-route).
 
 ## Trying it
 

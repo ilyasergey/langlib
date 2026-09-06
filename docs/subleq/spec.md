@@ -9,9 +9,7 @@
   - the community page, https://esolangs.org/wiki/Subleq (CC0);
   - O. Mazonka and A. Kolodin, *A Simple Multi-Processor Computer Based on
     Subleq*, arXiv:1106.2593 (2011), https://arxiv.org/abs/1106.2593;
-  - Mazonka's tool page at http://mazonka.com/subleq/, which is
-    intermittently down and is archived at
-    http://web.archive.org/web/20230914063923/http://mazonka.com/subleq/; and
+  - [Mazonka's tool page (archived)](https://web.archive.org/web/20230914063923/http://mazonka.com/subleq/); and
   - Wikipedia has no article of its own for subleq; it is covered in a
     section of the one-instruction-set-computer article,
     https://en.wikipedia.org/wiki/One-instruction_set_computer#Subtract_and_branch_if_less_than_or_equal_to_zero.

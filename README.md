@@ -45,63 +45,63 @@ For each language, LangLib provides:
 Currently implemented (see [docs/README.md](docs/README.md) for the full
 status matrix, including compilers):
 
-* [brainfuck](docs/brainfuck/spec.md) (Urban Müller, 1993), eight
-  one-character commands on a tape of bytes
-* [fractran](docs/fractran/spec.md) (John Conway, 1987), whose programs are
-  lists of fractions
-* [subleq](docs/subleq/spec.md) (folklore, de-facto spec by
-  Oleg Mazonka), one instruction: subtract, branch if the result is ≤ 0
-* [whitespace](docs/whitespace/spec.md) (Edwin Brady & Chris Morris, 2003),
-  where only spaces, tabs and newlines are code
-* [ook](docs/ook/spec.md) (David Morgan-Mar, 2001), brainfuck for orangutans
-* [deadfish](docs/deadfish/spec.md) (Jonathan Todd Skinner, 2006), four
-  commands, one accumulator, no loops
 * [befunge93](docs/befunge93/spec.md) (Chris Pressey, 1993), a stack machine
   whose pointer roams a wrapping grid
-* [malbolge](docs/malbolge/spec.md) (Ben Olmstead, 1998), designed to be as
-  hard to program as possible
-* [thue](docs/thue/spec.md) (John Colagioia, 2000), whose programs are
-  string-rewriting rules
-* [piet](docs/piet/spec.md) (David Morgan-Mar, 2002), whose programs are
-  abstract paintings
+* [brainfuck](docs/brainfuck/spec.md) (Urban Müller, 1993), eight
+  one-character commands on a tape of bytes
 * [brainloller](docs/brainloller/spec.md) (Lode Vandevenne, 2005),
   brainfuck encoded in pixels
+* [deadfish](docs/deadfish/spec.md) (Jonathan Todd Skinner, 2006), four
+  commands, one accumulator, no loops
+* [fractran](docs/fractran/spec.md) (John Conway, 1987), whose programs are
+  lists of fractions
+* [JavaGen](docs/javagen/spec.md) (Radu Grigore's 2017 core; LangLib, 2026),
+  computation by subtype proof search, with numeric results checked by `javac`
+* [malbolge](docs/malbolge/spec.md) (Ben Olmstead, 1998), designed to be as
+  hard to program as possible
 * [malbolge-unshackled](docs/malbolge-unshackled/spec.md) (Ørjan Johansen,
   2007), Malbolge with the memory bound taken out, which is what makes it
   Turing complete
+* [ook](docs/ook/spec.md) (David Morgan-Mar, 2001), brainfuck for orangutans
+* [piet](docs/piet/spec.md) (David Morgan-Mar, 2002), whose programs are
+  abstract paintings
+* [ski](docs/ski/spec.md) (Schönfinkel 1924, Curry 1930), not an esolang
+  but the combinator calculus underneath Unlambda, and the other half of
+  the library's functional route to universality
+* [subleq](docs/subleq/spec.md) (folklore, de-facto spec by
+  Oleg Mazonka), one instruction: subtract, branch if the result is ≤ 0
+* [thue](docs/thue/spec.md) (John Colagioia, 2000), whose programs are
+  string-rewriting rules
+* [Turpentine](docs/turpentine/spec.md): the library's own human-readable
+  front end, named for what dissolves a Turing tarpit
 * [unlambda](docs/unlambda/spec.md) (David Madore, 1999), a functional
   language with no variables and no lambdas
 * [velato](docs/velato/spec.md) (Daniel Temkin, 2009), whose programs are
   MIDI files: the pitches and their order are the code
-* [ski](docs/ski/spec.md) (Schönfinkel 1924, Curry 1930), not an esolang
-  but the combinator calculus underneath Unlambda, and the other half of
-  the library's functional route to universality
-* [JavaGen](docs/javagen/spec.md) (Radu Grigore's 2017 core; LangLib, 2026),
-  computation by subtype proof search, with numeric results checked by `javac`
-* [Turpentine](docs/turpentine/spec.md): the library's own human-readable
-  front end, named for what dissolves a Turing tarpit
+* [whitespace](docs/whitespace/spec.md) (Edwin Brady & Chris Morris, 2003),
+  where only spaces, tabs and newlines are code
 
 ## Current status
 
 | Language | Turing-complete (TC) | TC claim mechanised | Turpentine compiler |
 |----------|--------------------------|------------------------------|---------------------|
-| [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](docs/brainfuck/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L103) (certified), and [bespoke](docs/brainfuck/compiler.md) (trusted) |
-| [whitespace](docs/whitespace/spec.md) | yes | **[yes](docs/whitespace/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L95) (certified), and [bespoke](docs/whitespace/compiler.md) ([certified on a fragment, behaviourally](docs/whitespace/compiler.md)) |
-| [subleq](docs/subleq/spec.md) | yes | **[yes](docs/subleq/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L99) (certified), and [bespoke](docs/subleq/compiler.md) ([certified on a fragment](docs/subleq/compiler.md)) |
-| [fractran](docs/fractran/spec.md) | yes | **[yes](docs/fractran/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L108) (certified), and [bespoke](docs/fractran/compiler.md) (trusted) |
-| [piet](docs/piet/spec.md) | yes | **[yes](docs/piet/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L120) (certified), and [bespoke](docs/piet/compiler.md) (trusted) |
-| [thue](docs/thue/spec.md) | yes | **[yes](docs/thue/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L114) (certified); [bespoke planned](docs/thue/compiler.md) |
-| [ook](docs/ook/spec.md) | yes, via brainfuck | **[yes](docs/ook/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L126) (certified), and [bespoke](docs/ook/compiler.md) (trusted) |
-| [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | **[yes](docs/brainloller/computability.md)**, bar the [pixel walk](docs/brainloller/computability.md) | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L131) (certified), and [bespoke](docs/brainloller/compiler.md) (trusted) |
 | [befunge93](docs/befunge93/spec.md) | [no with byte cells, yes with ours](docs/befunge93/spec.md#computational-class-and-why-our-deviations-matter) | **[yes](docs/befunge93/computability.md)**, for the byte core | [none: 2000 cells](docs/befunge93/compiler.md) |
-| [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[yes](docs/malbolge/computability.md)** | [bespoke](docs/malbolge/compiler.md) (trusted, input-free programs whose output fits); no derived one ever — not Turing complete |
+| [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](docs/brainfuck/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L108) (certified), and [bespoke](docs/brainfuck/compiler.md) (trusted) |
+| [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | **[yes](docs/brainloller/computability.md)**, bar the [pixel walk](docs/brainloller/computability.md) | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L136) (certified), and [bespoke](docs/brainloller/compiler.md) (trusted) |
 | [deadfish](docs/deadfish/spec.md) | no, every program halts | **[yes](docs/deadfish/computability.md)** | [planned, output only](docs/deadfish/compiler.md) |
+| [fractran](docs/fractran/spec.md) | yes | **[yes](docs/fractran/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L113) (certified), and [bespoke](docs/fractran/compiler.md) (trusted) |
+| [javagen](docs/javagen/spec.md) | yes | **[yes](docs/javagen/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L96) (certified), and [bespoke](docs/javagen/compiler.md) (trusted) |
+| [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[yes](docs/malbolge/computability.md)** | [bespoke](docs/malbolge/compiler.md) (trusted, input-free programs whose output fits); no derived one ever — not Turing complete |
 | [malbolge-unshackled](docs/malbolge-unshackled/spec.md) | yes | [open](docs/malbolge-unshackled/computability.md) | [bespoke](docs/malbolge-unshackled/compiler.md) (trusted, input-free fragment); no derived one while the TC claim is open |
-| [unlambda](docs/unlambda/spec.md) | yes | **[yes](docs/unlambda/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L137) (certified), and [bespoke](docs/unlambda/compiler.md) (trusted) |
-| [ski](docs/ski/spec.md) | yes | **[yes](docs/ski/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L144) (certified); [bespoke: compile to unlambda instead](docs/ski/compiler.md) |
-| [velato](docs/velato/spec.md) | [yes, with unbounded ints](docs/velato/spec.md#computational-class) | **[yes](docs/velato/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L158) (certified), and [bespoke](docs/velato/compiler.md) ([certified on a fragment, behaviourally, input included](docs/velato/compiler.md)) |
-| [JavaGen](docs/javagen/spec.md) | [paper core; answer bridge pending](docs/javagen/computability.md) | [pending](docs/javagen/computability.md) | [scalars and arrays](docs/javagen/compiler.md) |
+| [ook](docs/ook/spec.md) | yes, via brainfuck | **[yes](docs/ook/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L131) (certified), and [bespoke](docs/ook/compiler.md) (trusted) |
+| [piet](docs/piet/spec.md) | yes | **[yes](docs/piet/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L125) (certified), and [bespoke](docs/piet/compiler.md) (trusted) |
+| [ski](docs/ski/spec.md) | yes | **[yes](docs/ski/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L149) (certified); [bespoke: compile to unlambda instead](docs/ski/compiler.md) |
+| [subleq](docs/subleq/spec.md) | yes | **[yes](docs/subleq/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L104) (certified), and [bespoke](docs/subleq/compiler.md) ([certified on a fragment](docs/subleq/compiler.md)) |
+| [thue](docs/thue/spec.md) | yes | **[yes](docs/thue/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L119) (certified); [bespoke planned](docs/thue/compiler.md) |
 | [Turpentine](docs/turpentine/spec.md) | yes | open | [(it is the source)](docs/turpentine/spec.md) |
+| [unlambda](docs/unlambda/spec.md) | yes | **[yes](docs/unlambda/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L142) (certified), and [bespoke](docs/unlambda/compiler.md) (trusted) |
+| [velato](docs/velato/spec.md) | [yes, with unbounded ints](docs/velato/spec.md#computational-class) | **[yes](docs/velato/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L163) (certified), and [bespoke](docs/velato/compiler.md) ([certified on a fragment, behaviourally, input included](docs/velato/compiler.md)) |
+| [whitespace](docs/whitespace/spec.md) | yes | **[yes](docs/whitespace/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L100) (certified), and [bespoke](docs/whitespace/compiler.md) ([certified on a fragment, behaviourally](docs/whitespace/compiler.md)) |
 
 
 * **Turing-complete (TC)** states the computational-class claim;
@@ -213,7 +213,7 @@ It requires
 answer preservation for halting sources and `.outOfFuel` at every finite
 target budget for divergent sources.
 
-All eleven witnesses satisfy both obligations. With interpreter lawfulness,
+All twelve witnesses satisfy both obligations. With interpreter lawfulness,
 they give halting/result equivalence, valid outputs, and runtime-error
 freedom. See [the proof routes](docs/divergence-preservation.md).
 The URM input vector is embedded in the compiled artifact; the completeness

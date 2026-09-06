@@ -161,6 +161,20 @@ def generatedPrepared (m : Machine states symbols) (c : Config states symbols) :
   { source := programAt m c
     closure := ((declarations m).map Decl.name).map (fun n => (n, generatedRows m n)) }
 
+/-- Build the immutable declaration index once for all closure rows. -/
+def generatedPreparedShared (m : Machine states symbols) (c : Config states symbols) : Prepared :=
+  let source := programAt m c
+  let names := source.classes.map Decl.name
+  let index := Std.TreeMap.ofList (source.classes.map fun d => (d.name, d))
+  let budget := names.length + 1
+  { source
+    closure := names.map fun n =>
+      (n, (walk index budget [] ⟨[n], .var⟩ []).toOption.getD []) }
+
+/-- Sharing changes allocation cost, not the compiled artifact. -/
+@[csimp] theorem generatedPrepared_shared : @generatedPrepared = @generatedPreparedShared := by
+  rfl
+
 /-- The ordinary validator returns exactly this generated closure. -/
 theorem prepare_generated_eq (m : Machine states symbols) (c : Config states symbols) :
     prepare (programAt m c) = .ok (generatedPrepared m c) := by

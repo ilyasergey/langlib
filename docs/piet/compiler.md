@@ -3,7 +3,7 @@
 * **Status**: both compilers exist. The *bespoke* one,
   [`Langlib/Languages/Turpentine/Compile/Piet.lean`](../../Langlib/Languages/Turpentine/Compile/Piet.lean),
   is hand-written and unverified; the *derived* one,
-  [`derivedPiet`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L120),
+  [`derivedPiet`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L125),
   is correct by construction and reachable as `--to piet --tc`.
 * **Family**: StackIR (see `docs/PLAN.md`, Stage 4), shared with
   whitespace.

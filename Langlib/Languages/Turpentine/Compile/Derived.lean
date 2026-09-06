@@ -9,6 +9,7 @@ import Langlib.Computability.Brainloller.Main
 import Langlib.Computability.Unlambda.Main
 import Langlib.Computability.Ski.Main
 import Langlib.Computability.Velato.Main
+import Langlib.Computability.JavaGen.Main
 import Langlib.Languages.Turpentine.Compile.URM.Divergence
 
 /-!
@@ -89,6 +90,10 @@ def derived (tc : TuringComplete L) :
       subst prog
       exact tc.preserves_divergence P []
         (URM.compileToURM_preserves_divergence p P [] Input.empty hcu hd) fuel
+
+/-- The certified JavaGen backend composes the shared URM pass with the
+ordinary subtype evaluator's answer- and divergence-preserving compiler. -/
+def derivedJavaGen : TurpentineCompiler JavaGenLang := derived javaGenComplete
 
 /-- The first end-to-end certified compiler in the library: Turpentine into
 Whitespace, by composing `compileToURM` with `whitespaceComplete`. -/

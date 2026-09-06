@@ -7,7 +7,7 @@ is a language where everything is possible and nothing is easy, and
 turpentine dissolves tar. Full language reference:
 [docs/turpentine/spec.md](../../../docs/turpentine/spec.md).
 
-The eleven TC-derived compilers preserve halting answers and divergence,
+The twelve TC-derived compilers preserve halting answers and divergence,
 using the separately proved Turpentine-to-URM pass and each target's
 [`TuringComplete`](../../../docs/divergence-preservation.md) witness.
 `CertifiedCompilerNoIO` is the closed contract: no source input argument or
@@ -79,6 +79,10 @@ Then invoke it directly from the repository root to skip Lake's build check:
 Run `lake build turpentine` again after changing the compiler. Alternatively,
 `lake --no-build exe turpentine ...` checks freshness and refuses a stale
 build instead of recompiling it.
+
+The certified JavaGen route is available with `--to javagen --tc` and
+`--via javagen --tc`, using the shared closed URM fragment and the proved
+JavaGen completeness witness.
 
 The [JavaGen backend](../../../docs/javagen/compiler.md) accepts closed,
 nonnegative computations with scalars and fixed-size integer/Boolean arrays,

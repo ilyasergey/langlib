@@ -7,7 +7,7 @@ import Langlib.Languages.JavaGen.Parser
 The two step cases implement §4 of Grigore's paper. Every continuation
 reverses the argument comparison. Successful executions retain queries and
 inheritance paths, including the state before ground inheritance erases it.
-This generic record is not yet a certified decoder for simulated URM answers.
+`Computability/JavaGen/AnswerProof.lean` proves its URM answer decoding.
 -/
 
 namespace Langlib.JavaGen

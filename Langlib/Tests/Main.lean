@@ -45,6 +45,7 @@ import Langlib.Tests.URMThue
 import Langlib.Tests.URMSki
 import Langlib.Tests.URMUnlambda
 import Langlib.Tests.DerivedThue
+import Langlib.Tests.DerivedJavaGen
 import Langlib.Tests.Thue
 import Langlib.Tests.Whitespace
 import Langlib.Tests.Turpentine
@@ -99,6 +100,7 @@ def main : IO UInt32 := do
     , Langlib.Tests.DerivedPiet.suites
     , Langlib.Tests.DerivedSubleq.suites
     , Langlib.Tests.DerivedThue.suites
+    , Langlib.Tests.DerivedJavaGen.suites
     , Langlib.Tests.DerivedWhitespace.suites
     , Langlib.Tests.Deadfish.suites
     , Langlib.Tests.Fractran.suites

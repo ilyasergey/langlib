@@ -112,8 +112,8 @@ forward simulation, and its
 [divergence proof](../Langlib/Languages/Turpentine/Compile/URM/Divergence.lean)
 proves continuing execution independently of the answer. `derived tc`
 composes these two results with `tc.simulates` and `tc.preserves_divergence`.
-All eleven derived witnesses use that construction: Whitespace, Subleq,
-Brainfuck, FRACTRAN, Thue, Piet, Ook!, Brainloller, Unlambda, SKI and Velato.
+All twelve derived witnesses use that construction: Whitespace, Subleq,
+Brainfuck, FRACTRAN, Thue, Piet, Ook!, Brainloller, Unlambda, SKI, Velato and JavaGen.
 
 ### Why the derived contract is closed
 

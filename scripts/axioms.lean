@@ -1105,3 +1105,11 @@ open Langlib.Turpentine.Compile
 #print axioms Langlib.Turpentine.Certified.bespokeVelatoIO
 #print axioms Langlib.Turpentine.Certified.bespokeVelatoIOClosed
 #print axioms Langlib.Turpentine.Certified.bespokeVelato_agrees_derived
+
+-- JavaGen: total source realization, byte answers, and operational divergence.
+#print axioms Langlib.Computability.javaGenComplete
+#print axioms Langlib.Computability.JavaGen.CounterCompiler.urmSource_realized
+#print axioms Langlib.Computability.JavaGen.CounterCompiler.urmPrepared_answer
+#print axioms Langlib.Computability.JavaGen.CounterCompiler.urmPrepared_divergence
+#print axioms Langlib.Turpentine.Compile.derivedJavaGen
+#print axioms Langlib.Computability.JavaGen.Sweep.generatedPrepared_shared

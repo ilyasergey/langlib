@@ -1,7 +1,7 @@
 # Compiling Turpentine to Thue
 
 * **Status**: a *derived*, certified compiler exists
-  ([`derivedThue`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L114)); the
+  ([`derivedThue`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L119)); the
   bespoke one is still planned, and is the least like the others.
 * **Family**: would need its own IR (a "rewriting" IR; see
   `docs/PLAN.md`, Stage 4).

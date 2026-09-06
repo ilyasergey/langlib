@@ -1,11 +1,11 @@
 # JavaGen: design and implementation plan
 
-**Status: executable core, Java certification and experimental URM code
-generation implemented; the full TC proof remains pending.** Work started on `ilya/java-generics`,
+**Status: executable core, finite-example Java certification, total URM
+compiler and full TC proof implemented.** Work started on `ilya/java-generics`,
 branched from `master`, on 2026-09-06. The [specification](spec.md) describes
 the implemented language. This note records the remaining construction and
 proof obligations; the [computability account](computability.md) distinguishes
-proved foundations from the pending universal simulation.
+proved universal simulation from remaining Java-certification features.
 
 ## Provenance and scope
 
@@ -25,19 +25,16 @@ JavaGen exposes that computation as an ordinary LangLib language.
 | Paper component | JavaGen use |
 | --- | --- |
 | §§3–4: nominal subtyping and subtyping machines | Unary contravariant core, executable subtype proof search |
-| §5: symbol replacement and end turns | Implemented sweeping-transducer compiler and operational simulation; register bridge under proof |
+| §5: symbol replacement and end turns | Implemented sweeping-transducer compiler and operational simulation; register bridge proved |
 | §6: fluent interfaces and parser generation | Background and a possible later demonstration |
 | §7.1, Figure 8: extended Turing machines | Optional later optimization for inserting tape symbols |
 | §7.2: Simper compilation | Replace with Turpentine compilation; reuse the existing URM pass first |
 | §7.4: complexity and experiments | Motivation to measure generated size and checking costs early |
 
-Implement the construction independently and summarize it in our own
-words. Do not copy the paper, its Java listings or its example programs
-into the repository. The paper cites the author's
-[implementation page](https://rgrig.appspot.com/javats); it returned HTTP
-503 during this design pass. Inspect its availability and license before
-using any implementation artifacts. Independent mathematical implementation
-does not require importing that code. Pin the JDK and relevant Java
+Implement the construction independently; do not copy the paper's listings
+or examples. The author's [implementation page (archived)](https://web.archive.org/web/20230209091813/http://rgrig.appspot.com/javats)
+is available, but its license must be checked before reusing code.
+Pin the JDK and relevant Java
 specification sections when validating the Java exporter; a contemporary
 compiler's resource limits are not the language semantics.
 
@@ -140,7 +137,7 @@ URM program and initial registers
 ```
 
 The [universal compiler account](universal-compiler.md) records the code,
-checked lower-level simulation, experimental decoder and remaining proofs.
+checked lower-level simulation, verified decoder and full public witness.
 This reuses the paper's symbol-replacement/end-turn mechanism directly;
 a separate ordinary tape-machine adapter is no longer the first milestone.
 Turpentine integration will compose its certified URM pass with this bridge
@@ -216,11 +213,12 @@ queries never encounter ambiguous numeric heads or erase an unconstrained
 hole, and that inference itself preserves divergence. The concrete subtype
 simulation alone does not prove these properties of `evalPrepared`.
 
-**This universal answer gate remains open.** The experimental URM compiler
-now decodes its closed-query proof record by counting output-register units
-in the final control query. That count has not yet been proved equal to
-every URM answer, and it is not yet a numeric Java candidate query. Recognition
-results may land independently with their weaker statement explicit.
+**The universal answer gate is closed.** The URM compiler's byte decoder
+counts whole output-register constructor names in the final control query.
+`AnswerProof.lean` proves that count equals every halting URM answer;
+`Main.lean` assembles it with all-fuel divergence into `javaGenComplete`.
+Independent numeric Java candidate queries remain a separate open feature
+for this route; the finite answer-hole examples already support them.
 
 ### Why keep the tape-machine route before SKI?
 
@@ -271,14 +269,15 @@ modules and the standalone runner stay free of Mathlib and cslib.
 | JG0: initial design (done) | This note, project-plan integration, reviewed result-observation choice |
 | JG1: executable core (done) | Spec first; `Syntax`, `Parser`, `Semantics`, `Stability`, `Main`, language README, Lake/root-module registration, original examples and golden tests |
 | JG2: sweep construction and Java export (done) | Finite-control sweeper generation, checked lookup/initialization certificates, read/turn/halt simulation, growing-source divergence and real-Java probes |
-| JG3: URM bridge (operational proof, totality and source realization done; decoder pending) | Existing counter program to finite flow graph to sweeper; all compiler checks succeed uniformly; register-tape simulation, URM halting/divergence and retained answers proved; ordinary spaced source loads to the exact artifact; byte decoder still required |
-| JG4: certification | Forward answers, source realization, lawfulness and positive-cost divergence; public witness and derived Turpentine CLI/tests |
-| JG5: documentation and performance | Final spec/compiler/computability accounts, verified examples, status matrices and site catalogue, generated-size/fuel measurements; maintain the hand-written Minsky backend alongside the pending certified URM route |
+| JG3: URM bridge (done) | Existing counter program to finite flow graph to sweeper; all compiler checks succeed uniformly; register-tape simulation, URM halting/divergence and retained answers proved; ordinary spaced source loads to the exact artifact; exact byte decoder proved |
+| JG4: certification (done) | Forward answers, source realization, lawfulness and positive-cost divergence; public witness and derived Turpentine CLI/tests |
+| JG5: documentation and performance | Final spec/compiler/computability accounts, verified examples, status matrices and site catalogue, generated-size/fuel measurements; maintain the hand-written Minsky backend alongside the certified URM route |
 
-The next priority is JG3's textual answer decoder, followed by assembling JG4. Completed foundations include
-`LawfulProgLang`, injective unbounded numerals and an all-fuel theorem for
-one source-realizable loop; they are not a completeness witness. Do not build Simper or the fluent-interface parser generator
-as prerequisites.
+JG3 and JG4 are complete: `javaGenComplete` and `derivedJavaGen` use the
+ordinary evaluator, with proved source realization, byte-level forward answers
+and all-fuel divergence. JG5 continues with performance measurements and
+independent Java certification of universal compiled answers. Do not build
+Simper or the fluent-interface parser generator as prerequisites.
 
 The golden suite must distinguish reflexive success, contravariant reversal,
 inherited success, stuck goals, malformed/ambiguous tables, and genuine

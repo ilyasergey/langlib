@@ -35,8 +35,9 @@ See the [examples](../../Examples/JavaGen/),
 [computability account](../../../docs/javagen/computability.md) and
 [Turpentine backend](../../../docs/javagen/compiler.md). The hand-written
 backend supports closed nonnegative computations with scalars and fixed-size
-integer/Boolean arrays; its end-to-end
-certificate and the answer/divergence-preserving TC witness remain pending.
+integer/Boolean arrays; its end-to-end certificate remains pending.
+The separate URM route has a proved `javaGenComplete` witness and is available
+through `turpentine compile --to javagen --tc` and `exec --via javagen --tc`.
 
 Compile and run a Turpentine sum through JavaGen:
 

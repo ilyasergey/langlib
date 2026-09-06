@@ -337,7 +337,7 @@ The kernel-checked divergence proofs live in
 `Langlib/Computability/<Language>/Divergence.lean`. Each public
 `<Language>/Main.lean` combines that proof with the forward proof and compiler
 from `<Language>/Simulation.lean` into `<lang>Complete : TuringComplete`.
-All eleven witnesses include both obligations. The
+All twelve witnesses include both obligations. The
 [proof table](divergence-preservation.md#witness-migration) records the exact
 scope, including Brainloller’s decoded-program interface.
 

@@ -95,8 +95,8 @@ A complete language contribution consists of:
      space, an absent construct (no loops, no unbounded storage), or a
      decidable halting argument. Say which, and prove it if you can. These
      proofs are usually short and are the most fun in the library.
-   * **Open** is an acceptable answer when the question genuinely is open,
-     as for Malbolge. Say so and cite the discussion; do not guess.
+   * **Open** means the requested proof remains unfinished, as for Malbolge
+     Unshackled. Distinguish cited results from theorems checked here.
 
    A language proved Turing complete is also a language Turpentine should
    compile to, so a completeness proof and a compiler are worth writing
@@ -138,6 +138,15 @@ A complete language contribution consists of:
    preserve the entire loaded artifact, including cached paths used by the
    evaluator. JavaGen's [source proof](Langlib/Computability/JavaGen/SourceRealization.lean)
    uses this route without a loader extension.
+   A textual decoder also needs the exact rendered inheritance paths, line
+   boundaries and UTF-8 round-trip; a structured-frame count alone is not
+   enough. See JavaGen's [byte proof](Langlib/Computability/JavaGen/AnswerProof.lean).
+   For fixed string literals, rewriting via `String.ofList` and
+   `String.toList_ofList` avoids expanding the UTF-8 iterator into huge proof
+   terms during simplification.
+   Hoist immutable indexes out of generated row loops; rebuilding the whole
+   table per row can dominate execution. A proved `csimp` equality can retain
+   the simple logical definition while sharing the executable index.
 
 ## Adding a compiler from Turpentine
 

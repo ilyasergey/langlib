@@ -9,9 +9,8 @@ then to a sweeping transducer. Registers are delimited unary blocks. Each
 instruction scans the whole tape and returns to the initial direction;
 tape growth is unbounded. This is code generation, not source evaluation.
 
-The sweep-to-subtyping simulation is proved under checked lookup obligations.
-Counter-to-sweep simulation and uniform compiler success are proved;
-this module does not assemble a TuringComplete witness.
+`JavaGen.Main` assembles totality, source realization, byte-level answer
+preservation and operational divergence into the public completeness witness.
 -/
 
 namespace Langlib.Computability.JavaGen.CounterCompiler
@@ -110,13 +109,16 @@ def counterFlow (code : Code) : Flow := flatten 0 code 0 (weight code)
 def compileURM (p : Cslib.URM.Program) (inputs : List Nat) : Except String Prepared :=
   compileFlow (counterFlow (counterProgram p inputs)) (counterBound (sourceBound p inputs))
 
-/-- Find the final control query in a successful proof record, and count the
-output-register units in its tape. Letter_1 is fixed independently of program size.
-The theorem relating this decoder to arbitrary source answers is still pending. -/
+/-- Count whole constructor names before their opening angle bracket. -/
+def countAnswerLine (line : List Char) : Nat :=
+  (line.splitOn '<').count "Letter_1".toList
+
+/-- Find the final control query in a successful proof record and count its
+output-register units. Correctness on compiled runs is proved in `AnswerProof`. -/
 def decodeOutput (bytes : ByteArray) : Option Nat := do
   let text ← String.fromUTF8? bytes
-  if !text.startsWith "accepted\n" then none else do
-    let final ← (text.splitOn "\n").reverse.find? (·.startsWith "State_")
-    return (final.splitOn "Letter_1<").length - 1
+  if !"accepted\n".toList.isPrefixOf text.toList then none else do
+    let final ← (text.toList.splitOn '\n').reverse.find? ("State_".toList.isPrefixOf ·)
+    pure (countAnswerLine final)
 
 end Langlib.Computability.JavaGen.CounterCompiler
