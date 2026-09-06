@@ -152,12 +152,12 @@ def fractranBespoke : Compiler := fun src => do
 /-- A compilation target: the name accepted after `--to` and `--via`, and
 the compilers that reach it. Adding a target is one entry here.
 
-Neither compiler is guaranteed to exist. `bespoke` is hand-written and
-unverified, and accepts the whole language except where the target cannot
-host it: Thue has no hand-written backend at all, and the two Malbolges
-take only the programs that do not read input -- Malbolge itself only those
-whose output also fits in its 59049 words -- for reasons
-`docs/malbolge/compiler.md` and `docs/malbolge-unshackled/compiler.md` give. `certified` is derived from
+Neither compiler is guaranteed to exist. `bespoke` is hand-written; three
+backends have certificates for restricted fragments. Each target has its
+own restrictions: Thue and SKI have no hand-written backend, and both Malbolges
+take only programs that do not read input -- Malbolge itself only those
+whose output also fits in its 59049 words. See each target's compiler page,
+including `docs/malbolge/compiler.md`. `certified` is derived from
 the target's Turing-completeness proof and accepts only the I/O-free
 fragment; a language whose completeness is still open has none. -/
 structure Backend where

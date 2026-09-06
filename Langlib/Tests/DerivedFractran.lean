@@ -18,7 +18,7 @@ open Langlib.Turpentine.Compile (derivedFractran)
 def runCertified (src : String) (_input : Input) (fuel : Nat) :
     Except String RunResult := do
   let prog ← derivedFractran.compileSource src
-  let result := ProgLang.run (L := FractranLang) prog derivedFractran.encodeInput fuel
+  let result := ProgLang.run (L := FractranLang) prog (Input.ofString "") fuel
   match derivedFractran.decodeOutput result.output with
   | none => throw "the compiled program's final power of two did not decode"
   | some n => return { output := (toString n).toUTF8, exit := result.exit }

@@ -1,5 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.Befunge93
+import Langlib.Computability.Befunge93.Main
 
 /-!
 Tests for the explicitly bounded-stack, no-input, byte-celled Befunge-93

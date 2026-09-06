@@ -1,6 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.Subleq
-
+import Langlib.Computability.Subleq.Main
 /-!
 Differential tests for the certified URM to subleq compiler.
 
@@ -15,7 +14,7 @@ agree, and the expected output pins the agreed value as well.
 The compiled output is huge by design: the answer leaves the machine in
 unary, one byte per unit, and `J` costs nine subleq instructions. The
 programs are kept tiny and the fuel generous for that reason. See
-`docs/computability-subleq.md`.
+`docs/subleq/computability.md`.
 
 The notation, one item per line, `#` to end of line is a comment:
 

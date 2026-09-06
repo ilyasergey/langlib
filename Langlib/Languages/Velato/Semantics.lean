@@ -119,7 +119,7 @@ def Value.coerce (ty : Ty) (v : Value) : Value :=
 A Velato variable is a MIDI note, so the store has 128 cells and not one
 more. That is not an implementation limit to be raised later: it is the
 language, and it is what forces the Turing-completeness argument in
-`Langlib/Computability/Velato.lean` to keep its unbounded state *inside* a
+`Langlib/Computability/Velato/Main.lean` to keep its unbounded state *inside* a
 cell rather than spread across cells. -/
 
 /-- How many variables a Velato program can have: one per MIDI pitch. -/

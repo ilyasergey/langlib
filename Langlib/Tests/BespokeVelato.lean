@@ -1,16 +1,16 @@
 import Langlib.Common.TestHarness
-import Langlib.Languages.Turpentine.Certified.BespokeVelato
+import Langlib.Languages.Turpentine.Compile.Certified.BespokeVelato
 import Langlib.Languages.Velato.Semantics
 
 /-!
-Tests for `Langlib.Turpentine.Certified.bespokeVelato` and `bespokeVelatoIO`:
+Tests for `Langlib.Turpentine.Certified.bespokeVelatoIO`:
 the hand-written Turpentine-to-Velato backend, restricted to the fragment
-`Langlib/Languages/Turpentine/Certified/BespokeVelato.lean` proves it correct
+`Langlib/Languages/Turpentine/Compile/Certified/BespokeVelato.lean` proves it correct
 on.
 
 Five suites.
 
-* **bespoke pipeline** compiles Turpentine source through `bespokeVelato`,
+* **bespoke pipeline** compiles Turpentine source through `bespokeVelatoIO`,
   renders the result to Velato note names, parses that text back and runs
   it. The expected output is whatever the program printed, a newline, and
   the answer in decimal: the compiler appends `println(""); print(answer);`
@@ -24,13 +24,13 @@ Five suites.
   compiled programs are run and their decoded answers compared. The derived
   compiler keeps its whole register file in one Gödel-numbered variable, so
   its programs are kept tiny.
-* **out of fragment** pins the rejections. `bespokeVelato.compile` returns
+* **out of fragment** pins the rejections. `bespokeVelatoIO.compile` returns
   `Except.error` for everything the proof does not cover, even where the
   unrestricted backend behind `lake exe turpentine` would compile it.
 * **the behavioural instance, executed**: compile with `bespokeVelatoIO`,
   run the source and the target on the *same* input stream, and insist the
   two event lists are identical. Several cases read input, which is what
-  distinguishes this instance from the whitespace one: `encodeInput` is the
+  distinguishes this instance from the whitespace one: `targetInput` is the
   identity here, and the input events have to match too.
 -/
 
@@ -45,7 +45,7 @@ open Langlib.Turpentine.Compile (derivedVelato)
 names, then parse and run that text. Going through the text exercises the
 encoder and Velato's parser as well. -/
 def run (src : String) (input : Input) (fuel : Nat) : Except String RunResult := do
-  let prog ← bespokeVelato.compileSource src
+  let prog ← bespokeVelatoIO.compileSource src
   Langlib.Velato.run (Langlib.Turpentine.Compile.Velato.renderProg prog) input fuel
 
 /-- Run the source both ways and insist they agree: through the bespoke
@@ -58,7 +58,7 @@ def runBoth (src : String) (input : Input) (fuel : Nat) : Except String RunResul
     { p with body := .seq p.body (.seq (.printStr "" true)
         (.printExpr (.var "answer") false)) }
   let refRes := Langlib.Turpentine.evalProgram refProg input fuel
-  let vel ← bespokeVelato.compile p
+  let vel ← bespokeVelatoIO.compile p
   let velRes := Langlib.Velato.evalProg vel input fuel
   match refRes.exit, velRes.exit with
   | .halted, .halted =>
@@ -73,7 +73,7 @@ def runBoth (src : String) (input : Input) (fuel : Nat) : Except String RunResul
 /-- The behavioural theorem, executed: compile with the *behaviourally*
 verified compiler, run source and target on the same stream, and insist that
 the events they performed are the same list, in the same order, input
-events included. `bespokeVelatoIO.encodeTrace` and `encodeInput` are both
+events included. `bespokeVelatoIO.encodeTrace` and `targetInput` are both
 the identity, so this is exactly what the instance claims, run rather than
 proved. -/
 def runTrace (src : String) (input : Input) (fuel : Nat) : Except String RunResult := do
@@ -81,8 +81,8 @@ def runTrace (src : String) (input : Input) (fuel : Nat) : Except String RunResu
   let _ ← (Langlib.Turpentine.checkProgram p).mapError ("type error: " ++ ·)
   let vel ← bespokeVelatoIO.compile p
   let srcTrace := Langlib.Turpentine.evalTrace (answerProgram p) input fuel
-  let tgtTrace := TraceLang.trace (L := VelatoLang) vel (bespokeVelatoIO.encodeInput input) fuel
-  let r := ProgLang.run (L := VelatoLang) vel (bespokeVelatoIO.encodeInput input) fuel
+  let tgtTrace := TraceLang.trace (L := VelatoLang) vel input fuel
+  let r := ProgLang.run (L := VelatoLang) vel input fuel
   match r.exit with
   | .halted =>
     if srcTrace == bespokeVelatoIO.encodeTrace tgtTrace then
@@ -97,13 +97,13 @@ the decoded answers: `bespokeVelato_agrees_derived`, executed. -/
 def runAgree (src : String) (_input : Input) (fuel : Nat) : Except String RunResult := do
   let p ← Langlib.Turpentine.parse src
   let _ ← (Langlib.Turpentine.checkProgram p).mapError ("type error: " ++ ·)
-  let v₁ ← bespokeVelato.compile p
+  let v₁ ← bespokeVelatoIO.compile p
   let v₂ ← derivedVelato.compile p
-  let r₁ := ProgLang.run (L := VelatoLang) v₁ bespokeVelato.encodeInput fuel
-  let r₂ := ProgLang.run (L := VelatoLang) v₂ derivedVelato.encodeInput fuel
+  let r₁ := ProgLang.run (L := VelatoLang) v₁ (Input.ofString "") fuel
+  let r₂ := ProgLang.run (L := VelatoLang) v₂ (Input.ofString "") fuel
   match r₁.exit, r₂.exit with
   | .halted, .halted =>
-    match bespokeVelato.decodeOutput r₁.output, derivedVelato.decodeOutput r₂.output with
+    match bespokeVelatoIO.decodeOutput r₁.output, derivedVelato.decodeOutput r₂.output with
     | some a, some b =>
       if a == b then return { output := (toString a).toUTF8, exit := .halted }
       else return { exit := .error s!"disagreement: bespoke {a}, derived {b}" }

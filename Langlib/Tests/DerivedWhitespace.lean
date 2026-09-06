@@ -352,7 +352,7 @@ re-rendered in decimal before comparison. -/
 def runSubleq (src : String) (_input : Input) (fuel : Nat) : Except String RunResult := do
   let prog ← Langlib.Turpentine.Compile.derivedSubleq.compileSource src
   let r := Langlib.Common.ProgLang.run (L := Langlib.Computability.SubleqLang) prog
-    Langlib.Turpentine.Compile.derivedSubleq.encodeInput fuel
+    (Input.ofString "") fuel
   match r.exit, Langlib.Turpentine.Compile.derivedSubleq.decodeOutput r.output with
   | .halted, some k => return { r with output := (toString k).toUTF8 }
   | .halted, none => return { r with exit := .error "output did not decode to a number" }

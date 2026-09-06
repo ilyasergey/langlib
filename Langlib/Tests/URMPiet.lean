@@ -1,6 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.Piet
-
+import Langlib.Computability.Piet.Main
 /-!
 Differential tests for both Piet lowerers in
 `Langlib.Computability.URMPiet`.  The proved straight-corridor fragment

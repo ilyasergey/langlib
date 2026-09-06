@@ -21,7 +21,7 @@ the shape of everything below.
 
 Malbolge has 59049 words of 59049 values, shared by code and data. That is
 a finite state space, which is why the language is not Turing complete —
-`Langlib/Computability/Malbolge.lean` proves it — and it has a direct
+`Langlib/Computability/Malbolge/Main.lean` proves it — and it has a direct
 consequence for compilation: **no total translation from a Turing-complete
 source language into Malbolge can exist.** Any backend accepts a fragment,
 and the fragment is bounded by Malbolge's storage rather than by our effort
@@ -436,8 +436,8 @@ Malbolge quine in 2012. Everything here is written from scratch. See
 
 Settled and negative: 59049 words of 59049 values is finite, so the
 halting problem is decidable and Malbolge is not Turing complete
-(`Langlib/Computability/Malbolge.lean`, and
-[docs/computability-malbolge.md](../computability-malbolge.md)).
+(`Langlib/Computability/Malbolge/Main.lean`, and
+[docs/malbolge/computability.md](computability.md)).
 
 The bound is lifted by Lou Scheffer's Malbolge-T, in which a program may
 re-read its own output, and by Ørjan Johansen's Malbolge Unshackled

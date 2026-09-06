@@ -15,7 +15,7 @@ lake exe turpentine exec    --via velato prog.turp                    # compile 
   input included.
 * **certified** — [`derivedVelato`](../../Langlib/Languages/Turpentine/Compile/Derived.lean),
   correct by construction, obtained from
-  [Velato's completeness proof](../computability-velato.md) with no new
+  [Velato's completeness proof](computability.md) with no new
   proof written, and enormous.
 
 ## The bespoke backend
@@ -123,7 +123,7 @@ is outside the verified fragment below: the theorem would be false.
 | `assert` | refused: Velato has no way to abort |
 | everything else | accepted |
 
-Refusing by name is deliberate. `CertifiedCompiler`'s doc comment asks that
+Refusing by name is deliberate. `CertifiedCompilerNoIO`'s doc comment asks that
 the fragment be part of the data rather than prose, and an error message
 naming the construct is how a compiler says what it does not do.
 
@@ -182,7 +182,7 @@ and Velato spends one note per digit. `sumsq.turp` comes out at:
 | **velato** | **509 kB** |
 | brainfuck | 1.2 MB |
 
-[docs/computability-velato.md](../computability-velato.md) explains where
+[docs/velato/computability.md](computability.md) explains where
 that goes.
 
 ## A program, end to end: Turpentine in, music out
@@ -351,20 +351,28 @@ keeps its rhythm — it just has to keep its MIDI file to do so.
 ## Verification status
 
 The bespoke backend is **verified on a fragment**, and behaviourally:
-[`Langlib/Languages/Turpentine/Certified/BespokeVelato.lean`](../../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean)
+[`Langlib/Languages/Turpentine/Compile/Certified/BespokeVelato.lean`](../../Langlib/Languages/Turpentine/Compile/Certified/BespokeVelato.lean)
 gives two inhabitants of the library's correctness interfaces for it.
 
-* [`bespokeVelato`](../../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2015)
-  is a `TurpentineCompiler VelatoLang`, next to `derivedVelato`, so
-  [`agree`](../../Langlib/Languages/Turpentine/Compile/Derived.lean) applies
-  and "the derived compiler is an oracle for the hand-written one" is a
-  corollary ([`bespokeVelato_agrees_derived`](../../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2053)).
-* [`bespokeVelatoIO`](../../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032)
-  is an `IOCertifiedCompiler`, with `encodeInput` **and** `encodeTrace` the
-  identity: the compiled program runs on the source's own input stream and
-  performs the source's events, reads included, byte for byte and in order.
-  It is the first behaviourally verified backend in the library whose
-  fragment reads.
+* [`bespokeVelatoIO`](../../Langlib/Languages/Turpentine/Compile/Certified/BespokeVelato.lean)
+  is an `CertifiedCompiler`, with `targetInput` and `encodeTrace` both
+  identity. It preserves answers, completed traces and divergence on every
+  NUL-free source stream, including reads. It is the first certified backend
+  in the library whose fragment reads.
+* `bespokeVelatoIOClosed` explicitly fixes the source stream to empty and
+  forgets traces, yielding a `CertifiedCompilerNoIO`. This closed specialization
+  makes no claim about any other input stream. The
+  [`bespokeVelato_agrees_derived`](../../Langlib/Languages/Turpentine/Compile/Certified/BespokeVelato.lean)
+  theorem compares the bespoke and derived answers at empty input on their
+  shared accepted programs.
+
+The I/O certificate's halting and divergence predicates both restrict input
+to NUL-free streams, because the backend cannot distinguish NUL from EOF.
+[The divergence proof](../../Langlib/Languages/Turpentine/Compile/Certified/Velato/Divergence.lean)
+uses target fuel induction and source loop inversions. Stable completed
+prefixes align source and target states; every recursive loop test consumes
+fuel. `preserves_divergence` excludes target halts and errors at every finite
+budget. Matching infinite I/O prefixes remains a separate property.
 
 ### The fragment is a fragment of Turpentine
 
@@ -374,7 +382,7 @@ Velato that goes missing; Velato itself is covered whole. The interpreter in
 [`Langlib/Languages/Velato/Semantics.lean`](../../Langlib/Languages/Velato/Semantics.lean)
 implements the entire language, and Velato's Turing completeness is proved
 outright, on all of it, by
-[`velatoComplete`](../../Langlib/Computability/Velato.lean#L745). Nothing in
+[`velatoComplete`](../../Langlib/Computability/Velato/Main.lean#L43). Nothing in
 this directory is a partial account of the target.
 
 What narrows is which Turpentine programs the correctness theorem talks
@@ -382,17 +390,20 @@ about, and it narrows in four layers that are easy to conflate:
 
 | layer | narrowed by | what it excludes |
 | --- | --- | --- |
-| what the backend accepts | Velato's expressiveness | arrays, `readInt`, `assert`; see [What is refused](#what-is-refused-and-why) |
+| what the backend accepts | the current translation and target primitives | arrays, `readInt`, `assert`; see [What is refused](#what-is-refused-and-why) |
 | what the proof covers | our proof effort so far | additionally `/`, `%`, initialisers, duplicate names, and programs with no `answer : int` |
 | what the proof cannot cover | a real disagreement | `printByte`, where the compiled program and the source disagree above 127 |
 | what the specification assumes | Velato's `Input` | streams containing a NUL byte |
 
-Only the second layer is about effort rather than about the languages, and
-only it will move. The first will not: Velato has no arrays and no way to
-fail, so no amount of proving will let `a[i]` or `assert` through. The
-third and fourth are places where source and target genuinely disagree,
-recorded rather than papered over; widening the fragment to admit them
-would make the theorem false.
+The first two layers require different work: accepting arrays or `readInt`
+needs additional translation code, while widening the certified fragment
+needs proofs about code already generated. The
+[completeness proof](computability.md) already encodes an unbounded register
+file in one integer, so the absence of primitive arrays is not a storage
+bound. Runtime errors need an explicit representation because Velato has no
+`assert` trap. The third and fourth rows are observable disagreements;
+widening the theorem to admit those cases without changing the translation
+or its input/output contract would make it false.
 
 A program in the fragment is compiled by exactly the same code generator
 that compiles everything else. `bespokeCompile` is `checkFragment` followed
@@ -403,7 +414,7 @@ checked against `derivedVelato` and the reference interpreter by the tests
 below; it is simply not proved.
 
 The proof is about the code generator that ships, gated by a fragment
-check. What `bespokeVelato.compile` accepts:
+check. What `bespokeVelatoIO.compile` accepts:
 
 | | in the fragment |
 | --- | --- |

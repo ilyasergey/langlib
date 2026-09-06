@@ -8,7 +8,7 @@ no rule matches, so a completed run is a fixed point of more fuel. The
 random strategy is no obstacle: the generator state lives in `MState` and
 the run is a deterministic function of the seed. Discharges thue's
 `Langlib.Common.LawfulProgLang` instance in
-`Langlib/Computability/Thue.lean`.
+`Langlib/Computability/Thue/Simulation.lean`.
 -/
 
 namespace Langlib.Thue

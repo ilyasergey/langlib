@@ -12,7 +12,7 @@ fact at once.
 
 These lemmas discharge subleq's `Langlib.Common.LawfulProgLang` and
 `LawfulTraceLang` instances, registered next to `ProgLang SubleqLang` in
-`Langlib/Computability/Subleq.lean`. The classes live in
+`Langlib/Computability/Subleq/Simulation.lean`. The classes live in
 `Langlib/Common/Compilation.lean`; this file needs only the semantics.
 -/
 

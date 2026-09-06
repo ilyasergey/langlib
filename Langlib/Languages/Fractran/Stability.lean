@@ -6,7 +6,7 @@ import Langlib.Languages.Fractran.Semantics
 One unit of fuel per multiplication, halting only when no fraction applies,
 so a completed run is a fixed point of more fuel. Discharges FRACTRAN's
 `Langlib.Common.LawfulProgLang` (and, via `TraceLang.ofInputFree`, its
-`LawfulTraceLang`) instance in `Langlib/Computability/Fractran.lean`.
+`LawfulTraceLang`) instance in `Langlib/Computability/Fractran/Simulation.lean`.
 -/
 
 namespace Langlib.Fractran

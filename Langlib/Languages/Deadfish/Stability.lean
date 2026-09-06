@@ -6,7 +6,7 @@ import Langlib.Languages.Deadfish.Semantics
 One unit of fuel per command, halting only at the end of the program, so a
 completed run is a fixed point of more fuel. Discharges deadfish's
 `Langlib.Common.LawfulProgLang` instance in
-`Langlib/Computability/Deadfish.lean`.
+`Langlib/Computability/Deadfish/Main.lean`.
 -/
 
 namespace Langlib.Deadfish

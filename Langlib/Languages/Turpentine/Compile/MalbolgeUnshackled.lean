@@ -12,7 +12,7 @@ neither. An instruction is `(mem[c] + c) mod 94`, so a cell's meaning
 depends on its address; and after the instruction runs the cell is replaced
 through `xlat2`, so it means something else the second time control reaches
 it. `docs/malbolge-unshackled/compiler.md` states both as theorems, and
-`Langlib/Computability/MalbolgeUnshackled.lean` proves them.
+`Langlib/Computability/MalbolgeUnshackled/Main.lean` proves them.
 
 This file is the first half of a backend: **an assembler that solves the
 placement problem, and a code generator that uses it for the fragment where

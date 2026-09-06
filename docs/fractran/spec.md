@@ -2,13 +2,25 @@
 
 * **Author**: John H. Conway
 * **Year**: 1987
-* **Canonical source**: J. H. Conway, "FRACTRAN: A simple universal
-  programming language for arithmetic", in T. M. Cover and B. Gopinath
-  (eds.), *Open Problems in Communication and Computation*, Springer, 1987,
-  pp. 4-26. Community reference: https://esolangs.org/wiki/Fractran;
-  Wikipedia: https://en.wikipedia.org/wiki/FRACTRAN. 
-* **In LangLib**: `Langlib/Languages/Fractran/`, runner `lake exe fractran`,
-  examples in `Langlib/Examples/Fractran/`
+* **Canonical sources**:
+  - J. H. Conway, "FRACTRAN: A simple universal programming language for
+    arithmetic", in T. M. Cover and B. Gopinath (eds.), *Open Problems in
+    Communication and Computation*, Springer, 1987, pp. 4-26;
+  - the community reference, https://esolangs.org/wiki/Fractran; and
+  - Wikipedia, https://en.wikipedia.org/wiki/FRACTRAN.
+* **In LangLib**:
+  - `Langlib/Languages/Fractran/`,
+  - runner `lake exe fractran`,
+  - [examples](../../Langlib/Examples/Fractran/),
+  - tests in [`Langlib/Tests/Fractran.lean`](../../Langlib/Tests/Fractran.lean),
+  - Turing completeness in [`Langlib/Computability/Fractran/Main.lean`](../../Langlib/Computability/Fractran/Main.lean) and [docs/fractran/computability.md](computability.md), and
+  - a hand-written Turpentine backend in [`Langlib/Languages/Turpentine/Compile/Fractran.lean`](../../Langlib/Languages/Turpentine/Compile/Fractran.lean), plus a certified one derived from the completeness proof ([docs/fractran/compiler.md](compiler.md))
+
+[`fractranComplete`](../../Langlib/Computability/Fractran/Main.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Langlib/Computability/Fractran/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
 
 ## History
 

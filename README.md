@@ -83,59 +83,42 @@ status matrix, including compilers):
 
 | Language | Turing-complete (TC) | TC claim mechanised | Turpentine compiler |
 |----------|--------------------------|------------------------------|---------------------|
-| [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L1276)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L122) (certified), and [bespoke](docs/brainfuck/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317), trusted) |
-| [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1147)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L114) (certified), and [bespoke](docs/whitespace/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530), [certified on a fragment, behaviourally](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3790)) |
-| [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1233)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L118) (certified), and [bespoke](docs/subleq/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125), [certified on a fragment](Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639)) |
-| [fractran](docs/fractran/spec.md) | yes | **[yes](Langlib/Computability/Fractran.lean#L4486)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L127) (certified), and [bespoke](docs/fractran/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Fractran.lean), trusted) |
-| [piet](docs/piet/spec.md) | yes | **[yes](Langlib/Computability/Piet.lean#L3998)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L139) (certified), and [bespoke](docs/piet/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Piet.lean), trusted) |
-| [thue](docs/thue/spec.md) | yes | **[yes](Langlib/Computability/Thue.lean#L4032)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L133) (certified); [bespoke planned](docs/thue/compiler.md) |
-| [ook](docs/ook/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Ook.lean#L545)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L145) (certified), and [bespoke](docs/ook/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Ook.lean#L49), trusted) |
-| [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Brainloller.lean#L334)**, bar the [pixel walk](docs/brainloller/compiler.md) | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L150) (certified), and [bespoke](docs/brainloller/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Brainloller.lean#L57), trusted) |
-| [befunge93](docs/befunge93/spec.md) | [no with byte cells, yes with ours](docs/befunge93/spec.md#computational-class-and-why-our-deviations-matter) | **[yes](Langlib/Computability/Befunge93.lean#L377)**, for the byte core | [none: 2000 cells](docs/befunge93/compiler.md) |
-| [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[yes](Langlib/Computability/Malbolge.lean#L755)** | [bespoke](docs/malbolge/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Malbolge.lean), trusted, input-free programs whose output fits); no derived one ever — not Turing complete |
-| [deadfish](docs/deadfish/spec.md) | no, every program halts | **[yes](Langlib/Computability/Deadfish.lean#L99)** | [planned, output only](docs/deadfish/compiler.md) |
-| [malbolge-unshackled](docs/malbolge-unshackled/spec.md) | yes | open | [bespoke](docs/malbolge-unshackled/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean), trusted, input-free fragment); no derived one while the TC claim is open |
-| [unlambda](docs/unlambda/spec.md) | yes | **[yes](Langlib/Computability/Unlambda.lean#L1725)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L156) (certified), and [bespoke](docs/unlambda/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Unlambda.lean#L965), trusted) |
-| [ski](docs/ski/spec.md) | yes | **[yes](Langlib/Computability/Ski.lean#L1019)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L163) (certified); [bespoke: compile to unlambda instead](docs/ski/compiler.md) |
-| [velato](docs/velato/spec.md) | [yes, with unbounded ints](docs/velato/spec.md#computational-class) | **[yes](Langlib/Computability/Velato.lean#L745)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L178) (certified), and [bespoke](docs/velato/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Velato.lean#L360), [certified on a fragment, behaviourally, input included](Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032)) |
+| [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](docs/brainfuck/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L103) (certified), and [bespoke](docs/brainfuck/compiler.md) (trusted) |
+| [whitespace](docs/whitespace/spec.md) | yes | **[yes](docs/whitespace/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L95) (certified), and [bespoke](docs/whitespace/compiler.md) ([certified on a fragment, behaviourally](docs/whitespace/compiler.md)) |
+| [subleq](docs/subleq/spec.md) | yes | **[yes](docs/subleq/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L99) (certified), and [bespoke](docs/subleq/compiler.md) ([certified on a fragment](docs/subleq/compiler.md)) |
+| [fractran](docs/fractran/spec.md) | yes | **[yes](docs/fractran/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L108) (certified), and [bespoke](docs/fractran/compiler.md) (trusted) |
+| [piet](docs/piet/spec.md) | yes | **[yes](docs/piet/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L120) (certified), and [bespoke](docs/piet/compiler.md) (trusted) |
+| [thue](docs/thue/spec.md) | yes | **[yes](docs/thue/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L114) (certified); [bespoke planned](docs/thue/compiler.md) |
+| [ook](docs/ook/spec.md) | yes, via brainfuck | **[yes](docs/ook/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L126) (certified), and [bespoke](docs/ook/compiler.md) (trusted) |
+| [brainloller](docs/brainloller/spec.md) | yes, via brainfuck | **[yes](docs/brainloller/computability.md)**, bar the [pixel walk](docs/brainloller/computability.md) | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L131) (certified), and [bespoke](docs/brainloller/compiler.md) (trusted) |
+| [befunge93](docs/befunge93/spec.md) | [no with byte cells, yes with ours](docs/befunge93/spec.md#computational-class-and-why-our-deviations-matter) | **[yes](docs/befunge93/computability.md)**, for the byte core | [none: 2000 cells](docs/befunge93/compiler.md) |
+| [malbolge](docs/malbolge/spec.md) | no, 59049 words | **[yes](docs/malbolge/computability.md)** | [bespoke](docs/malbolge/compiler.md) (trusted, input-free programs whose output fits); no derived one ever — not Turing complete |
+| [deadfish](docs/deadfish/spec.md) | no, every program halts | **[yes](docs/deadfish/computability.md)** | [planned, output only](docs/deadfish/compiler.md) |
+| [malbolge-unshackled](docs/malbolge-unshackled/spec.md) | yes | [open](docs/malbolge-unshackled/computability.md) | [bespoke](docs/malbolge-unshackled/compiler.md) (trusted, input-free fragment); no derived one while the TC claim is open |
+| [unlambda](docs/unlambda/spec.md) | yes | **[yes](docs/unlambda/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L137) (certified), and [bespoke](docs/unlambda/compiler.md) (trusted) |
+| [ski](docs/ski/spec.md) | yes | **[yes](docs/ski/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L144) (certified); [bespoke: compile to unlambda instead](docs/ski/compiler.md) |
+| [velato](docs/velato/spec.md) | [yes, with unbounded ints](docs/velato/spec.md#computational-class) | **[yes](docs/velato/computability.md)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L158) (certified), and [bespoke](docs/velato/compiler.md) ([certified on a fragment, behaviourally, input included](docs/velato/compiler.md)) |
 | [Turpentine](docs/turpentine/spec.md) | yes | open | [(it is the source)](docs/turpentine/spec.md) |
 
 
-The two middle columns answer different questions.
-**Turing-complete (TC)** is the answer itself, as the literature or our own spec page gives it. **TC claim mechanised** is whether that answer is backed
-by a machine-checked theorem in this repository, and links it.
+* **Turing-complete (TC)** states the computational-class claim;
+  **TC claim mechanised** says whether it has been proved here. Its links
+  lead to the language's `computability.md`; **open** means no proof yet.
+* **Derived** compilers come from completeness proofs and are certified.
+  They accept an I/O-free fragment whose result is stored in `answer`;
+  their generated programs are large.
+* **Bespoke** compilers are hand-written for each target, with compact output
+  and broader language support. Their links lead to `compiler.md`, which
+  describes the supported fragment, implementation and proofs.
+* **Trusted** means tested but unproved. **Certified on a fragment** means
+  correctness is proved for part of the accepted language.
+  **Behaviourally** additionally means preserving completed I/O traces;
+  **input included** means the proof covers runtime reads too.
+* **Planned** means the compiler is not implemented; **none** means no
+  backend is planned for that target.
 
-The last column names the Turpentine compilers a target has: each name
-links to that backend's compiler notes in `docs/`, and the parenthesis after
-it links the sources — the compiler itself, and its correctness proof where
-there is one. A **derived** one comes out of that language's completeness
-proof, so it is *(certified)* already, but it does not support I/O: it
-routes everything through a register machine, which has no way to read or
-write, so the program takes no input and leaves its result in `answer`.
-Its output is also enormous. A **bespoke** one is hand-written for that
-target: it emits compact, readable code and supports the whole language.
-*(trusted)* means tested rather than proved; *(certified on a fragment)*
-means a correctness theorem covers part of what the compiler accepts, and
-links it. Whitespace's and Velato's say more than the others: on their
-fragments the compiled program performs the source's I/O events, in order,
-not merely its answer, and Velato's fragment reads input too. [Verified compilers](#verified-compilers) below explains why the library
-keeps both kinds.
-
-The two Malbolges have a bespoke compiler and no derived one, for opposite
-reasons. Malbolge Unshackled's completeness claim is still `open`, so there
-is no witness to derive a compiler from *yet*; its backend compiles every
-program whose control flow can be settled before the target runs — loops,
-arrays and arithmetic included — but not one that reads input, because
-reading needs cells that survive re-execution, which is the completeness
-work itself. Malbolge's derived compiler will never exist — the language is
-proved bounded, so there is no witness to be had — and its bespoke backend
-is accordingly bounded by the machine rather than by us: it accepts every
-input-free program whose output fits in the 59049 words, and refuses
-anything larger with the count of bytes by which it does not fit.
-
-
-The full matrix, with per-stage columns and links to every theorem, is in
-[docs/README.md](docs/README.md).
+See [the full status matrix](docs/README.md) for per-stage details and
+[verified compilers](#verified-compilers) below for the correctness contracts.
 
 ## What a language is
 
@@ -143,7 +126,7 @@ One definition carries the whole library: running a program, proving a
 compiler correct, and claiming a language is or is not Turing complete are
 all stated against it.
 
-**[`ProgLang L`](Langlib/Common/Compilation.lean#L93)** is what every
+**[`ProgLang L`](Langlib/Common/Compilation.lean#L96)** is what every
 language here supplies.
 
 ```lean
@@ -156,40 +139,29 @@ class ProgLang (L : Type) where
 `L` is an empty tag type that *names* the language rather than being its
 program type, so `Befunge93` and `BoundedByteBefunge93` can be two
 languages with two different answers.
-[`Input` and `RunResult`](Langlib/Common/Io.lean#L79) are the shared
+[`Input`](Langlib/Common/Io.lean#L79) and
+[`RunResult`](Langlib/Common/Io.lean#L329) are the shared
 execution model: a byte stream with a read cursor, and the bytes a run
 emitted together with how it ended. The `Nat` is **fuel**, a step budget,
 which is what makes `run` a total function even of a program that never
 terminates — it returns `outOfFuel` instead of diverging.
 
-**[`LawfulProgLang L`](Langlib/Common/Compilation.lean#L122)** is the one
-law the library asks of that shape: a completed run is a fixed point of
-more fuel. It looks like bookkeeping and is anything but. Every correctness
-statement here concludes with "for some fuel bound the compiled program
-halts with the right answer", and against an interpreter free to treat fuel
-as an *input channel* — halt with the right answer exactly at fuels that
-encode the answer, and at no others — that sentence is satisfiable by a
-language whose programs compute nothing. `halted_stable` pins fuel to its
-budget role, which is why the correctness structures and `TuringComplete`
-require the class rather than merely benefit from it, and why the
-`correct_stable` corollaries can read every "some fuel works" as "every
-fuel from some point on works" — the form a runner that picks its own
-bound actually needs. Every language in the library carries the instance,
-proved by one induction over its interpreter in
-`Langlib/Languages/<Lang>/Stability.lean` (the bounded Befunge-93 core's
-proof lives next to that model instead).
-
-`ProgLang` is a class, not bundled data, because there is only ever one way
-to run a given language. Both live in
-[`Langlib/Common/Compilation.lean`](Langlib/Common/Compilation.lean)
-alongside the compiler-correctness definitions, which need them.
+**[`LawfulProgLang L`](Langlib/Common/Compilation.lean#L125)** requires
+that a completed run return the same result with any larger fuel budget.
+This keeps fuel a step budget: once a correctness proof establishes a
+result, every sufficiently large run produces it. All language instances
+satisfy this law, which compiler certificates and `TuringComplete` require.
+Both classes live in
+[`Langlib/Common/Compilation.lean`](Langlib/Common/Compilation.lean).
 
 ## Computability
 
 Esoteric-language folklore is full of claims nobody has checked. Every
 language here gets a claim about its computational class and a
 machine-checked proof of it. Per-language status is in the
-[status matrix](docs/README.md), and every result is audited by
+[status matrix](docs/README.md), with detailed
+[computability accounts in each language’s documentation](docs/README.md#computability-accounts).
+Every result is audited by
 [`scripts/axioms.lean`](scripts/axioms.lean), because a proof resting on
 `sorry` type-checks exactly like a real one.
 
@@ -214,58 +186,53 @@ register 0.
 [cslib-step]: https://github.com/leanprover/cslib/blob/3951377e5a3f5772737f11cd62bc5bb6a72f95d1/Cslib/Computability/URM/Execution.lean#L59
 [cslib-halts]: https://github.com/leanprover/cslib/blob/3951377e5a3f5772737f11cd62bc5bb6a72f95d1/Cslib/Computability/URM/Execution.lean#L186
 
-[Our additions](Langlib/Computability/URM.lean) are an *executable*
-interpreter — [`step`](Langlib/Computability/URM.lean#L61) and
-[`run`](Langlib/Computability/URM.lean#L72) — which cslib's relational
+[Our additions](Langlib/Computability/Common/URM.lean) are an *executable*
+interpreter — [`step`](Langlib/Computability/Common/URM.lean#L61) and
+[`run`](Langlib/Computability/Common/URM.lean#L72) — which cslib's relational
 semantics deliberately is not, plus the lemmas
-([`step_eq_some_iff_Step`](Langlib/Computability/URM.lean#L111),
-[`steps_run`](Langlib/Computability/URM.lean#L142),
-[`haltsWithResult_of_haltsIn`](Langlib/Computability/URM.lean#L188)) tying
+([`step_eq_some_iff_Step`](Langlib/Computability/Common/URM.lean#L111),
+[`steps_run`](Langlib/Computability/Common/URM.lean#L142),
+[`haltsWithResult_of_haltsIn`](Langlib/Computability/Common/URM.lean#L188)) tying
 the two together, so differential tests can run a URM program while every
 theorem is still stated against cslib's relation.
 
-### The three claims
+### The computability claims
 
-All three live in
+These live in
 [`Langlib/Common/Computability.lean`](Langlib/Common/Computability.lean),
 shared infrastructure rather than per-language files, so a claim means the
 same thing for every language.
 
-**[`TuringComplete L`](Langlib/Common/Computability.lean#L114)** is the
-positive claim, and it is a *witness* rather than a proposition: a compiler
-from URM programs into `L`, an encoding of the machine's input, a decoding
-of its answer, and a proof that a compiled program halts with the right
-answer whenever the machine does. Writing that term down is what "we proved
-it complete" means here — half of it, anyway. The other half is that the
-witness's `compile` is a plain `def` that `#eval` can run: a witness
-conjured with `Classical.choice` would type-check for a language that
-computes nothing, and the axiom audit would not object, since choice is in
-the allowed set. What rules that out is that a noncomputable `compile` must
-say `noncomputable` in the source, and the differential tests execute
-compiled programs, which no such witness survives. The
-[docstring](Langlib/Common/Computability.lean#L88) spells the convention
-out.
-[`computes_of_turingComplete`](Langlib/Common/Computability.lean#L183)
-translates it into cslib's own vocabulary: such an `L` computes every
-URM-computable partial function, wherever that function is defined. The
-witness also pays for itself, because a compiler from a register machine is
-exactly what a certified Turpentine backend needs (see below).
+**[`TuringComplete L`](Langlib/Common/Computability.lean#L115)** packages a
+runnable URM compiler and output decoder. It compiles a program together
+with its input vector into a closed target computation, run on `Input.empty`.
+It requires
+answer preservation for halting sources and `.outOfFuel` at every finite
+target budget for divergent sources.
 
-**[`BoundedStorage L`](Langlib/Common/Computability.lean#L235)** is the
+All eleven witnesses satisfy both obligations. With interpreter lawfulness,
+they give halting/result equivalence, valid outputs, and runtime-error
+freedom. See [the proof routes](docs/divergence-preservation.md).
+The URM input vector is embedded in the compiled artifact; the completeness
+contract has no runtime input encoding parameter. [How input is represented](docs/certified-compilation.md#why-the-derived-contract-is-closed)
+explains the derived and streaming cases.
+[`computes_of_turingComplete`](Langlib/Common/Computability.lean#L284)
+relates the claim to cslib's URM-computable functions.
+
+**[`BoundedStorage L`](Langlib/Common/Computability.lean#L336)** is the
 negative claim: a configuration type, a bound on it per program and input,
 an injection into `{0, …, bound - 1}`, and two laws saying the machine is
 deterministic and that halting depends only on the configuration. From
-those, [`halting_decidable`](Langlib/Common/Computability.lean#L399)
+those, [`halting_decidable`](Langlib/Common/Computability.lean#L495)
 follows once and for all — a run that has not halted within `bound` steps
 has repeated a configuration and never will. A language with this witness
-has no *computable* `TuringComplete` witness — a meta-theorem rather than
-a Lean corollary, and by a subtler argument than "its halting would be
-undecidable", since the one-directional `simulates` breaks that naive
-reduction; the
-[docstring](Langlib/Common/Computability.lean#L353) gives the honest
-route, through the recursion theorem.
+has no *computable* `TuringComplete` witness: with an effective compiler,
+`TuringComplete.halts_iff` would reduce undecidable URM halting to decidable
+target halting. This is a meta-theorem rather than a Lean corollary because
+the effectiveness of arbitrary Lean functions is not formalized here; see
+[the docstring](Langlib/Common/Computability.lean).
 
-**[`BoundedRun L`](Langlib/Common/Computability.lean#L267)** asks for the
+**[`BoundedRun L`](Langlib/Common/Computability.lean#L368)** asks for the
 same laws only where the pigeonhole argument uses them: at configurations a
 run actually reaches. Every `BoundedStorage` gives one. It exists because a
 language can have a state *type* that is wide (an unbounded array, an
@@ -282,126 +249,44 @@ noticed until the claim had to be written down precisely enough to prove.
 
 ## Verified compilers
 
-A Turpentine program reaches a target two ways, and the library keeps both.
+Turpentine offers two compilation routes:
 
-**Bespoke** compilers are hand-written per target. They produce compact
-output and accept as much of Turpentine as the target can host, and they
-are what `lake exe turpentine compile --to <lang>` runs today for ten
-languages:
-[brainfuck](Langlib/Languages/Turpentine/Compile/Brainfuck.lean),
-[whitespace](Langlib/Languages/Turpentine/Compile/Whitespace.lean),
-[subleq](Langlib/Languages/Turpentine/Compile/Subleq.lean),
-[ook](Langlib/Languages/Turpentine/Compile/Ook.lean),
-[brainloller](Langlib/Languages/Turpentine/Compile/Brainloller.lean),
-[piet](Langlib/Languages/Turpentine/Compile/Piet.lean),
-[fractran](Langlib/Languages/Turpentine/Compile/Fractran.lean),
-[malbolge-unshackled](Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean),
-[malbolge](Langlib/Languages/Turpentine/Compile/Malbolge.lean)
-and [velato](Langlib/Languages/Turpentine/Compile/Velato.lean).
-The first six take the whole language; the next three are bounded by their
-targets rather than by our effort — FRACTRAN has no I/O at all, the two
-Malbolge backends emit straight-line code, so they take any program that
-does not read, and Malbolge's additionally only what fits its 59049 words.
-Velato is bounded differently again: it is Turing complete and its backend
-is a near-direct translation, since Velato is a structured imperative
-language rather than a machine, but Velato has no arrays and no way to
-fail, so `a[i]`, `readInt` and `assert` are refused by name.
-Three of the ten are verified, on a fragment each:
-[subleq](Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639),
-[whitespace](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3770) and
-[velato](Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2015).
-Verifying the rest is per-language proof work.
+* **Bespoke** backends produce compact code and support as much of
+  Turpentine as each target can host, including I/O where available.
+  They are the default. [Subleq](docs/subleq/compiler.md),
+  [Whitespace](docs/whitespace/compiler.md) and [Velato](docs/velato/compiler.md)
+  have correctness proofs for specific fragments; the matrix links to
+  each backend's documentation.
+* **Derived** backends compose the verified
+  [Turpentine-to-URM pass](Langlib/Languages/Turpentine/Compile/URM.lean)
+  with a target's `TuringComplete` witness. The composition is proved once
+  for every target. It produces large programs and accepts an I/O-free
+  fragment, so bespoke backends remain useful for practical execution and
+  broader source-language support.
 
-**Derived via the URM**, a compiler costs nothing to write. A `TuringComplete`
-witness already contains a verified compiler from a register machine, so
-composing it with one shared Turpentine-to-register-machine pass,
-[`Compile/URM.lean`](Langlib/Languages/Turpentine/Compile/URM.lean), gives a
-correct-by-construction compiler into any language proved complete. The
-composition is proved once for an arbitrary target, so a new language costs
-one line. The catch is that everything runs through a machine simulation:
-the output is enormous, and the fragment is I/O-free.
+`compile` and `exec` accept `--bespoke` or `--tc` and report which scheme
+produced the program.
 
 ### Two notions of correct
 
-Answer preservation is not behaviour preservation, and the library says
-which one it has proved.
-[`CertifiedCompiler`](Langlib/Common/Compilation.lean#L153) is the
-answer-only statement: the compiled program halts and prints something that
-decodes to the number the source computed. That is exactly right for the
-derived compilers, whose fragment has no I/O, and much too weak for a
-backend that compiles `read` and `print`.
-[`IOCertifiedCompiler`](Langlib/Common/Compilation.lean#L321) is the
-behavioural one: a run's observable behaviour is a
-[`Trace`](Langlib/Common/Io.lean#L366) of the bytes it consumed and
-emitted, in order, and the compiled program has to reproduce the source's
-trace under an encoding the compiler declares up front, as well as its
-answer.
-[`toCertified`](Langlib/Common/Compilation.lean#L363) proves the second
-implies the first, so upgrading a backend loses none of what was already
-proved about it. Two backends have reached the behavioural statement.
-[`bespokeWhitespaceIO`](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3790)
-was the first inhabitant of `IOCertifiedCompiler`, over the output half of
-its fragment, with `encodeTrace` the identity: the compiled program does
-not re-encode the source's I/O, it performs it.
-[`bespokeVelatoIO`](Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032)
-is the second, and the first whose fragment reads: its `encodeInput` is the
-identity too, so source and target run on the same stream and the input
-events match byte for byte. Its specification restricts the stream to one
-with no NUL byte, the one byte on which Velato's `Input` and Turpentine's
-`readByte` disagree. The
-remaining candidates and what each one needs are tabulated in
-[certified-compilation.md](docs/certified-compilation.md).
+* **[`CertifiedCompilerNoIO`](Langlib/Common/Compilation.lean#L151)**
+  preserves the decoded answer of a closed computation. The target runs
+  on empty input. This is the derived compilers' contract.
+* **[`CertifiedCompiler`](Langlib/Common/Compilation.lean#L329)** also
+  preserves completed I/O traces under explicit input and trace encodings.
+  It quantifies over runtime input. [Whitespace](docs/whitespace/compiler.md)
+  satisfies it for an output-only fragment; [Velato](docs/velato/compiler.md)
+  covers reads too, on NUL-free input streams.
 
-Both compilation schemes are inhabitants of the same `CertifiedCompiler`
-interface, which pays off where a target has both:
-[`agree`](Langlib/Common/Compilation.lean#L184) proves that any two
-verified compilers for one target decode the same answer out of every
-program both accept. Subleq and whitespace have both, so for those two
-"the derived compiler is an oracle for the hand-written one" is a theorem
-rather than a testing practice. Five of the seven unverified backends have
-a derived counterpart, and for those the derived one remains the strongest
-available check; the two Malbolges are checked by tests alone, Unshackled
-because its completeness claim is open and Malbolge because there is no
-completeness to claim.
+Both require **divergence preservation**: a divergent source computation
+exhausts every finite target fuel budget, without halting or failing.
+[`agree`](Langlib/Common/Compilation.lean#L181) shows that two closed
+certificates for one target decode the same answer on computations both
+accept.
 
-Choose explicitly. `compile` and `exec` each take `--bespoke` or `--tc`,
-refuse both at once, and name the scheme they used, so a build log says
-which compiler made the artifact.
-
-### Why the bespoke compilers stay
-
-"We proved one, so throw the other away" is the obvious wrong conclusion.
-
-*Some programs cannot go through a register machine at all.* A URM takes
-its input before it runs and yields one number when it halts, so nothing
-that interleaves reading and writing can be expressed however far the
-certified fragment is widened. `cat.turp` will never compile that way.
-That is a property of the model rather than a gap in the work.
-
-*The output is not comparable.* Compiling `answer := 3` to brainfuck
-through the register machine produces 64 kilobytes and runs in billions of
-steps, because arithmetic becomes unary counting on a byte tape. The
-bespoke brainfuck backend compiles real programs into something that
-finishes.
-
-*The fragment is still narrowing in.* Initialisers, `&&`, `||`, `/`, `%`
-and arrays have landed; subtraction has not, and turned out to be harder
-than planned (the obvious `Nat`-valued semantics bridges the wrong way).
-Meanwhile the bespoke compilers accept the whole language today.
-
-*A verified bespoke compiler needs a stronger theorem than the derived one
-has.* The certified statement observes a single number on runs that halt,
-which is adequate only because that fragment has no I/O. A backend for the
-whole language has to preserve a byte stream, consume input, and say what
-happens when a program prints and then diverges. That is
-[a larger obligation](docs/certified-compilation.md), not the same one at
-higher effort.
-
-The pipeline, the diagrams and the theorem that makes the composition work
-are in [certified-compilation.md](docs/certified-compilation.md); what
-correctness means here, including how `assert` compiles, is in
-[verification.md](docs/verification.md); and each target's own decisions
-are in `docs/<langname>/compiler.md`.
+See [certified compilation](docs/certified-compilation.md) for the pipeline
+and fragment boundaries, and [verification](docs/verification.md) for the
+full contracts and their relationship.
 
 Turpentine is deeply embedded in Lean and modelled on
 [Velvet](https://github.com/verse-lab/velvet). The longer-term plan is to

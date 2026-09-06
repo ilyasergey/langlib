@@ -304,9 +304,9 @@ Output:
 ```
 
 Anything other than those three standard axioms means the result is not
-what it claims. The file audits 523 declarations — every completeness and
-incompleteness instance, the trace laws, and both certified bespoke
-backends including `bespokeWhitespaceIO` — and is clean. Append to it
+what it claims. The file audits every completeness and
+incompleteness instance, the trace laws, and the certified bespoke
+backends including `bespokeWhitespaceIO`, and is clean. Append to it
 whenever a new instance lands.
 
 Separately, a completeness proof yields a runnable compiler, so it can be
@@ -329,3 +329,22 @@ above. The first two are also exercised through their completeness
 witnesses, by `Langlib/Tests/URMUnlambda.lean` and
 `Langlib/Tests/URMSki.lean`; malbolge-unshackled has no such suite because
 its completeness claim is still open.
+
+## Divergence-preserving computability proofs
+
+Finite test runs cannot establish exhaustion of *every* target fuel budget.
+The kernel-checked divergence proofs live in
+`Langlib/Computability/<Language>/Divergence.lean`. Each public
+`<Language>/Main.lean` combines that proof with the forward proof and compiler
+from `<Language>/Simulation.lean` into `<lang>Complete : TuringComplete`.
+All eleven witnesses include both obligations. The
+[proof table](divergence-preservation.md#witness-migration) records the exact
+scope, including Brainloller’s decoded-program interface.
+
+Run `lake build` for all proofs (including the unchanged MU development),
+`lake test` for the existing golden and compiler suites, and
+`lake env lean scripts/axioms.lean` for the interface consequences, positive
+progress helpers and completeness witnesses. Only the
+standard logical axioms `propext`, `Classical.choice`, and `Quot.sound` are
+allowed. Existing runnable compiler functions are retained; no compiler or
+runner is changed to obtain the stronger property.

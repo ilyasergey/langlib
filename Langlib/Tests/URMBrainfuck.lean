@@ -1,6 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.Brainfuck
-
+import Langlib.Computability.Brainfuck.Main
 /-!
 Differential tests for the certified URM to Brainfuck compiler.
 
@@ -58,7 +57,7 @@ def run (src : String) (_input : Input) (fuel : Nat) : Except String RunResult :
     let want := Langlib.Computability.URM.result P inputs urmSteps
     let prog := Langlib.Computability.URMBrainfuck.compile P inputs
     let r := Langlib.Brainfuck.evalProg {} prog
-      (Langlib.Computability.URMBrainfuck.encodeInput inputs) fuel
+      Langlib.Common.Input.empty fuel
     match r.exit with
     | .halted =>
       match Langlib.Computability.URMBrainfuck.decodeOutput r.output with

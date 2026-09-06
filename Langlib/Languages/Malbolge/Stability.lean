@@ -7,7 +7,7 @@ One unit of fuel per (attempted) instruction — the out-of-range spin
 included — and the machine stops on its own only at `halt`, so a completed
 run is a fixed point of more fuel. Discharges the
 `Langlib.Common.LawfulProgLang` instances of both `MalbolgeLang` and
-`LoadedMalbolge` in `Langlib/Computability/Malbolge.lean`.
+`LoadedMalbolge` in `Langlib/Computability/Malbolge/Main.lean`.
 -/
 
 namespace Langlib.Malbolge

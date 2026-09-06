@@ -7,21 +7,29 @@ is a language where everything is possible and nothing is easy, and
 turpentine dissolves tar. Full language reference:
 [docs/turpentine/spec.md](../../../docs/turpentine/spec.md).
 
+The eleven TC-derived compilers preserve halting answers and divergence,
+using the separately proved Turpentine-to-URM pass and each target's
+[`TuringComplete`](../../../docs/divergence-preservation.md) witness.
+`CertifiedCompilerNoIO` is the closed contract: no source input argument or
+target encoding parameter, and an empty target stream. The derived fragment
+rejects streaming I/O. `CertifiedCompiler` quantifies over caller input
+under an explicit encoding; `bespokeVelatoIO` certifies reads on NUL-free streams.
+
 ## Modules
 
 * `Syntax.lean`: the deep embedding (`Ty`, `Expr`, `Stmt`, `Program`);
   `assert` is the only specification construct.
 * `Parser.lean`: lexer and recursive-descent parser with positioned errors.
 * `Typecheck.lean`: declared-before-use, one flat scope, `int`/`bool`
-  discipline;; `assert` must be boolean.
+  discipline; `assert` must be boolean.
 * `Semantics.lean`: pure fuel-based interpreter (unbounded integers,
   Euclidean `/` and `%`, short-circuit booleans, byte- and line-level I/O).
-* `Trace.lean`: the run's observable behaviour as a stream of I/O events,
+* `Trace.lean`: each fuel-bounded run's finite sequence of I/O events,
   and the proof that the interpreter reports it honestly.
 * `Compile/`: one hand-written backend per target, plus `Derived.lean` for
   the ones obtained from a completeness witness. Each backend's fragment
   and costs are written up in `docs/<langname>/compiler.md`.
-* `Certified/`: the correctness proofs of the hand-written backends, kept
+* `Compile/Certified/`: the correctness proofs of the hand-written backends, kept
   apart because they need Mathlib and the runners must not.
 * `Main.lean`: the runner.
 
@@ -42,13 +50,35 @@ lake exe turpentine check file.turp
 Input comes from stdin (pipe or redirect;
 a terminal stdin means empty input); `--verbose` reports how the run ended.
 `lake exe turpentine --help` documents every subcommand, flag and exit
-code. In short: `compile` and `exec` each take `--bespoke` (the default: hand-written,
-whole language, compact, unverified) or `--tc` (derived from the
+code. `compile` and `exec` each take `--bespoke` (the default: hand-written,
+compact, with target-specific restrictions and three certificates for restricted
+fragments) or `--tc` (derived from the
 target's Turing-completeness proof: correct by construction, much larger,
 and restricted to the I/O-free fragment documented in
 [docs/certified-compilation.md](../../../docs/certified-compilation.md)).
 Passing both is an error, and the command names the scheme it used in its
 output.
+
+`lake exe` checks whether the executable and its dependencies are current.
+Source edits can trigger a rebuild; unchanged consecutive runs reuse the build.
+Turpentine includes the derived compilers, so this check traverses their
+computability and Mathlib dependencies even with `--bespoke`.
+
+Build the executable once before a batch of compilations:
+
+```
+lake build turpentine
+```
+
+Then invoke it directly from the repository root to skip Lake's build check:
+
+```
+.lake/build/bin/turpentine compile --to subleq --bespoke -o /tmp/isqrt.sq Langlib/Examples/Turpentine/isqrt.turp
+```
+
+Run `lake build turpentine` again after changing the compiler. Alternatively,
+`lake --no-build exe turpentine ...` checks freshness and refuses a stale
+build instead of recompiling it.
 
 ## Examples ([Langlib/Examples/Turpentine/](../../Examples/Turpentine/))
 
@@ -84,8 +114,8 @@ output.
 | `cat-tc.turp` | a note, in comments, on why `cat` has no `-tc` twin | `--tc`, vacuously |
 
 The last column is about the *restriction the file was written under*, not
-about which compilers accept it. `any backend` means the program uses
-Turpentine's own I/O and so needs a hand-written one; the suffixed twins
+about which compilers accept it. `any backend` labels an ordinary example, not a guarantee that every backend
+accepts it: consult each backend's fragment and I/O restrictions; the suffixed twins
 each give up something a particular route cannot have.
 
 Programs suffixed `-tc` are written for `--tc`, the compiler derived from

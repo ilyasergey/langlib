@@ -5,6 +5,15 @@ or equal to zero. The full specification, the history, and every semantic
 choice (word size, I/O convention, EOF, halting, errors) are in
 [docs/subleq/spec.md](../../../docs/subleq/spec.md).
 
+[`subleqComplete`](../../Computability/Subleq/Main.lean#L31) preserves both halting answers
+and divergence. Its [divergence proof](../../Computability/Subleq/Divergence.lean#L122)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../../../docs/divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
+
+The [computability account](../../../docs/subleq/computability.md) explains the
+representation, proved result and remaining scope.
+
 ## Modules
 
 * `Syntax.lean`: a program is its initial memory image (`Prog := Array

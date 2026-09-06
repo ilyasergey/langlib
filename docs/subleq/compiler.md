@@ -585,7 +585,7 @@ comment that says which label it is rewriting.
 The backend described above compiles all of Turpentine and is checked by the
 differential tests in the table above. Since 2026-08-30 a *fragment* of it is
 also proved correct, in
-[`Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean`](../../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean).
+[`Langlib/Languages/Turpentine/Compile/Certified/BespokeSubleq.lean`](../../Langlib/Languages/Turpentine/Compile/Certified/BespokeSubleq.lean).
 This section says exactly what that theorem covers, since the gap between the
 compiler and the theorem is large and the point of writing it down is that
 nobody has to guess.
@@ -599,9 +599,9 @@ means discharging its `correct` field:
 
 ```lean
 correct : ∀ (p : Turpentine.Program) (prog : Prog) (result n : Nat),
-  compile p = .ok prog → TurpentineHaltsWith p n result →
-    ∃ m, (Subleq.evalProg prog encodeInput m).exit = Exit.halted ∧
-         decodeOutput (Subleq.evalProg prog encodeInput m).output = some result
+  compile p = .ok prog → TurpentineHaltsWith p Input.empty n result →
+    ∃ m, (Subleq.evalProg prog Input.empty m).exit = Exit.halted ∧
+         decodeOutput (Subleq.evalProg prog Input.empty m).output = some result
 ```
 
 Read it as: on a program this instance accepts, whenever the Turpentine
@@ -754,7 +754,7 @@ theorem bespokeSubleq_agrees_derived
     (p : Turpentine.Program) (prog₁ prog₂ : Subleq.Prog) (result n : Nat)
     (h₁ : bespokeSubleq.compile p = .ok prog₁)
     (h₂ : derivedSubleq.compile p = .ok prog₂)
-    (hp : TurpentineHaltsWith p n result) :
+    (hp : TurpentineHaltsWith p Input.empty n result) :
     ∃ m₁ m₂, … ∧ bespokeSubleq.decodeOutput … = derivedSubleq.decodeOutput …
 ```
 
@@ -775,6 +775,14 @@ every I/O statement (a URM has no output, so its answer is register 0 at
 halt) while this instance needs the answer printed. Widening it means either
 verifying `printint` here or teaching the URM pass to compile `printByte`.
 
+### Divergence preservation
+
+`bespokeSubleq` includes the mandatory divergence proof. `compile_source_halts`
+proves that every accepted source program completes at fuel one on **any**
+input stream. A divergent source therefore cannot be accepted. This proves
+the obligation for the existing two-shape fragment; it does not certify the
+backend's currently unverified loop compiler.
+
 ### What is not proved
 
 For the avoidance of doubt, none of the following is covered by any theorem
@@ -789,8 +797,6 @@ today, and all of it is covered by tests only:
 * `assert` and the trap, and the claim that a Turpentine runtime error
   becomes a subleq runtime error;
 * `readByte` and `readInt`, and the end-of-input convention;
-* divergence preservation, which `docs/verification.md` defers for every
-  backend;
 * the code generator on any program outside the two shapes: `backend_skipZero`
   and `backend_printLit` are statements about those two, not about the
   emitter in general.

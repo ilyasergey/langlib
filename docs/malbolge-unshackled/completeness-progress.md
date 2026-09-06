@@ -1,529 +1,148 @@
 # Malbolge Unshackled: completeness, in progress
 
-A live tracker for the Turing-completeness effort. The **spec** is
-[spec.md](spec.md), the **architecture and its findings** are in
-[compiler.md](compiler.md), and the **technical account of what is proved**
-is [docs/computability-malbolge-unshackled.md](../computability-malbolge-unshackled.md).
-This page is the shorter question: how far along is it, and what is next.
-
 ## Status
 
-**No `TuringComplete MalbolgeUnshackledLang` witness yet.** LangLib
-therefore asserts nothing about the language's computational class; the
-row in [docs/README.md](../README.md) says so. Everything listed as done
-below is machine-checked and axiom-clean, and
-[scripts/axioms.lean](../../scripts/axioms.lean) lists every declaration.
-
-All of it lives in one file,
-[`Langlib/Computability/MalbolgeUnshackled.lean`](../../Langlib/Computability/MalbolgeUnshackled.lean).
-
-## Handoff: start here
-
-Read this first. The construction is far along and almost every piece is
-proved, but one question is still genuinely open, and everything downstream
-waits on it. Do not start writing the counter-machine translation until
-this one question is settled, because its answer decides the memory layout.
-
-**The one open question.** A register is a unary tape, and to read or extend
-it the data pointer `d` must sweep along the tape to the first empty cell.
-Sweeping forward is free: `d` advances by one after every instruction, and a
-stable `i`-instruction (which never rewrites itself) carries control from
-one working cell to the next, so a straight run steps `d` along the tape at
-no cost. What is *not* solved is stopping the sweep at a data-dependent
-point, i.e. testing the current cell and, based on what it holds, either
-continuing the sweep or leaving it. Two facts collide:
-
-* Any routine that turns the tape cell into a *computed* destination has to
-  put that destination back under `d` before the outgoing `i`-instruction
-  reads it. But a write lands one cell behind `d` (the pointer moves on
-  after each step), so the destination must be fetched back with a
-  pointer-load, and that pointer is a slot-local absolute address. It
-  differs from tape position to tape position, and nothing can supply it:
-  the six-value background fill is the same in every slot, and a routine
-  cannot compute its own position because `d` is never readable.
-* The one routine that needs no such pointer reads the cell straight into
-  `d` and lands `d` on one of two fixed low addresses. That one throws away
-  the sweep position, and the position cannot be saved and restored, again
-  because `d` is never readable.
-
-So the missing building block is: **a data-dependent two-way choice whose
-only position-varying input is the tape cell itself, and which keeps the
-sweep position on the "continue" side.** The section "The open crux: a
-branch that keeps `d`" below states this in full.
-
-**Two routes worth trying, in this order.**
-
-1. *Store destinations in the tape cells instead of `0` and `1` markers.*
-   Let an occupied cell hold the address that continues the sweep and an
-   empty cell hold the address that leaves it. Then a single stable
-   `i`-instruction reading the current cell chooses between them while `d`
-   advances by one, with no pointer-load and no lost position. This is the
-   promising route. Its cost is that it replaces the current cell encoding
-   (`...000` empty, `...222` occupied), so the whole register layer built
-   on that encoding — the two-tape difference representation, the layout
-   invariant, the routines that extend a tape, and the four simulation
-   lemmas — has to be restated for the new encoding. Sketch the new cell
-   encoding and re-prove the layout invariant *before* touching anything
-   else, so the cost is known before it is paid. The `i`-instruction facts
-   you need are already proved: it never rewrites itself as long as it does
-   not target its own cell, and it advances `d` by one.
-
-2. *Reposition `d` by a value the routine can reconstruct.* The width
-   escalator (rotate the value `1` at width `w` to get `3^(w-1)`, then a
-   pointer-load doubles the width) mints a fresh address without storing
-   it. If each tape position's address is minted this way rather than
-   reached by a raw sweep, the position becomes computable and the branch
-   can reposition `d` even after consuming it. The escalator itself is
-   proved; deciding tape positions from it is not, and this route is more
-   speculative than the first.
-
-**What is already safe to build on.** Start-up is done: on the image route a
-witness builds memory directly and picks the six background values, so the
-initial layout invariant holds with no work (`imageOf`, `imageOf_get`,
-`regAddr_mod6`, `imageOf_regMem_init`). The forward sweep, its restoring
-return pass, and its placement are proved (`chain_run`, `chain_run_nop`,
-`chain_restored`, `alternating_at`). The tape arithmetic, the layout
-invariant, and the four simulation-step lemmas are proved
-(`TapePair`, `RegMem`, `regMem_up`, `regMem_down`, `sim_inc`, `sim_dec`,
-`sim_emit`, `sim_frame`, `sim_loop_test`). The loop rule that consumes a
-strictly-decreasing measure is proved (`run_of_measure`), and so is the
-ending a halting run needs (`exec_halts_of_run?`). None of this changes
-under route 1 except the cell encoding the layout invariant is stated in.
-
-**Discipline for this checkout.** Several sessions share it. Build your own
-targets by name; run `lake test` before pushing, not after; never use
-`git stash` here, it has clobbered other sessions' uncommitted work. Audit
-with a scratch file that imports only
-`Langlib.Computability.MalbolgeUnshackled`, not through
-`scripts/axioms.lean`, which pulls in the whole library. Work on the branch
-`ilya/malbolge-tc`.
-
-## The route
-
-The target-independent half of every completeness proof already exists:
-`Langlib/Computability/Counter.lean` compiles a URM into a structured
-counter machine with four commands (`inc`, `dec`, `emit`, `loop`) and
-proves the simulation (`counterProgram_spec`). So this backend needs only
-to interpret those four commands, and because the counter machine's `Ev` is
-big-step with *structured* control, the compiled program is generated by
-recursion over the command tree. **No dispatcher and no program counter.**
-
-Two decisions shape everything, and both were settled by theorems rather
-than by taste:
-
-* **A finite self-modifying code region, not fresh memory.** A compiler
-  builds its `Image` directly and so may make untouched memory executable,
-  but a virgin phase that can rotate can also halt, 42 addresses along in
-  the same phase (`rotr_forces_halt`), and rotation is mandatory for
-  unbounded storage (`widthBounded_step1`). Fresh-memory execution buys no
-  simplification and costs a halt-dodge everywhere it rotates.
-* **Registers as a difference of two unary tapes.** `dec` on a plain unary
-  tape needs its last mark cleared, and `d` cannot step back or learn where
-  it is. Holding `p - q` instead makes `inc`, `dec` and the zero test all
-  forward walks that set or probe a boundary cell, so nothing is cleared
-  and nothing steps back. The tapes only grow, which spends memory the
-  language has without limit to buy the one motion it cannot perform.
-* **Unary registers, blank `...000` and mark `...222`.** The accumulator
-  `...111` tests such a cell without changing it, and the value it leaves
-  behind is already the flag the branch pipeline consumes
-  (`probe_feeds_branch`). The zero test costs one operation and no
-  broadcasting, which the crazy operation could not do anyway.
-
-## Done
-
-| Piece | Key results |
-|---|---|
-| The language as a `ProgLang` | `MalbolgeUnshackledLang` instance |
-| Address arithmetic | `succ_ofNat`, `modClass_ofNat`, `decode_at_ofNat` |
-| Step-level reading of `exec` | `exec_hang`, `exec_halt`, `exec_step`, `step1_sound` |
-| Memory as a function | `get_set_self`, `get_set_ne` |
-| Obstruction: self-encryption | `decode_encrypt_ne` |
-| Obstruction: the fill | `restTable_not_printable` |
-| The way through | `jmp_cell_stable` — `jmp` alone does not overwrite itself |
-| Jump-table spacing law | `gap_of_repeated_word`, `no_repeated_word_gap_two` |
-| A program that never halts | `loop.mu`, `Loop.neverHalts` |
-| Non-termination gadget | `neverHalts_of_invariant` |
-| Terminating runs | `exec_run?_add`, `exec_halts_of_run?`, `run_of_measure` |
-| Width algebra | `width_crz_le`, `width_rot_le`, `widthBounded_step1` |
-| The escalator | `rot_one`, `width_rot_one`, `growRotWidth_double` |
-| Crazy-operation algebra | `crz_trit`, `ext_of_trits`, `crz_two_steps` |
-| Copy algebra | `hop_eq_vmap`, `hop_hop_hop` |
-| Branch arithmetic | `branch_arith` (seven operations), `cols_spec` |
-| Branch gadget | `branch_gadget` |
-| Fresh-memory obstruction | `rotr_forces_halt`, `halt_forces_rotr` |
-| Re-enterable rows | `nop_run`, `row_run`, `two_sweep` |
-| Chains and gadgets | `chain_link`, `chain_run`, `enter_chain`, `gadget_run` |
-| Output side | `step1_out`, `decodeBytes`, `decodeBytes_append_star` |
-| Register encoding | `register_probe`, `probe_feeds_branch` |
-| Accumulator ladder | `ladder_cycle` — three self-restoring constants |
-| Register writes | `register_set`, `register_clear` (two visits each) |
-| Two-tape registers | `TapePair` — `inc`, `dec` and the zero test all forward |
-| Register file | `RegFile.Refines` and `refines_up/down/emit/zero_iff` |
-| Tape memory layout | `regAddr`, `RegMem`, `regMem_up`, `regMem_down` |
-| Simulation invariant | `Sim`, `sim_inc`, `sim_dec`, `sim_emit`, `sim_frame`, `sim_loop_test` |
-| Flags must be read, not computed | `crzChain_agree`, `no_accumulator_flag` |
-| Which cell a jump must keep printable | `decode_outOfBounds_iff`, `printable_of_decode` |
-| A branch into two natural addresses | `flag_branch`, `flagAddr_gadget` — two crazy operations, three instructions |
-| The walk | `walk_iterate`, `walk_run` — iteration whose length is the tape's |
-| Where the walk stops | `walk_branch_target`, `walk_branch_target_q` |
-| The core of a pass | `probe_branch_gadget` — probe, branch, jump in six instructions; the register cell comes back unchanged |
-| The no-op sweep of a chain | `chain_link_nop`, `chain_run_nop`, `chain_restored` — the second run that restores a chain for re-entry |
-| Where a chain may sit | `alternating_at` — one residue check per chain |
-| Start-up on the image route | `imageOf`, `imageOf_get`, `regAddr_mod6`, `imageOf_regMem_init` — the fill is chosen, so `sim_init` holds for free |
-
-## Remaining
-
-1. **`inc`** — walk a register's cells to the first blank and set it. The
-   write arithmetic is done (`register_set`) and so are the walk's
-   induction and exit (`walk_iterate`, `walk_branch_target`); what remains
-   is one pass and the layout. Set costs two visits because no single crazy operation
-   crosses from `...000` to `...222`
-   (`no_single_step_blank_to_mark`).
-2. **`dec`** — the design question is **resolved**. A register is a pair of
-   unary tapes `(p, q)` holding `p - q`: `inc` sets the first blank of `p`,
-   `dec` sets the first blank of `q`, and the register is zero exactly when
-   the tapes are equally long. All three are forward walks that set or probe
-   a cell at the boundary they halt on, so nothing is ever cleared and
-   nothing ever steps back. `TapePair` proves the arithmetic; the gadget
-   remains.
-3. **`emit`** — settled arithmetically (`step1_out`); needs its gadget.
-4. **`loop`** — the probe feeding a branch, wrapped so the body is
-   re-enterable. Every ingredient exists.
-5. **The assembler** — likely *not* new work; grow langlib-c9's rather
-   than duplicating it. `compile : Program → List Nat → Image`, total and
-   runnable, laying gadgets out at stride 94 with data after the code. The
-   *placement* half now exists and is runnable, in the straight-line
-   backend `Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean`:
-   `wordFor` puts any instruction at any address, `legalCell` decides what
-   the loader will take, `Asm` builds and renders the image, and a
-   three-cell prologue separates `c` from `d`. What that backend does not
-   exercise, because none of its cells runs twice, is the two-cycle
-   residues and the spacing law — the part a gadget row needs. See
-   [compiler.md](compiler.md).
-6. **The induction on `Ev`** — the largest piece by volume, standing on
-   `run_of_measure` at the top and `exec_halts_of_run?` at the bottom. Its
-   invariant is already proved: `Sim` ties a Malbolge Unshackled state to a
-   `Counter.CState`, and `sim_inc`, `sim_dec`, `sim_emit` and `sim_frame`
-   say how each command moves it. `sim_loop_test` reduces the loop
-   condition to reading one cell, the one a walk halts on.
-
-What each gadget must now do is *reach* the write that these lemmas
-consume: the gadget machinery (`gadget_run`, `chain_run`) executes the
-arithmetic, and `sim_*` closes the step.
-
-Nothing left lacks a verified precedent in the file, so what remains is
-construction rather than discovery. It is still a lot of construction.
-
-A correction to a result recorded here earlier, because the conclusion it
-drew was wrong and would misdirect the gadget design. It is true that `crz`
-has **no constant column**: `k = 0` sends `0,1,2` to `1,0,0`, `k = 1` to
-`1,0,2`, `k = 2` to `2,2,1`, and none of the three is constant. But a
-*composition* of two non-constant columns can be constant, and here two of
-them are. Applying `k = 2` then `k = 0` sends every trit to `0`; applying
-`k = 0` then `k = 2` sends every trit to `2`.
-
-That is exactly `crz_absorb`, which is proved:
-
-```lean
-theorem crz_absorb (a : Value) :
-    Value.crz (Value.crz a Value.eof) Value.zero = Value.zero
-```
-
-Both constants, `Value.eof` and `Value.zero`, are fixed at compile time and
-mention the accumulator nowhere. So **two crazy operations against
-compiled-in constants do turn an unknown value into a uniform one**, and
-collapsing a comparison does not need `*` on these grounds.
-
-Rotation is still required, but for a different and independently proved
-reason: `widthBounded_step1` says a rot-free run keeps every storable value
-inside a finite alphabet, so every `j` and `i` teleports into a fixed
-finite set of addresses. That is what forces `*`, and with it the unary
-register route — the argument is about *addressing*, not about collapsing
-flags.
-
-What the tritwise structure *does* rule out has a sharp statement, and it
-is now proved (`no_accumulator_flag`). A chain against fixed constants
-computes `resultᵢ = fᵢ(aᵢ)` at each position independently, so two
-accumulators differing at a single position give results differing at most
-there. But `...000` and `...222` differ at *every* position. So no chain
-can send one accumulator to the first and another to the second: **a branch
-flag cannot be computed, it has to be read from something already
-uniform.** That is why registers store blank and mark as `Value.zero` and
-`Value.eof`, and why `register_probe` is the only zero test here — the
-encoding is forced, not chosen. The sharpening is langlib-c9's, from the
-Turpentine backend side.
-
-The distinction matters for a gadget author. `crz_two_steps` reaches any
-target and needs constants computed from the accumulator, so it applies
-only where the accumulator is known, which is why the gadgets keep it known
-at every boundary. `crz_absorb` needs no such knowledge and is the tool for
-an unknown accumulator.
-
-One positive one, checked by running rather than proved. `crz (crz a k) k`
-with `k` all ones below the width of `a` is the **identity** — the
-transposition `0 ↔ 1` applied twice — so two crazy operations against a
-single *loadable* constant copy the accumulator into a memory cell, and a
-`movd` through that cell turns the copy into an address. That is a computed
-jump indexed by an input character with no rotation anywhere, which is a
-cheaper `inp` dispatch than the branch pipeline. It is not in any gadget
-yet; `hop`/`hop_hop_hop` is the proved copy, at three operations and with
-constants no source file can hold.
-
-## How to proceed
-
-Read this before writing anything. The development is large but the next
-step is narrow, and three of the four design questions that look open have
-already been closed by theorems.
-
-### The blocker, narrowed: one pass of a walk
-
-Everything built before this batch reached **statically known** addresses.
-`chain_run` fixes the code stride at 94 so every address is a compile-time
-constant; `gadget_run` positions `d` from a pointer laid down in advance.
-The **walk** — data-dependent iteration, stepping cell by cell until a
-probe says stop — is what `inc`, `dec` and `loop` all need, and two of its
-three parts now exist.
-
-**The induction exists.** `walk_iterate` runs `n` passes of a `k`-step
-pass, at a cost of `k * n` steps, where `n` is the tape length and so is
-not a number the compiler knows. `walk_run` is it from slot 0, which is
-where a gadget enters. The layout is what makes a pass cheap: the slot
-stride `SI` in `regAddr` is *defined* to be the pass length, so `d`
-advancing one per instruction carries the walk from slot `i` to slot
-`i + 1` with **no address arithmetic at all**.
-
-**The exit exists.** `walk_branch_target` says the flag-to-address branch
-below aims control at `3 ^ j` while marks remain on the tape and at
-`2 * 3 ^ j` at the first blank, so putting the top of the walk at one and
-its exit at the other terminates the walk exactly at the boundary.
-`walk_branch_target_q` is the same on the second tape, the one `dec`
-extends.
-
-**The core of a pass exists.** `probe_branch_gadget` puts the probe, the
-branch and the jump on the machine as one six-instruction gadget with five
-statically placed operands: it loads the test accumulator, reads the
-register cell **without changing it**, turns what it read into a natural
-address, aims `d` at it and jumps. Control lands one past `3 ^ j` on a
-mark and one past `2 * 3 ^ j` on a blank, and `d` has advanced four cells
-whichever way it went. Two facts on landing that the rest of a pass builds
-on: the register file is untouched, so `sim_frame` carries it across; and
-**the accumulator is known on each side**, because the branch separated
-the cases by exactly the flag that determined it, so resetting it to blank
-for the next probe is a compile-time matter.
-
-### The open crux: a branch that keeps `d`
-
-Working through the pass turned up an obstruction sharper than "assemble the
-pieces", and it is worth stating exactly, because it decides the layout.
-
-Every branch gadget in the file — `branch_gadget`, `flagAddr_gadget`,
-`probe_branch_gadget` — takes a hypothesis `hKp` naming a **movd pointer**,
-and in each the pointer's value depends on the slot base `d₀` (`d₀ + 5`,
-`d₀`, `d₀ + 2`). It is there for a structural reason. A `crazy` writes its
-result to `mem[d]` and then the postal stage advances `d` by one, so the
-computed address always ends up **one cell behind** `d`. A following `jmp`
-reads `mem[d]`, one cell ahead of where the address sits, so the branch
-first has to rewind `d` by one, and `movd` through a stored pointer is the
-only rewind the language has. That pointer is an absolute address inside
-the current slot, so it differs from slot to slot.
-
-A per-slot pointer is exactly what a walk cannot supply. The fill gives one
-value per residue mod 6, a constant across slots, so it cannot hold
-`d₀ + 2`. Propagation cannot help either: a pass would have to compute its
-own base to write the next slot's pointer, and **`d` is unreadable** — no
-instruction copies it into memory or the accumulator, which is the same
-fact the two-tape register design was built around.
-
-The destructive branch (`flag_selects_address`, targets 0 and 1) needs no
-pointer, because it reads the flag straight out of a cell — but it lands
-`d` on 0 or 1 and so **loses the sweep position**, and `d` cannot be saved
-to restore it.
-
-So a walk needs a data-dependent branch whose only per-slot operand is the
-register cell itself, and neither branch in hand is that. Two directions
-are open. One: a jmp whose target cell is **uniform** — every slot holds
-the same `entry` address, supplied by the fill, giving an unconditional
-loop-back — paired with a separate conditional exit that fires only at the
-boundary, where the tape reads blank. The exit still has to change control
-from a blank cell without a rewind, which is the same off-by-one in
-miniature. Two: give up post-increment addressing and mint each slot's
-address by rotation (the escalator), so `d` is repositioned by a `movd`
-through a value the program can *reconstruct* rather than one it stored.
-The escalator is proved (`rot_one`, `growRotWidth_double`); wiring it into
-the walk is not.
-
-This is the one place the construction still needs an idea rather than
-labour.
-
-**What is left of a pass** is the wrapping that `walk_iterate` takes as its
-hypothesis: from slot `i`, `k` steps reach slot `i + 1` with the layout
-intact. Two concrete jobs on the image route, three on the loadable one. The
-code cells have to be re-enterable: `probe_branch_gadget` is laid out
-contiguously and so runs once, and the re-enterable form is the same six
-operations as a stride-94 chain run twice per pass, the work sweep
-(`chain_run`) and then the no-op sweep (`chain_run_nop`), with
-`chain_restored` closing the circle and `alternating_at` placing it. The
-branch-dependent landing sites return control to the chain for the second
-sweep with `d` offsets that differ by one, so the second sweep's stable
-`jmp` reads a different exit cell on each path, which is how the two exits
-are told apart after the sweep. The pass has to **restock**: the mark path
-consumes both branch constants (the blank path restores the second by
-itself). And on the loadable route it has to normalise the next slot, as
-the section below explains.
-
-`sim_loop_test` already reduces the loop condition to reading exactly the
-cell a walk halts on, so the data side of the pass is closed.
-
-**What a pass finds ahead of itself, and the one design decision it
-forces.** A walk steps into cells no loader wrote, and `RegMem` asks every
-cell above a tape's length to be blank. Untouched cells hold the memory
-fill, and the fill is **never** blank: searching every pair of printable
-seeds finds no pair putting `...000` anywhere in the six-value table
-(measured, not proved; `leadAt_even` and `crzTrit_zero_ne_zero` are the
-structural reason).
-
-This bites a **loadable** witness, one whose image is `load` of a source
-text. The `ProgLang` instance takes a program to be an `Image`, so a
-witness may instead build the image directly and pick the fill itself, and
-`...000` makes every virgin cell blank for nothing. That route is simpler
-and weaker: it proves the interpreter's memory model Turing complete, not
-that a *source text* exists for every machine. The plan is to take the
-image route first, since every gadget is the same on both, and to close
-the gap with the normalising pass afterwards. On the loadable route a pass
-has to normalise the cells it is about to use.
-
-That is affordable, and `fillAt_slot` is why: with a slot stride divisible
-by 6, a given offset holds the *same* fill value in every slot, because the
-fill depends on the address only through its residue mod 6. The value is a
-compile-time constant, and `crz_two_steps` turns a known value into any
-other in two operations.
-
-It also closes the circularity the first design runs into. A pass's
-constants have to sit in the slot it is walking, since `d` only advances
-and the slots ahead are virgin — but the value at each offset ahead is
-known in advance, so a pass can write the *next* slot's constants using
-its own. The block propagates one slot per pass, the loader writes slot 0,
-and the walk carries it forward. This is the escalator argument applied to
-data rather than to addresses.
-
-### Use `flag_branch`, not the pipeline
-
-There are three branches in the file now, and this is the one to build on.
-`branch_arith` is seven crazy operations and consumes four shaping
-constants; **do not build a walk on it.** `flag_selects_address` is three
-instructions but lands `d` on address 0 or 1, which is where execution
-begins.
-
-`flag_branch` pays one more crazy operation than that and buys the two
-landing sites back: **two crazy operations, against `...111` and the
-natural `2 * 3 ^ j`, send a blank to the address `2 * 3 ^ j` and a mark to
-`3 ^ j`**, for any `j` the compiler likes. Both targets are naturals, both
-are anywhere in memory, and the first constant is the `...111` the ladder
-and the register probe already keep. `flagAddr_gadget` is the machine half:
-two `crazy` cells and one `movd`, leaving `d` on the cell that holds the
-address, so a following `jmp` branches.
-
-Two operations is the least possible, and the reason is worth knowing
-before trying to shave it. A single column of the crazy table sends the
-blank flag to `1` or `2` at *every* trit position, so a one-operation
-result repeats `1` or `2` for ever and is not a natural address; a jump
-into it lands in the memory fill, which can hang. Two columns composed
-give `(0, 0)` above position `j`, which keeps both targets natural, and
-`(2, 1)` at `j`, which makes them differ.
-
-Watch the restock. On the blank path the second constant cell ends holding
-exactly what it held, so it restores itself; on the mark path both cells
-are consumed. Keep `branch_arith` for the case it was built for, arbitrary
-computed targets.
-
-### Then, in order
-
-1. **One pass of the walk**, as above: the hypothesis `walk_iterate`
-   takes. Make it re-enterable with `two_sweep`, restock the branch's two
-   constants, and state its conclusion in the shape `gadget_run` uses so
-   the commands compose with it. The induction and the exit are done.
-2. **`inc`** and **`dec`**: walk to the boundary, then one write.
-   `regMem_up` and `regMem_down` carry the layout invariant across the
-   write, and `sim_inc`/`sim_dec` close the step. `dec` is *not* harder than
-   `inc`: the two-tape representation made both "set the first blank".
-3. **`emit`**: `step1_out` plus `sim_emit`, no walk needed.
-4. **`loop`**: the walk's probe feeding the cheap branch, with the body
-   between. `two_sweep` makes the body re-enterable.
-5. **The assembler**: grow langlib-c9's `wordFor`/`legalCell`/`Asm` rather
-   than writing a second one, and talk to that session first. The one thing
-   it lacks is a placement mode for cells that run twice, which forces the
-   residue to one of two per instruction. Note that the interleaved-`jmp`
-   layout removes padding from the problem entirely, so this may be much
-   smaller than a constraint solve.
-6. **The induction on `Ev`**: `Sim` is the invariant, `sim_*` are the steps,
-   `run_of_measure` is the top and `exec_halts_of_run?` is the bottom. Long
-   but mechanical.
-
-### Traps that cost real time here
-
-* **Do not try to run in fresh memory.** A compiler chooses `rest`, so
-  untouched memory *can* be made executable, and it looks like an escape
-  from self-encryption. `rotr_forces_halt` closes it: a virgin phase that
-  can rotate can also halt, 42 addresses along in the same phase.
-* **Do not try to avoid `*`.** `widthBounded_step1` proves a rot-free run
-  keeps every storable value in a finite alphabet, so every `j` and `i`
-  teleports into a fixed finite address set for ever. Rotation is the only
-  source of unboundedly many addresses.
-* **Do not try to compute a branch flag.** `no_accumulator_flag` proves no
-  chain against compiled-in constants can produce a uniform value that
-  depends on the accumulator. A flag must be *read* from something already
-  uniform, which is why registers store blank and mark as `...000` and
-  `...222`.
-* **Watch which cell a jump must keep printable.** The jumping cell needs no
-  side condition (`printable_of_decode`); the cell it lands on does, because
-  the postal stage reads at `c` after the jump has moved it.
-* **Keep the accumulator known at every gadget boundary.** `crz_two_steps`
-  needs constants computed from the accumulator, so it only applies where
-  the accumulator is known. `crz_absorb` is the tool when it is not.
-
-### Working in this checkout
-
-Several sessions share it. Build and test your own targets by name;
-**never `git stash`** — doing so here clobbered another session's
-uncommitted work mid-edit, and recovering it took longer than the test it
-was meant to enable. Run `lake test` before pushing, not after: master has
-been red from other sessions' in-flight work more than once. Commit in
-stages and push each one.
-
-Audit with a scratch file importing only
-`Langlib.Computability.MalbolgeUnshackled` rather than through
-`scripts/axioms.lean`, which imports the whole library and so fails
-whenever any other session's file is broken.
-
-### What "done" means
-
-A term `malbolgeUnshackledComplete : TuringComplete MalbolgeUnshackledLang`
-in `Langlib/Computability/MalbolgeUnshackled.lean`, every declaration
-reporting only the three standard axioms, a differential test suite
-compiling small URM programs and checking the decoded answers, and this
-page rewritten to say what is proved rather than what is planned. Until
-then the top of this page must keep saying there is no witness.
-
-## Verifying
-
-Build the development:
-
-```
-lake build Langlib.Computability.MalbolgeUnshackled
-```
-
-Audit every claim in it:
-
-```
-lake env lean scripts/axioms.lean
-```
-
-Output: every `Unshackled.*` line must report only `[propext]`,
-`[propext, Quot.sound]` or `[propext, Classical.choice, Quot.sound]`.
-Anything else, `sorryAx` above all, means a result is not what it claims.
-
-Run the language's own tests, including the verified loop:
-
-```
-lake test
-```
+**Reworked foundations, updated 2026-09-06; no `TuringComplete MalbolgeUnshackledLang` witness.**
+The previous assessment that only one walk pass and assembly remained was
+incorrect. The [proof audit](proof-audit.md) gives the checked obstructions,
+primary sources, and a revised construction.
+
+The existing [base module](../../Langlib/Computability/MalbolgeUnshackled/Main.lean)
+proves substantial local algebra and conditional execution lemmas. The new
+[obstruction module](../../Langlib/Computability/MalbolgeUnshackled/Obstructions.lean)
+proves that its infinite blank-tail invariant cannot hold with natural-seeded
+fill and finitely many writes. This does not prove MU incomplete.
+
+## Keep
+
+* The `ProgLang` and lawfulness instances, address arithmetic, memory laws,
+  `step1`/`run?` connection to the interpreter, and halting composition.
+* Crazy-operation and rotation algebra, including probes, carry-relevant
+  trit facts, copying, and the arithmetic part of width growth.
+* Single-use row/chain lemmas and code-encryption facts, with their stated
+  hypotheses. They do not yet supply reusable arithmetic routines.
+* The existing URM-to-`Counter` compiler and `counterProgram_spec`.
+
+## Replace
+
+The proposed unary tape pair has useful mathematical update laws, but its
+`RegMem` invariant asks for infinitely many adjacent blank cells. The actual
+periodic fill makes that impossible. An allocator would need a different
+invariant as well as new operational proofs.
+
+The recommended representation uses one fixed MU cell per counter, holding
+an unbounded natural value. Runtime arithmetic scans the current rotation
+width and grows it on overflow. Lutter's 2016 interpreter supplies a
+concrete reference for these routines; inspecting it is not a correctness
+proof. Detailed contracts and source hashes are in the [audit](proof-audit.md).
+
+## Additional local results from the image route
+
+The merged `ilya/malbolge-tc` development also proves `probe_branch_gadget`
+(a six-step probe and branch that preserves the register cell),
+`chain_run_nop` and `chain_restored` (the no-op sweep and restoration of
+chain code), and `alternating_at` (placement by address residue).
+`imageOf_regMem_init` establishes the zero-register invariant for a directly
+constructed image with a chosen blank fill. It does not show that such an
+image can be loaded from source, and code restoration does not replenish
+consumed operands.
+
+The earlier handoff identified another obligation for a tape walk: the
+branch gadgets use a slot-dependent pointer to recover their computed
+address, while the pointer-free branch loses the sweep position. A complete
+walk would need to supply those pointers or preserve the position by another
+construction. These local results remain available in the
+[base module](../../Langlib/Computability/MalbolgeUnshackled/Main.lean);
+they do not replace the audited fixed-cell plan below.
+
+## Reworked foundations now checked
+
+The new [runtime account](runtime-proof.md) documents the proof modules:
+
+* `Counters.lean`: finite fixed cells, constructive representability over any
+  background, frame and register update laws, and capacity after growth.
+* `Runtime.lean`: three-step rotate/crazy and pointer-reset calls restoring
+  their working word, with explicit operand effects and memory preservation.
+* `Rotation.lean`: normalization-aware full-window rotation and a one-marker
+  low-trit test that excludes early return, at the value level.
+* `RotationLoop.lean`: a concrete six-instruction loop and arbitrary repeated
+  passes of its finite code, preserving its return records. It has no exit
+  branch; the pass count remains a proof index.
+* `Growth.lean`: five actual instructions growing the width and returning
+  through a fixed phase of untouched fill, plus an extensional read variant.
+* `ReusableGrowth.lean`: eleven actual steps restore the growth service,
+  preserving its code, return table and return reads for every future width.
+  The no-op orbit is checked, including its need for runtime initialization.
+* `Initialization.lean`: the three-step crazy/move/crazy write primitive
+  used to construct that orbit from legal source data.
+* `Marker.lean`: clearing an arbitrarily wide zero/one marker and rebuilding
+  one along a path of unchanged constants; rotating all-ones loads the
+  accumulator without reading input.
+* `MarkerReset.lean`: 34 actual steps reset the marker to one and restore
+  resident constants and a two-phase router, preserving input and widths.
+  `call_power` accepts `3^k` independently of the working width.
+* `MarkerCycle.lean`: a nine-step rotation route, seven-step return route,
+  and their 50-step composition with reset on the same physical marker.
+  Arbitrarily many iterations preserve the calling invariant, and every
+  fuel prefix survives. The reset proof now tracks the exact two encryptions
+  of the shared rotor/landing at 529.
+* `Routing.lean`: the natural-address control-step facts shared by both
+  cycles; existing marker-route APIs retain their direct-reset behavior.
+* `GrowingMarker.lean`: an 87-step cycle rotates, grows, resets the same
+  marker at the new width, and returns. All resident services and future
+  remote reads survive. Arbitrary repetition reaches width `2^n*w`;
+  actual runs exceed every fixed width bound.
+* `LowTrit.lean`: two crazy operations extract a marker's low bit, accepting
+  either previous result bit; the same operations with all-ones restore
+  scratch. Nine-step operational calls prove both contracts and code reuse;
+  `test_marker` returns one exactly at a multiple of the current width.
+* `BitBranch.lean`: a two/three-step conditional jump through natural bits,
+  preserving the low-memory no-op orbit and continuation landings.
+* `PaddedCrazy.lean`: a seven-step working call reserves two adjacent branch
+  continuations and restores all code. Its fourteen-step pair supports
+  `LowTrit.test_padded`, a marker test with that compatible record space.
+
+Seven generated, loadable source examples exercise the loop, one growth
+segment, two calls of the same growth service, and rotation/reset of the
+same marker cell, including closed reset-only and growing cycles, at default
+and odd widths. Regression tests inspect machine states,
+repeat full cycles, check no-op phases and unconsumed return records, and
+check the exact halt boundaries. The two-call example uses distinct prepared
+markers. The reset example bootstraps constants, rotates its one marker,
+and regenerates one, but its rotation wrapper is single-use. The new cycle
+example initializes its no-ops and repeats rotation/reset indefinitely.
+The growth-loop example initializes all services and reuses the same marker
+through successive width changes. Detecting overflow and resuming a
+terminating arithmetic scan remains open. The bit-branch example initializes
+low memory and exercises both branch outcomes in both no-op phases, then
+halts. Its prepared flags are not computed from a marker.
+General loader reachability of the runtime invariant is still unproved.
+
+## Remaining, in dependency order
+
+1. Connect the padded extractor's result to dispatch with an actual pointer
+   move and prove that both branch paths restore the move's code. The padded
+   records now leave both adjacent branch continuations unconstrained.
+2. Connect the checked marker test, scratch reset and exit branch to rotation.
+   Use the checked growth/reset routes to implement conditional overflow retry.
+3. Counter read/write, increment with overflow retry, decrement with borrow,
+   zero testing on a scratch copy, and output; prove actual finite `run?`
+   segments preserving the calling convention.
+4. A total layout and a source initializer that reaches the runtime invariant
+   under the real loader. Arbitrary `Image` backgrounds are not a substitute.
+5. Compilation of `Counter.Code`, simulation by induction on `Ev` or `EvN`,
+   then composition with `counterProgram_spec` and a halt epilogue.
+
+The next acceptance criterion is a loadable counter routine that crosses a
+width boundary, returns, and continues, with a symbolic theorem over its
+counter value and width. General iteration lemmas with the missing routine
+as a hypothesis do not satisfy that criterion.
+
+## Validation
+
+The obstruction and runtime modules build with the library; their public
+results are included in [the axiom audit](../../scripts/axioms.lean). See the
+[progress log](../PROGRESS.md) for the completed checks. The older
+[technical account](computability.md) and
+[compiler notebook](compiler.md) retain useful derivations, but their
+superseded construction recommendations should be read through this audit.

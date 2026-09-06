@@ -2,13 +2,24 @@
 
 * **Author**: John Colagioia
 * **Year**: 2000
-* **Canonical sources**: Colagioia's specification (`thue.txt`) and C
-  interpreter (`thue.c`, rev. 1.5 with Chris Pressey's 2010 fixes), both
-  preserved in Cat's Eye Technologies' distribution at
-  https://github.com/catseye/Thue; the community reference point is
-  https://esolangs.org/wiki/Thue
-* **In LangLib**: `Langlib/Languages/Thue/`, runner `lake exe thue`,
-  examples in `Langlib/Examples/Thue/`
+* **Canonical sources**:
+  - Colagioia's specification (`thue.txt`) and C interpreter (`thue.c`,
+    rev. 1.5 with Chris Pressey's 2010 fixes), both preserved in Cat's Eye
+    Technologies' distribution at https://github.com/catseye/Thue; and
+  - the community reference point, https://esolangs.org/wiki/Thue.
+* **In LangLib**:
+  - `Langlib/Languages/Thue/`,
+  - runner `lake exe thue`,
+  - [examples](../../Langlib/Examples/Thue/),
+  - tests in [`Langlib/Tests/Thue.lean`](../../Langlib/Tests/Thue.lean),
+  - Turing completeness in [`Langlib/Computability/Thue/Main.lean`](../../Langlib/Computability/Thue/Main.lean) and [docs/thue/computability.md](computability.md), and
+  - a certified Turpentine compiler derived from the completeness proof; the hand-written one is still planned ([docs/thue/compiler.md](compiler.md))
+
+[`thueComplete`](../../Langlib/Computability/Thue/Main.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Langlib/Computability/Thue/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
 
 ## History: Axel Thue and semi-Thue systems
 
@@ -28,10 +39,10 @@ constraint-programming Turing tarpit: you do not write instructions, you
 write a grammar and let the string sort itself out. Thue is
 Turing-complete, by the obvious embedding of unrestricted grammars — and
 here that is a theorem rather than an appeal to the obvious:
-[`thueComplete`](../../Langlib/Computability/Thue.lean#L4032) compiles a
+[`thueComplete`](../../Langlib/Computability/Thue/Main.lean#L15) compiles a
 register machine into Thue and proves the compiled rules simulate it under
 this interpreter's own strategy. See
-[docs/computability-thue.md](../computability-thue.md).
+[docs/thue/computability.md](computability.md).
 
 ## The language
 

@@ -79,6 +79,19 @@ def suite : Suite where
       -- size of the program, and at a hundred kilobytes one run takes the
       -- better part of a minute. That is too much to spend on every
       -- `lake test`; the spec page carries the command instead.
+      -- The growth demonstration returns from an address beyond the source.
+    , { name := "grow-once example", source := ex "grow-once.mu", fuel := 17,
+        expect := .outputs "" }
+    , { name := "same growth code called twice", source := ex "grow-twice.mu", fuel := 63,
+        expect := .outputs "" }
+    , { name := "same physical marker rotated and reset", source := ex "marker-reset.mu",
+        fuel := 103, expect := .outputs "" }
+    , { name := "marker rotation and reset repeat", source := ex "marker-cycle.mu",
+        fuel := 526, expect := .diverges }
+    , { name := "one marker grows indefinitely", source := ex "grow-loop.mu",
+        fuel := 1592, expect := .diverges }
+    , { name := "reusable bit branch takes both paths", source := ex "bit-branch.mu",
+        fuel := 21, expect := .outputs "" }
       -- Micro-programs.
     , { name := "halt at address 0", source := .inline "Q'",
         expect := .outputs "" }
@@ -117,7 +130,19 @@ def suiteWidth : Suite where
     , { name := "banner example at rotation width 37", source := ex "banner.mu",
         expect := .outputs "MALBOLGE" }
     , { name := "hello-small example at rotation width 37",
-        source := ex "hello-small.mu", expect := .outputs "Hello, world!\n" } ]
+        source := ex "hello-small.mu", expect := .outputs "Hello, world!\n" }
+    , { name := "grow-once at rotation width 37", source := ex "grow-once.mu",
+        fuel := 17, expect := .outputs "" }
+    , { name := "two growth calls at width 37", source := ex "grow-twice.mu",
+        fuel := 63, expect := .outputs "" }
+    , { name := "marker reset at width 37", source := ex "marker-reset.mu",
+        fuel := 103, expect := .outputs "" }
+    , { name := "marker cycle at width 37", source := ex "marker-cycle.mu",
+        fuel := 526, expect := .diverges }
+    , { name := "same marker grows repeatedly at width 37", source := ex "grow-loop.mu",
+        fuel := 1592, expect := .diverges }
+    , { name := "bit branch at width 37", source := ex "bit-branch.mu",
+        fuel := 21, expect := .outputs "" } ]
 
 /-- Johansen's `-n`: source characters outside 33..126 are a load error
 rather than being loaded unchecked. -/
@@ -133,6 +158,20 @@ def suiteStrict : Suite where
       -- under the default loader and is refused by Johansen's `-n`.
     , { name := "hello-small is refused by strict loading",
         source := ex "hello-small.mu",
+        expect := .parseError "--strict rejects those" }
+    , { name := "rotation data requires permissive loading", source := ex "rotation-loop.mu",
+        expect := .parseError "--strict rejects those" }
+    , { name := "growth data requires permissive loading", source := ex "grow-once.mu",
+        expect := .parseError "--strict rejects those" }
+    , { name := "growth initializer needs permissive loading", source := ex "grow-twice.mu",
+        expect := .parseError "--strict rejects those" }
+    , { name := "marker constants require permissive loading", source := ex "marker-reset.mu",
+        expect := .parseError "--strict rejects those" }
+    , { name := "marker cycle initializer requires permissive loading", source := ex "marker-cycle.mu",
+        expect := .parseError "--strict rejects those" }
+    , { name := "growth loop initializer needs permissive loading", source := ex "grow-loop.mu",
+        expect := .parseError "--strict rejects those" }
+    , { name := "bit branch initializer needs permissive loading", source := ex "bit-branch.mu",
         expect := .parseError "--strict rejects those" } ]
 
 /-- The cat echoes its input before diverging; compare the echoed prefix. -/
@@ -143,6 +182,302 @@ def suiteEcho : Suite where
     [ { name := "cat example echoes its input", source := ex "cat.mu",
         input := "meow", fuel := 5_000_000, expect := .outputs "meow" } ]
 
-def suites : List Suite := [suite, suiteWidth, suiteStrict, suiteEcho]
+/-- Observe the actual machine after a bounded run. The diagnostic includes
+its exit status; the adapter's halt only tells the harness the observation
+finished, and does not claim the MU program halted. -/
+private def snapshot (w : Nat) (src : String) (input : Input) (fuel : Nat) :
+    Except String RunResult := do
+  let img ← Langlib.MalbolgeUnshackled.load src
+  let (s, exit) := Langlib.MalbolgeUnshackled.exec fuel
+    { mem := img.mem, input, rotWidth := max w Langlib.MalbolgeUnshackled.minRotWidth }
+  let status := match exit with
+    | .halted => "halt"
+    | .outOfFuel => "fuel"
+    | .error e => s!"error: {e}"
+  let operand := s.mem.get (Langlib.MalbolgeUnshackled.Value.ofNat 3000)
+  return {
+    output := (s!"{s.c},{s.d},{s.rotWidth},{s.maxWidth},{operand},{s.output.size},{status}").toUTF8,
+    exit := .halted }
+
+/-- Loadable witnesses for the new fixed-cell runtime: inspect pointer
+restoration, the operand, width growth and the exact halt boundary. -/
+def suiteRuntime : Suite where
+  name := "malbolge-unshackled (runtime state, default width)"
+  run := snapshot 10
+  cases :=
+    [ { name := "rotation prologue reaches header", source := ex "rotation-loop.mu",
+        fuel := 3, expect := .outputs "153,3000,16,8,243,0,fuel" }
+    , { name := "one rotation returns", source := ex "rotation-loop.mu",
+        fuel := 9, expect := .outputs "153,3000,16,8,81,0,fuel" }
+    , { name := "full rotation cycle", source := ex "rotation-loop.mu",
+        fuel := 99, expect := .outputs "153,3000,16,8,243,0,fuel" }
+    , { name := "second cycle reuses records", source := ex "rotation-loop.mu",
+        fuel := 195, expect := .outputs "153,3000,16,8,243,0,fuel" }
+    , { name := "growth returns through untouched fill", source := ex "grow-once.mu",
+        fuel := 16, expect := .outputs "441,2998,32,16,14348907,0,fuel" }
+    , { name := "growth reaches halt", source := ex "grow-once.mu",
+        fuel := 17, expect := .outputs "441,2998,32,16,14348907,0,halt" } ]
+
+def suiteRuntimeWidth : Suite where
+  name := "malbolge-unshackled (runtime state, width 37)"
+  run := snapshot 37
+  cases :=
+    [ { name := "full odd-width rotation cycle", source := ex "rotation-loop.mu",
+        fuel := 225, expect := .outputs "153,3000,37,8,243,0,fuel" }
+    , { name := "second odd-width cycle", source := ex "rotation-loop.mu",
+        fuel := 447, expect := .outputs "153,3000,37,8,243,0,fuel" }
+    , { name := "growth returns at width 74", source := ex "grow-once.mu",
+        fuel := 16, expect := .outputs "441,2998,74,37,150094635296999121,0,fuel" }
+    , { name := "growth halts at width 74", source := ex "grow-once.mu",
+        fuel := 17, expect := .outputs "441,2998,74,37,150094635296999121,0,halt" } ]
+
+/-- Observe code phases and return records across reuse of the same growth
+block. As with `snapshot`, this is diagnostic text from the test adapter. -/
+private def growthSnapshot (w : Nat) (src : String) (input : Input) (fuel : Nat) :
+    Except String RunResult := do
+  let img ← Langlib.MalbolgeUnshackled.load src
+  let (s, exit) := Langlib.MalbolgeUnshackled.exec fuel
+    { mem := img.mem, input, rotWidth := max w Langlib.MalbolgeUnshackled.minRotWidth }
+  let read (a : Nat) := toString (s.mem.get (Langlib.MalbolgeUnshackled.Value.ofNat a))
+  let phases := String.intercalate "," ([436,437,438,439,440,441].map read)
+  let status := match exit with
+    | .halted => "halt"
+    | .outOfFuel => "fuel"
+    | .error e => s!"error: {e}"
+  return {
+    output := (s!"{s.c},{s.d},{s.rotWidth},{s.maxWidth};{phases};{read 3000},{read 3200};{read 5002},{read 5007};{s.output.size},{status}").toUTF8,
+    exit := .halted }
+
+def suiteGrowth : Suite where
+  name := "malbolge-unshackled (reusable growth, default width)"
+  run := growthSnapshot 10
+  cases :=
+    [ { name := "initializer constructs the no-op orbit", source := ex "grow-twice.mu",
+        fuel := 22, expect := .outputs "153,3000,18,9;74,41,102,96,70,33;1,1;436,1199;0,fuel" }
+    , { name := "first call restores both moves", source := ex "grow-twice.mu",
+        fuel := 39, expect := .outputs "1200,5008,36,18;74,96,60,51,70,33;129140163,1;436,1199;0,fuel" }
+    , { name := "second call preserves the same return records", source := ex "grow-twice.mu",
+        fuel := 60, expect := .outputs "1200,5008,72,36;74,51,41,102,70,33;129140163,50031545098999707;436,1199;0,fuel" }
+    , { name := "second return reaches the halt", source := ex "grow-twice.mu",
+        fuel := 63, expect := .outputs "1300,5010,72,36;74,51,41,102,70,33;129140163,50031545098999707;436,1199;0,halt" } ]
+
+def suiteGrowthWidth : Suite where
+  name := "malbolge-unshackled (reusable growth, width 37)"
+  run := growthSnapshot 37
+  cases :=
+    [ { name := "first odd-width growth call", source := ex "grow-twice.mu",
+        fuel := 39, expect := .outputs "1200,5008,74,37;74,96,60,51,70,33;150094635296999121,1;436,1199;0,fuel" }
+    , { name := "second odd-width growth call", source := ex "grow-twice.mu",
+        fuel := 60, expect := .outputs "1200,5008,148,74;74,51,41,102,70,33;150094635296999121,67585198634817523235520443624317923;436,1199;0,fuel" }
+    , { name := "second odd-width return halts", source := ex "grow-twice.mu",
+        fuel := 63, expect := .outputs "1300,5010,148,74;74,51,41,102,70,33;150094635296999121,67585198634817523235520443624317923;436,1199;0,halt" } ]
+
+/-- Inspect the same marker before and after reset, with resident constants
+and the router in their restored phases. Input remains unconsumed. -/
+private def markerSnapshot (w : Nat) (src : String) (input : Input) (fuel : Nat) :
+    Except String RunResult := do
+  let img ← Langlib.MalbolgeUnshackled.load src
+  let (s, exit) := Langlib.MalbolgeUnshackled.exec fuel
+    { mem := img.mem, input, rotWidth := w }
+  let read (a : Nat) := toString (s.mem.get (Langlib.MalbolgeUnshackled.Value.ofNat a))
+  let constants := String.intercalate "," ([3000,3400,3500,3600,530].map read)
+  let status := match exit with
+    | .halted => "halt"
+    | .outOfFuel => "fuel"
+    | .error e => s!"error: {e}"
+  return {
+    output := (s!"{s.c},{s.d},{s.a},{s.rotWidth},{s.maxWidth};{read 3200};{constants};{s.input.pos},{s.output.size},{status}").toUTF8,
+    exit := .halted }
+
+def suiteMarker : Suite where
+  name := "malbolge-unshackled (marker reset, width 10)"
+  run := markerSnapshot 10
+  cases :=
+    [ { name := "bootstrap constructs resident constants", source := ex "marker-reset.mu", input := "unused",
+        fuel := 54, expect := .outputs "1300,3205,1,16,8;1;...11,...11,2,...10,74;0,0,fuel" }
+    , { name := "rotation uses the same marker cell", source := ex "marker-reset.mu", input := "unused",
+        fuel := 61, expect := .outputs "153,3000,14348907,16,8;14348907;...11,...11,2,...10,74;0,0,fuel" }
+    , { name := "reset restores one and resident state", source := ex "marker-reset.mu", input := "unused",
+        fuel := 95, expect := .outputs "1300,3205,1,16,8;1;...11,...11,2,...10,74;0,0,fuel" }
+    , { name := "caller halts without consuming input", source := ex "marker-reset.mu", input := "unused",
+        fuel := 103, expect := .outputs "1400,3212,1,16,8;1;...11,...11,2,...10,74;0,0,halt" } ]
+
+def suiteMarkerWidth : Suite where
+  name := "malbolge-unshackled (marker reset, width 37)"
+  run := markerSnapshot 37
+  cases :=
+    [ { name := "bootstrap constructs resident constants", source := ex "marker-reset.mu", input := "unused",
+        fuel := 54, expect := .outputs "1300,3205,1,37,8;1;...11,...11,2,...10,74;0,0,fuel" }
+    , { name := "rotation uses the same marker cell", source := ex "marker-reset.mu", input := "unused",
+        fuel := 61, expect := .outputs "153,3000,150094635296999121,37,8;150094635296999121;...11,...11,2,...10,74;0,0,fuel" }
+    , { name := "reset restores one and resident state", source := ex "marker-reset.mu", input := "unused",
+        fuel := 95, expect := .outputs "1300,3205,1,37,8;1;...11,...11,2,...10,74;0,0,fuel" }
+    , { name := "caller halts without consuming input", source := ex "marker-reset.mu", input := "unused",
+        fuel := 103, expect := .outputs "1400,3212,1,37,8;1;...11,...11,2,...10,74;0,0,halt" } ]
+
+/-- Observe every boundary of the repeating rotation/reset route, including
+its no-op phases and the unchanged adjacent marker return record. -/
+private def cycleSnapshot (w : Nat) (src : String) (input : Input) (fuel : Nat) :
+    Except String RunResult := do
+  let img ← Langlib.MalbolgeUnshackled.load src
+  let (s, exit) := Langlib.MalbolgeUnshackled.exec fuel
+    { mem := img.mem, input, rotWidth := w }
+  let read (a : Nat) := toString (s.mem.get (Langlib.MalbolgeUnshackled.Value.ofNat a))
+  let phases := String.intercalate "," ([526,527,528,529,530].map read)
+  let constants := String.intercalate "," ([3000,3400,3500,3600].map read)
+  let records := String.intercalate "," ([3201,3202,3195,3196,2996,2997].map read)
+  let status := match exit with
+    | .halted => "halt"
+    | .outOfFuel => "fuel"
+    | .error e => s!"error: {e}"
+  return {
+    output := (s!"{s.c},{s.d},{s.rotWidth},{s.maxWidth};{s.a},{read 3200};{phases};{constants};{records};{s.input.pos},{s.output.size},{status}").toUTF8,
+    exit := .halted }
+
+def suiteCycle : Suite where
+  name := "malbolge-unshackled (marker cycle, width 10)"
+  run := cycleSnapshot 10
+  cases :=
+    [ { name := "initializer and return reach rotor", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 76, expect := .outputs "529,3200,16,8;1,1;70,70,70,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "same marker rotated in place", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 77, expect := .outputs "530,3201,16,8;14348907,14348907;70,70,70,70,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "rotation route restores both words", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 85, expect := .outputs "153,3000,16,8;14348907,14348907;70,70,70,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "one complete cycle", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 126, expect := .outputs "529,3200,16,8;1,1;74,74,74,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "second cycle reuses changed no-op phases", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 176, expect := .outputs "529,3200,16,8;1,1;70,70,70,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "nine cycles reuse all records", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 526, expect := .outputs "529,3200,16,8;1,1;74,74,74,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" } ]
+
+def suiteCycleWidth : Suite where
+  name := "malbolge-unshackled (marker cycle, width 37)"
+  run := cycleSnapshot 37
+  cases :=
+    [ { name := "initializer and return reach rotor", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 76, expect := .outputs "529,3200,37,8;1,1;70,70,70,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "same marker rotated in place", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 77, expect := .outputs "530,3201,37,8;150094635296999121,150094635296999121;70,70,70,70,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "rotation route restores both words", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 85, expect := .outputs "153,3000,37,8;150094635296999121,150094635296999121;70,70,70,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "one complete cycle", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 126, expect := .outputs "529,3200,37,8;1,1;74,74,74,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "second cycle reuses changed no-op phases", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 176, expect := .outputs "529,3200,37,8;1,1;70,70,70,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" }
+    , { name := "nine cycles reuse all records", source := ex "marker-cycle.mu", input := "unused",
+        fuel := 526, expect := .outputs "529,3200,37,8;1,1;74,74,74,74,74;...11,...11,2,...10;270,529,248,525,248,529;0,0,fuel" } ]
+
+/-- Observe repeated width changes, return routes and regeneration of the
+same marker; the loaded program itself emits no diagnostics. -/
+private def growingSnapshot (w : Nat) (src : String) (input : Input) (fuel : Nat) :
+    Except String RunResult := do
+  let img ← Langlib.MalbolgeUnshackled.load src
+  let (s, exit) := Langlib.MalbolgeUnshackled.exec fuel
+    { mem := img.mem, input, rotWidth := w }
+  let read (a : Nat) := toString (s.mem.get (Langlib.MalbolgeUnshackled.Value.ofNat a))
+  let phases := String.intercalate "," ([436,437,438,439,440,441,529,530].map read)
+  let constants := String.intercalate "," ([3000,3400,3500,3600].map read)
+  let records := String.intercalate "," ([3201,3202,5002,5007].map read)
+  let status := match exit with
+    | .halted => "halt"
+    | .outOfFuel => "fuel"
+    | .error e => s!"error: {e}"
+  return {
+    output := (s!"{s.c},{s.d},{s.rotWidth},{s.maxWidth};{read 3200},{s.a};{phases};{constants};{records};{s.input.pos},{s.output.size},{status}").toUTF8,
+    exit := .halted }
+
+def suiteGrowing : Suite where
+  name := "malbolge-unshackled (growing marker, width 10)"
+  run := growingSnapshot 10
+  cases :=
+    [ { name := "initializer reaches reusable entry", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1331, expect := .outputs "529,3200,18,9;1,1;74,41,102,96,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "same rotated marker enters growth", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1355, expect := .outputs "436,3200,18,9;129140163,129140163;74,41,102,96,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "growth returns with marker intact", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1366, expect := .outputs "1200,5008,36,18;129140163,129140163;74,96,60,51,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "exit route reaches reset at new width", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1377, expect := .outputs "153,3000,36,18;129140163,129140163;74,96,60,51,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "first full cycle regenerates one", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1418, expect := .outputs "529,3200,36,18;1,1;74,96,60,51,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "second doubling reuses the same marker", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1505, expect := .outputs "529,3200,72,36;1,1;74,51,41,102,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "third doubling restores all services", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1592, expect := .outputs "529,3200,144,72;1,1;74,102,96,60,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" } ]
+
+def suiteGrowingWidth : Suite where
+  name := "malbolge-unshackled (growing marker, width 37)"
+  run := growingSnapshot 37
+  cases :=
+    [ { name := "initializer reaches reusable entry", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1331, expect := .outputs "529,3200,37,9;1,1;74,41,102,96,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "same rotated marker enters growth", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1355, expect := .outputs "436,3200,37,9;150094635296999121,150094635296999121;74,41,102,96,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "growth returns with marker intact", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1366, expect := .outputs "1200,5008,74,37;150094635296999121,150094635296999121;74,96,60,51,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "exit route reaches reset at new width", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1377, expect := .outputs "153,3000,74,37;150094635296999121,150094635296999121;74,96,60,51,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "first full cycle regenerates one", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1418, expect := .outputs "529,3200,74,37;1,1;74,96,60,51,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "second doubling reuses the same marker", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1505, expect := .outputs "529,3200,148,74;1,1;74,51,41,102,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" }
+    , { name := "third doubling restores all services", source := ex "grow-loop.mu", input := "unused",
+        fuel := 1592, expect := .outputs "529,3200,296,148;1,1;74,102,96,60,70,33,74,74;...11,...11,2,...10;270,529,436,1199;0,0,fuel" } ]
+
+/-- Observe both branch outcomes in both no-op phases. This diagnostic
+adapter does not add an output instruction to the source program. -/
+private def branchSnapshot (w : Nat) (src : String) (input : Input) (fuel : Nat) :
+    Except String RunResult := do
+  let img ← Langlib.MalbolgeUnshackled.load src
+  let (s, exit) := Langlib.MalbolgeUnshackled.exec fuel { mem := img.mem, input, rotWidth := w }
+  let read (a : Nat) := toString (s.mem.get (Langlib.MalbolgeUnshackled.Value.ofNat a))
+  let flags := String.intercalate "," ([2000,10000,10100,10200].map read)
+  let records := String.intercalate "," ([2001,2002,10001,10002,10101,10102,10201,10202].map read)
+  let status := match exit with
+    | .halted => "halt"
+    | .outOfFuel => "fuel"
+    | .error e => s!"error: {e}"
+  return {
+    output := (s!"{s.c},{s.d},{s.rotWidth},{s.maxWidth};{s.a},{read 1};{flags};{records};{s.input.pos},{s.output.size},{status}").toUTF8,
+    exit := .halted }
+
+def suiteBranch : Suite where
+  name := "malbolge-unshackled (bit branch, width 10)"
+  run := branchSnapshot 10
+  cases :=
+    [ { name := "initializer installs low-memory no-op", source := ex "bit-branch.mu", input := "unused",
+        fuel := 7, expect := .outputs "105,2000,18,9;74,74;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "zero takes extra no-op from phase 74", source := ex "bit-branch.mu", input := "unused",
+        fuel := 10, expect := .outputs "800,2003,18,9;74,70;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "one branches directly from phase 70", source := ex "bit-branch.mu", input := "unused",
+        fuel := 13, expect := .outputs "900,10002,18,9;74,74;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "one branches directly from phase 74", source := ex "bit-branch.mu", input := "unused",
+        fuel := 16, expect := .outputs "1000,10102,18,9;74,70;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "zero takes extra no-op from phase 70", source := ex "bit-branch.mu", input := "unused",
+        fuel := 20, expect := .outputs "700,10203,18,9;74,74;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "halt occurs after all four branches", source := ex "bit-branch.mu", input := "unused",
+        fuel := 21, expect := .outputs "700,10203,18,9;74,74;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,halt" } ]
+
+def suiteBranchWidth : Suite where
+  name := "malbolge-unshackled (bit branch, width 37)"
+  run := branchSnapshot 37
+  cases :=
+    [ { name := "initializer installs low-memory no-op", source := ex "bit-branch.mu", input := "unused",
+        fuel := 7, expect := .outputs "105,2000,37,9;74,74;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "zero takes extra no-op from phase 74", source := ex "bit-branch.mu", input := "unused",
+        fuel := 10, expect := .outputs "800,2003,37,9;74,70;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "one branches directly from phase 70", source := ex "bit-branch.mu", input := "unused",
+        fuel := 13, expect := .outputs "900,10002,37,9;74,74;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "one branches directly from phase 74", source := ex "bit-branch.mu", input := "unused",
+        fuel := 16, expect := .outputs "1000,10102,37,9;74,70;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "zero takes extra no-op from phase 70", source := ex "bit-branch.mu", input := "unused",
+        fuel := 20, expect := .outputs "700,10203,37,9;74,74;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,fuel" }
+    , { name := "halt occurs after all four branches", source := ex "bit-branch.mu", input := "unused",
+        fuel := 21, expect := .outputs "700,10203,37,9;74,74;0,1,1,0;699,799,899,10099,999,10199,699,699;0,0,halt" } ]
+
+def suites : List Suite :=
+  [suite, suiteWidth, suiteStrict, suiteEcho, suiteRuntime, suiteRuntimeWidth,
+   suiteGrowth, suiteGrowthWidth, suiteMarker, suiteMarkerWidth, suiteCycle, suiteCycleWidth, suiteGrowing, suiteGrowingWidth, suiteBranch, suiteBranchWidth]
 
 end Langlib.Tests.MalbolgeUnshackled

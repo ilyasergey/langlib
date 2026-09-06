@@ -5,6 +5,15 @@ and commands are the colour differences between adjacent colour blocks.
 The full specification, history, and the exact semantic choices are in
 [docs/piet/spec.md](../../../docs/piet/spec.md).
 
+[`pietComplete`](../../Computability/Piet/Main.lean#L16) preserves both halting answers
+and divergence. Its [divergence proof](../../Computability/Piet/Divergence.lean#L92)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../../../docs/divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
+
+The [computability account](../../../docs/piet/computability.md) explains the
+representation, proved result and remaining scope.
+
 ## Modules
 
 * `Syntax.lean`: the 20 colours (6 hues x 3 lightnesses, plus white and

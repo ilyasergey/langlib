@@ -4,7 +4,7 @@
   [`Langlib/Languages/Turpentine/Compile/Fractran.lean`](../../Langlib/Languages/Turpentine/Compile/Fractran.lean).
 * **Status**: both compilers exist. The *bespoke* one, above, is
   hand-written and unverified; the *certified* one,
-  [`derivedFractran`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L127),
+  [`derivedFractran`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L108),
   is derived from FRACTRAN's Turing-completeness proof and correct by
   construction.
 * **Tests**: [Langlib/Tests/CompileFractran.lean](../../Langlib/Tests/CompileFractran.lean)
@@ -55,8 +55,7 @@ the answer, once, in decimal, and nothing else.
 **The certified route ends the same way**, and it is worth being exact
 about this, because it is easy to oversell the difference. Its cleanup
 phase reduces a halting store to `2 ^ R₀` too — that is what
-`cleanupFrom` in
-[`Langlib/Computability/Fractran.lean`](../../Langlib/Computability/Fractran.lean#L3181)
+[`cleanupFrom`](../../Langlib/Computability/Fractran/Simulation.lean#L3199)
 is for, and its own comment says "pow2 observation then emits `R₀`" —
 and it keeps a unique control marker on an odd prime at every instruction
 boundary, so its intermediate states are not powers of two either. Running

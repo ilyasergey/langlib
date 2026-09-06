@@ -1,0 +1,983 @@
+# Malbolge Unshackled: completeness in progress
+
+**Status updated 2026-09-06: no completeness witness yet.** The current
+construction uses fixed cells holding unbounded counters. The
+[runtime account](runtime-proof.md) describes the checked implementation;
+the [progress tracker](completeness-progress.md) lists the remaining work.
+The older unary-tape architecture developed below is superseded by the
+[proof audit and fixed-counter construction](proof-audit.md):
+`RegMem` cannot hold with natural-seeded fill, operand restoration is
+missing from that architecture, and the width theorem alone does not bound
+storage. Its local algebra remains useful, but it is not the current
+construction plan.
+
+Malbolge Unshackled (Ørjan Johansen, 2007) is claimed Turing complete, and
+constructive evidence includes Matthias Lutter's
+[2016 Brainfuck interpreter](https://lutter.cc/unshackled/brainfuck.html)
+and the later MalbolgeLisp (2020). Inspecting a working interpreter is not
+itself a proof of its unbounded simulation. LangLib wants the claim as a
+`TuringComplete MalbolgeUnshackledLang` witness, in the sense of
+[`Langlib/Common/Computability.lean`](../../Langlib/Common/Computability.lean):
+a total compiler from the unlimited register machine with its input embedded,
+an output decoder, and proofs preserving both halting answers and divergence.
+The target runs on `Input.empty`.
+
+## Current construction
+
+The checked runtime foundations include a fixed-cell counter representation,
+reusable working calls, marker reset, and a closed rotation/reset cycle.
+An [87-step growth cycle](runtime-proof.md#a-closed-growth-cycle-on-one-marker)
+reuses the same marker and returns at each larger width; arbitrary repetition
+and unbounded width are proved. Width growth with a return path is therefore
+already established.
+
+[Low-trit extraction and conditional dispatch](runtime-proof.md#low-trit-extraction-and-conditional-dispatch)
+also have reusable operational contracts. Connecting the marker test's result
+to dispatch while restoring the caller remains open, as do a terminating
+arithmetic scan, carry/borrow routines, conditional overflow retry, general
+source initialization, and the final counter simulation with divergence
+preservation. The generated source examples exercise runtime components;
+they do not establish general loader reachability or a completeness witness.
+
+## Earlier local results and tape design
+
+The remainder records the original local results and proposed tape design.
+The base results live in
+[`Langlib/Computability/MalbolgeUnshackled/Main.lean`](../../Langlib/Computability/MalbolgeUnshackled/Main.lean)
+and are checked by `scripts/axioms.lean`; the newer runtime and obstruction
+modules are audited there too.
+
+## What is proved
+
+### The language exists as a `ProgLang`
+
+```lean
+inductive MalbolgeUnshackledLang : Type
+
+instance : ProgLang MalbolgeUnshackledLang where
+  Prog := Image
+  parse := load
+  run := evalImage {}
+```
+
+A program is a loaded image, as it is for Malbolge, because the language is
+loaded rather than parsed. The runner is the reference semantics at its
+default configuration, which fixes the starting rotation width at 10. See
+"The rotation width" below for why that is a real assumption and not a
+formality.
+
+### The arithmetic of addresses
+
+Execution advances `c` and `d` by 3-adic successor and decodes the word at
+`c` against `c`'s residue. Three facts turn that into ordinary arithmetic
+for successor steps while the pointer is natural. Jumps and `movd` can
+leave the naturals even when execution started at zero:
+
+```lean
+theorem toNat?_ofNat (n : Nat) : (Value.ofNat n).toNat? = some n
+theorem succ_ofNat (n : Nat) : (Value.ofNat n).succ = Value.ofNat (n + 1)
+theorem modClass_ofNat (n : Nat) : (Value.ofNat n).modClass = n % 282
+```
+
+The third is the one worth stating twice. `Value.modClass` is a *decree*:
+Johansen proves in two lines that no additive remainder function exists on
+the 3-adics, so Unshackled fixes remainders for values that are not
+naturals by fiat. On the naturals the decree agrees with the honest
+remainder, and 282 is `lcm 6 94`, so one residue settles both the mod-94
+opcode rule and the mod-6 memory fill. Together these give the equation an
+assembler for the language has to solve:
+
+```lean
+theorem decode_at_ofNat {w : Nat} (h₁ : 33 ≤ w) (h₂ : w ≤ 126) (a : Nat) :
+    decode (Value.ofNat w) (Value.ofNat a).modClass
+      = (Instr.ofOpcode? ((w + a) % 94)).getD .nop
+```
+
+The instruction a cell holds is a function of its word *and its address*.
+A compiler does not get to place an instruction wherever it likes.
+
+### A step-level reading of the interpreter
+
+`exec` is one recursive definition with the whole loop body inline.
+`exec_hang`, `exec_halt` and `exec_step` are the three exits from its
+dispatch, and they are how every later proof will look at a run.
+`exec_step` records the ordering that catches people out: the word to
+encrypt is read *after* the instruction runs, so a jump encrypts its
+target rather than itself.
+
+`exec_of_hang` proves that Johansen's `hang` really hangs. A state whose
+code pointer sees an unprintable word runs out of fuel with the state
+unchanged, for every fuel bound. It never halts, never errors, and never
+emits another byte.
+
+## Obstruction one: self-encryption
+
+After an instruction executes, the word at `c` is replaced by its image
+under `xlat2`. Two small facts about that table have a large consequence.
+
+The table has no fixed point (`encrypt_ne_self_range`, checked over all 94
+printable codes in the kernel), and it maps `33..126` into `33..126`
+(`encrypt_mem_range`), so a code cell that starts printable stays printable
+for the whole run. Meanwhile the printable codes are 94 *consecutive*
+naturals, hence pairwise distinct modulo 94. Therefore:
+
+```lean
+theorem opcode_ne_encrypt {w : Nat} (h₁ : 33 ≤ w) (h₂ : w ≤ 126) (m : Nat) :
+    (encrypt w + m) % 94 ≠ (w + m) % 94
+```
+
+and its instruction-level form,
+
+```lean
+theorem decode_encrypt_ne {w : Nat} (h₁ : 33 ≤ w) (h₂ : w ≤ 126) {m : Nat}
+    (hne : decode (Value.ofNat w) m ≠ .nop) :
+    decode (Value.ofNat (encrypt w)) m ≠ decode (Value.ofNat w) m
+```
+
+**Encryption changes every non-`nop` decoded instruction.** This is about
+a word and its encryption: `jmp` encrypts its target instead of itself.
+Reusable code must account for which cells are actually encrypted and how
+their instruction phases are restored. The orbit lengths are 68, 9,
+6, 5, 4 and 2, so a loop built from arbitrary cells repeats only after
+`lcm = 3060` passes.
+
+## Obstruction two: the memory fill is not executable
+
+The loader stores the program's characters at `0, 1, 2, …` and covers every
+other address with Malbolge's `mem[i] = crz mem[i-1] mem[i-2]` iteration.
+Johansen's insight is that the iteration is 6-periodic, so the contents of
+an address the loader never reached are a function of that address modulo
+6, which extends the fill to the whole of the 3-adic integers.
+
+That six-entry table is not code. The crazy operation of two values whose
+repeating trit is `0` has repeating trit `1`, and from the third term of
+the iteration the repeating trits alternate `1, 0, 1, 0, …`. A value whose
+repeating trit is not `0` denotes no natural, so it is not printable, so
+executing it hangs. Three of the six entries are like that, whatever the
+program and whatever the phase:
+
+```lean
+theorem restTable_not_printable {p q : Value} (hp : p.lead = .t0) (hq : q.lead = .t0)
+    (m : Nat) :
+    ∃ j, j < 6 ∧ printableCode? ((restTable p q m).getD j Value.zero) = none
+```
+
+The hypotheses say the two seeds are naturals, which the loader guarantees
+because they are character code points. Wiring that guarantee through
+`loadWith`'s mutable loop is an outstanding piece of work, noted below.
+
+The consequence is limited: a program cannot execute an uninterrupted
+walk through untouched fill. Generating code beyond the image, or jumping
+over bad cells, is not excluded by this theorem.
+
+This is worth dwelling on because "run forward forever through virgin
+memory" is the one strategy that Unshackled's infinite address space seems
+to offer and Malbolge does not, and it is the first thing a compiler writer
+reaches for. It does not work.
+
+## The route past both: alternating cells
+
+`xlat2` has one orbit of length two, `70 ↔ 74`. A cell holding one of those
+two words alternates between exactly two opcodes forever, and the two
+opcodes differ by 4 modulo 94. Searching the 94 residues for pairs where
+one opcode is an instruction and the other is not turns up one residue per
+instruction:
+
+```lean
+def alternatingCell : Instr → Nat × Nat
+  | .jmp   => (24, 74)
+  | .out   => (25, 74)
+  | .inp   => (43, 74)
+  | .rotr  => (59, 74)
+  | .movd  => (60, 74)
+  | .crazy => (82, 74)
+  | .nop   => (88, 74)
+  | .halt  => (7, 74)
+  | .outOfBounds => (0, 74)
+```
+
+`alternatingCell_spec` checks in the kernel that each row decodes to its
+instruction and that its encryption decodes to nothing at all. Two things
+follow.
+
+**Instruction choice is never the obstacle.** Every one of the eight
+instructions is available as a period-2 cell, and every such cell is
+loadable, because the word 74 decodes to a real instruction and the loader
+only checks the initial word.
+
+**Instruction placement is the obstacle.** The residue is forced modulo 94,
+so a compiler must place its `p` at an address congruent to 82, its `j` at
+one congruent to 60, and so on, filling everything in between with cells
+that are harmless on every execution. Only 14 of the 94 residues admit a
+cell that both loads (its initial opcode must be one of the eight, which in
+practice means `o`, opcode 68) and stays harmless through its whole orbit.
+Padding is therefore the scarce resource, not instructions.
+
+**And the phase is forced too.** At each residue in the table above, the
+complementary word 70 decodes to no instruction, so the loader rejects it.
+An alternating cell always fires on its first execution and no-ops on its
+second, never the other way round. That kills the tempting construction of
+a loop as two half-bodies of opposite phase: the body fires on odd passes
+and is entirely `nop` on even ones, so the loop-back jump does not fire on
+even passes either, and control falls out of the loop. Chaining shadow
+copies does not fix it, it only pushes the problem to pass 4, then pass 8.
+
+So a loop cannot be assembled from cells that merely fire or no-op. The way
+loops actually work is the next section, and it is not the phase trick.
+
+## How loops actually work: `jmp` does not destroy itself
+
+`decode_encrypt_ne` says a cell cannot show the same opcode twice running,
+which reads like a proof that nothing can loop. It is not, because it is a
+statement about a word and its encryption, and one instruction escapes the
+dynamics entirely.
+
+The interpreter reads the word to encrypt *after* the instruction has run.
+Every instruction leaves `c` where it was, so every instruction overwrites
+its own cell. `jmp` has already moved `c` to its target, so the encryption
+lands on the target and the jumping cell is untouched:
+
+```lean
+theorem jmp_cell_stable {s : State} {code : Nat} (hne : s.mem.get s.d ≠ s.c) :
+    (s.mem.set (s.mem.get s.d) (Value.ofNat (encrypt code))).get s.c
+      = s.mem.get s.c
+```
+
+**`jmp` is the only self-preserving instruction in the language**, and that
+is what makes loops possible. The reference semantics knows this; the
+comment in `Semantics.lean` says the encryption is "after a jump that is the
+*target*, never the jump itself". What was missing was the consequence: a
+`jmp` cell can fire unboundedly often without changing, so a loop is a
+stable `jmp` reading a *table* of targets while `d` walks forward through
+it. Everything else in the loop is on a clock and the loop closes only when
+every other cell has come back round its orbit.
+
+`Langlib/Examples/MalbolgeUnshackled/cat.mu` is built exactly this way, and
+tracing it against our own interpreter shows the mechanism in the open. From
+step 38 the control cycle is five steps long:
+
+```text
+c=37 (nop/inp/out)  c=38 (jmp)  c=60 (movd)  c=61 (jmp)  c=61 (jmp)  -> c=37
+```
+
+Cell 61 executes `jmp` on two consecutive steps and does not change, because
+each of its jumps encrypts the cell it lands on. It reads its target from
+`d` and then `d + 1`: consecutive entries of a jump table.
+
+The full control state, everything but the accumulated output, repeats with
+period **3060**, entering the cycle after 89 steps on input `"x"`. That
+number is not a coincidence: `lcm 68 9 6 5 4 2 = 3060`, the lcm of the
+orbit lengths of `xlat2`. The loop closes exactly when every cell it
+touches has come back round. `truth.mu` on input `"1"` has period 408,
+which is `68 * 6`. These are measurements from
+`Langlib/Languages/MalbolgeUnshackled/Semantics.lean` itself, not from a
+model of it.
+
+### The jump-table spacing law
+
+Consecutive table entries are close to forced, and this is a theorem rather
+than an observation. A table entry is a memory cell, and in a program the
+loader accepted, every cell's word must decode to one of the eight opcodes
+at its own address. So if the same target has to appear at two addresses
+`g` apart, the two opcodes it produces differ by `g` modulo 94:
+
+```lean
+theorem gap_of_repeated_word {v a g : Nat}
+    (h₁ : (Instr.ofOpcode? ((v + a) % 94)).isSome = true)
+    (h₂ : (Instr.ofOpcode? ((v + a + g) % 94)).isSome = true) :
+    g % 94 ∈ loadableGaps
+```
+
+Only 43 of the 94 gaps are differences of two opcodes, and among the small
+ones only 0, 1 and 6. In particular **2 is not**
+(`no_repeated_word_gap_two`), which rules out the shortest jump-table loop
+a compiler might reach for, the one that reads its return target at `d` and
+again at `d + 2`. Reading at consecutive addresses, as `cat.mu` does, is one
+of only two short options the loader permits.
+
+## The loop gadget: an invariant is enough
+
+Proving a particular program loops forever does not need the 3060-step
+computation done in the kernel. It needs a set of states closed under one
+iteration:
+
+```lean
+theorem neverHalts_of_invariant {P : State → Prop}
+    (hstep : ∀ s, P s → ∃ s', step1 s = some s' ∧ P s')
+    {s : State} (hs : P s) (n : Nat) : (exec n s).2 = Exit.outOfFuel
+```
+
+`step1` is one iteration as a partial function and `step1_sound` is its only
+bridge back to `exec`, so nothing here can quietly disagree with the
+reference semantics. `image_neverHalts` and `not_halts_of_invariant` restate
+the conclusion at the language interface: for every fuel bound the run
+reports `outOfFuel`, so it never halts and never errors.
+
+The point of this shape is that `P` is written with `Memory.get` equations
+rather than with memory equality, so a proof never has to compare two hash
+maps or evaluate a long run inside the kernel. `get_set_self` and
+`get_set_ne` (which hold because `Value` admits `LawfulBEq` and
+`LawfulHashable`) are all that is needed to push such a `P` through a step.
+An unbounded loop over an unbounded counter will need exactly this, since
+there the reachable set is infinite and no amount of computation would do.
+
+## A run that provably never halts
+
+The gadget is instantiated. `Langlib/Examples/MalbolgeUnshackled/loop.mu`
+is a 201-cell program the loader accepts, and from step 154 its execution
+is a three-step cycle:
+
+```text
+c=154  d=200  movd      mem[154]=74
+c=155  d=198  jmp       mem[154]=70
+c=155  d=199  jmp       mem[154]=74   (restored)
+```
+
+Three cells do the work:
+
+* **155** holds the word 37. At an address congruent to 61 modulo 94 that
+  decodes to `jmp`, and a `jmp` never encrypts itself, so this cell is
+  never written for the whole run. It fires twice per cycle.
+* **154** holds 74, which at an address congruent to 60 modulo 94 decodes
+  to `movd`. It is encrypted **twice** per cycle, once by executing and once
+  by being the first jump's target, and `74 ↦ 70 ↦ 74` is the two-cycle of
+  `xlat2`. So it is restored every cycle. This is the trick the whole
+  construction turns on: a cell that is both executed and jumped onto
+  advances two orbit steps per pass, so a two-cycle word survives.
+* **153** is the second jump's target, encrypted once per cycle. Its word
+  wanders through a long orbit and the invariant does not track it:
+  encryption keeps a printable word printable, and printable is the only
+  thing this cell has to be.
+
+The jump table sits at 198 and 199 and is read at consecutive `d`, which is
+the shortest spacing `gap_of_repeated_word` permits. Cell 200 holds 197,
+three below its own address, which is what returns `d` to 200 each cycle.
+
+The invariant is three phases, `Phase₀ ∨ Phase₁ ∨ Phase₂`, each a handful of
+`Memory.get` equations plus the two registers. `looping_step` closes it
+under one iteration and
+
+```lean
+theorem neverHalts {s : State} (h : Looping s) (n : Nat) :
+    (exec n s).2 = Exit.outOfFuel
+```
+
+concludes. **This is the first LangLib theorem asserting that a Malbolge
+Unshackled run goes on for ever**: no halt and no runtime error, at every
+fuel bound. No long computation happens anywhere in the proof; the whole
+thing is three step lemmas over `get_set_self` and `get_set_ne`.
+
+### What is still measured rather than proved
+
+The theorem is about any state satisfying `Looping`. That `loop.mu` *reaches*
+such a state, after a 154-step prologue of no-ops, is checked by running the
+interpreter and by a golden test (`loop example never halts`), not in the
+kernel. Kernel evaluation is not a route here: ten steps of `run?` on a
+loaded image takes seconds and does not reduce to a normal form, because
+`load` and `Memory` are built on `Std.HashMap`. Closing this last link means
+proving the prologue symbolically, the same way the cycle is proved, rather
+than computing it.
+
+## The rotation width, and the width algebra
+
+Malbolge Unshackled's rotate instruction works within a *rotation width*
+that starts at 10 or more and doubles whenever a `j` sends `d` to an
+address wider than any seen before. The language deliberately leaves the
+exact policy open, and Johansen's interpreter randomises it, so a program
+is only correct if it works at every legal width. The width is read by
+exactly one instruction, `rotr`, so code that never emits `*` never
+observes it. An earlier version of this page concluded that a compiler
+should simply avoid `*`. The width algebra, now proved, shows exactly how
+far that goes and where it stops.
+
+```lean
+theorem width_crz_le (a b : Value) : (Value.crz a b).width ≤ max a.width b.width
+theorem width_rot_le (w : Nat) (v : Value) : (Value.rot w v).width ≤ max w v.width
+theorem width_succ_le (v : Value) : v.succ.width ≤ v.width + 1
+```
+
+The crazy operation never widens; successor widens by one trit but applies
+only to `c` and `d`, which no instruction can store into memory; rotation
+is the one operation that can widen a stored value. Assembling these
+per-instruction:
+
+```lean
+theorem widthBounded_step1 {W : Nat} (hW : 13 ≤ W) {s s' : State}
+    (h : WidthBounded W s)
+    (hrot : decode (s.mem.get s.c) s.c.modClass ≠ .rotr)
+    (hstep : step1 s = some s') : WidthBounded W s'
+```
+
+A step that does not rotate preserves any width bound `W ≥ 13` on the
+accumulator and on every memory cell (13 because an input character's code
+point is below `3^13`). Values of bounded width form a finite set, and
+`j` and `i` read their targets from memory, so **in a rot-free run every
+teleport lands in a fixed finite set of addresses for the whole run**. A
+rot-free backend can still compute plenty inside that world, and every
+gadget in this development lives there, but unbounded storage cannot come
+from stored pointers alone.
+
+The positive half is the escalator, the mechanism that actually mints wide
+values:
+
+```lean
+theorem rot_one (w : Nat) (hw : 1 ≤ w) :
+    Value.rot w (Value.ofNat 1) = Value.ofNat (3 ^ (w - 1))
+
+theorem growRotWidth_double (w : Nat) : growRotWidth w w = 2 * w
+```
+
+Rotating `1` at width `w` yields `3^(w-1)`, a value of width exactly `w`
+(`width_rot_one`); a `j` through it doubles the rotation width. Iterating
+mints addresses of width `10, 20, 40, …` This rot/movd feedback is the
+language's only door to unboundedly many nameable addresses, which is the
+mechanism-level content of the name "Unshackled". The proposed fixed-counter witness uses `*` to grow counter values,
+stated against the reference rotation policy that the `ProgLang` instance
+pins. The width bound alone does not prove that every universal MU
+construction must use rotation. Correctness at every legal policy is a
+strengthening deliberately deferred.
+
+## The arithmetic a rot-free backend has
+
+These are useful algebraic capabilities of crazy operations without
+rotation. They are not a runtime compiler or a universality result.
+
+`crz` is tritwise, at every position and in the repeating trit
+(`crz_trit`), so the question is settled row by row of Olmstead's table:
+
+| accumulator trit | results reachable by varying the memory trit |
+|---|---|
+| 0 | 1, 2 |
+| 1 | 0, 2 |
+| 2 | 0, 1, 2 |
+
+One operation is not enough: an accumulator trit of 0 can never produce a
+0 (`crzTrit_zero_ne_zero`). Two always are, because every row reaches 2 and
+the row for 2 reaches everything:
+
+```lean
+theorem crz_two_steps (a : Value) {t : Value} (h : t.Normalized) :
+    ∃ k₁ k₂, Value.crz (Value.crz a k₁) k₂ = t
+```
+
+**Any value becomes any other in exactly two `p` operations against chosen
+constants**, and the witnesses are computed rather than searched for
+(`toTwoConst a` drives anything to `...222`, `fromTwoConst t` drives
+`...222` to `t`). Since a compiler owns what sits in memory, this is the
+primitive that a data-driven branch is built from: writing a computed
+address into a jump table costs two crazy operations.
+
+Two facts about `p` itself limit how that primitive can be used, both in
+`exec_crazy`. The operand cell is **consumed**: `p` writes its result to
+`mem[d]`, the cell it read the operand from, so a constant is destroyed by
+being used (`crazy_consumes_operand`), and each operation needs a fresh
+one. And `d` must differ from `c`, since the crazy operation writes at `d`
+while the encryption that follows reads at `c`; if they coincide the
+encryption sees a value that is essentially never printable and the run
+crashes. The two pointers start equal, so a prologue has to separate them.
+
+The supporting lemma is value extensionality, `ext_of_trits`: two
+normalised values with the same repeating trit and the same trit at every
+position are equal. Without it a tritwise argument cannot conclude an
+equation between values, and with it every `crz` fact reduces to nine
+cases of `crzTrit`.
+
+## The branch arithmetic
+
+A branch is a `jmp` whose target cell holds a computed address, so the
+whole difficulty of branching is arithmetic: turn a data value into one of
+two chosen targets with the crazy operation alone, running the *same*
+instructions in both cases (the language cannot choose code per-case at
+runtime). Seven operations do it:
+
+```lean
+theorem branch_arith (t₀ t₁ : Value) (h₀ : t₀.Normalized) (h₁ : t₁.Normalized)
+    (a : Value) :
+    branchChain t₀ t₁ a Value.zero = t₀ ∧ branchChain t₀ t₁ a Value.eof = t₁
+```
+
+The pipeline: **absorb** — `crzTrit (crzTrit x 2) 0 = 0` in all three
+cases, so two operations against `...222` then `...000` force the
+accumulator to zero from any value (`crz_absorb`), and the second constant
+is self-restoring since the operation writes `...000` over the cell that
+held it; **load** — one operation reads the flag cell, `crz 0 flag`,
+giving `...111` or `...222` (`crz_zero_zero`, `crz_zero_eof`); **shape** —
+four operations against constants built per trit position from the two
+targets (`cols`, `k1Of` … `k4Of`) send `...111` to `t₀` and `...222` to
+`t₁` (`shape_uniform₁`, `shape_uniform₂`). Three shaping operations
+provably do not suffice: the columns of the crazy table compose to only
+eight of the nine functions `{1 ↦ p, 2 ↦ q}` at depth three, missing
+`(1, 0)`.
+
+Everything is constructive: the constants are computed by `map2` from the
+targets' trits, and for natural-number targets they come out as ordinary
+naturals an image can hold. The machine-level half, sequencing `d` past
+the seven constants and jumping through the written target, is the
+remaining step, and it is sequencing of the kind the verified loop already
+demonstrates.
+
+## The branch gadget: the machine half
+
+`branch_arith` is arithmetic; `branch_gadget` runs it on the machine.
+Eight instructions: seven `p` cells at `c₀ … c₀+6` execute the pipeline
+while `d` walks the constants laid at `d₀ … d₀+6`, then a `movd` at
+`c₀+7` reads a pointer laid at `d₀+7` and re-aims `d` at the written
+target. Conclusion: after exactly eight steps, `d` sits on a cell holding
+`branchChain t₀ t₁ a flag`, which `branch_arith` evaluates to `t₀` or
+`t₁` by the flag, and a frame condition says every cell outside the two
+rows is untouched. A subsequent `jmp` (`step1_jmp`) completes the branch;
+that step is generic and belongs to the caller, who owns the landing
+sites.
+
+The supporting lemma is the one worth keeping: `crazy_run` proves that
+any row of `k` consecutive `p` cells computes a fold of the crazy
+operation over the operand row,
+
+```lean
+theorem crazy_run (k : Nat) … :
+    ∃ s', run? k s₀ = some s'
+      ∧ s'.a = crzFold s₀.mem d₀ s₀.a k
+      ∧ …
+```
+
+by one induction, with the operand cells holding their intermediates and
+the code cells their encryptions afterwards. Straight-line arithmetic of
+any length is one application of this lemma, not a proof per instruction;
+`step1_eq`, `step1_crazy`, `step1_movd`, `step1_jmp` and `run?_add` are
+the step-level readings it runs on.
+
+What the gadget is not, yet: re-enterable. Executed once, its seven `p`
+cells and one `movd` cell are left encrypted, so a dispatcher that runs
+it every iteration needs the cells' orbits managed across passes, the
+problem `loop.mu` solves for its three-cell cycle. That, and restocking
+the spent constants, is the dispatcher design problem.
+
+## The copy algebra
+
+`branch_arith` writes compile-time constants; a register machine also
+moves values it does not know. The crazy operation offers exactly two
+per-trit bijections: reading through `...222` (row `x = 2` of the table
+swaps 1 and 2) and writing through `...111` (column `y = 1` swaps 0
+and 1). One read-write hop is therefore the 3-cycle `0 ↦ 1 ↦ 2 ↦ 0` on
+every trit (`hop_eq_vmap`), and three hops are an exact copy:
+
+```lean
+theorem hop_hop_hop {v : Value} (hv : v.Normalized) : hop (hop (hop v)) = v
+```
+
+A value can be moved three cells downstream without the program ever
+knowing what it was, and the two constants involved restore themselves
+(`crz zero eof = eof` rewrites the `...222` cell with `...222`); only the
+source cell is consumed, which a move is allowed to do. Together with the
+mux (`branch_arith`) and straight-line rows (`crazy_run`), data movement
+completes the set of value-level primitives a register file needs.
+
+## Rotation and halt opcodes in a virgin phase
+
+An arbitrary `Image` may choose its background freely. Such an image need
+not be produced by `load`; a source-level claim needs an initialization
+proof. For any fixed printable word in one background phase,
+`virgin_phase_parity` proves that its opcodes share a parity, and
+`rotr_forces_halt` proves that a rotate opcode is followed 42 addresses
+later by a halt opcode in the same phase. Neither theorem proves that the
+later address is reached. The recommendation to use finite self-modifying
+control is a construction choice, not an impossibility theorem for all
+fresh-memory designs. See the [audit](proof-audit.md).
+
+## Re-enterable gadgets: the two-sweep discipline
+
+A cell holding a word of the `70 ↔ 74` cycle alternates instruction,
+no-op. So a gadget row survives repeated entry if it is run *twice*: the
+work sweep leaves every cell in its no-op phase, and the no-op sweep
+returns each to its original word (`nop_run`, `encrypt_encrypt_two_cycle`,
+`row_restored`). `crazy_run` is the work sweep, `nop_run` the other; the
+latter constrains `d` not at all, a no-op reading no operand. One stable
+`jmp` cell, never encrypted by its own execution, walks a two-entry target
+table and sends control back to the top after the first sweep and onward
+after the second.
+
+Traced against the interpreter with two `crazy` cells at residues 82 and
+86, the two cells fire on the work sweep, no-op on the second, hold their
+original words again afterwards. This checks code restoration; it does
+not establish that the next iteration has the same data operands.
+
+For an arbitrary `Image`, layout can ignore loader constraints, but such
+an image still needs a source-realization proof for a source-level claim.
+Every one of the 94 residues admits a code whose whole orbit is harmless,
+so padding is free, and each instruction has exactly two 2-cycle residues
+four apart (`crazy` at 82 or 86, `movd` at 60 or 64, `jmp` at 24 or 28).
+
+## Terminating runs
+
+`neverHalts_of_invariant` handles loops that must not stop. A simulation
+needs the opposite, since `TuringComplete` demands the compiled program
+*halt* with the right output whenever the machine it simulates does. Three
+lemmas give that shape.
+
+```lean
+theorem exec_run?_add : run? n s = some t → ∀ m, exec (n + m) s = exec m t
+
+theorem exec_halts_of_run? (h : run? n s = some t)
+    (hhalt : decode (t.mem.get t.c) t.c.modClass = .halt) :
+    exec (n + 1) s = (t, Exit.halted)
+
+theorem run_of_measure {P Q : State → Prop} {μ : State → Nat}
+    (hstep : ∀ s, P s → μ s ≠ 0 → ∃ k s', run? k s = some s' ∧ P s' ∧ μ s' < μ s)
+    (hexit : ∀ s, P s → μ s = 0 → Q s) :
+    ∀ s, P s → ∃ n t, run? n s = some t ∧ Q t
+```
+
+The first splits a run anywhere, so a proof can reason gadget by gadget and
+stitch; the second is the ending, giving `Exit.halted` and the accumulated
+output (`image_halts_of_run?` states it at the language interface); the
+third is the loop rule, an invariant plus a measure that strictly decreases
+each pass. In a simulation the measure is the number of steps the simulated
+machine has left, so `run_of_measure` is what turns "the URM halts" into
+"the compiled program halts".
+
+One encoding note that saves a gadget. `branch_arith` reads its decision
+from a cell holding `...000` or `...222`, which are `Value.zero` and
+`Value.eof`. A register cell that stores a unary digit as *blank or mark*
+in exactly that encoding **is** a branch flag, so testing it costs no
+instructions (`branch_on_mark`). This matters because the crazy operation
+is tritwise and cannot aggregate across trit positions: a zero test on a
+wide number would need rotations and a loop, while a blank-or-mark cell
+needs nothing.
+
+## The two-sweep gadget
+
+`crazy_run` executes a row of consecutive `p` cells and `nop_run` a row of
+consecutive no-ops. Neither is the shape a gadget actually has: a `crazy`
+cell that must be re-enterable has to sit at residue 82 or 86 modulo 94, so
+the working cells are spaced, with padding between. `row_run` is the
+general straight-line executor for a mixed row, folding operands into the
+accumulator at the working positions and skipping them at the padding.
+
+On top of it, `two_sweep` is the gadget itself. A row at `b+1 … b+L`
+followed by one `jmp` at `b+L+1` runs in `2L + 2` steps:
+
+* the work sweep executes the row and leaves every cell encrypted once;
+* the `jmp` reads the first table entry, `b`, so control lands back on
+  `b+1`; the jump encrypts `b`, never itself;
+* the no-op sweep runs the same row, now all no-ops, encrypting each cell a
+  second time and restoring the two-cycle words;
+* the `jmp` reads the second table entry and control leaves at `E+1`.
+
+```lean
+theorem two_sweep (L : Nat) … :
+    ∃ s', run? (2 * L + 2) s₀ = some s'
+      ∧ s'.a = rowFold s₀.mem d₀ isC s₀.a L
+      ∧ s'.c = Value.ofNat (E + 1)
+      ∧ s'.d = Value.ofNat (d₀ + 2 * L + 2)
+      ∧ (∀ i < L, s'.mem.get (Value.ofNat (b + 1 + i))
+          = Value.ofNat (encrypt (encrypt (w i))))
+      ∧ …
+```
+
+This restores two-cycle code words. It does not restore operands or
+establish an invariant for repeated calls; those are separate operational
+obligations. `flag_branch_mark_reuse` in the audit gives a concrete failure
+when changed branch operands are reused.
+
+## The output side, which is nearly free
+
+`Counter.CState` records only *how many* bytes were emitted, because every
+byte a compiled program emits is the same. So the output half of a
+completeness witness costs almost nothing: the gadget for `emit` sets the
+accumulator to a fixed printable natural and executes one `<`, and
+
+```lean
+def decodeBytes (bs : ByteArray) : Option Nat := some bs.size
+```
+
+is the answer decoder. The byte chosen is 42, `'*'`: one UTF-8 byte, not
+`...22` (which would close the stream) and not `...21` (a newline), so
+`doOutput` takes its ordinary branch (`doOutput_star`, `step1_out`).
+`outClosed_of_step1_out` records that emitting leaves the stream open, so
+emits compose, and `decodeBytes_append_star` is the arithmetic that reads
+the count back.
+
+## The register encoding
+
+The counter machine wants three operations on a register cell — set, clear,
+test — and the encoding decides what each costs. Taking **blank = `...000`
+and mark = `...111`** makes all three cost exactly one crazy operation,
+which is the least the language allows, `p` being the only instruction that
+writes. Reading Olmstead's table by the accumulator trit:
+
+| accumulator | on blank `0` | on mark `1` | effect |
+|---|---|---|---|
+| `...000` | `1` | — | set: blank becomes mark |
+| `...111` | — | `0` | clear: mark becomes blank |
+| `...222` | `0` | `2` | test: blank gives `...000`, mark gives `...222` |
+
+The third row is the one that decides the architecture. `p` leaves its
+result in the accumulator as well as the cell, so testing a register cell
+against `...222` puts exactly the flag `branch_arith` wants into the
+accumulator: `Value.zero` for blank, `Value.eof` for mark. **The zero test
+costs one instruction and needs no broadcasting**, which the crazy operation
+could not do anyway, being tritwise. That is the argument for a unary
+register representation, made by the table rather than by preference.
+
+The test is destructive on a mark, which reads back as `...222`; one more
+operation against the same constant restores it, and a blank survives both
+untouched, so the pair is a non-destructive test whichever the cell held
+(`register_test_roundtrip`).
+
+### An alternative encoding for the proposed tape
+
+Since the test is the loop condition and so runs on every iteration of
+every compiled loop, it is worth asking whether an encoding avoids the
+restore. One does. Take **blank = `...000` and mark = `...222`**. The
+accumulator `...111` then satisfies `crz ...111 b = b` for both, so testing
+leaves the cell **exactly as it was**, and the value left in the
+accumulator is the cell's own content: `Value.zero` for blank, `Value.eof`
+for mark. Those are precisely the flags `branch_arith` consumes, so the
+probe feeds the branch with no conversion at all (`probe_feeds_branch`).
+The test accumulator is itself loaded self-restoringly, from a blank
+accumulator against a cell holding `...111` (`crz_load_testAcc`), so the
+whole probe is two chain links and every cell it touches comes back
+unchanged.
+
+The price falls on `set`: no single operation takes `...000` to `...222`,
+so setting a mark costs two visits to the cell, hence two gadgets. Paying
+there to make the loop condition free is the right trade, since the
+condition runs once per iteration and `set` once per command.
+
+## Chains, and the end of padding
+
+Laying a gadget out as one contiguous row forces padding into the gaps
+between working cells, and padding is the awkward part: a re-enterable
+`crazy` must sit at residue 82 or 86 modulo 94, while the cells in between
+fall wherever they fall, including the sixteen residues at which no
+two-cycle word is harmless in both phases.
+
+Interleaving removes the problem. Put a `jmp` immediately after each
+working cell and let it carry control to the next. A `jmp` never encrypts
+itself, so it is stable for the whole run and **the control path is
+identical on every pass**, while the working cells alternate between their
+instruction and a no-op. The cells jumped over are never executed and need
+no words at all; only the landing cell is encrypted, and encryption keeps a
+printable word printable.
+
+`d` advances two per link, so each link owns two data cells at a known
+stride: the operand the `crazy` reads at `D`, and the address the `jmp`
+reads at `D + 1`, both placed statically. `chain_link` proves one link in
+two steps, with a frame condition naming the only three cells it touches:
+
+```lean
+theorem chain_link … :
+    ∃ s', run? 2 s = some s'
+      ∧ s'.a = Value.crz s.a (s.mem.get (Value.ofNat D))
+      ∧ s'.c = Value.ofNat (t + 1)
+      ∧ s'.d = Value.ofNat (D + 2)
+      ∧ s'.mem.get (Value.ofNat D) = Value.crz s.a (s.mem.get (Value.ofNat D))
+      ∧ s'.mem.get (Value.ofNat a) = Value.ofNat (encrypt wc)
+      ∧ s'.mem.get (Value.ofNat (a + 1)) = s.mem.get (Value.ofNat (a + 1))
+      ∧ (∀ x, x ≠ D → x ≠ a → x ≠ t →
+          s'.mem.get (Value.ofNat x) = s.mem.get (Value.ofNat x)) ∧ …
+```
+
+The jump cell coming back unchanged is the clause that matters: it is what
+makes the chain re-enterable, and it is `jmp_cell_stable` cashed out in a
+form a compiler can use.
+
+`chain_run` composes `n` links, laid out at **stride 94**. That stride is
+both forced and convenient: a re-enterable `crazy` must sit at residue 82
+or 86 modulo 94, so putting the links 94 apart lands every one on the same
+residue, and a single word serves for every `crazy` cell and a single word
+for every `jmp`. Link `i` occupies `A + 94i` and `A + 94i + 1`, jumps to
+`A + 94i + 93`, and control resumes at `A + 94(i+1)`; the 92 cells between
+are never executed. Data sits after the code, operand `i` at `D + 2i` and
+jump target `i` at `D + 2i + 1`, because `d` advances two per link.
+
+```lean
+theorem chain_run (n : Nat) … :
+    ∃ s', run? (2 * n) s = some s'
+      ∧ s'.a = chainFold s.mem D s.a n
+      ∧ s'.c = Value.ofNat (A + 94 * n)
+      ∧ s'.d = Value.ofNat (D + 2 * n)
+      ∧ (∀ i < n, s'.mem.get (Value.ofNat (D + 2 * i)) = chainFold s.mem D s.a (i + 1))
+      ∧ (∀ i < n, s'.mem.get (Value.ofNat (A + 94 * i)) = Value.ofNat (encrypt (wc i)))
+      ∧ (frame) ∧ …
+```
+
+This is the executor a compiled gadget runs on: straight-line arithmetic of
+any length, laid out mechanically, with one induction behind it.
+
+`enter_chain` is the prologue that positions `d` beforehand. `movd` is the
+only instruction that moves `d`, and a re-enterable one must sit at residue
+60 or 64 modulo 94 while a chain starts at 82, so the two cannot be
+adjacent; one stable `jmp` bridges them. Two instructions: `movd` at `M`
+reads a pointer cell holding `D - 2` and re-aims `d`, then `jmp` at `M + 1`
+reads the cell at `D - 1`, holding `A - 1`, and drops control at `A`. After
+it, `c = A` and `d = D`, exactly what `chain_run` wants, with the
+accumulator untouched.
+
+`gadget_run` composes the two: `2 + 2n` steps that position `d`, fold `n`
+operands into the accumulator, and leave the result both in the accumulator
+and in the last operand cell, with every `jmp` cell still standing. That is
+the unit a compiled counter-machine command is built from, and its
+hypotheses are all stated on the *initial* memory, the prologue's two
+writes being transferred across by its frame.
+
+## A branch into two natural addresses
+
+Three branches now exist in the development, and the third is the one a
+compiler should use. `branch_arith` costs seven crazy operations and four
+shaping constants, which a loop would have to restock every iteration.
+`flag_selects_address` costs three instructions but lands `d` on address 0
+or 1, which is where execution begins. The third pays one extra crazy
+operation and buys those two landing sites back.
+
+**Two crazy operations, against `...111` and the natural `2 * 3 ^ j`, send
+a blank to the address `2 * 3 ^ j` and a mark to the address `3 ^ j`** —
+`flag_branch_blank` and `flag_branch_mark`, for every `j`. Both results are
+naturals, both sit as far up in memory as the compiler cares to put them,
+and the first constant is the `...111` the ladder and the register probe
+already keep.
+
+Two is the least possible. One operation cannot do it: a single column of
+the crazy table sends the blank flag to `1` or `2` at *every* trit
+position, so the blank-side result repeats `1` or `2` for ever and is not a
+natural address at all, and a jump into it lands in the memory fill, which
+`restTable_not_printable` says can hang. Two columns composed give seven of
+the nine possible pairs, and the two that matter are there: `(0, 0)`, which
+keeps both results natural above position `j`, and `(2, 1)`, which makes
+them differ at `j`. Choosing `...111` then `2 * 3 ^ j` realises exactly
+that pattern.
+
+This does not contradict `no_accumulator_flag`. That theorem rules out
+computing a *uniform* value from the accumulator, and neither target is
+uniform. A flag still has to be read from a cell; what the branch does is
+turn one into control flow.
+
+The two constant cells behave differently, which a gadget author has to
+know. On the blank path the second cell ends holding exactly what it held —
+`flag_branch_blank` is an equation between the operand and the result — so
+it is self-restoring. On the mark path both cells are consumed and must be
+restocked before the next pass.
+
+`flagAddr_gadget` is the machine half: three instructions, two `crazy`
+cells and one `movd` that aims `d` at the cell now holding the address, so
+a following `jmp` branches. The frame names the five cells it touches, and
+the accumulator ends holding the address as well.
+
+## The walk
+
+The one thing every command needs and nothing else in the file had:
+iteration whose length is decided by the data. `inc`, `dec` and the loop
+condition are all "walk to the boundary of a tape", and the boundary is
+wherever the register file says it is, not where the compiler put it.
+
+`walk_iterate` is the induction. A pass costs a fixed `k` steps and carries
+the walk from slot `i` to slot `i + 1`, which the layout makes free:
+`regAddr`'s slot stride is the pass length, so `d` advancing one per
+instruction arrives at the next slot with no address arithmetic at all. `n`
+passes cost `k * n` steps, and `n` is the tape length.
+
+`walk_branch_target` is the exit, and it is where the branch above earns
+its place. Feeding the cell the walk is standing on into the
+two-operation branch aims control at `3 ^ j` while marks remain and at
+`2 * 3 ^ j` at the first blank. So a compiler that puts the top of the walk
+at one address and its exit at the other gets termination at the tape
+boundary for nothing. Both tapes are covered, `inc` walking the first and
+`dec` the second.
+
+The branch also proves `probe_branch_gadget`, a six-instruction probe and
+branch preserving the register cell, and `chain_run_nop`, `chain_restored`
+and `alternating_at`, which supply the no-op sweep, code restoration and
+placement of a chain. These are local execution results: the probe still
+requires a slot-dependent pointer, and the no-op sweep does not replenish
+the branch operands. `imageOf_regMem_init` supplies the initial zero-register
+invariant for a raw image with a chosen blank fill, without proving source
+loadability.
+
+What `walk_iterate` takes as a hypothesis is one pass: that from slot `i`,
+`k` steps reach slot `i + 1` with the invariant intact. That pass has not
+been constructed. The audit further proves the proposed global tape
+invariant impossible with natural-seeded fill. Two sweeps restore code,
+not branch constants. A repaired walk also needs an allocator invariant
+and a means to produce its slot-dependent pointer operands.
+
+## What is proved, what is cited, what is open
+
+**Proved, axiom-clean**: the `ProgLang` instance; the memory laws
+(`get_set_self`, `get_set_ne`); the `jmp` dichotomy (`exec_jmp`,
+`jmp_cell_stable`, `exec_nonjmp_encrypts_self`); the iteration API
+(`step1_sound`, `exec_of_run?`) and the loop gadget
+(`neverHalts_of_invariant`, `image_neverHalts`, `not_halts_of_invariant`);
+the jump-table spacing law (`gap_of_repeated_word`,
+`no_repeated_word_gap_two`); the three-step loop and its non-termination
+(`Loop.looping_step`, `Loop.neverHalts`); the crazy-operation algebra
+(`crz_trit`, `ext_of_trits`, `crz_two_steps`, `crzTrit_zero_ne_zero`); the
+width algebra and the escalator (`width_crz_le`, `width_rot_le`,
+`widthBounded_step1`, `rot_one`, `width_rot_one`, `growRotWidth_double`);
+the address arithmetic
+(`toNat?_ofNat`, `succ_ofNat`, `modClass_ofNat`, `mod94_ofNat`,
+`decode_at_ofNat`); the step-level reading (`exec_hang`, `exec_halt`,
+`exec_step`, `exec_of_hang`); obstruction one (`encrypt_mem_range`,
+`encrypt_ne_self_range`, `opcode_inj`, `opcode_ne_encrypt`,
+`decode_encrypt_ne`); obstruction two (`lead_getD_crzSeq`, `leadAt_even`,
+`restTable_not_printable`); and the alternating-cell table
+(`alternatingCell_spec`); the two-operation branch into natural addresses
+(`trit_digitAt`, `digitAt_one_eq`, `digitAt_two_eq`, `flag_branch_blank`,
+`flag_branch_mark`, `flag_branch`, `flagAddr_gadget`); and the walk
+(`walk_iterate`, `walk_run`, `walk_branch_target`,
+`walk_branch_target_q`); the core of a pass (`pass_fold`,
+`pass_cell_restored`, `probe_branch_gadget`); the no-op sweep of a chain
+(`chain_link_nop`, `chain_run_nop`, `decode_encrypt_alternating`,
+`chain_restored`, `alternating_at`); the uniformity of the fill across
+slots (`mod6_ofNat`, `get_of_not_mem`, `fillAt_slot`); and the image-route
+start-up (`imageOf`, `imageOf_get`, `regAddr_mod6`, `imageOf_regMem_init`). `scripts/axioms.lean` reports `[propext,
+Quot.sound]` or less for every one of them.
+
+**Measured, not proved**: the periods of `cat.mu` (3060) and `truth.mu`
+(408), and the five-step control cycle above. These come from running the
+reference interpreter, not kernel-checked theorems.
+
+The older finite check that no pair of printable seeds puts zero into the
+fill is also a measurement. The obstruction module proves the sufficient
+structural fact: of two adjacent untouched natural addresses, at least one
+has a nonzero repeating trit when the fill seeds are natural. Consequently,
+finitely many writes cannot establish the proposed infinite blank-tail
+invariant. See the [proof audit](proof-audit.md#the-infinite-blank-tail-is-impossible-with-the-canonical-kind-of-fill)
+and [`Obstructions.lean`](../../Langlib/Computability/MalbolgeUnshackled/Obstructions.lean).
+This is not an allocator proof:
+`fillAt_slot` only shows that with a slot stride
+divisible by 6, the fill value at a given offset is the same in every
+slot.
+
+**Cited, not proved**: that Malbolge Unshackled is Turing complete at all.
+The external constructions include Lutter's 2016 Brainfuck interpreter and
+MalbolgeLisp. The audit describes what still needs a Lean simulation proof.
+
+**Open**: the current dependency-ordered obligations are in the
+[proof audit](proof-audit.md) and
+[progress tracker](completeness-progress.md). They
+include reusable runtime arithmetic, conditional overflow retry using the
+proved growth/return cycle, a total layout and source initializer, and the
+counter simulation with both answer and divergence preservation.
+The older loop prologue and the general loader fill equation also remain
+unproved. No `TuringComplete` witness exists.
+
+When a witness does land, the two traps in
+[`agent-brief-completeness.md`](../agent-brief-completeness.md) apply as they
+do everywhere: `TuringComplete` requires both halting-answer and divergence
+preservation, and the step from "simulates every URM" to "computes
+every partial computable function" is Shepherdson and Sturgis 1963 rather
+than a Lean proof.
+
+## Verification
+
+```
+lake build Langlib.Computability.MalbolgeUnshackled.Main
+```
+
+```
+lake env lean scripts/axioms.lean
+```
+
+The audit permits only the standard Lean axioms `propext`,
+`Classical.choice`, and `Quot.sound`. In particular, no entry may depend
+on `sorryAx` or a user axiom. The new obstruction module is included too.

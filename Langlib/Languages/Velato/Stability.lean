@@ -15,7 +15,7 @@ off the same state.
 
 These lemmas discharge Velato's `Langlib.Common.LawfulProgLang` and
 `LawfulTraceLang` instances, registered next to `ProgLang VelatoLang` in
-`Langlib/Computability/Velato.lean`. Without them the completeness theorem
+`Langlib/Computability/Velato/Simulation.lean`. Without them the completeness theorem
 in that file would be a weaker statement than it looks: see the module
 header of `Langlib/Common/Compilation.lean` for why fuel that is not pinned
 to its budget role can be used as a smuggled input channel.

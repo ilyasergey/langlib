@@ -1,16 +1,29 @@
 # Unlambda
 
 * **Author**: David Madore, 1999.
-* **Canonical reference**: Madore's *The Unlambda Programming Language*
-  page, http://www.madore.org/~david/programs/unlambda/, and the
-  `unlambda-2.0.0.tar.gz` distribution it offers, which ships four
-  interpreters (C, reference-counting C, Java, Scheme) and a specification
-  section. Where they disagree, and they do, this page says which one
-  LangLib follows and why. Community page:
-  https://esolangs.org/wiki/Unlambda (CC0); Wikipedia:
-  https://en.wikipedia.org/wiki/Unlambda.
-* **Implementation**: [`Langlib/Languages/Unlambda/`](../../Langlib/Languages/Unlambda/).
-* **Examples**: [`Langlib/Examples/Unlambda/`](../../Langlib/Examples/Unlambda/).
+* **Canonical sources**:
+  - Madore's *The Unlambda Programming Language* page,
+    http://www.madore.org/~david/programs/unlambda/, and the
+    `unlambda-2.0.0.tar.gz` distribution it offers, which ships four
+    interpreters (C, reference-counting C, Java, Scheme) and a specification
+    section. Where they disagree, and they do, this page says which one
+    LangLib follows and why;
+  - the community page, https://esolangs.org/wiki/Unlambda (CC0); and
+  - Wikipedia, https://en.wikipedia.org/wiki/Unlambda.
+* **In LangLib**:
+  - [`Langlib/Languages/Unlambda/`](../../Langlib/Languages/Unlambda/),
+  - runner `lake exe unlambda`,
+  - [examples](../../Langlib/Examples/Unlambda/),
+  - tests in [`Langlib/Tests/Unlambda.lean`](../../Langlib/Tests/Unlambda.lean),
+  - Turing completeness in [`Langlib/Computability/Unlambda/Main.lean`](../../Langlib/Computability/Unlambda/Main.lean) and [docs/unlambda/computability.md](computability.md), and
+  - a hand-written Turpentine backend in [`Langlib/Languages/Turpentine/Compile/Unlambda.lean`](../../Langlib/Languages/Turpentine/Compile/Unlambda.lean), plus a certified one derived from the completeness proof ([docs/unlambda/compiler.md](compiler.md))
+
+[`unlambdaComplete`](../../Langlib/Computability/Unlambda/Main.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Langlib/Computability/Unlambda/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
+Positive CEK prefixes follow the guard and terminating body back to the recursive call.
 
 ## The joke
 
@@ -142,7 +155,7 @@ computable function. `c` and `d` are not needed for the argument and are
 out of scope for it.
 
 LangLib **proves** it:
-[`Langlib/Computability/Unlambda.lean`](../../Langlib/Computability/Unlambda.lean)
+[`Langlib/Computability/Unlambda/Main.lean`](../../Langlib/Computability/Unlambda/Main.lean)
 contains `unlambdaComplete : TuringComplete UnlambdaLang`, axiom-clean. It is
 the one completeness proof in the library that is not a register-machine
 simulation, which is why SKI is carried here as a separate language.
@@ -151,13 +164,13 @@ The proof uses `s`, `k`, `i`, `.x` and application, and nothing else: `d`
 never appears, so the delay rule never fires, and `c` never appears, so no
 continuation is reified. It compiles a register machine into the structured
 counter machine of
-[`Langlib/Computability/Counter.lean`](../../Langlib/Computability/Counter.lean)
+[`Langlib/Computability/Common/Counter.lean`](../../Langlib/Computability/Common/Counter.lean)
 and runs that in combinators, with a register a Scott numeral, the file
 holding them a Scott list, and the answer in unary, one `*` per unit. The
 finding worth carrying away is that the textbook bracket-abstraction clause
 `[x] e = k e` for an `e` without `x` is **unsound under call by value**,
 because it evaluates `e` when the closure is built. See
-[computability-unlambda.md](../computability-unlambda.md) for the account,
+[unlambda/computability.md](computability.md) for the account,
 the costs, and what is cited rather than proved.
 
 The same finding shapes the *hand-written* compiler, which is a separate

@@ -1,16 +1,30 @@
 # SKI combinator calculus
 
 * **Authors**: Moses Schönfinkel (1924) and Haskell Curry (1930).
-* **Canonical reference**: Schönfinkel, *Über die Bausteine der
-  mathematischen Logik*, Mathematische Annalen 92 (1924), pp. 305-316,
-  https://doi.org/10.1007/BF01448013; Curry, *Grundlagen der
-  kombinatorischen Logik*, American Journal of Mathematics 52 (1930),
-  pp. 509-536, https://doi.org/10.2307/2370619. Both are the mathematics,
-  not an implementation; the language below is the mathematics with a file
-  extension. Community page: https://esolangs.org/wiki/Combinatory_logic
-  (CC0); Wikipedia: https://en.wikipedia.org/wiki/SKI_combinator_calculus.
-* **Implementation**: [`Langlib/Languages/Ski/`](../../Langlib/Languages/Ski/).
-* **Examples**: [`Langlib/Examples/Ski/`](../../Langlib/Examples/Ski/).
+* **Canonical sources**:
+  - Schönfinkel, *Über die Bausteine der mathematischen Logik*,
+    Mathematische Annalen 92 (1924), pp. 305-316,
+    https://doi.org/10.1007/BF01448013;
+  - Curry, *Grundlagen der kombinatorischen Logik*, American Journal of
+    Mathematics 52 (1930), pp. 509-536, https://doi.org/10.2307/2370619.
+    Both are the mathematics, not an implementation; the language below is
+    the mathematics with a file extension;
+  - the community page, https://esolangs.org/wiki/Combinatory_logic (CC0);
+    and
+  - Wikipedia, https://en.wikipedia.org/wiki/SKI_combinator_calculus.
+* **In LangLib**:
+  - [`Langlib/Languages/Ski/`](../../Langlib/Languages/Ski/),
+  - runner `lake exe ski`,
+  - [examples](../../Langlib/Examples/Ski/),
+  - tests in [`Langlib/Tests/Ski.lean`](../../Langlib/Tests/Ski.lean),
+  - Turing completeness in [`Langlib/Computability/Ski/Main.lean`](../../Langlib/Computability/Ski/Main.lean) and [docs/ski/computability.md](computability.md), and
+  - a certified Turpentine compiler derived from the completeness proof, with no hand-written one planned ([docs/ski/compiler.md](compiler.md))
+
+[`skiComplete`](../../Langlib/Computability/Ski/Main.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Langlib/Computability/Ski/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
 
 ## Why it is here
 
@@ -88,7 +102,7 @@ about.
 ## Computational class
 
 **Turing complete**, and LangLib **proves** it:
-[`Langlib/Computability/Ski.lean`](../../Langlib/Computability/Ski.lean)
+[`Langlib/Computability/Ski/Main.lean`](../../Langlib/Computability/Ski/Main.lean)
 contains `skiComplete : TuringComplete SkiLang`, axiom-clean.
 
 [Unlambda](../unlambda/spec.md) is proved too, and its witness does *not*
@@ -103,7 +117,7 @@ decoder counts them.
 Normal order is a licence as much as an obstacle. Nothing has to be forced
 before it is stored, so a register holds the unevaluated application that
 computes it, a loop's branches need no guard, and the ordinary fixed point
-works. See [computability-ski.md](../computability-ski.md) for the account,
+works. See [ski/computability.md](computability.md) for the account,
 the measured costs, and what is cited rather than proved.
 
 ## Trying it

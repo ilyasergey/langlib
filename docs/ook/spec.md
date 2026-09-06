@@ -2,11 +2,22 @@
 
 * **Author**: David Morgan-Mar
 * **Year**: 2001
-* **Canonical sources**: Morgan-Mar's page,
-  https://www.dangermouse.net/esoteric/ook.html; community page at
-  https://esolangs.org/wiki/Ook! (CC0)
-* **In LangLib**: `Langlib/Languages/Ook/`, runner `lake exe ook`,
-  examples in `Langlib/Examples/Ook/`
+* **Canonical sources**:
+  - Morgan-Mar's page, https://www.dangermouse.net/esoteric/ook.html; and
+  - the community page, https://esolangs.org/wiki/Ook! (CC0).
+* **In LangLib**:
+  - `Langlib/Languages/Ook/`,
+  - runner `lake exe ook`,
+  - [examples](../../Langlib/Examples/Ook/),
+  - tests in [`Langlib/Tests/Ook.lean`](../../Langlib/Tests/Ook.lean),
+  - Turing completeness, inherited from brainfuck together with a proved syntax round trip, in [`Langlib/Computability/Ook/Main.lean`](../../Langlib/Computability/Ook/Main.lean), and
+  - a Turpentine backend via brainfuck in [`Langlib/Languages/Turpentine/Compile/Ook.lean`](../../Langlib/Languages/Turpentine/Compile/Ook.lean), plus a certified one derived from the completeness proof ([docs/ook/compiler.md](compiler.md))
+
+[`ookComplete`](../../Langlib/Computability/Ook/Main.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Langlib/Computability/Ook/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
 
 ## History
 

@@ -1,8 +1,533 @@
 # Progress log
 
 Newest first. Add a dated entry for every substantial batch of work.
+Entries describe their dated checkpoints; the temporary separate divergence
+interface in the first two proof milestones was superseded by the combined
+`TuringComplete` interface below.
 
-## 2026-09-03 (latest): Malbolge Unshackled, image-route start-up and the open crux
+## 2026-09-06: concise README and documentation links
+
+Both README status tables now link bespoke compiler results to compiler
+notes and computational-class results to per-language computability accounts.
+Added the missing accounts for Whitespace, Ook! and Brainloller, retaining
+Brainloller's pixel-walk proviso. The main README now explains matrix statuses
+in bullets and gives shorter accounts of lawful execution and compiler
+correctness; the separate bespoke-compiler rationale is folded into the
+compiler overview.
+
+Refreshed MU's computability overview with the checked fixed-cell runtime
+milestones and current obligations. Recorded the proved returning width
+growth and adjacent-fill obstruction, and
+updated the audit's completeness contract to include divergence preservation.
+
+## 2026-09-06: separate closed and input-parametrised compiler contracts
+
+`CertifiedCompilerNoIO spec diverges L` now describes closed computations:
+`spec : Src → Nat → Ans → Prop`, `diverges : Src → Prop`, and every target
+run uses `Input.empty`. There is no `targetInput` parameter. The derived
+Turpentine certificates and direct bespoke Subleq/Whitespace certificates
+use this interface. The final API also removes `targetInput` from
+`TuringComplete`: every compiled URM/input pair runs on `Input.empty`, so
+the derived construction needs no input encoding or side condition.
+
+`CertifiedCompiler` retains arbitrary caller input, its explicit encoding,
+and completed-trace and divergence preservation. The input-reading Velato
+witness is `bespokeVelatoIO`; tests now call it directly. `correct_answer`
+forgets traces without losing the input argument. `toClosed` and `toClosedOf`
+replace the previous automatic `toCertified` conversions: closing fixes source
+input to empty and requires proof that its target encoding is also empty.
+The explicitly named `bespokeWhitespaceIOClosed` and `bespokeVelatoIOClosed`
+make that restriction visible. Closed means a fixed execution interface,
+not a syntactic proof that a program contains no reads.
+
+Documentation, contribution policies and declaration links follow the API.
+Historical progress entries below describe earlier interfaces. Finite input
+storage and fuel-bounded finite traces are unchanged. Preservation of
+observations during divergence is deferred to
+[issue #1](https://github.com/ilyasergey/langlib/issues/1); the exploratory
+observation-proof file was removed. Infinite input is a separate extension.
+
+The documentation/comment sweep also corrected stale backend restrictions,
+finite-trace descriptions, module paths and declaration links. Investigated a
+reported repeated rebuild with the Subleq `isqrt.turp` command: unchanged runs
+performed zero build jobs, all 3,057 local artifact timestamps stayed unchanged,
+and `lake --no-build exe` succeeded. Documented direct executable invocation
+for batch compilation to avoid Lake's dependency-graph checks.
+
+Validation: the full library and Turpentine executable build pass. All 784
+axiom reports are clean (751 use only the standard logical axioms; 33 use none).
+The documentation audit passes 1,053 local links, including 210 numbered links
+to 107 distinct declarations. The generated site passed all 305 checks and its
+playgrounds passed all 45. All 1,700 golden/compiler tests and both Velato
+round-trip checks pass. The branch is ready for the requested commit, push and
+fast-forward merge into the repository's default branch, `master`.
+
+## 2026-09-06: uniform proof folders and source divergence foundations
+
+Every language's computability development now lives in its own folder,
+with `Main.lean` as its entry point. Shared URM, counter and divergence
+infrastructure lives under `Langlib/Computability/Common/`. The certified
+Turpentine backend proofs moved to `Turpentine/Compile/Certified/`;
+`Compiler/` is not used. All imports, proof links and documentation paths
+follow the moves, while declaration namespaces and compiler functions stay
+unchanged. Every per-language computability account is linked directly from
+its language README and indexed from both main READMEs. Named witnesses and
+divergence proofs link to their exact declaration lines. The main README's
+`TuringComplete` description is now concise.
+
+`Turpentine/Divergence.lean` defines divergence using the actual source
+interpreter's exit at every finite fuel. It proves completed-run stability
+and structural divergence inversions for sequences, conditionals and loops,
+including the distinction between a divergent loop body and a terminating
+body followed by a divergent next iteration. These facts stay free of
+Mathlib and do not infer divergence from the absence of a decoded answer.
+They are foundations for the requested mandatory compiler-divergence fields
+and upgrades of the existing certified fragments.
+
+Validation is in progress for this layout checkpoint; compiler-contract
+strengthening remains the next stage.
+
+## 2026-09-06: TuringComplete includes divergence preservation
+
+After committing and pushing the all-eleven proof milestone (`052b87e`),
+folded `preserves_divergence` into `TuringComplete` and removed the temporary
+extension and duplicate witnesses. All eleven original `<lang>Complete`
+names now include both answer and divergence proofs. The generic
+`halts_iff`, `result_iff`, `halted_run_result`, `output_valid`, and
+`error_free` theorems live in `Langlib.Common.TuringComplete`.
+
+The proof layout avoids circular imports: `<Language>/Simulation.lean`
+contains the original compiler, forward proof and language instances;
+`<Language>/Divergence.lean` proves continuing execution; the original public
+`<Language>.lean` imports both and assembles the witness. Compiler functions,
+public import paths and derived Turpentine APIs are retained. The stronger
+URM-to-target contract does not automatically strengthen the separate
+Turpentine-to-URM forward specification. Brainloller still uses its existing
+decoded-program interface, with the pixel-walk proof a separate obligation.
+MU's proof terms remain unchanged; its documentation-path comments follow
+the moved computability account.
+
+Updated the plan, contribution/proof policies, shared interface and testing
+notes, every affected language README/spec, and per-language computability
+accounts. All twelve `docs/computability-<language>.md` accounts now live
+in `docs/<language>/computability.md`, including the negative and unfinished
+claims. Incoming links, relative links within the moved pages and code
+comments follow those paths. Every numbered source link in the root docs
+and under `docs/` points to its exact declaration line. Old statements that SKI and
+Unlambda divergence remained open are corrected. The bounded-storage
+explanation now uses halting reflection, while keeping effectiveness of the
+compiler an explicit meta-theoretic requirement.
+
+Validation: `lake build` passes all 8,956 jobs, including MU. All 1,700
+golden/compiler tests and both Velato round-trip checks pass. All 761 axiom
+reports are clean (728 use only the standard logical axioms; 33 use none).
+The available external differential suite passes six cases, with unavailable
+references/runners skipped. The documentation audit checks 1,099 local links
+and 240 numbered links to 116 distinct declarations, with no failures.
+
+The requested continuation is a uniform computability folder layout, followed
+by divergence-preserving compiler correctness, the Turpentine-to-URM proof,
+and upgrades of the derived and certified bespoke compilers.
+
+## 2026-09-06: all eleven divergence-preserving witnesses
+
+Unlambda now preserves divergence for its unchanged compiler. The decisive
+lemma stops an abstracted application just before its call: the guard can
+terminate with a branch closure, and the dispatcher body can terminate with
+the next encoded state, without assuming the recursive call terminates.
+Positive CEK prefixes compose through that call under arbitrary
+continuations. An increment-only initialization lemma reaches the loop from
+the actual compiled term. `unlambdaDivergencePreserving` inherits
+`unlambdaComplete` exactly; all eleven stronger witnesses are now proved.
+
+The next stage was to move divergence preservation into `TuringComplete` and
+remove the temporary extension, migrating every client and document. MU’s
+Lean sources remain unchanged. Validation of this proof-only milestone:
+full build passes (8,945 jobs), and all 770 axiom reports are clean.
+The complete test suite will be rerun after the interface refactor.
+
+## 2026-09-06: divergence interface, ten stronger witnesses, and Unlambda groundwork
+
+Added `DivergencePreservingTC` in `Langlib/Common/Computability.lean` as a
+separate extension of `TuringComplete`. Its divergence field constrains the
+exit itself: every finite target fuel budget on a divergent URM input must
+yield `.outOfFuel`. This rules out both errors and spurious normal halts
+whose output the decoder rejects; a decoded-result iff alone would not.
+
+Proved `halts_iff`, `result_iff`, `output_valid`, and `error_free`, plus
+`halted_run_result` and `TuringComplete.simulates_at_completed_run`. The
+latter compares completed runs at a common larger fuel using lawfulness,
+so even the old interface excludes early errors on halting source inputs.
+The new field supplies the divergent-input case. The consequences, shared
+progress helpers, new witnesses and Unlambda groundwork are in the axiom
+audit.
+
+All eleven existing TC witnesses, their compilers and derived Turpentine
+compilers remain unchanged. Their claim is forward answer preservation;
+ten separate divergence-preserving witnesses now inherit them exactly.
+Whitespace and Subleq prove positive block progress, FRACTRAN proves
+nonempty rule simulation including self-jumps, Thue and Piet continue their
+dispatchers, Brainfuck and Velato iterate terminating counter bodies, and
+SKI proves positive head reduction plus strictness of compiled continuations.
+Ook and Brainloller transport the Brainfuck result, with Brainloller’s
+pixel-walk obligation still separate.
+
+Unlambda now has positive fragment-job execution, exact zero-output buffer
+preservation, positive strict-fixed-point unfolding under arbitrary
+continuations, and unconditional error freedom. Its guard/body path back to
+the recursive call still needs an operational proof; no stronger witness is
+claimed for it. Progress and this remaining obligation are tracked in
+[the migration table](divergence-preservation.md#witness-migration) and
+Stage 8 of the plan. The documentation and language READMEs now make this
+distinction, and the contribution policy explicitly rejects a decoded-result
+iff as a substitute for the execution obligation. MU's proof development is
+unchanged; it still has no TC witness to upgrade.
+
+Validation: full `lake build` passes (8,945 jobs). The expanded axiom audit
+has 758 reports, all using only `propext`, `Classical.choice`, and
+`Quot.sound`, or no axioms. All 1,700 golden/compiler tests and both Velato
+round-trip checks pass.
+Available external differential tests pass six cases; other sections skip
+when their runner or reference interpreter is unavailable.
+
+
+## 2026-09-06: MU extracts marker bits and branches through reusable code
+
+`LowTrit.lean` extracts the low bit of an arbitrarily wide zero/one marker
+with two crazy operations. The first scratch starts at `...2220`; the
+second can contain either previous result bit. The first operation collapses
+all higher trits, and the second leaves the marker's low bit as natural zero
+or one. Running the same operations with an all-ones accumulator restores
+the first scratch and leaves one in the second. `pair_call` executes both
+operations and the connecting pointer reset in nine real steps, preserving
+code, records, both widths and I/O. `test` and `reset` specialize it;
+`marker_zeroOne` establishes the extraction precondition throughout a
+rotation, and `test_marker` connects an actual call's result to divisibility
+of the rotation count by the state's current width.
+
+`BitBranch.lean` proves a conditional jump through a natural bit in two
+steps for one and three for zero. The zero path executes the no-op at
+address 1 before the stable jump at 2; the one path lands on 1 and proceeds
+directly to 2. The extra data-pointer increment selects the other adjacent
+continuation word. Both paths encrypt address 1 exactly once within its
+`74/70` no-op orbit, preserve both continuation landings, and leave the
+accumulator, widths and I/O unchanged. Its frame preserves caller code,
+flags and records placed outside addresses 0, 1 and the two target landings.
+
+`bit-branch.mu`, the seventh generated runtime source, initializes that
+no-op and tries flags `0,1,1,0`. Each outcome runs in both no-op phases;
+the four continuations are reached at instructions 10, 13, 16 and 20,
+followed by a halt at 21. Fifteen new tests cover initialization, flags,
+records, both phases, untouched nonempty input, strict loading, and the
+halt boundary at starting widths 10 and 37. The complete source is given
+in sparse transliteration in the spec.
+
+The nine-step extractor's result is adjacent to fixed restoration/return
+words, rather than independent branch continuations. `PaddedCrazy.lean`
+resolves that record-space conflict: its seven-step working call visits
+two no-ops twice, restores every code word, and leaves two free slots
+immediately after the result. Two adjacent operand records execute in
+fourteen steps without a pointer reset. `LowTrit.test_padded` proves the
+marker test through this layout, preserving both branch continuations,
+return landings, code, widths, I/O and the remaining memory frame.
+
+This does not yet close a marker scan. The padded test returns with its
+data pointer beyond the result and records; the caller must reposition it
+for dispatch, restore that move's code on both paths, reload the marker and
+all-ones constant, and connect scratch reset to the next iteration.
+`CONTRIBUTING.md` records the need to check record compatibility. The plan,
+audit and runtime account distinguish these proved primitives from a
+terminating scan and the remaining completeness simulation. The new source
+tests dispatch on prepared flags; it does not claim to initialize or connect
+the extractor.
+
+Validation: full `lake build`, all 1700 `lake test` cases and both Velato
+round-trip checks pass. All 672 axiom-audit reports use only standard
+logical axioms. The generator's `--check` passes; the new source's sparse
+transliteration matches byte for byte. Both documented 21-step runs halt
+successfully with no output. The padded-call additions are proof-only and
+were built and audited after the unchanged executable regression run.
+
+
+## 2026-09-06: MU repeatedly grows using one reusable marker
+
+`GrowingMarker.lean` connects rotation, width growth and marker reset in
+87 actual MU instructions. A 15-step entry route and an eleven-step return
+route connect the existing services. `cycle` doubles the width, regenerates
+one in the same marker cell and restores the complete resident invariant.
+`repeat_cycles` reaches width `2^n*w`; `unbounded_width` gives actual runs
+above every fixed bound, and `neverHalts` covers every fuel prefix. Input,
+output, constants, marker-adjacent records and future distant return reads
+are preserved. This is unconditional growth; scan exit, carry/borrow,
+conditional overflow retry and the completeness simulation remain open.
+
+`MarkerCycle` now supports either its original reset continuation or the
+growth continuation, with a precise memory footprint for each. Its original
+public interfaces remain available. `Routing.lean` extracts the control-step
+lemmas shared by both cycles. The new routes use eighteen additional no-op
+cells; kernel-checked encryption orbits describe every reachable phase.
+
+The sixth generated source, `grow-loop.mu`, initializes all 24 runtime
+no-ops and the reset constants in a finite startup. It reaches the first
+rotation entry at instruction 1331 and returns every 87 steps thereafter.
+The default setup reaches width 18, then grows to 36, 72 and 144; starting
+at 37 reaches 74, 148 and 296. Seventeen new tests inspect both routes,
+restored marker and code, constant values, records, and untouched nonempty
+input. The source has 12006 cells; `returns_of_fill` checks the new seed
+phase and proves that even the smallest permitted distant read lies beyond
+the source. `CONTRIBUTING.md` records this source-size check for future
+initializer changes. Finite synthesis identities are proved; the complete
+source-to-resident-invariant theorem remains open and is tested by execution.
+
+The runtime account, proof tracker, audit, plan, spec and README now track
+this milestone and its remaining obligations. The spec includes a complete
+sparse transliteration of the new source.
+
+Validation: full `lake build`, all 1685 `lake test` cases and both Velato
+round-trip checks pass. All 654 axiom-audit reports use only standard
+logical axioms. The runtime generator's `--check` passes, and the spec's
+new transliteration matches the generated source byte for byte. Both
+documented 1592-step runs produce the expected fuel diagnostic with exit
+status 2 and no program output.
+
+
+## 2026-09-06: MU rotation and reset share one reusable marker record
+
+`MarkerCycle.lean` closes the routing gap between rotation and marker reset.
+A nine-instruction route rotates the marker at 3200 using code at 529,
+restores the rotor and router, and enters the existing reset. A seven-step
+return route closes the cycle. `cycle` proves the resulting 50 actual MU
+steps restore `Ready w`; `repeat_cycles` proves arbitrary repetition;
+`neverHalts` covers all fuel prefixes, including those inside a cycle.
+Both widths and all input/output state are preserved. The marker's adjacent
+records remain `3201:270` and `3202:529` throughout; no fresh marker,
+constant or record is consumed.
+
+Address 529 is both a rotation instruction and a reset landing. Preserving
+its printability was insufficient to compose the old reset theorem with
+this route. `MarkerReset.Traced` now records the exact number of encryptions
+there, and `call_traced` proves there are two. `call_rotator` specializes
+this to preservation of word 74. The old `call` and `call_power` contracts
+remain available. `CONTRIBUTING.md` records the need to track exact phases
+when a landing also serves as executable code.
+
+The return route uses three no-ops at 526–528, alternating independently
+between 74 and 70. Their closure, decoding, and rejection as direct source
+instructions are kernel-checked. `initializer_values` checks the natural
+operand pairs that synthesize them. The original `marker-cycle.mu`, generated
+by `scripts/gen-mu-runtime.py`, contains 4202 source cells. Initialization
+and a bootstrap reset reach the rotation entry after 76 instructions;
+subsequent visits occur every 50 steps. The default setup reaches width 16,
+and the same source works at 37. Fifteen new tests inspect both routes,
+changed no-op phases, restored working words, constants and records through
+nine cycles, with nonempty input left unconsumed.
+
+This is a repeating rotation/reset routine, not a terminating scan or an
+overflow loop: it has no exit branch and does not enter the growth service.
+The symbolic theorem starts from `Ready`; complete loader/prologue
+reachability is still tested by execution. The plan, runtime account,
+proof tracker, spec and README now distinguish the completed shared-record
+routing from integration with growth, scan exit, counter arithmetic,
+source initialization and the remaining completeness theorem.
+
+Validation: full `lake build`, all 1668 `lake test` cases and both Velato
+round-trip checks pass. All 636 axiom-audit reports use only standard
+logical axioms. The runtime generator's `--check` passes, the spec's
+complete sparse transliteration matches the generated source byte for byte,
+and both documented 526-step runs return the expected fuel diagnostic and
+exit status 2 with no program output.
+
+
+## 2026-09-05: MU regenerates a rotated marker without consuming constants
+
+`Marker.lean` proves a constant-preserving path that clears any natural
+containing only zero and one trits and rebuilds one. The initial accumulator
+is loaded by rotating an all-ones constant, independently of width. No input
+instruction or EOF assumption is needed. `zeroOne_power` admits a marker
+`3^k` for any `k`, with no working-width bound.
+
+`MarkerReset.lean` implements that path in 34 actual MU instructions:
+six working calls, four pointer resets and two visits to a move/no-op router.
+`call` and `call_power` restore the marker to one, preserve the resident
+constants and return records, and restore the router phase. The frame also
+preserves all memory outside the marker, router and printable continuation
+landings. Input, output, output-closed state and both widths are unchanged;
+the fixed pointer destinations require only `maxWidth ≥ 8`. These are
+execution theorems through `run?`, not hypothetical marker updates.
+
+The new original `marker-reset.mu`, generated by `scripts/gen-mu-runtime.py`,
+has 4202 source cells. It bootstraps its constants, rotates the same physical
+marker, resets it and halts without output in 103 instructions. At the
+default width the setup reaches 16 and the marker becomes `3^15`; at width
+37 it becomes `3^36`. The bootstrap enters with the future mask still zero,
+so its first pass through the reset is covered by execution tests, not by
+`call`. The resident reset entry is reached at instruction 61 and returns
+at 95. Eleven new tests check both widths, intermediate marker and constant
+values, restored router, unconsumed nonempty input, halt, and strict rejection.
+
+The rotation wrapper is single-use. An unbounded caller still needs to
+compose rotation, reset, and growth with compatible return records:
+`work_call` binds the operand's adjacent record to the operation's code
+address. Restored rotation and crazy-write records cannot simply be treated
+as interchangeable. `CONTRIBUTING.md` records this requirement. The runtime
+account, proof tracker and plan now distinguish the proved reset from this
+integration, runtime scan exit, carry/borrow, source initialization, and the
+remaining simulation theorem. There is still no MU completeness witness.
+
+Validation: full `lake build` and all 1653 `lake test` cases pass, as do both
+Velato round-trip checks. The axiom audit has 626 reports (606 with explicit
+dependencies), all using only standard logical axioms. The generator's
+`--check` passes; the spec's complete sparse transliteration matches the
+source byte for byte; both documented 103-step runner commands halt with
+exit 0 and no output.
+
+## 2026-09-05: MU growth is now a reusable resident service
+
+`ReusableGrowth.lean` proves an eleven-instruction growth call that restores
+both working moves, returns through an unconsumed table, and preserves the
+code's reusable no-op orbit. `call_resident` preserves a complete `Resident`
+invariant: working code, return records, printable continuation landing,
+and the distant return read for every future width, not only the current
+one. The source operand and all other data and I/O are preserved. This
+closes the previous growth-code restoration obligation; supplying a new
+rotated one for overflow retry is still the caller's job.
+
+The three middle cells use the closed encryption orbit 41, 102, 96, 60, 51.
+All phases decode to no-ops at 437–439, but none is a legal source word there.
+Both facts are kernel-checked. `Initialization.lean` supplies
+`initialize_cell`, a three-step crazy/move/crazy write with explicit scratch,
+target and code separation and width stability. Three checked value
+identities instantiate the synthesis used by the example's initializer.
+The complete loader/prologue composition remains a regression test, not a
+symbolic initialization theorem.
+
+`grow_return_of_read` factors the five-step growth segment around an
+extensional distant-read hypothesis; the existing `grow_return` theorem
+keeps its old statement as the fill-backed specialization. This lets
+`Returns.frame` preserve reads across repeated calls. `Returns.of_fill`
+establishes them from the actual natural-seeded fill and a finite source
+prefix. `seed_return` checks the concrete example's fill. The loader phases
+from the penultimate source address (7000), not the source length (7002).
+
+The new original `grow-twice.mu`, generated by `scripts/gen-mu-runtime.py`,
+contains 7002 source cells. It initializes the three no-ops, then calls the
+same growth code twice using separate one-markers. Its default-width run
+establishes width 18 and grows to 36 and 72; at starting width 37 it grows
+to 74 and 148. Both runs halt after 63 instructions without output. Ten
+new cases inspect initialization, both returns, code phases, marker values,
+return records, the exact halt boundary, and strict-loader rejection.
+Distinct prepared markers do not demonstrate unbounded marker reuse.
+
+The runtime account, proof tracker and plan now distinguish the completed
+resident service from remaining marker reset, runtime scan exit, carry/borrow,
+overflow retry and general source realization. The README and spec include
+usage and a complete sparse transliteration, verified against the generated
+source. `CONTRIBUTING.md` records the fill-phase and runtime-no-op/source-word
+distinctions so subsequent work does not repeat those mistakes.
+
+Validation: full `lake build` passes. The expanded axiom audit passes with
+only standard logical axioms in all 600 dependency reports, including all
+11 new public results. The generator's `--check` passes, and both documented
+63-instruction runner commands halt with exit 0 and no output. `lake test`
+passes all 1642 cases and both Velato round-trip checks.
+
+## 2026-09-05: MU fixed-cell runtime foundations replace the rejected tape design
+
+The reworked construction now has five proof modules, described in
+[the runtime account](malbolge-unshackled/runtime-proof.md). The interpreter
+and existing URM-to-`Counter` compiler remain unchanged. There is still no
+`TuringComplete MalbolgeUnshackledLang` witness.
+
+* `Counters.lean` represents finitely many unbounded natural counters in
+  fixed cells. Constructive initialization preserves any original fill and
+  all cells outside the finite register file. Update and capacity lemmas
+  state the arithmetic boundary conditions without pretending to execute MU.
+* `Runtime.lean` proves actual three-step rotate/crazy and pointer-reset
+  calls: restore the working code, return through preserved tables, expose
+  operand changes, and preserve the rest of memory and I/O. Ordinary
+  pointer resets explicitly require width stability.
+* `Rotation.lean` connects normalized MU values to padded rotation windows.
+  It proves full-cycle restoration and the one-marker low-trit test,
+  including absence of early return.
+* `RotationLoop.lean` gives a concrete six-instruction loop, arbitrary
+  repeated passes of that same finite code, and restoration of the operand
+  after a full window. There is no assumed pass-existence premise. There
+  is also no runtime marker branch: attaching one remains essential.
+* `Growth.lean` proves five actual instructions that grow the width and
+  return through residue one of untouched fill. It exposes all five code
+  writes; restoration for repeated growth remains open.
+
+Two original 3004-cell source examples, `rotation-loop.mu` and
+`grow-once.mu`, are generated by `scripts/gen-mu-runtime.py`. Fourteen new
+regression cases use the actual loader and evaluator: inspect pointer and
+operand restoration over repeated cycles, grow 16 to 32 and 37 to 74,
+check the exact halt boundary, and reject the permissive data under strict
+loading. The source generator has a drift check, and the spec gives complete
+sparse transliterations. These tests do not replace the still-needed
+symbolic source initialization theorem.
+
+The plan and tracker distinguish checked foundations from remaining scan
+exit, carry/borrow arithmetic, repeated growth, initialization and simulation.
+`CONTRIBUTING.md` now records that arbitrary proof-indexed iteration is not
+an implemented exit test, and that code restoration alone does not restore
+operands or a complete calling convention. The base module's remaining
+width-bound and escalator overstatements have been corrected.
+
+Validation: full `lake build` and `lake env lean scripts/axioms.lean` pass;
+all 23 new public foundation results are audited, with no nonstandard axioms.
+The generator's `--check` passes. The documented runner commands were run:
+the loop exhausts 195 instructions with exit 2; both growth runs halt after
+17 instructions with exit 0 and no output. `lake test` passes all 1632 cases
+and both Velato round-trip checks.
+
+## 2026-09-05: MU proof audit rejects the infinite blank-tail invariant
+
+The MU completeness effort is re-scoped. There is still no
+`TuringComplete MalbolgeUnshackledLang` witness, and the previous assessment
+that a walk pass was the only substantive missing piece was incorrect.
+
+New kernel-checked results in
+`Langlib/Computability/MalbolgeUnshackled/Obstructions.lean`:
+
+* `finite_natural_support` bounds the natural keys of any finite memory map.
+* `restTable_adjacent_nonzero_lead` shows that, with natural fill seeds,
+  at least one of any adjacent pair of natural addresses has a nonzero
+  repeating trit.
+* `not_regMem_of_natural_fill` combines these into a contradiction for the
+  old `RegMem` invariant, for any positive stride and nonempty register
+  file, even after finite writes. It assumes the fill equation; the
+  general mutable-loader invariant remains separate work.
+* `no_adjacent_two_cycle_crazy` rules out instantiating the three-instruction
+  branch as consecutive period-two working cells.
+* `flag_branch_mark_reuse` shows that reusing the marked branch's consumed
+  operands yields zero instead of its intended target.
+* `widthBounded_update_d` makes explicit that the stored-value invariant
+  places no restriction on the data pointer. The old inference from a
+  finite alphabet to bounded storage was unjustified.
+
+The [proof audit](malbolge-unshackled/proof-audit.md) records the corrected
+scope of the existing theorems and a revised fixed-cell counter design.
+It draws on Matthias Lutter's MU Brainfuck interpreter, whose source is
+copyright-dated 2016, predating the MalbolgeLisp evidence cited before.
+The HeLL source, LMFAO 0.1.5, and Johansen's canonical Haskell interpreter
+were inspected; source hashes are recorded, and no external code is copied.
+The useful runtime mechanisms are a rotation-width scan, carry/borrow
+arithmetic, and width growth with a return path. These still need Lean
+operational proofs; the audit gives their contracts and composition with
+`Counter.counterProgram_spec`.
+
+The plan, tracker, spec, and earlier construction notes now distinguish
+these obligations from proved algebra. `CONTRIBUTING.md` records the need
+for reachable invariants and source realization when a target uses raw
+images: a convenient periodic background is not necessarily loadable.
+
+Validation: `lake build` passes. The global axiom audit passes after fixing
+18 pre-existing stale Whitespace references to lemmas moved into
+`Langlib.Turpentine.Certified.Shared`; all audited dependencies are standard
+Lean axioms. `lake test` passes all 1,618 tests and both Velato round-trip
+checks. `git diff --check` is clean.
+
+## 2026-09-03: Malbolge Unshackled, image-route start-up and the open crux
 
 On `ilya/malbolge-tc`. Two things: a proved foundation for the image
 route, and a precise statement of the one obstruction that is still an idea
@@ -35,7 +560,7 @@ minting each slot's address by rotation). No witness yet.
 ## 2026-09-03: Malbolge Unshackled, the core of a pass
 
 On the branch `ilya/malbolge-tc`. `probe_branch_gadget` in
-`Langlib/Computability/MalbolgeUnshackled.lean` puts the register probe
+`Langlib/Computability/MalbolgeUnshackled/Main.lean` puts the register probe
 and the two-operation branch on the machine as one gadget: six
 instructions, five statically placed operands. Four `crazy` cells load the
 test accumulator, read the register cell, and turn what they read into a
@@ -94,7 +619,7 @@ found by watching a program not finish.
 
 * The textbook clause ``[x] E = `kE`` for an `E` without `x` is unsound: it
   evaluates `E` when the closure is built. `abs` keeps it for *value
-  expressions* only, exactly as `Langlib/Computability/Unlambda.lean` does,
+  expressions* only, exactly as `Langlib/Computability/Unlambda/Main.lean` does,
   and the `s` expansion everywhere else is what makes a thunk a thunk.
 * **Constructors have to be strict.** A pair built as `λf. f (x+1) y`
   captures the expression, not the value, and recomputes it at every
@@ -143,7 +668,7 @@ rewritten from a plan into a description.
 ## 2026-09-03: Malbolge Unshackled gets a walk, and a two-operation branch
 
 Two pieces of the Turing-completeness effort, both in
-`Langlib/Computability/MalbolgeUnshackled.lean`, both axiom-clean. There is
+`Langlib/Computability/MalbolgeUnshackled/Main.lean`, both axiom-clean. There is
 still **no `TuringComplete` witness**; the tracker
 `docs/malbolge-unshackled/completeness-progress.md` says what is left.
 
@@ -221,9 +746,9 @@ followed by the rest of its block. `Faithful.seq` is that composition, and
 `instance : TraceLang VelatoLang` sits beside `ProgLang VelatoLang`.
 
 **The hand-written Velato backend is proved correct on a fragment,
-behaviourally.** `Langlib/Languages/Turpentine/Certified/BespokeVelato.lean`
+behaviourally.** `Langlib/Languages/Turpentine/Compile/Certified/BespokeVelato.lean`
 gives `bespokeVelato : TurpentineCompiler VelatoLang` and `bespokeVelatoIO :
-IOCertifiedCompiler BehavesWithAnswerNulFree VelatoLang` with `encodeInput`
+CertifiedCompiler BehavesWithAnswerNulFree VelatoLang` with `encodeInput`
 **and** `encodeTrace` both the identity: the compiled program runs on the
 source's own stream and performs its events, reads included. It is the
 first behaviourally verified backend in the library whose fragment reads.
@@ -243,7 +768,7 @@ Turpentine writes `C8`. `docs/velato/compiler.md` records it and a golden
 test pins it.
 
 **Shared source-side lemmas.**
-`Langlib/Languages/Turpentine/Certified/Shared.lean` now holds everything
+`Langlib/Languages/Turpentine/Compile/Certified/Shared.lean` now holds everything
 the certified backends need from Turpentine and nothing about any target:
 fragment predicates, evaluator inversion, `evalExpr_hasTy`, the `initEnv`
 unfolding, the `answer` epilogue and its decoder, and the two
@@ -354,7 +879,7 @@ is the tracks after it, which the language ignores.
 `AGENTS.md` was a hand-made copy of `CLAUDE.md` and had already drifted: it
 was missing the "Example programs" requirement, the whole graphical-languages
 policy (derived images, `scripts/render-docs-images.sh`), and the
-`Turpentine/Certified/` section with its warning about name resolution. An
+`Turpentine/Compile/Certified/` section with its warning about name resolution. An
 agent that read `AGENTS.md` — Codex, Cursor, Gemini CLI all look for that
 name — was working from stale rules.
 
@@ -367,7 +892,7 @@ file never referenced before. `CONTRIBUTING.md` points back.
 
 ## 2026-08-31: lawfulness is now required, not optional
 
-Follow-up to the entry below: `CertifiedCompiler`, `IOCertifiedCompiler`
+Follow-up to the entry below: `CertifiedCompilerNoIO`, `CertifiedCompiler`
 and `TuringComplete` now **require** `LawfulProgLang` (the I/O-aware one
 also `LawfulTraceLang`) instead of offering lawful upgrades on the side.
 The reason is semantic, not stylistic: against an unlawful interpreter the
@@ -389,7 +914,7 @@ one structural soft spot and two misleading docstrings, all now fixed.
   `∃ m` concluding every correctness statement said nothing about the fuel
   bound a runner actually picks. The new classes state fuel stability (a
   completed run, trace included, is a fixed point of more fuel);
-  `CertifiedCompiler.correct_stable`, `IOCertifiedCompiler.correct_stable`
+  `CertifiedCompilerNoIO.correct_stable`, `CertifiedCompiler.correct_stable`
   and `TuringComplete.simulates_stable` upgrade every `∃ m` to "every fuel
   from some point on". **Every `ProgLang` tag has an instance** — proved
   per interpreter in `Langlib/Languages/<L>/Stability.lean` by one uniform
@@ -572,7 +1097,7 @@ it did not render at all; it is now a real third column saying what each
 file was written under, with `sum.turp`, `primes-mu.turp` and `sort-mu.turp`
 added and `suite/` pointed at.
 
-**Four places still said nothing inhabits `IOCertifiedCompiler`.**
+**Four places still said nothing inhabits `CertifiedCompiler`.**
 `bespokeWhitespaceIO` landed in the commit before last, and
 `docs/verification.md` was in the odd position of marking whitespace
 `**yes**` in its behavioural column and then denying it in the paragraph
@@ -638,7 +1163,7 @@ This is the prerequisite for the rest of milestone 2, which is the proof:
 
 ## 2026-08-31: a compiler proved to behave, not just to answer
 
-`IOCertifiedCompiler` has an inhabitant. `bespokeWhitespaceIO` is the
+`CertifiedCompiler` has an inhabitant. `bespokeWhitespaceIO` is the
 hand-written Turpentine-to-whitespace backend proved *behaviourally*
 correct on the output fragment, and its `encodeTrace` is the **identity**:
 the compiled program does not re-encode the source's I/O into a target
@@ -765,7 +1290,7 @@ parse. `reaches_bytesCode`, by contrast, deliberately does not name the
 bytes it wrote; `Whitespace/Trace.lean` recovers them from the trace.
 
 What is left in Stage 6 milestone 1 is the packaging: `bespokeWhitespaceIO
-: IOCertifiedCompiler`, with `spec` at `answerProgram p` and `encodeTrace`
+: CertifiedCompiler`, with `spec` at `answerProgram p` and `encodeTrace`
 the identity. `docs/certified-compilation.md` §1.4 still says "nothing,
 yet", and will until that instance exists.
 
@@ -832,7 +1357,7 @@ on the accumulator: `crz` is tritwise, so each output trit sees only the
 input trit at its own position, and two inputs differing at one position
 agree at every other, while `...000` and `...222` differ everywhere. That
 sharper statement is now `no_accumulator_flag` in
-`Langlib/Computability/MalbolgeUnshackled.lean`, proved by the session that
+`Langlib/Computability/MalbolgeUnshackled/Main.lean`, proved by the session that
 caught the error — so a branch flag provably has to be *read* from something
 already uniform, which is what forces the unary register encoding rather
 than merely recommending it. A comparison still cannot be collapsed without
@@ -1070,7 +1595,7 @@ that places them, and the induction on `Ev`.
 Two things this batch: the target for the compiler is now fixed, and the
 composition obstacle is cleared.
 
-**The target.** `Langlib/Computability/Counter.lean` already carries the
+**The target.** `Langlib/Computability/Common/Counter.lean` already carries the
 target-independent half of every completeness proof: `counterProgram`
 compiles a URM program and its inputs into a structured counter machine
 with four commands (`inc`, `dec`, `emit`, `loop`), and
@@ -1420,11 +1945,11 @@ straight-line `printf` of a uuencoded gzip. 1168 tests pass.
 bridges. The two correctness proofs of the hand-written Turpentine
 backends were sitting there because that is where the `TurpentineCompiler`
 vocabulary happened to be, not because they belong. They now live in
-`Langlib/Languages/Turpentine/Certified/`, one file per target, under the
+`Langlib/Languages/Turpentine/Compile/Certified/`, one file per target, under the
 namespace `Langlib.Turpentine.Certified`.
 
 Two things had to be said out loud for the move to work. First,
-`Certified/` is a documented Mathlib exception under `Langlib/Languages/`,
+`Compile/Certified/` is a documented Mathlib exception under `Langlib/Languages/`,
 alongside `Compile/Derived.lean` and the `--tc` half of `Main.lean`: it is
 proof-side, and nothing a runner imports may reach it, so the executables
 still compile without Mathlib. Second, `Langlib.Turpentine.Certified`
@@ -1610,7 +2135,7 @@ advice.
 `skiComplete : TuringComplete SkiLang`, axiom-clean. Both halves of the
 functional route are now proved, and the second did **not** come free from
 the first even though the two languages share their combinators. See
-[computability-ski.md](computability-ski.md).
+[ski/computability.md](ski/computability.md).
 
 **What did not transfer, and why.** Unlambda is call by value and SKI is
 normal order, so the compiled terms are different programs, not different
@@ -1663,12 +2188,12 @@ having an output instruction.
 completeness result in the library that is not a machine simulation: the
 target has no store and no jumps, so the argument is bracket abstraction
 applied to a program written in a lambda notation that exists only inside
-the proof. See [computability-unlambda.md](computability-unlambda.md).
+the proof. See [unlambda/computability.md](unlambda/computability.md).
 
 **The counter machine is now shared.** The register-machine half of the
 brainfuck proof was never about brainfuck. `Cmd`, its big-step semantics,
 and the URM-to-counter compiler with `counterProgram_spec` moved to
-`Langlib/Computability/Counter.lean`, leaving brainfuck with the tape
+`Langlib/Computability/Common/Counter.lean`, leaving brainfuck with the tape
 layout that is actually its own. Thue already reused them and now says so
 by importing the shared module. A new backend therefore has four commands
 to interpret and nothing else: increment, decrement, emit a byte, and a
@@ -1897,7 +2422,7 @@ proofs have to be able to name.
 Malbolge Unshackled is one of Stage 8's open positive claims.
 This is the start of it. There is no `TuringComplete` witness
 yet and this entry does not claim one; what landed is
-`Langlib/Computability/MalbolgeUnshackled.lean`, axiom-clean, containing the
+`Langlib/Computability/MalbolgeUnshackled/Main.lean`, axiom-clean, containing the
 layer a witness has to be built on and the two theorems that say why the
 obvious constructions do not work.
 
@@ -1952,7 +2477,7 @@ the resource Unshackled has and Malbolge lacks.
 
 Next: loop construction from the longer orbits, phased so exactly one cell
 of a run fires per pass. That is the HeLL assembler's technique and
-everything else waits on it. `docs/computability-malbolge-unshackled.md`
+everything else waits on it. `docs/malbolge-unshackled/computability.md`
 has the full account, including what is cited rather than proved.
 
 ## 2026-08-30: Piet examples that loop, branch, and hang a painting
@@ -1978,7 +2503,7 @@ Four new programs in `Langlib/Examples/Piet/`, with golden tests:
 
 `scripts/gen-piet-examples.py` lays them out, because nobody paints a loop
 by hand. It implements the two codel geometries `linearGrid` and `loopGrid`
-from `Langlib/Computability/Piet.lean` — the ones the completeness proof
+from `Langlib/Computability/Piet/Main.lean` — the ones the completeness proof
 already uses — plus cheap constant building (a square with a correction
 beats a block of n codels above about twelve). Its output is checked the
 only honest way, by running the programs.
@@ -2098,7 +2623,7 @@ link followed.
 `Langlib/Languages/Turpentine/Compile/Derived.lean`.
 
 **Certified compilation became generic, and acquired an I/O-aware
-sibling.** `CertifiedCompiler spec L` is parameterised by the source
+sibling.** `CertifiedCompilerNoIO spec L` is parameterised by the source
 specification, so `agree` and the new `weaken` are proved once for every
 source and target; `TurpentineCompiler L` is that type at
 `TurpentineHaltsWith` and everything already proved kept working
@@ -2107,14 +2632,14 @@ unchanged.
 The new statement is the one the library did not have. A run's observable
 behaviour is a `Trace` of interleaved `inp`/`out` events; a language opts
 into reporting one with a `TraceLang` instance, subject to two laws tying
-the report back to its interpreter; and `IOCertifiedCompiler` demands that
+the report back to its interpreter; and `CertifiedCompiler` demands that
 a compiled program reproduce the source's trace, under an encoding the
 compiler declares as data, as well as its answer.
-`IOCertifiedCompiler.toCertified` proves the behavioural notion implies the
+`CertifiedCompiler.toCertified` proves the behavioural notion implies the
 answer-only one, so nothing already proved has to be reproved when a
 backend is upgraded.
 
-Nothing inhabits `IOCertifiedCompiler` yet, on purpose. The prerequisite is
+Nothing inhabits `CertifiedCompiler` yet, on purpose. The prerequisite is
 per-language: an interpreter has to record its events. FRACTRAN got the
 first `TraceLang` instance for free, since its `run` provably ignores the
 input stream and `TraceLang.ofInputFree` discharges the side condition by
@@ -2122,7 +2647,7 @@ input stream and `TraceLang.ofInputFree` discharges the side condition by
 
 `lake build` and `lake test` clean (979 tests); `scripts/axioms.lean` audits
 the new definitions and reports the three standard axioms or fewer —
-`CertifiedCompiler.agree` needs none at all.
+`CertifiedCompilerNoIO.agree` needs none at all.
 
 A consistency pass over the documentation afterwards turned up three stale
 spots, none of them caused by the refactor and all of them about which
@@ -2237,7 +2762,7 @@ exactly what the dispatcher's trailing `switch` was already compensating
 for — the layout and the arithmetic agreed before either was proved.
 
 What is left is composition rather than discovery, and
-`docs/computability-piet.md` lists it: the two corridor instantiations, the
+`docs/piet/computability.md` lists it: the two corridor instantiations, the
 pivot, the induction over `Cslib.URM.Steps`, and the assembly. The image is
 one column narrower than it was.
 
@@ -2329,7 +2854,7 @@ arbitrary phase, so `backPC` reuses it and `reaches_back_across` and
 `reaches_scan_prefix`.
 
 `scripts/thue-cost.lean` replaces the scratch runner the notes referred to,
-so the sizes in `docs/computability-thue.md` are reproducible: the
+so the sizes in `docs/thue/computability.md` are reproducible: the
 one-iteration addition program is 1,211 rules, a 17-character initial state
 and exactly 1,665 rewrites.
 
@@ -2442,7 +2967,7 @@ function of the output and invents nothing; the cost is output size.
 ## 2026-09-01: Whitespace proved Turing complete
 
 The first entry in the `TC proved` column.
-`Langlib/Computability/Whitespace.lean` compiles cslib's unlimited
+`Langlib/Computability/Whitespace/Main.lean` compiles cslib's unlimited
 register machine into Whitespace and proves the compilation simulates,
 yielding `whitespaceComplete : TuringComplete WhitespaceLang`.
 `#print axioms` reports only `propext`, `Classical.choice` and

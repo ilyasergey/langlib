@@ -9,7 +9,7 @@ point of more fuel. The white-start slide and the block analysis are fuel
 bounds of their own, independent of the evaluator's, so the wrapper's
 branches are stable trivially. Discharges Piet's
 `Langlib.Common.LawfulProgLang` instance in
-`Langlib/Computability/Piet.lean`.
+`Langlib/Computability/Piet/Simulation.lean`.
 -/
 
 namespace Langlib.Piet

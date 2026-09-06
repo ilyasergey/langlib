@@ -1,8 +1,7 @@
 import Langlib.Common.TestHarness
 import Langlib.Languages.Turpentine.Semantics
 import Langlib.Languages.Turpentine.Compile.Brainloller
-import Langlib.Computability.Brainloller
-
+import Langlib.Computability.Brainloller.Main
 /-!
 # Compiler tests: Turpentine to Brainloller
 
@@ -21,7 +20,7 @@ Four things are checked here.
   from a run of the reference interpreter first.
 
 * **The pixel walk**, `walks`: this is the one link of the round trip
-  `Langlib/Computability/Brainloller.lean` does *not* prove, so it is the
+  `Langlib/Computability/Brainloller/Main.lean` does *not* prove, so it is the
   one the tests have to carry. Each case compiles a program, paints it at
   a given row width, decodes the image back to characters, and checks the
   characters are exactly the rendered brainfuck. Widths 3 (the narrowest
@@ -240,7 +239,7 @@ def runURM (src : String) (_input : Input) (fuel : Nat) :
     let img := Langlib.Brainloller.encode text
       Langlib.Turpentine.Compile.Brainloller.defaultWidth
     let prog ← Langlib.Brainloller.decodeProg img
-    let r := Langlib.Brainfuck.evalProg {} prog (tc.encodeInput inputs) fuel
+    let r := Langlib.Brainfuck.evalProg {} prog Langlib.Common.Input.empty fuel
     match r.exit with
     | .halted =>
       match tc.decodeOutput r.output with

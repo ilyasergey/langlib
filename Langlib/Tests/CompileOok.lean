@@ -1,8 +1,7 @@
 import Langlib.Common.TestHarness
 import Langlib.Languages.Turpentine.Semantics
 import Langlib.Languages.Turpentine.Compile.Ook
-import Langlib.Computability.Ook
-
+import Langlib.Computability.Ook.Main
 /-!
 # Compiler tests: Turpentine to Ook!
 
@@ -171,7 +170,7 @@ def runURM (src : String) (_input : Input) (fuel : Nat) :
     let tc := Langlib.Computability.ookComplete
     let text := Langlib.Ook.render (tc.compile P inputs)
     let prog ← Langlib.Ook.parse text
-    let r := Langlib.Brainfuck.evalProg {} prog (tc.encodeInput inputs) fuel
+    let r := Langlib.Brainfuck.evalProg {} prog Langlib.Common.Input.empty fuel
     match r.exit with
     | .halted =>
       match tc.decodeOutput r.output with

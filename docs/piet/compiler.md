@@ -3,7 +3,7 @@
 * **Status**: both compilers exist. The *bespoke* one,
   [`Langlib/Languages/Turpentine/Compile/Piet.lean`](../../Langlib/Languages/Turpentine/Compile/Piet.lean),
   is hand-written and unverified; the *derived* one,
-  [`derivedPiet`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L139),
+  [`derivedPiet`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L120),
   is correct by construction and reachable as `--to piet --tc`.
 * **Family**: StackIR (see `docs/PLAN.md`, Stage 4), shared with
   whitespace.
@@ -84,7 +84,7 @@ Output:
 
 ## The other compiler, and why this one exists
 
-[`pietComplete`](../../Langlib/Computability/Piet.lean#L3998) compiles an
+[`pietComplete`](../../Langlib/Computability/Piet/Main.lean#L16) compiles an
 arbitrary register machine into a codel grid and proves the simulation
 against `evalGrid`, so composing it with the shared Turpentine-to-URM pass
 gives a verified Turpentine-to-Piet compiler. It is correct by

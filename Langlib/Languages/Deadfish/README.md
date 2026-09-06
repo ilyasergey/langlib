@@ -6,6 +6,9 @@ flow, famously not Turing complete. The full specification, the reset rule,
 and the exact semantic choices are in
 [docs/deadfish/spec.md](../../../docs/deadfish/spec.md).
 
+The [computability account](../../../docs/deadfish/computability.md) explains the
+representation, proved result and remaining scope.
+
 ## Modules
 
 * `Syntax.lean`: the five-constructor AST (`Cmd`, `Prog`); the fifth

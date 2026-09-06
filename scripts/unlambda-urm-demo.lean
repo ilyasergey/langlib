@@ -5,10 +5,9 @@ A one-line demonstration of the certified URM to Unlambda compiler.
 
 It compiles the empty URM program with input vector `[3]`, which halts at
 once with 3 in register 0, then runs the compiled Unlambda term and decodes
-its output. See docs/computability-unlambda.md.
+its output. See docs/unlambda/computability.md.
 -/
-import Langlib.Computability.Unlambda
-
+import Langlib.Computability.Unlambda.Main
 open Langlib.Common
 open Langlib.Computability.URMUnlambda
 
@@ -16,5 +15,5 @@ def main : IO Unit := do
   let P : Cslib.URM.Program := []
   let inputs : List Nat := [3]
   let prog := compile P inputs
-  let r := Langlib.Unlambda.evalProg prog (encodeInput inputs) 1000000
+  let r := Langlib.Unlambda.evalProg prog Langlib.Common.Input.empty 1000000
   IO.println s!"size={prog.size} exit={repr r.exit} decoded={decodeOutput r.output}"

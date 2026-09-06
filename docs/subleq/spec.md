@@ -5,17 +5,29 @@
   Mazonka-Kolodin paper below)
 * **Year**: the OISC idea goes back to the 1950s one-instruction machines;
   the subleq formulation and its community date from the 1990s-2000s
-* **Canonical sources**: https://esolangs.org/wiki/Subleq (CC0);
-  O. Mazonka and A. Kolodin, *A Simple Multi-Processor Computer Based on
-  Subleq*, arXiv:1106.2593 (2011), https://arxiv.org/abs/1106.2593;
-  Mazonka's tool page at http://mazonka.com/subleq/, which is intermittently
-  down and is archived at
-  http://web.archive.org/web/20230914063923/http://mazonka.com/subleq/.
-  Wikipedia has no article of its own for subleq; it is covered in a
-  section of the one-instruction-set-computer article,
-  https://en.wikipedia.org/wiki/One-instruction_set_computer#Subtract_and_branch_if_less_than_or_equal_to_zero
-* **In LangLib**: `Langlib/Languages/Subleq/`, runner `lake exe subleq`,
-  examples in `Langlib/Examples/Subleq/`
+* **Canonical sources**:
+  - the community page, https://esolangs.org/wiki/Subleq (CC0);
+  - O. Mazonka and A. Kolodin, *A Simple Multi-Processor Computer Based on
+    Subleq*, arXiv:1106.2593 (2011), https://arxiv.org/abs/1106.2593;
+  - Mazonka's tool page at http://mazonka.com/subleq/, which is
+    intermittently down and is archived at
+    http://web.archive.org/web/20230914063923/http://mazonka.com/subleq/; and
+  - Wikipedia has no article of its own for subleq; it is covered in a
+    section of the one-instruction-set-computer article,
+    https://en.wikipedia.org/wiki/One-instruction_set_computer#Subtract_and_branch_if_less_than_or_equal_to_zero.
+* **In LangLib**:
+  - `Langlib/Languages/Subleq/`,
+  - runner `lake exe subleq`,
+  - [examples](../../Langlib/Examples/Subleq/),
+  - tests in [`Langlib/Tests/Subleq.lean`](../../Langlib/Tests/Subleq.lean),
+  - Turing completeness in [`Langlib/Computability/Subleq/Main.lean`](../../Langlib/Computability/Subleq/Main.lean) and [docs/subleq/computability.md](computability.md), and
+  - a hand-written Turpentine backend proved correct on a fragment in [`Langlib/Languages/Turpentine/Compile/Certified/BespokeSubleq.lean`](../../Langlib/Languages/Turpentine/Compile/Certified/BespokeSubleq.lean), plus a certified one derived from the completeness proof ([docs/subleq/compiler.md](compiler.md))
+
+[`subleqComplete`](../../Langlib/Computability/Subleq/Main.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Langlib/Computability/Subleq/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
 
 ## History
 

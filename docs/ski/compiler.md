@@ -2,7 +2,7 @@
 
 A **derived** compiler exists and is certified,
 `turpentine exec --via ski --tc`, obtained from the completeness proof in
-[`Langlib/Computability/Ski.lean`](../../Langlib/Computability/Ski.lean). A
+[`Langlib/Computability/Ski/Main.lean`](../../Langlib/Computability/Ski/Main.lean). A
 **bespoke** backend is not planned, for a reason that is unusually clean:
 SKI has no I/O and no observable behaviour except its normal form.
 
@@ -50,8 +50,8 @@ instruction can still report an answer.
 
 Known and classical: bracket abstraction embeds the untyped lambda
 calculus, so SKI computes every computable function. **Proved**, in
-[`Langlib/Computability/Ski.lean`](../../Langlib/Computability/Ski.lean);
-the account is [computability-ski.md](../computability-ski.md). It is one of
+[`Langlib/Computability/Ski/Main.lean`](../../Langlib/Computability/Ski/Main.lean);
+the account is [ski/computability.md](computability.md). It is one of
 the two completeness proofs in the library that are not register-machine
 simulations, and the compiled program's cost is the reason the derived
 compiler above is a demonstration rather than a tool.

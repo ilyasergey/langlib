@@ -1,3 +1,50 @@
+import Langlib.Common.Divergence
+import Langlib.Computability.Common.Divergence
+import Langlib.Computability.Brainfuck.Divergence
+import Langlib.Computability.Brainloller.Divergence
+import Langlib.Computability.Fractran.Divergence
+import Langlib.Computability.Ook.Divergence
+import Langlib.Computability.Piet.Divergence
+import Langlib.Computability.Ski.Divergence
+import Langlib.Computability.Subleq.Divergence
+import Langlib.Computability.Thue.Divergence
+import Langlib.Computability.Unlambda.Divergence
+import Langlib.Computability.Velato.Divergence
+import Langlib.Computability.Whitespace.Divergence
+import Langlib.Computability.Whitespace.Main
+import Langlib.Computability.Subleq.Main
+import Langlib.Languages.Subleq.Trace
+import Langlib.Languages.Turpentine.Compile.Derived
+import Langlib.Languages.Turpentine.Trace
+import Langlib.Languages.Turpentine.Compile.Certified.BespokeWhitespace
+import Langlib.Languages.Turpentine.Compile.Certified.BespokeVelato
+import Langlib.Computability.Brainfuck.Main
+import Langlib.Computability.Velato.Main
+import Langlib.Computability.Deadfish.Main
+import Langlib.Computability.Malbolge.Main
+import Langlib.Computability.Befunge93.Main
+import Langlib.Computability.Thue.Main
+import Langlib.Computability.Ook.Main
+import Langlib.Computability.Brainloller.Main
+import Langlib.Computability.Piet.Main
+import Langlib.Computability.Fractran.Main
+import Langlib.Languages.Turpentine.Compile.Certified.BespokeSubleq
+import Langlib.Computability.MalbolgeUnshackled.Main
+import Langlib.Computability.MalbolgeUnshackled.Obstructions
+import Langlib.Computability.MalbolgeUnshackled.Counters
+import Langlib.Computability.MalbolgeUnshackled.Runtime
+import Langlib.Computability.MalbolgeUnshackled.Rotation
+import Langlib.Computability.MalbolgeUnshackled.RotationLoop
+import Langlib.Computability.MalbolgeUnshackled.Growth
+import Langlib.Computability.MalbolgeUnshackled.ReusableGrowth
+import Langlib.Computability.MalbolgeUnshackled.Initialization
+import Langlib.Computability.MalbolgeUnshackled.MarkerReset
+import Langlib.Computability.MalbolgeUnshackled.MarkerCycle
+import Langlib.Computability.MalbolgeUnshackled.GrowingMarker
+import Langlib.Computability.MalbolgeUnshackled.BitBranch
+import Langlib.Computability.Unlambda.Main
+import Langlib.Computability.Ski.Main
+import Langlib.Languages.Turpentine.Divergence
 /-
 Axiom audit for LangLib's computability results.
 
@@ -19,27 +66,6 @@ Anything else, and in particular `sorryAx`, means the result is not what it
 claims to be. Add a line here whenever a new completeness or
 incompleteness instance lands.
 -/
-import Langlib.Computability.Whitespace
-import Langlib.Computability.Subleq
-import Langlib.Languages.Subleq.Trace
-import Langlib.Languages.Turpentine.Compile.Derived
-import Langlib.Languages.Turpentine.Trace
-import Langlib.Languages.Turpentine.Certified.BespokeWhitespace
-import Langlib.Computability.Brainfuck
-import Langlib.Computability.Velato
-import Langlib.Computability.Deadfish
-import Langlib.Computability.Malbolge
-import Langlib.Computability.Befunge93
-import Langlib.Computability.Thue
-import Langlib.Computability.Ook
-import Langlib.Computability.Brainloller
-import Langlib.Computability.Piet
-import Langlib.Computability.Fractran
-import Langlib.Languages.Turpentine.Certified.BespokeSubleq
-import Langlib.Computability.MalbolgeUnshackled
-import Langlib.Computability.Unlambda
-import Langlib.Computability.Ski
-
 open Langlib.Common
 open Langlib.Computability
 open Langlib.Turpentine.Certified
@@ -49,6 +75,12 @@ open Langlib.Turpentine.Compile
 -- The bridge to cslib's vocabulary: a Turing-complete language computes
 -- every URM-computable partial function, wherever it is defined.
 #print axioms computes_of_turingComplete
+#print axioms TuringComplete.simulates_at_completed_run
+#print axioms TuringComplete.halts_iff
+#print axioms TuringComplete.halted_run_result
+#print axioms TuringComplete.result_iff
+#print axioms TuringComplete.output_valid
+#print axioms TuringComplete.error_free
 #print axioms BoundedStorage.halts_iff_search
 #print axioms BoundedStorage.halting_decidable
 
@@ -94,14 +126,15 @@ open Langlib.Turpentine.Compile
 #print axioms derivedUnlambda
 #print axioms derivedSki
 #print axioms agree
-#print axioms Langlib.Common.CertifiedCompiler.agree
+#print axioms Langlib.Common.CertifiedCompilerNoIO.agree
 
--- Certified compilation, generically: the answer-only notion, the I/O-aware
--- notion, and the proof that the second implies the first.
-#print axioms Langlib.Common.IOCertifiedCompiler.toCertified
-#print axioms Langlib.Common.IOCertifiedCompiler.toCertifiedOf
-#print axioms Langlib.Common.IOCertifiedCompiler.output_eq
-#print axioms Langlib.Common.IOCertifiedCompiler.agree
+-- Certified compilation: closed computations, arbitrary-input answer
+-- preservation, and explicit closure of the I/O certificate at empty input.
+#print axioms Langlib.Common.CertifiedCompiler.correct_answer
+#print axioms Langlib.Common.CertifiedCompiler.toClosed
+#print axioms Langlib.Common.CertifiedCompiler.toClosedOf
+#print axioms Langlib.Common.CertifiedCompiler.output_eq
+#print axioms Langlib.Common.CertifiedCompiler.agree
 #print axioms Langlib.Common.TraceLang.ofInputFree
 
 -- Brainfuck: Turing complete via paired unary tape columns. The compiler
@@ -198,7 +231,7 @@ open Langlib.Turpentine.Compile
 #print axioms URMFractran.tokenProduct_coprime
 #print axioms URMFractran.frac_eq_of_disjoint
 #print axioms URMFractran.registerBound_pos
-#print axioms URMFractran.encodeInput_pos
+#print axioms URMFractran.targetInput_pos
 
 -- The hand-written Turpentine-to-subleq backend, verified on the fragment
 -- `var answer : int := k; printByte(answer);` (1 <= k <= 255) and
@@ -242,7 +275,7 @@ open Langlib.Turpentine.Compile
 -- this proves the brainfuck parser is a left inverse of the renderer, that a
 -- rendered program is all command characters (so the encoder's filter drops
 -- nothing), and the composition of the two. The pixel walk itself is not
--- proved; see the header of Langlib/Computability/Brainloller.lean and the
+-- proved; see the header of Langlib/Computability/Brainloller/Main.lean and the
 -- `walks` suites in Langlib/Tests/CompileBrainloller.lean.
 #print axioms brainlollerComplete
 #print axioms BrainlollerSyntax.parse_renderBf
@@ -360,14 +393,14 @@ open Langlib.Turpentine.Compile
 -- and derived compilers for Whitespace.
 #print axioms bespokeWhitespace
 #print axioms bespokeWhitespace_agrees_derived
--- The behavioural half: the library's first `IOCertifiedCompiler`, with
+-- The behavioural half: the library's first `CertifiedCompiler`, with
 -- `encodeTrace = id`, and the typing soundness the print cases needed.
 #print axioms bespokeWhitespaceIO
-#print axioms bespokeWhitespaceIOErased
+#print axioms bespokeWhitespaceIOClosed
 #print axioms BespokeWhitespace.bespokeCompile_core
 #print axioms BespokeWhitespace.bespokeCompile_behaves
-#print axioms BespokeWhitespace.decodeAnswer_epilogue
-#print axioms BespokeWhitespace.evalExpr_hasTy
+#print axioms Langlib.Turpentine.Certified.decodeAnswer_epilogue
+#print axioms Langlib.Turpentine.Certified.evalExpr_hasTy
 #print axioms BespokeWhitespace.reaches_bytesCode
 #print axioms BespokeWhitespace.bespokeCompile
 #print axioms BespokeWhitespace.binOfChars_spell_toDigits
@@ -424,7 +457,7 @@ open Langlib.Turpentine.Compile
 #print axioms BespokeWhitespace.clean_boolTail_jz
 #print axioms BespokeWhitespace.clean_boolTail_jn
 #print axioms BespokeWhitespace.clean_neTail
-#print axioms BespokeWhitespace.mem_of_contains
+#print axioms Langlib.Turpentine.Certified.mem_of_contains
 #print axioms BespokeWhitespace.emitsExpr
 #print axioms BespokeWhitespace.reaches_cast
 #print axioms BespokeWhitespace.CodeAt.head
@@ -435,15 +468,15 @@ open Langlib.Turpentine.Compile
 #print axioms BespokeWhitespace.reaches_boolTail_jz
 #print axioms BespokeWhitespace.reaches_boolTail_jn
 #print axioms BespokeWhitespace.reaches_neTail
-#print axioms BespokeWhitespace.exc_pure
-#print axioms BespokeWhitespace.exc_throw
-#print axioms BespokeWhitespace.exc_bind_ok
-#print axioms BespokeWhitespace.exc_bind_err
-#print axioms BespokeWhitespace.evalExpr_bin_eq
-#print axioms BespokeWhitespace.evalExpr_bin_inv
-#print axioms BespokeWhitespace.evalExpr_and_eq
-#print axioms BespokeWhitespace.evalExpr_or_eq
-#print axioms BespokeWhitespace.evalExpr_var_inv
+#print axioms Langlib.Turpentine.Certified.exc_pure
+#print axioms Langlib.Turpentine.Certified.exc_throw
+#print axioms Langlib.Turpentine.Certified.exc_bind_ok
+#print axioms Langlib.Turpentine.Certified.exc_bind_err
+#print axioms Langlib.Turpentine.Certified.evalExpr_bin_eq
+#print axioms Langlib.Turpentine.Certified.evalExpr_bin_inv
+#print axioms Langlib.Turpentine.Certified.evalExpr_and_eq
+#print axioms Langlib.Turpentine.Certified.evalExpr_or_eq
+#print axioms Langlib.Turpentine.Certified.evalExpr_var_inv
 #print axioms BespokeWhitespace.evalExpr_neg_inv
 #print axioms BespokeWhitespace.evalExpr_not_inv
 #print axioms BespokeWhitespace.encV_bool_eq_ite
@@ -463,13 +496,13 @@ open Langlib.Turpentine.Compile
 #print axioms BespokeWhitespace.slotSize_scalar
 #print axioms BespokeWhitespace.layoutGo_notMem
 #print axioms BespokeWhitespace.layoutGo_ok
-#print axioms BespokeWhitespace.typesGo_notMem
-#print axioms BespokeWhitespace.typesGo_get
+#print axioms Langlib.Turpentine.Certified.typesGo_notMem
+#print axioms Langlib.Turpentine.Certified.typesGo_get
 #print axioms BespokeWhitespace.zeroHeap_empty
 #print axioms BespokeWhitespace.ZeroHeap.insertZero
 #print axioms BespokeWhitespace.emits_declLoop
-#print axioms BespokeWhitespace.initEnv_unfold
-#print axioms BespokeWhitespace.initEnv_forIn
+#print axioms Langlib.Turpentine.Certified.initEnv_unfold
+#print axioms Langlib.Turpentine.Certified.initEnv_forIn
 #print axioms BespokeWhitespace.allZeroEnv_empty
 #print axioms BespokeWhitespace.encV_default
 #print axioms BespokeWhitespace.initGo_zero
@@ -486,8 +519,8 @@ open Langlib.Turpentine.Compile
 #print axioms BespokeWhitespace.emitsS_assert
 #print axioms BespokeWhitespace.emitsStmt
 #print axioms BespokeWhitespace.simStmt
-#print axioms BespokeWhitespace.nodupB_spec
-#print axioms BespokeWhitespace.isIntTy_eq
+#print axioms Langlib.Turpentine.Certified.nodupB_spec
+#print axioms Langlib.Turpentine.Certified.isIntTy_eq
 #print axioms BespokeWhitespace.checkFragment_ok
 #print axioms BespokeWhitespace.emitsS_printAnswer
 #print axioms BespokeWhitespace.compileChecked_of_gen
@@ -513,9 +546,17 @@ open Langlib.Turpentine.Compile
 -- `jmp` alone does not overwrite its own cell (which is what lets anything
 -- loop), the jump-table spacing law, a program that provably never halts,
 -- and the algebra of the crazy operation.
--- See docs/computability-malbolge-unshackled.md.
+-- See docs/malbolge-unshackled/computability.md.
 
 -- Addresses, decoding, and the step-level reading of `exec`.
+-- Audit of the proposed MU simulation: conditional gadgets are not a compiler.
+#print axioms Unshackled.finite_natural_support
+#print axioms Unshackled.restTable_adjacent_nonzero_lead
+#print axioms Unshackled.not_regMem_of_natural_fill
+#print axioms Unshackled.no_adjacent_two_cycle_crazy
+#print axioms Unshackled.flag_branch_mark_reuse
+#print axioms Unshackled.widthBounded_update_d
+
 #print axioms Unshackled.toNat?_ofNat
 #print axioms Unshackled.modClass_ofNat
 #print axioms Unshackled.succ_ofNat
@@ -764,6 +805,46 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.chain_restored
 #print axioms Unshackled.alternating_at
 
+-- MU's revised fixed-cell runtime. These are operational components,
+-- not a completeness instance or an implemented terminating width scan.
+#print axioms Unshackled.FixedCounter.addr_inj
+#print axioms Unshackled.FixedCounter.initMemory_get
+#print axioms Unshackled.FixedCounter.initMemory_frame
+#print axioms Unshackled.FixedCounter.initMemory_rest
+#print axioms Unshackled.FixedCounter.registers_exist
+#print axioms Unshackled.FixedCounter.registers_set
+#print axioms Unshackled.FixedCounter.increment_fits_after_growth
+#print axioms Unshackled.Runtime.work_step
+#print axioms Unshackled.Runtime.work_call
+#print axioms Unshackled.Runtime.movd_call
+#print axioms Unshackled.Runtime.rot_window
+#print axioms Unshackled.Runtime.rotateTimes_window
+#print axioms Unshackled.Runtime.window_eq
+#print axioms Unshackled.Runtime.rotateTimes_full_cycle
+#print axioms Unshackled.Runtime.marker_low
+#print axioms Unshackled.Runtime.marker_no_early_return
+#print axioms Unshackled.Runtime.pow3_mod6
+#print axioms Unshackled.Runtime.growth_fill
+#print axioms Unshackled.Runtime.grow_return
+#print axioms Unshackled.Runtime.RotationLoop.Static.frame
+#print axioms Unshackled.Runtime.RotationLoop.pass
+#print axioms Unshackled.Runtime.RotationLoop.passes
+#print axioms Unshackled.Runtime.RotationLoop.full_cycle
+
+-- Reusable growth and its initialization primitive. The resident invariant
+-- includes the return table and return reads at every future width.
+#print axioms Unshackled.Runtime.grow_return_of_read
+#print axioms Unshackled.Runtime.initialize_cell
+#print axioms Unshackled.Runtime.ReusableGrowth.nopCycle_closed
+#print axioms Unshackled.Runtime.ReusableGrowth.nopCycle_decode
+#print axioms Unshackled.Runtime.ReusableGrowth.nopCycle_not_loadable
+#print axioms Unshackled.Runtime.ReusableGrowth.call
+#print axioms Unshackled.Runtime.ReusableGrowth.seed_return
+#print axioms Unshackled.Runtime.ReusableGrowth.Returns.of_fill
+#print axioms Unshackled.Runtime.ReusableGrowth.Returns.frame
+#print axioms Unshackled.Runtime.ReusableGrowth.call_resident
+#print axioms Unshackled.Runtime.ReusableGrowth.initializer_values
+
 -- UNLAMBDA: the functional route. The call-by-value big-step relation and
 -- its bridge to the CEK machine, bracket abstraction, the counter machine
 -- rendered in combinators, and the completeness witness.
@@ -864,3 +945,178 @@ open Langlib.Turpentine.Compile
 #print axioms Langlib.Whitespace.eval_faithful
 #print axioms Langlib.Subleq.eval_faithful
 #print axioms Langlib.Common.Input.readLineGo_faithful
+
+-- Reusable one-marker regeneration, without consuming constants or input.
+#print axioms Unshackled.Runtime.Marker.zeroOne_power
+#print axioms Unshackled.Runtime.Marker.clear
+#print axioms Unshackled.Runtime.Marker.constants
+#print axioms Unshackled.Runtime.Marker.rotate_ones
+#print axioms Unshackled.Runtime.MarkerReset.call
+#print axioms Unshackled.Runtime.MarkerReset.call_power
+
+-- A closed rotation/reset cycle on one physical marker and one return record.
+#print axioms Unshackled.Runtime.MarkerReset.call_traced
+#print axioms Unshackled.Runtime.MarkerReset.call_rotator
+#print axioms Unshackled.Runtime.MarkerCycle.rotate
+#print axioms Unshackled.Runtime.MarkerCycle.nop_phase
+#print axioms Unshackled.Runtime.MarkerCycle.nop_not_loadable
+#print axioms Unshackled.Runtime.MarkerCycle.return_to_rotation
+#print axioms Unshackled.Runtime.MarkerCycle.cycle
+#print axioms Unshackled.Runtime.MarkerCycle.repeat_cycles
+#print axioms Unshackled.Runtime.MarkerCycle.neverHalts
+#print axioms Unshackled.Runtime.MarkerCycle.initializer_values
+
+-- One marker drives arbitrarily many real width changes and returns.
+#print axioms Unshackled.Runtime.Routing.get_set_nat
+#print axioms Unshackled.Runtime.Routing.jump
+#print axioms Unshackled.Runtime.Routing.move
+#print axioms Unshackled.Runtime.Routing.noop
+#print axioms Unshackled.Runtime.Routing.printable_after
+#print axioms Unshackled.Runtime.MarkerCycle.rotate_to
+#print axioms Unshackled.Runtime.MarkerCycle.Links.reset_frame
+#print axioms Unshackled.Runtime.GrowingMarker.orbit_valid
+#print axioms Unshackled.Runtime.GrowingMarker.orbit_not_loadable
+#print axioms Unshackled.Runtime.GrowingMarker.enter_growth
+#print axioms Unshackled.Runtime.GrowingMarker.leave_growth
+#print axioms Unshackled.Runtime.GrowingMarker.cycle
+#print axioms Unshackled.Runtime.GrowingMarker.repeat_cycles
+#print axioms Unshackled.Runtime.GrowingMarker.neverHalts
+#print axioms Unshackled.Runtime.GrowingMarker.unbounded_width
+#print axioms Unshackled.Runtime.GrowingMarker.returns_of_fill
+#print axioms Unshackled.Runtime.MarkerCycle.return_route
+#print axioms Unshackled.Runtime.GrowingMarker.initializer_values
+
+-- Low-trit extraction, scratch reset, and reusable conditional dispatch.
+#print axioms Unshackled.Runtime.LowTrit.extract_first
+#print axioms Unshackled.Runtime.LowTrit.extract_second
+#print axioms Unshackled.Runtime.LowTrit.extract
+#print axioms Unshackled.Runtime.LowTrit.reset_first
+#print axioms Unshackled.Runtime.LowTrit.reset_second
+#print axioms Unshackled.Runtime.LowTrit.low_marker
+#print axioms Unshackled.Runtime.LowTrit.pair_call
+#print axioms Unshackled.Runtime.LowTrit.test
+#print axioms Unshackled.Runtime.LowTrit.reset
+#print axioms Unshackled.Runtime.BitBranch.nop_phase
+#print axioms Unshackled.Runtime.BitBranch.nop_not_loadable
+#print axioms Unshackled.Runtime.BitBranch.call
+#print axioms Unshackled.Runtime.LowTrit.marker_zeroOne
+#print axioms Unshackled.Runtime.LowTrit.test_marker
+
+-- Padded work records retain the branch's adjacent continuation slots.
+#print axioms Unshackled.Runtime.PaddedCrazy.phases
+#print axioms Unshackled.Runtime.PaddedCrazy.call
+#print axioms Unshackled.Runtime.PaddedCrazy.pair_call
+#print axioms Unshackled.Runtime.LowTrit.test_padded
+
+-- Divergence-preserving witnesses and operational progress (including Unlambda groundwork).
+#print axioms Langlib.Common.ReachesPlus
+#print axioms Langlib.Common.ReachesPlus.of_ne
+#print axioms Langlib.Common.ReachesPlus.toReaches
+#print axioms Langlib.Common.ReachesPlus.one
+#print axioms Langlib.Common.ReachesPlus.trans_left
+#print axioms Langlib.Common.ReachesPlus.trans_right
+#print axioms Langlib.Common.completed_runs_eq
+#print axioms Langlib.Common.outOfFuel_of_progress
+#print axioms Langlib.Common.Reaches.outOfFuel
+#print axioms Langlib.Computability.URM.diverges_progress
+#print axioms Langlib.Computability.URMBrainfuck.loop_iteration
+#print axioms Langlib.Computability.URMBrainfuck.dispatcher_diverges
+#print axioms Langlib.Computability.URMBrainfuck.preserves_divergence
+#print axioms Langlib.Computability.URMFractran.self_jump_progress
+#print axioms Langlib.Computability.URMFractran.instrProgress_compileRules
+#print axioms Langlib.Computability.URMFractran.urmStep_progress
+#print axioms Langlib.Computability.URMFractran.concrete_progress
+#print axioms Langlib.Computability.URMFractran.core_diverges
+#print axioms Langlib.Computability.URMFractran.preserves_divergence
+#print axioms Langlib.Computability.URMPiet.reaches_iteration_progress
+#print axioms Langlib.Computability.URMPiet.dispatcher_diverges
+#print axioms Langlib.Computability.URMPiet.preserves_divergence
+#print axioms Langlib.Computability.URMSki.apps
+#print axioms Langlib.Computability.URMSki.apps_append
+#print axioms Langlib.Computability.URMSki.hiter_apps
+#print axioms Langlib.Computability.URMSki.HR.apps
+#print axioms Langlib.Computability.URMSki.normalise_hiter
+#print axioms Langlib.Computability.URMSki.HR.reaches
+#print axioms Langlib.Computability.URMSki.Forces
+#print axioms Langlib.Computability.URMSki.forces_get
+#print axioms Langlib.Computability.URMSki.forces_set
+#print axioms Langlib.Computability.URMSki.forces_loop
+#print axioms Langlib.Computability.URMSki.forces_unary
+#print axioms Langlib.Computability.URMSki.Forces.comp
+#print axioms Langlib.Computability.URMSki.forces_code
+#print axioms Langlib.Computability.URMSki.commandT
+#print axioms Langlib.Computability.URMSki.applyCode
+#print axioms Langlib.Computability.URMSki.prefix_head
+#print axioms Langlib.Computability.URMSki.command_valid
+#print axioms Langlib.Computability.URMSki.applyCode_valid
+#print axioms Langlib.Computability.URMSki.loop_progress
+#print axioms Langlib.Computability.URMSki.normaliseExit
+#print axioms Langlib.Computability.URMSki.normalise_stable_exit
+#print axioms Langlib.Computability.URMSki.dispatcher_diverges
+#print axioms Langlib.Computability.URMSki.preserves_divergence
+#print axioms Langlib.Computability.URMSubleq.block_J_taken_progress
+#print axioms Langlib.Computability.URMSubleq.step_sim_progress
+#print axioms Langlib.Computability.URMSubleq.boundary_diverges
+#print axioms Langlib.Computability.URMSubleq.preserves_divergence
+#print axioms Langlib.Computability.URMThue.reaches_control_progress
+#print axioms Langlib.Computability.URMThue.reaches_step_progress
+#print axioms Langlib.Computability.URMThue.core_diverges
+#print axioms Langlib.Computability.URMThue.preserves_divergence
+#print axioms Langlib.Computability.URMUnlambda.run_reaches_progress
+#print axioms Langlib.Computability.URMUnlambda.run_reaches_zero
+#print axioms Langlib.Computability.URMUnlambda.selfE_value
+#print axioms Langlib.Computability.URMUnlambda.selfE_unfold_progress
+#print axioms Langlib.Computability.URMUnlambda.exec_error_free
+#print axioms Langlib.Computability.URMUnlambda.compiled_error_free
+#print axioms Langlib.Computability.URMVelato.append_diverges
+#print axioms Langlib.Computability.URMVelato.dispatcher_diverges
+#print axioms Langlib.Computability.URMVelato.counterProgram_diverges
+#print axioms Langlib.Computability.URMVelato.preserves_divergence
+#print axioms Langlib.Computability.URMWhitespace.block_J_taken_progress
+#print axioms Langlib.Computability.URMWhitespace.step_sim_progress
+#print axioms Langlib.Computability.URMWhitespace.boundary_diverges
+#print axioms Langlib.Computability.URMWhitespace.preserves_divergence
+#print axioms Langlib.Computability.URMFractran.instrRules_J_distinct_equal_progress
+
+#print axioms Langlib.Computability.URMUnlambda.isVal_app_false
+#print axioms Langlib.Computability.URMUnlambda.lam_app_prefix
+#print axioms Langlib.Computability.URMUnlambda.ap_of_ev_app
+#print axioms Langlib.Computability.URMUnlambda.loop_iteration_progress
+#print axioms Langlib.Computability.URMUnlambda.codeE_value
+#print axioms Langlib.Computability.URMUnlambda.compE_enter
+#print axioms Langlib.Computability.URMUnlambda.eval_values_prefix
+#print axioms Langlib.Computability.URMUnlambda.initCode_only_inc
+#print axioms Langlib.Computability.URMUnlambda.inc_prefix
+#print axioms Langlib.Computability.URMUnlambda.dispatcher_diverges
+#print axioms Langlib.Computability.URMUnlambda.preserves_divergence
+
+#print axioms Langlib.Computability.URMOok.preserves_divergence
+#print axioms Langlib.Computability.URMBrainloller.preserves_divergence
+
+-- Actual source divergence, independent of answer decoding.
+#print axioms Langlib.Turpentine.StmtDiverges
+#print axioms Langlib.Turpentine.Diverges
+#print axioms Langlib.Turpentine.exec_stable
+#print axioms Langlib.Turpentine.exec_outOfFuel_of_le
+#print axioms Langlib.Turpentine.StmtDiverges.seq_left
+#print axioms Langlib.Turpentine.StmtDiverges.seq_right
+#print axioms Langlib.Turpentine.StmtDiverges.seq_cases
+#print axioms Langlib.Turpentine.StmtDiverges.ite_cases
+#print axioms Langlib.Turpentine.StmtDiverges.while_cond
+#print axioms Langlib.Turpentine.StmtDiverges.while_next
+#print axioms Langlib.Turpentine.StmtDiverges.while_cases
+#print axioms Langlib.Turpentine.diverges_iff
+
+-- Divergence of the Turpentine translations, independently of output decoding.
+#print axioms Langlib.Turpentine.Compile.URM.compileStmt_diverges
+#print axioms Langlib.Turpentine.Compile.URM.compileToURM_preserves_divergence
+#print axioms Langlib.Turpentine.Certified.BespokeSubleq.compile_source_halts
+#print axioms Langlib.Turpentine.Certified.BespokeWhitespace.simStmt_diverges
+#print axioms Langlib.Turpentine.Certified.BespokeWhitespace.bespokeCompile_preserves_divergence
+#print axioms Langlib.Turpentine.Certified.BespokeVelato.simStmt_diverges
+#print axioms Langlib.Turpentine.Certified.BespokeVelato.bespokeCompile_preserves_divergence
+
+-- Closed/I/O contract separation: the input-reading witness stays I/O-aware.
+#print axioms Langlib.Turpentine.Certified.bespokeVelatoIO
+#print axioms Langlib.Turpentine.Certified.bespokeVelatoIOClosed
+#print axioms Langlib.Turpentine.Certified.bespokeVelato_agrees_derived

@@ -8,7 +8,7 @@ first behavioural compiler proof; this file does it for the source. The
 statement is the same invariant, for the same reason, and the proof is the
 same shape, but Turpentine is not a `ProgLang` and so gets no `TraceLang`
 instance — what it needs the trace for is to be the `τ` in an
-`IOCertifiedCompiler`'s specification.
+`CertifiedCompiler`'s specification.
 
 `Wf` says a reachable state accounts for its I/O exactly: the trace's
 output events **are** the output, and its input events, followed by what
@@ -155,15 +155,15 @@ theorem evalTrace_inputs (p : Program) (input : Input) (fuel : Nat) :
 
 /-! ## The source-side behavioural specification
 
-`TurpentineHaltsWith p n result`
-(`Langlib/Languages/Turpentine/Compile/URM.lean`) is the answer-only spec every
-compiler in the library is stated against: on the *empty* input stream, `p`
-halts within fuel `n` with `result` in `answer`. It says nothing about what
+`TurpentineHaltsWith p σ n result`
+(`Langlib/Languages/Turpentine/Compile/URM.lean`) is the source answer specification: on stream `σ`, `p` halts within fuel
+`n` with `result` in `answer`. The closed compiler contract specializes it
+to `Input.empty`. It says nothing about what
 the program read or printed, which is fine for a target that has no I/O and
 useless for one that does.
 
 `TurpentineBehavesWith` is its I/O-aware refinement, in the shape
-`IOCertifiedCompiler` asks for: an input stream `σ`, the trace `τ` the run
+`CertifiedCompiler` asks for: an input stream `σ`, the trace `τ` the run
 performed, and the answer. It names the same three things
 `TurpentineHaltsWith` does plus the two it drops. -/
 
@@ -201,15 +201,15 @@ theorem behavesWith_wf {p : Program} {σ : Input} {n : Nat} {τ : Trace} {result
   · rw [← behavesWith_trace h]; exact evalTrace_outputs p σ n
   · rw [← behavesWith_trace h]; exact evalTrace_inputs p σ n
 
-/-- **The I/O-aware specification refines the answer-only one.** On the
-empty stream, forgetting the trace gives exactly `TurpentineHaltsWith`,
+/-- **The I/O-aware specification refines the answer-only one.** For any
+input stream, forgetting the trace gives exactly `TurpentineHaltsWith`,
 whose definition is repeated here rather than imported: it lives in the
 URM compiler, which needs Mathlib, and this file deliberately does not. -/
-theorem behavesWith_haltsWith {p : Program} {n : Nat} {τ : Trace} {result : Nat}
-    (h : TurpentineBehavesWith p (Input.ofString "") n τ result) :
+theorem behavesWith_haltsWith {p : Program} {σ : Input} {n : Nat} {τ : Trace} {result : Nat}
+    (h : TurpentineBehavesWith p (σ) n τ result) :
     ∃ (env₀ : Std.HashMap String Value) (st : State),
       initEnv p = .ok env₀ ∧
-      exec n p.body { env := env₀, input := Input.ofString "" } = (st, Exit.halted) ∧
+      exec n p.body { env := env₀, input := σ } = (st, Exit.halted) ∧
       st.env["answer"]? = some (Value.int (result : Int)) := by
   obtain ⟨env₀, st, hinit, hexec, _, hans⟩ := h
   exact ⟨env₀, st, hinit, hexec, hans⟩

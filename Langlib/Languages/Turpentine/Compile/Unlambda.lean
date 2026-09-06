@@ -29,7 +29,7 @@ existed:
 Unlambda is call by value, so the textbook clause `[x] E = k E` for an `E`
 without `x` is unsound: it evaluates `E` when the closure is built rather
 than when it is called, which runs a loop body before its test and prints
-before the print statement is reached. `Langlib/Computability/Unlambda.lean`
+before the print statement is reached. `Langlib/Computability/Unlambda/Main.lean`
 found this in the completeness proof and kept the clause for *value
 expressions* only; `abs` here does the same, with `isVal` as the test, and
 falls back to the `s` expansion everywhere else. That fallback is what makes

@@ -22,7 +22,7 @@ open Langlib.Turpentine.Compile (derivedThue)
 def runCertified (src : String) (_input : Input) (fuel : Nat) :
     Except String RunResult := do
   let prog ← derivedThue.compileSource src
-  let result := ProgLang.run (L := ThueLang) prog derivedThue.encodeInput fuel
+  let result := ProgLang.run (L := ThueLang) prog (Input.ofString "") fuel
   match derivedThue.decodeOutput result.output with
   | none => throw "the compiled program's final state did not decode"
   | some n => return { output := (toString n).toUTF8, exit := result.exit }

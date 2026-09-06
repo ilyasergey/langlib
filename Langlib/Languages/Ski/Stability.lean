@@ -6,7 +6,7 @@ import Langlib.Languages.Ski.Semantics
 One unit of fuel per reduction, and a term in normal form is a fixed point
 of `normalise`, so a run that has normalised does not change with more
 fuel. Discharges SKI's `Langlib.Common.LawfulProgLang` instance in
-`Langlib/Computability/Ski.lean`.
+`Langlib/Computability/Ski/Simulation.lean`.
 -/
 
 namespace Langlib.Ski

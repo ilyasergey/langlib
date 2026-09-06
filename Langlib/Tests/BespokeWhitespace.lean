@@ -1,11 +1,11 @@
 import Langlib.Common.TestHarness
-import Langlib.Languages.Turpentine.Certified.BespokeWhitespace
+import Langlib.Languages.Turpentine.Compile.Certified.BespokeWhitespace
 import Langlib.Languages.Whitespace.Semantics
 
 /-!
 Tests for `Langlib.Turpentine.Certified.bespokeWhitespace`: the hand-written
 Turpentine-to-Whitespace backend, restricted to the fragment
-`Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean` proves it correct on.
+`Langlib/Languages/Turpentine/Compile/Certified/BespokeWhitespace.lean` proves it correct on.
 
 Four suites.
 
@@ -80,8 +80,8 @@ def runTrace (src : String) (input : Input) (fuel : Nat) : Except String RunResu
   let srcTrace := Langlib.Turpentine.evalTrace
     (Langlib.Turpentine.Certified.answerProgram p) input fuel
   let tgtTrace := TraceLang.trace (L := WhitespaceLang) ws
-    (bespokeWhitespaceIO.encodeInput input) fuel
-  let r := ProgLang.run (L := WhitespaceLang) ws (bespokeWhitespaceIO.encodeInput input) fuel
+    (Input.ofString "") fuel
+  let r := ProgLang.run (L := WhitespaceLang) ws (Input.ofString "") fuel
   match r.exit with
   | .halted =>
     if srcTrace == bespokeWhitespaceIO.encodeTrace tgtTrace then
@@ -98,8 +98,8 @@ def runAgree (src : String) (_input : Input) (fuel : Nat) : Except String RunRes
   let _ ← (Langlib.Turpentine.checkProgram p).mapError ("type error: " ++ ·)
   let ws₁ ← bespokeWhitespace.compile p
   let ws₂ ← derivedWhitespace.compile p
-  let r₁ := ProgLang.run (L := WhitespaceLang) ws₁ bespokeWhitespace.encodeInput fuel
-  let r₂ := ProgLang.run (L := WhitespaceLang) ws₂ derivedWhitespace.encodeInput fuel
+  let r₁ := ProgLang.run (L := WhitespaceLang) ws₁ (Input.ofString "") fuel
+  let r₂ := ProgLang.run (L := WhitespaceLang) ws₂ (Input.ofString "") fuel
   match r₁.exit, r₂.exit with
   | .halted, .halted =>
     match bespokeWhitespace.decodeOutput r₁.output,
