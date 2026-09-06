@@ -28,6 +28,20 @@ mechanism can simulate a Turing machine, with type nesting providing
 unbounded mathematical storage. The compiler does the computation while
 checking types.
 
+The Lean evaluator can extract a numeric answer from this computation.
+`javac` instead accepts or rejects a concrete claim such as “Fibonacci(10)
+yields 55”; it does not print the number. The
+[certification command](#evaluate-and-certify-with-one-command) first finds
+55 with Lean, then asks `javac` to check the original query with that answer
+substituted. The recurrence declarations remain intact, so Java's type
+checker must still resolve the encoded computation.
+
+The [Turing-completeness proof](computability.md) covers JavaGen's unbounded
+Lean semantics, including numeric answers and divergence. Certification
+with `javac` works for the recurrence examples, including `fib.jgen`;
+numeric-answer certification for arbitrary programs emitted by the universal
+compiler remains open.
+
 Here is a complete small JavaGen program:
 
 ```text
