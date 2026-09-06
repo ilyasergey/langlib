@@ -212,6 +212,30 @@ and [prime sieve](../../Langlib/Examples/Turpentine/sieve-tc.turp) are also
 covered by the array regression suite. Sorting examples that use subtraction
 remain outside this backend's fragment.
 
+### Exporting arrfib to Java
+
+Run these commands from the repository root, after building the runners as
+shown above. First compile the Fibonacci table to `/tmp/arrfib.jgen`.
+
+```sh
+lake exe turpentine compile --to javagen -o /tmp/arrfib.jgen Langlib/Examples/Turpentine/array-fibonacci.turp
+```
+
+Export its declarations and closed subtype query to Java.
+
+```sh
+lake exe javagen --java /tmp/arrfib.jgen > /tmp/JavaGenCheck.java
+```
+
+Ask `javac` to type-check the exported query; success prints nothing.
+
+```sh
+javac -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
+```
+
+On `javac 11.0.15`, this check exceeded a 30-second trial. A timeout or
+compiler resource failure is inconclusive.
+
 These generated programs have closed queries, so exporting them to Java
 checks halting acceptance, as explained above; `javac` does not independently
 validate the numeric `answer` printed by the observer.
