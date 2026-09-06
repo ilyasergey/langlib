@@ -221,6 +221,19 @@ shown above. First compile the Fibonacci table to `/tmp/arrfib.jgen`.
 lake exe turpentine compile --to javagen -o /tmp/arrfib.jgen Langlib/Examples/Turpentine/array-fibonacci.turp
 ```
 
+Run the generated file natively with the JavaGen interpreter and print its
+final `answer`.
+
+```sh
+lake exe javagen --compiled-answer --fuel 200000000 /tmp/arrfib.jgen
+```
+
+Output:
+
+```text
+8
+```
+
 Export its declarations and closed subtype query to Java.
 
 ```sh
