@@ -1,0 +1,5 @@
+// Unrelated constructors: the runner exits with a subtype rejection.
+zero Z;
+interface One<x> {}
+interface Two<x> {}
+check One<Z> <: Two<Z>;

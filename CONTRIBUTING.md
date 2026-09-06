@@ -110,6 +110,10 @@ A complete language contribution consists of:
    reduction rules erase machine state. JavaGen's
    [design gate](docs/javagen/design.md#answers-are-the-first-proof-gate)
    records this obligation for the subtyping-machine construction.
+   Result certification must check the original query specialized with the
+   candidate, retaining its computation. For Java export, check declarations
+   separately before treating an incompatible query as rejection; compiler
+   crashes and resource exhaustion are inconclusive, never rejection.
 
 ## Adding a compiler from Turpentine
 

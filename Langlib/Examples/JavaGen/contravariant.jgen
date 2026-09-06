@@ -1,0 +1,6 @@
+// A Sink reverses the Child-to-Parent inheritance relationship.
+zero Z;
+interface Parent<x> {}
+interface Child<x> extends Parent<x> {}
+interface Sink<x> {}
+check Sink<Parent<Z>> <: Sink<Child<Z>>;

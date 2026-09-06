@@ -1,0 +1,6 @@
+// Usage: lake exe javagen --fuel 20 Langlib/Examples/JavaGen/loop.jgen
+// The query returns to itself after one step; every finite budget runs out.
+zero Z;
+interface A<x> extends B<B<A<x>>> {}
+interface B<x> {}
+check A<Z> <: B<A<Z>>;

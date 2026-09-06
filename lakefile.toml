@@ -26,6 +26,10 @@ name = "brainfuck"
 root = "Langlib.Languages.Brainfuck.Main"
 
 [[lean_exe]]
+name = "javagen"
+root = "Langlib.Languages.JavaGen.Main"
+
+[[lean_exe]]
 name = "turpentine"
 root = "Langlib.Languages.Turpentine.Main"
 

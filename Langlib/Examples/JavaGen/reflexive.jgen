@@ -1,0 +1,4 @@
+// A matching pair of unary constructors reduces to Z <: Z.
+zero Z;
+interface Box<x> {}
+check Box<Z> <: Box<Z>;

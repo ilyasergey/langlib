@@ -19,6 +19,7 @@
 | [unlambda](unlambda/spec.md) | yes | yes | yes | yes | `unlambda` | yes | [**yes**](unlambda/computability.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L137) | yes | [yes](unlambda/compiler.md) | [planned](unlambda/compiler.md) |
 | [ski](ski/spec.md) | yes | yes | yes | yes | `ski` | yes | [**yes**](ski/computability.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L144) | no, no I/O | [no](ski/compiler.md) | n/a |
 | [velato](velato/spec.md) | yes | yes | yes | yes | `velato` | [yes, with unbounded ints](velato/spec.md#computational-class) | [**yes**](velato/computability.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L158) | [restricted I/O/error correspondence](velato/compiler.md#the-fragment-is-a-fragment-of-turpentine) | [yes](velato/compiler.md) | [**yes**, behaviourally, input included](velato/compiler.md) |
+| [JavaGen](javagen/spec.md) | yes | yes | yes | yes | `javagen` | [paper core; answer bridge pending](javagen/computability.md) | [pending](javagen/computability.md) | planned | no streaming I/O | [planned](javagen/compiler.md) | planned |
 | [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `turpentine` | yes | open | (source) | (source) | (source) | (source) |
 | [URM](#the-urm) (yardstick) | [here](#the-urm) | n/a | [yes](../Langlib/Computability/Common/URM.lean) | yes | n/a | yes | (yardstick) | (the route itself) | no I/O at all | [yes, certified fragment](../Langlib/Languages/Turpentine/Compile/URM.lean) | [**yes**](../Langlib/Languages/Turpentine/Compile/URM.lean#L3985) |
 
@@ -54,6 +55,7 @@ Lean definitions and proofs:
 * [Brainloller](brainloller/computability.md)
 * [Deadfish](deadfish/computability.md)
 * [FRACTRAN](fractran/computability.md)
+* [JavaGen](javagen/computability.md)
 * [Malbolge](malbolge/computability.md)
 * [Malbolge Unshackled](malbolge-unshackled/computability.md)
 * [Ook!](ook/computability.md)

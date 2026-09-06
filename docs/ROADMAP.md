@@ -7,11 +7,11 @@ at the bottom, check the license situation, and move the language into
 
 ## In the library today
 
-Fifteen languages are implemented, documented and tested: brainfuck,
+Sixteen languages are implemented, documented and tested: brainfuck,
 whitespace, malbolge, malbolge-unshackled, befunge93, subleq, fractran,
-thue, ook, deadfish, piet, brainloller, unlambda, ski and velato, plus the
-Turpentine front end. Eleven of them carry a machine-checked answer about
-their computational class; `docs/README.md` has the matrix.
+thue, ook, deadfish, piet, brainloller, unlambda, ski, velato and JavaGen, plus
+the Turpentine front end. The computational-class proofs and remaining
+obligations are listed in the [status matrix](README.md).
 
 Velato is the library's second *graphical* language in the loose sense --
 its programs are not text -- and the first musical one. It arrived after
@@ -25,15 +25,16 @@ Deadfish, Subleq, Fractran, Thue, and Befunge-93. Graphical languages are
 also confirmed wanted: **Piet** and **Brainloller** form the second wave
 (see `docs/PLAN.md`, Stage 2).
 
-## In design
+## Implementation in progress
 
 **JavaGen** (based on Radu Grigore's *Java Generics Are Turing Complete*,
 POPL 2017): a language whose interpreter searches for a Java-style subtype
 proof. Work has started on `ilya/java-generics`; the
 [design note](javagen/design.md) replaces the paper's Simper source with
 Turpentine and plans a certified route through the existing URM compiler.
-The subtype core, Java export and answer-observation convention are still
-to be implemented. The paper's halting reduction alone does not supply
+The [subtype core, numeric inference and Java export](javagen/spec.md) are
+implemented, with real-`javac` conformance tests. The universal compiler and
+its answer/divergence proofs remain pending. The paper's halting reduction alone does not supply
 LangLib's answer-preserving, divergence-preserving completeness witness.
 
 ## Strong candidates

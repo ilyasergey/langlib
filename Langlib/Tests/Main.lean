@@ -25,6 +25,7 @@ import Langlib.Tests.DerivedSubleq
 import Langlib.Tests.DerivedWhitespace
 import Langlib.Tests.Deadfish
 import Langlib.Tests.Fractran
+import Langlib.Tests.JavaGen
 import Langlib.Tests.Malbolge
 import Langlib.Tests.MalbolgeUnshackled
 import Langlib.Tests.Ook
@@ -64,7 +65,8 @@ found, and an empty list is a pass. -/
 open Langlib.Common in
 def propertyChecks : List (String × IO (List String)) :=
   [ ("velato: emit round-trips through the parser", Langlib.Tests.Velato.emitRoundTrips)
-  , ("velato: MIDI round-trips through the reader", Langlib.Tests.Velato.midiRoundTrips) ]
+  , ("velato: MIDI round-trips through the reader", Langlib.Tests.Velato.midiRoundTrips)
+  , ("javagen: source round-trips, stable records and erased payloads", Langlib.Tests.JavaGen.propertyChecks) ]
 
 open Langlib.Common in
 def main : IO UInt32 := do
@@ -95,6 +97,7 @@ def main : IO UInt32 := do
     , Langlib.Tests.DerivedWhitespace.suites
     , Langlib.Tests.Deadfish.suites
     , Langlib.Tests.Fractran.suites
+    , Langlib.Tests.JavaGen.suites
     , Langlib.Tests.Malbolge.suites
     , Langlib.Tests.MalbolgeUnshackled.suites
     , Langlib.Tests.Ook.suites

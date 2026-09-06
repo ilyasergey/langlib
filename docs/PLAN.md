@@ -34,7 +34,7 @@ nine were the initial batch; the last three landed later):
 | unlambda   | David Madore, 1999               | a functional tarpit: prefix application, no variables, no lambdas, and call/cc |
 | ski        | Schönfinkel 1924, Curry 1930     | not an esolang; the calculus Unlambda is, and the functional route to universality |
 | velato     | Daniel Temkin, 2009              | programs are MIDI files: pitch and order are the code. The first musical language here, and the one whose 128-variable ceiling forced a different shape of completeness proof |
-| JavaGen | Radu Grigore, 2017 (core); LangLib adaptation in design | Java-generics subtyping as execution; [design started](javagen/design.md), spec and implementation pending |
+| JavaGen | Radu Grigore, 2017 (core); LangLib, 2026 | Java-generics subtyping as execution; [spec and executable core](javagen/spec.md), universal compiler pending |
 
 Each spec must pin down the exact semantics our interpreter implements
 (cell width, EOF, bounds, errors), with sources. Also: `docs/ROADMAP.md`
@@ -60,28 +60,35 @@ git diffs and tests. Piet semantics per Morgan-Mar's spec (colour blocks,
 DP/CC, the 17-operation colour wheel, codel size flag); brainloller is a
 pixel-decoder front end onto the brainfuck core.
 
-### JavaGen `[~]` — design started, implementation pending
+### JavaGen `[~]` — runnable core; TC is the next priority
 
 The [design and checkpoints](javagen/design.md#delivery-checkpoints) cover
 Stages 1, 2, 4, 6 and 8 on branch `ilya/java-generics`:
 
 * [x] Read Grigore's paper and draft the Turpentine adaptation (JG0).
-* [~] Settle the result observation: retain the subtype derivation before
-  ground rules erase the answer-bearing tape; validate this proposal early.
-* [ ] Specify and implement the unary contravariant core, checked class
-  tables, parser/renderer, stable fuel semantics, runner and golden tests (JG1).
-* [ ] Generate the paper's Turing-machine construction, exercise answer
-  retention, and validate Java export on small bounded probes (JG2).
+* [x] Implement the spec, unary contravariant core, checked class tables,
+  parser/renderer, stable fuel semantics, runner and 48 golden tests (JG1).
+* [x] Infer numeric answers, recheck the specialized query, and certify it
+  with real `javac` in one command. Add Fibonacci, factorial and sum examples,
+  with positive and wrong-answer conformance tests.
+* [x] Prove completed-run stability, the lawful language instance, injective
+  unbounded numerals, and all-fuel divergence of one source-realizable loop.
+* [~] Generate the paper's Turing-machine construction and prove the numeric
+  answer protocol works for arbitrary simulated computations (JG2).
+  Java export and small conformance probes are implemented.
 * [ ] Build or reuse an executable URM-to-tape bridge, covering every
   instruction, initial inputs, tape growth and self-jumps (JG3).
-* [ ] Prove forward answers, source realization and positive-cost
-  divergence; assemble `javaGenComplete` and derived Turpentine support (JG4).
-* [ ] Complete spec/compiler/computability docs, examples, site integration
-  and size/fuel measurements before choosing any direct backend (JG5).
+* [ ] Prove forward answers, generated-source realization and positive-cost
+  divergence for the compiler; assemble `javaGenComplete` and derived
+  Turpentine support (JG4).
+* [~] Maintain spec/compiler/computability accounts and runnable examples;
+  measure generated size and fuel after the universal compiler exists (JG5).
 
-This starts with the existing closed, nonnegative URM fragment of
-Turpentine. Simper and the fluent-interface parser generator are not
-prerequisites. No implementation or completeness witness is claimed yet.
+This starts with the existing closed, nonnegative URM fragment of Turpentine.
+SKI is an alternative bridge, but would need a new tree/duplication simulation;
+use the paper's tape-machine construction first. The finite arithmetic
+examples are not Turpentine compilations. No universal compiler or completeness
+witness is claimed. See the [current proof boundary](javagen/computability.md).
 
 ## Stage 3: Turpentine front end `[x]`
 
@@ -845,10 +852,11 @@ contorting the statements to fit theorems we have not needed yet.
 ### Per-language plan
 
 JavaGen's [proof boundaries](javagen/design.md#proof-boundaries) add a
-pending development under `Langlib/Computability/JavaGen/`. Grigore's
-paper supplies the halting-recognition argument; LangLib's executable
-answer decoder, forward-answer proof and divergence proof are all pending.
-Do not register a `TuringComplete` instance until all three are supplied.
+development under `Langlib/Computability/JavaGen/`. The lawful executable
+instance, injective numeral encoding and one source-realizable infinite
+execution are proved. Grigore's paper supplies the halting-recognition
+argument; a universal compiler, forward-answer proof and compiler divergence
+proof remain pending. Do not register `TuringComplete` before those exist.
 
 | Language | Claim | Route |
 |---|---|---|

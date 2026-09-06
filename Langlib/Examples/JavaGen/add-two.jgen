@@ -1,0 +1,8 @@
+// Usage: python3 scripts/javagen-certify.py Langlib/Examples/JavaGen/add-two.jgen
+// Add two to a positive input: 2 + 2 = 4, with inert Pads between Succs.
+zero Z;
+interface Succ<x> {}
+interface Pad<x> {}
+interface Result<x> {}
+interface AddTwo<x> extends Result<Succ<Pad<Succ<Pad<x>>>>> {}
+check AddTwo<Succ<Pad<Succ<Z>>>> <: Result<answer>;

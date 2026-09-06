@@ -1,9 +1,11 @@
 # JavaGen: design and implementation plan
 
-**Status: design in progress; no JavaGen interpreter, compiler or Lean
-computability result exists yet.** Work started on `ilya/java-generics`,
-branched from `master`, on 2026-09-06. This is a design note; the runnable
-language's specification will follow after the decisions below are tested.
+**Status: executable core and Java certification implemented; universal
+compiler and TC proof pending.** Work started on `ilya/java-generics`,
+branched from `master`, on 2026-09-06. The [specification](spec.md) describes
+the implemented language. This note records the remaining construction and
+proof obligations; the [computability account](computability.md) distinguishes
+proved foundations from the pending universal simulation.
 
 ## Provenance and scope
 
@@ -18,7 +20,7 @@ LangLib design choices. The compiler's source language is
 
 The joke is that the Java compiler does the computation while deciding
 whether a method may return its argument. No Java application needs to run.
-JavaGen will expose that computation as an ordinary LangLib language.
+JavaGen exposes that computation as an ordinary LangLib language.
 
 | Paper component | JavaGen use |
 | --- | --- |
@@ -41,7 +43,8 @@ compiler's resource limits are not the language semantics.
 
 ## Core language
 
-A program contains a finite class table and one closed subtyping query.
+A program contains a finite class table and one subtyping query, optionally
+with a single numeric `answer` hole as specified in the runnable language.
 Use a distinguished nullary constructor `Z`; every other constructor has
 one contravariant parameter. A closed type is a finite constructor chain
 ending in `Z`. A rule template may instead end in its bound variable `x`.
@@ -103,7 +106,7 @@ providing `LawfulProgLang`.
 ### Source and Java export
 
 Use `.jgen` for JavaGen's new textual format and `.java` for exported Java.
-The proposed notation has `zero Z;`, unary interface-like declarations,
+The implemented notation has `zero Z;`, unary interface-like declarations,
 `//` comments and a final `check S <: T;`. Contravariance is implicit in
 `.jgen`; the format is not advertised as Java syntax. Finalize the grammar
 with parser/render round trips in the first implementation milestone.
@@ -116,9 +119,10 @@ from wildcard-bearing type uses: blindly replacing every argument with
 name hygiene, and every generated inheritance declaration with small
 `javac` probes before generalizing the translation.
 
-Proposed commands, **not available yet**: `lake exe javagen file.jgen`,
-`lake exe javagen --java file.jgen`, and
-`lake exe turpentine compile --to javagen --tc file.turp`.
+Available commands include `lake exe javagen file.jgen` and
+`lake exe javagen --java file.jgen` for concrete queries. Answer queries
+use the [inference and certification workflow](spec.md#evaluate-and-certify-with-one-command).
+`lake exe turpentine compile --to javagen --tc file.turp` remains planned.
 Follow the shared runner's fuel flags and exit codes. Java export tests
 observe type-check acceptance; `javac` does not print a Turpentine answer.
 
@@ -187,29 +191,45 @@ Printing `true` on every accepted query cannot meet that contract.
 Figure 3's ground halting rules discard the type argument containing
 the tape; the final success token alone has lost the answer.
 
-**Proposed observation:** retain the successful derivation, including the
-instantiated queries before ground inheritance rules erase their arguments,
-and serialize that finite record on success. This is a generic observer
-of actual JavaGen transitions, available for hand-written queries too.
-It must never consult a stored Turpentine program, a URM interpreter or
-the supplied fuel to manufacture an answer. Unsuccessful runs need not
-emit a record; diagnostic tracing can remain a runner option.
+**Implemented observations:** closed queries retain their successful
+subtype derivation, including instantiated inheritance steps before ground
+rules erase arguments. Numeric queries instead contain a single `answer`
+hole. Symbolic subtype execution infers a padded unary numeral, then the
+concrete evaluator checks the original query with that numeral substituted.
+The certification command exports this same specialization to real Java.
+It checks declarations separately so that malformed Java cannot masquerade
+as rejection of a candidate. No source interpreter supplies the answer.
 
-The compiler should normalize register 0 to a marked unary block on the
-simulated tape before entering the halting state. The byte decoder locates
-that block in the recorded halting configuration and counts it. Both the
-block and its phase markers must be actual type constructors produced by
-the machine simulation. Prove the snapshot is retained at exactly the
-required point, that a finite successful record is serializable, and that
-decoding yields arbitrary naturals, including zero. This observation is a
-LangLib convention; it is not Java compiler stdout or runtime I/O.
+The [specification](spec.md#natural-number-answers) gives the numeral grammar,
+the deterministic inference algorithm and its limitations. Fibonacci,
+factorial and summation examples compute distinct results; real `javac`
+accepts their candidates and rejects incorrect neighbors. These examples
+are finite type recurrences, not a universal compiler.
 
-This proposal is **not yet validated**. The first simulation prototype
-must demonstrate two different computed answers, not merely two accepted
-queries. If the record cannot support the required decoding theorem,
-revise the observation before promising a `TuringComplete` witness or
-enabling the derived backend. Recognition results may land independently,
-with their weaker statement explicit.
+The first universal construction must either normalize register 0 into this
+numeric query protocol, or prove that a marked answer block can be decoded
+from the retained derivation. Prefer the numeric protocol because it gives
+the user a result that Java can independently check. Prove that generated
+queries never encounter ambiguous numeric heads or erase an unconstrained
+hole, and that inference itself preserves divergence. The concrete subtype
+simulation alone does not prove these properties of `evalPrepared`.
+
+**This universal answer gate remains open.** The existing examples validate
+the result interface, not its adequacy for every URM program. Recognition
+results may land independently with their weaker statement explicit.
+
+### Why keep the tape-machine route before SKI?
+
+The repository already has a proved [SKI compiler](../ski/computability.md),
+so a faithful SKI-to-JavaGen compiler could be composed with it. It would
+still need to encode application trees into unary type chains, implement
+normal-order reduction including `S` duplication, preserve the encoded
+answer and prove positive-cost divergence. Those target-side constructions
+are not supplied by the existing SKI theorem. The paper already supplies a
+tape-machine-to-subtyping construction, making that the better-supported
+first route. The public contract remains URM in either case. Revisit SKI if
+a concrete, simpler JavaGen simulation is found; merely changing the source
+formalism does not discharge the answer gate.
 
 ## Proof boundaries
 
@@ -221,7 +241,7 @@ with their weaker statement explicit.
    not only from an arbitrary internal configuration.
 3. **Forward simulation:** relate register states to tape states, then
    tape states to Figure 2 configurations, including head turns, endpoint
-   extension and the halting epilogue. Retain and decode the answer record.
+   extension and the halting epilogue. Preserve the numeric answer protocol, or retain and decode an answer record.
 4. **Divergence:** every continuing URM step must take a positive finite
    number of target steps. Preserve invariants during intermediate phases;
    exclude stuck goals, errors and premature success. In particular test
@@ -244,15 +264,17 @@ modules and the standalone runner stay free of Mathlib and cslib.
 
 | Checkpoint | Deliverable and acceptance condition |
 | --- | --- |
-| JG0: design (in progress) | This note, project-plan integration, reviewed result-observation choice |
-| JG1: executable core | Spec first; `Syntax`, `Parser`, `Semantics`, `Stability`, `Main`, language README, Lake/root-module registration, original examples and golden tests |
-| JG2: paper construction and Java export | Small tape machines translated to validated tables; left/right turns, growth, ground halting and result retention exercised; original Java probes and optional differential tests |
+| JG0: initial design (done) | This note, project-plan integration, reviewed result-observation choice |
+| JG1: executable core (done) | Spec first; `Syntax`, `Parser`, `Semantics`, `Stability`, `Main`, language README, Lake/root-module registration, original examples and golden tests |
+| JG2: paper construction (pending), Java export (done) | Small tape machines translated to validated tables; left/right turns, growth, ground halting and result retention exercised; original Java probes and optional differential tests |
 | JG3: URM bridge | Executable total translation for all URM instructions and finite inputs, tape invariants, distinct answers, self-loop and growth regressions |
 | JG4: certification | Forward answers, source realization, lawfulness and positive-cost divergence; public witness and derived Turpentine CLI/tests |
 | JG5: documentation and performance | Final spec/compiler/computability accounts, verified examples, status matrices and site catalogue, generated-size/fuel measurements; decide whether a direct backend merits work |
 
-The next implementation task is JG1 plus a minimal JG2 answer-retention
-experiment. Do not build Simper or the fluent-interface parser generator
+The next priority is the JG2 tape-machine construction and universal
+answer experiment, followed by JG3 and JG4. Completed foundations include
+`LawfulProgLang`, injective unbounded numerals and an all-fuel theorem for
+one source-realizable loop; they are not a completeness witness. Do not build Simper or the fluent-interface parser generator
 as prerequisites.
 
 The golden suite must distinguish reflexive success, contravariant reversal,

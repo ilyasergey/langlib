@@ -5,6 +5,52 @@ Entries describe their dated checkpoints; the temporary separate divergence
 interface in the first two proof milestones was superseded by the combined
 `TuringComplete` interface below.
 
+## 2026-09-06: JavaGen evaluator, numeric answers and real-Java certification
+
+Implemented the [JavaGen specification](javagen/spec.md), total parser,
+validated symbolic inheritance closure, pure fuel-based subtype evaluator,
+runner and Java exporter. Closed queries retain their successful derivation,
+including arguments later erased by ground inheritance. Numeric queries
+carry one `answer` hole: symbolic execution infers a padded unary numeral,
+then concrete execution checks the original query specialized with it.
+The single-command Python driver additionally checks that same computation
+with real `javac`, compiling declarations separately and treating resource
+exhaustion as inconclusive. Unchecked warnings are errors and annotation
+processing is disabled.
+
+Added original Fibonacci(10), factorial(5), summation, positive-input addition,
+zero, inheritance and divergence examples, plus 48 golden tests and source
+round-trip/stability/payload properties. The arithmetic fixture generator
+emits finite recurrence declarations without calculating their answers.
+These are not Turpentine compilations or evidence of a universal compiler.
+The spec quotes complete examples and documents both the single-command
+Fibonacci certification and separate Java export/compilation commands.
+
+The [computability development](javagen/computability.md) now proves
+completed-run stability for both modes, `LawfulProgLang`, injectivity of
+unbounded natural encodings, source realization of the loop example, and
+its positive-cost divergence at every finite fuel. The universal answer
+protocol, tape-machine construction, URM bridge and their answer/divergence
+proofs remain open. Keep the public URM contract and first use the paper's
+tape-machine construction; SKI is possible but requires a new application
+and duplication simulation. TC is the next priority, ahead of a direct
+Turpentine backend or performance tuning.
+
+Updated the workplan, roadmap, compiler/proof accounts and testing guide.
+The README threshold is now met, so added the language README, status rows
+and generated-site catalogue entry. Recorded in `CONTRIBUTING.md` why result
+certification must retain the original query and check declarations first.
+
+Validation: `lake build` passes; focused JavaGen tests and properties pass;
+`difftest.sh` passes, including 32 JavaGen checks on `javac 11.0.15` with
+wrong-answer rejection. The Fibonacci certification prints 55; the documented
+export and separate `javac` commands succeed. Missing-JDK, zero-fuel and
+nonnumeric-query failure paths pass; generated fixtures are current. All
+315 generated-site checks pass. The new proof audit uses only standard Lean
+axioms, with no `sorry` or native-evaluation axiom. All 1,748 full-suite
+tests and the property checks pass. The final documentation audit checks
+1,118 local links, including 156 numbered links, with no issues.
+
 ## 2026-09-06: JavaGen design started
 
 Created `ilya/java-generics` from `master` and read Radu Grigore's

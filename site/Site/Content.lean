@@ -75,6 +75,10 @@ def langs : List Lang :=
     , author := "Daniel Temkin", year := "2009"
     , blurb := "The source code is a MIDI file. Commands are the intervals between notes, so a program can be transposed into any key and a piece of music might already be one."
     , runner := "lake exe velato", examplesDir := "Velato" }
+  , { slug := "javagen", name := "JavaGen"
+    , author := "Radu Grigore (core); LangLib contributors", year := "2017 / 2026"
+    , blurb := "Compute by proving a subtype query. Infer Fibonacci in Lean, then ask the Java compiler to check the answer."
+    , runner := "lake exe javagen", examplesDir := "JavaGen" }
   ]
 
 /--

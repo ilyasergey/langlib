@@ -213,6 +213,23 @@ else
   note "   on both, see the comment in this script and docs/TESTING.md)"
 fi
 
+# ---------------------------------------------------------------- javagen
+# Type-check acceptance, rather than Java runtime stdout, is the observation.
+# The conformance driver checks declarations separately and distinguishes
+# incompatible query types from malformed Java and resource exhaustion.
+if [ ! -x .lake/build/bin/javagen ]; then
+  SKIP=$((SKIP+1))
+  note "javagen: build first (lake build javagen); skipping"
+elif ! command -v javac >/dev/null 2>&1 || ! javac -version >/dev/null 2>&1; then
+  SKIP=$((SKIP+1))
+  note "javagen: no working javac found; skipping"
+elif python3 scripts/javagen-conformance.py --require-javac; then
+  PASS=$((PASS+1))
+else
+  FAIL=$((FAIL+1))
+  note "javagen: conformance suite failed or was inconclusive"
+fi
+
 # Languages with no comparable reference binary (see docs/TESTING.md for
 # why): ook, deadfish, fractran, subleq, thue, brainloller. Golden tests
 # cover them.

@@ -1,0 +1,8 @@
+// Usage: python3 scripts/javagen-certify.py Langlib/Examples/JavaGen/zero-answer.jgen
+// Zero is Z, so it needs no Succ constructors at all.
+zero Z;
+interface Succ<x> {}
+interface Pad<x> {}
+interface Result<x> {}
+interface Zero<x> extends Result<Z> {}
+check Zero<Z> <: Result<answer>;

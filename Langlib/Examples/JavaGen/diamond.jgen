@@ -1,0 +1,7 @@
+// Two superclass paths agree on the exact instantiation of Top.
+zero Z;
+interface Top<x> {}
+interface Left<x> extends Top<x> {}
+interface Right<x> extends Top<x> {}
+interface Bottom<x> extends Left<x>, Right<x> {}
+check Bottom<Z> <: Top<Z>;

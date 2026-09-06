@@ -1,0 +1,5 @@
+// The proof record retains the payload before Finish discards it.
+zero Z;
+interface Payload<x> {}
+interface Finish<x> extends Z {}
+check Finish<Payload<Payload<Z>>> <: Z;

@@ -348,3 +348,30 @@ progress helpers and completeness witnesses. Only the
 standard logical axioms `propext`, `Classical.choice`, and `Quot.sound` are
 allowed. Existing runnable compiler functions are retained; no compiler or
 runner is changed to obtain the stronger property.
+
+## JavaGen
+
+The reference is a real JDK's `javac`; no Java application runs. Build
+`javagen`, then run `python3 scripts/javagen-conformance.py --require-javac`.
+The suite is also wired into `scripts/difftest.sh`, which skips when no
+working JDK is installed. The standalone conformance driver likewise skips
+unless `--require-javac` is passed. `--javac PATH` selects a compiler and
+`--timeout SECONDS` bounds each subprocess. The initial tested version is
+`javac 11.0.15`.
+
+The suite compares concrete subtype verdicts and numeric answers, including
+Fibonacci, factorial, summation and positive-input addition. Every numeric
+case includes an incorrect neighboring candidate that Java must reject.
+Declarations compile separately before the query is checked; malformed
+Java is a failure, not evidence that a candidate is wrong. An ordinary
+incompatible-type diagnostic counts as rejection. Timeouts, stack exhaustion
+and compiler crashes are inconclusive and return a nonzero suite status.
+Unchecked warnings are errors; annotation processing is disabled.
+
+The 48 [golden tests](../Langlib/Tests/JavaGen.lean) additionally cover parser
+errors, invalid class tables, ground erasure, fuel boundaries, numeric-hole
+errors and divergent execution prefixes. Properties check source round trips,
+completed-run stability and retained erased payloads. Full mathematical
+stability and the concrete all-fuel loop theorem are in the
+[computability development](javagen/computability.md). The finite Java tests
+are not an exporter correctness theorem or a TC proof.

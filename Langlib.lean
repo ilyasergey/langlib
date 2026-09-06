@@ -4,6 +4,7 @@ import Langlib.Languages.Brainfuck
 import Langlib.Languages.Brainloller
 import Langlib.Languages.Deadfish
 import Langlib.Languages.Fractran
+import Langlib.Languages.JavaGen
 import Langlib.Languages.Malbolge
 import Langlib.Languages.MalbolgeUnshackled
 import Langlib.Languages.Ook
