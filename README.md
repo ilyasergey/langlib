@@ -55,8 +55,8 @@ status matrix, including compilers):
   commands, one accumulator, no loops
 * [fractran](docs/fractran/spec.md) (John Conway, 1987), whose programs are
   lists of fractions
-* [JavaGen](docs/javagen/spec.md) (Radu Grigore's 2017 core; LangLib, 2026),
-  computation by subtype proof search, with numeric results checked by `javac`
+* [javagen](docs/javagen/spec.md) (Radu Grigore's 2017 core; LangLib, 2026),
+  computation by subtype proof search
 * [malbolge](docs/malbolge/spec.md) (Ben Olmstead, 1998), designed to be as
   hard to program as possible
 * [malbolge-unshackled](docs/malbolge-unshackled/spec.md) (Ørjan Johansen,
