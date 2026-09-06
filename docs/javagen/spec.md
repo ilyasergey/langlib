@@ -16,6 +16,126 @@
   - [Experimental URM compiler](universal-compiler.md); [Turpentine backend plan](compiler.md).
   - [Design and pending compiler/proof milestones](design.md).
 
+## Why generics can run a program
+
+**Inheritance declarations supply rewrite rules; nested types hold data;
+a subtype query is the machine's current state.** The type checker applies
+those rules and compares type arguments to obtain the next query. Java's
+`? super` wildcards make those comparisons reverse direction, allowing
+the two sides to exchange roles. Grigore's
+[construction](https://arxiv.org/abs/1605.05274), §§4–5, shows that this
+mechanism can simulate a Turing machine, with type nesting providing
+unbounded mathematical storage. The compiler does the computation while
+checking types.
+
+Here is a complete small JavaGen program:
+
+```text
+zero Z;
+interface D<x> {}
+interface B<x> {}
+interface C<x> {}
+interface A<x> extends D<B<C<x>>> {}
+interface E<x> extends B<x> {}
+check A<Z> <: D<E<C<Z>>>;
+```
+
+`Z` terminates a nested type, `x` is a declaration parameter, and `check`
+starts execution. Follow the rewrites:
+
+1. **Select a rule and substitute.** The right side asks for a `D` supertype
+   of `A<Z>`, selecting `A<x> extends D<B<C<x>>>` with `x = Z`.
+
+   ```text
+   A<Z> <: D<E<C<Z>>>
+     -- inheritance substitutes Z for x, building B<C<Z>> -->
+   D<B<C<Z>>> <: D<E<C<Z>>>
+   ```
+
+   In `S <: D<U>`, the original argument is `U = E<C<Z>>`.
+   Inheritance supplies `D<V>`, where **`V = B<C<Z>>`**: the rule has
+   wrapped the input in new constructors.
+
+2. **Reverse the arguments.** Matching `D` heads triggers contravariance:
+   checking `D<V> <: D<U>` continues with `U <: V`.
+
+   ```text
+   D<B<C<Z>>> <: D<E<C<Z>>>
+     -- remove D and exchange the arguments -->
+   E<C<Z>> <: B<C<Z>>
+   ```
+
+   The old right argument now controls the left side. Rule lookup,
+   substitution and reversal together cost one execution step; the
+   intermediate `D` comparison just shows its workings.
+
+3. **Execute the next rule.** The new `E` and `B` heads select
+   `E<x> extends B<x>`, with `x = C<Z>`.
+
+   ```text
+   E<C<Z>> <: B<C<Z>>
+     -- inheritance passes the argument through unchanged -->
+   B<C<Z>> <: B<C<Z>>
+     -- matching B heads trigger another reversal -->
+   C<Z> <: C<Z>
+   ```
+
+   This step exposes the stored `C<Z>` on both sides.
+
+4. **Expose the terminator and accept.** Every type is its own supertype,
+   so matching `C` needs no inheritance declaration.
+
+   ```text
+   C<Z> <: C<Z>
+     -- matching C heads: remove them and reverse -->
+   Z <: Z
+     -- the right side is Z, and the left side reaches Z -->
+   accepted
+   ```
+
+   Removing `C` and accepting each cost one step: four fuel units for
+   the whole run. A missing superclass match rejects; exhausted fuel
+   leaves the computation unfinished.
+
+**A conditional is a choice of rule based on a type tag.** For example,
+this schematic fragment dispatches on a Boolean already encoded as `True`
+or `False`:
+
+```text
+interface Test<x> extends True<Then<Pad<x>>>, False<Else<Pad<x>>> {}
+```
+
+With the other constructors declared, its two possible steps are:
+
+```text
+Test<State> <: True<Rest>   →   Rest <: Then<Pad<State>>
+Test<State> <: False<Rest>  →   Rest <: Else<Pad<State>>
+```
+
+The exposed tag selects the `Then` or `Else` continuation. `State` and
+`Rest` stand for the remaining encoded data; subsequent rules implement
+the chosen branch. `Pad` supplies the extra nesting needed by the variance
+rule described below. A full `if` first computes the condition's tag,
+then uses this dispatch; it does not try one branch and catch a type error.
+
+**A loop makes a later query revisit the same control state.** The smallest
+illustration uses the declarations from [the infinite example](#a-genuinely-infinite-run):
+
+```text
+interface A<x> extends B<B<A<x>>> {}
+interface B<x> {}
+```
+
+Starting from `A<Z> <: B<A<Z>>`, inheritance produces `B<B<A<Z>>>` on
+the left. Comparing the `B` arguments in reverse gives
+`A<Z> <: B<A<Z>>` again: one step executes `while true`. Only the
+inheritance edge `A` to `B` is needed; the recursive occurrence of `A`
+is inside an argument. For a conditional loop, the body instead returns
+to the test with updated encoded data, and the false branch exits.
+Grigore's full machine construction supplies the rules for such updates
+and repeated tests. A real compiler can run out of resources; JavaGen's
+interpreter exposes this explicitly through fuel.
+
 JavaGen executes a subtype query. A successful proof is its result; running
 a Java application is unnecessary. Its mathematical core comes from the
 paper, while `.jgen` syntax, fuel, proof records and numeric inference are
@@ -245,8 +365,9 @@ class declarations, only into the query's marked hole.
 
 Grigore's paper supplies the Turing-machine halting reduction for the unary
 core. JavaGen currently has executable semantics, numeric inference, Java
-conformance and stability proofs. It does not yet have a LangLib
-`TuringComplete` witness or a Turpentine compiler. The priority is the
+conformance and stability proofs. It also has a
+[hand-written Turpentine compiler](compiler.md) for closed nonnegative scalar
+computations, but no LangLib `TuringComplete` witness. The priority is the
 URM-based public contract, with a tape-machine or existing counter-machine
 bridge to the paper's construction, preserving both the answer and positive
 execution cost. The [experimental URM compiler](universal-compiler.md) now
@@ -263,10 +384,29 @@ arbitrary loops. They mirror the results of
 [fib-tc.turp](../../Langlib/Examples/Turpentine/fib-tc.turp) and
 [fact-tc.turp](../../Langlib/Examples/Turpentine/fact-tc.turp).
 Their generator emits recurrence syntax without calculating the answers.
-A general compiler must generate code from the source even when the source
-diverges; it must not run the source and serialize a completed computation.
+The [Turpentine backend](compiler.md) now generates code from source syntax,
+including loops, using a counter machine and a sweeper. It does not evaluate
+the source during compilation. Its end-to-end correctness proof remains pending.
 
 ## Trying it
+
+Compile and run a Turpentine sum on the JavaGen interpreter. The backend
+reports the final `answer` register; its fragment is documented in the
+[compiler guide](compiler.md).
+
+```sh
+lake exe turpentine exec --via javagen --fuel 200000000 Langlib/Examples/Turpentine/sum.turp
+```
+
+Output:
+
+```text
+10
+```
+
+Compiled `.jgen` files use `lake exe javagen --compiled-answer --fuel N FILE`
+to observe the answer. This runs a closed query and reads its final tape;
+it does not use the numeric `answer` hole or the certification script below.
 
 Run the evaluator alone to get the factorial result. This performs Lean
 inference and concrete checking, without invoking Java.
@@ -307,7 +447,11 @@ python3 scripts/gen-javagen-examples.py --check
 All examples below are original to LangLib. Numeric programs print their
 answer after Lean inference and concrete checking; the same file can be
 passed to the certification command. Closed programs print a proof record.
-Each complete source below is the actual example file.
+Each complete source below is the actual example file. Run the commands from
+the repository root with a JDK installed. Java export writes
+`/tmp/JavaGenCheck.java`; each example replaces that file. Successful `javac`
+checks print nothing: acceptance validates the query, and no Java application
+needs to run.
 
 ### Fibonacci
 
@@ -336,10 +480,28 @@ interface Fib10<x> extends Fib9<Pad<Fib8<x>>> {}
 check Fib10<Z> <: answer;
 ```
 
+Export the query specialized to 55 to Java.
+
+```sh
+lake exe javagen --answer 55 --java Langlib/Examples/JavaGen/fib.jgen > /tmp/JavaGenCheck.java
+```
+
+Run the interpreter to print 55.
+
+```sh
+lake exe javagen Langlib/Examples/JavaGen/fib.jgen
+```
+
 Output:
 
 ```text
 55
+```
+
+Validate the exported query with `javac`; success prints nothing.
+
+```sh
+javac -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
 ```
 
 ### Factorial
@@ -365,10 +527,28 @@ interface Fact5<x> extends Fact4<Pad<Fact4<Pad<Fact4<Pad<Fact4<Pad<Fact4<x>>>>>>
 check Fact5<Z> <: answer;
 ```
 
+Export the query specialized to 120 to Java.
+
+```sh
+lake exe javagen --answer 120 --java Langlib/Examples/JavaGen/fact.jgen > /tmp/JavaGenCheck.java
+```
+
+Run the interpreter to print 120.
+
+```sh
+lake exe javagen Langlib/Examples/JavaGen/fact.jgen
+```
+
 Output:
 
 ```text
 120
+```
+
+Validate the exported query with `javac`; success prints nothing.
+
+```sh
+javac -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
 ```
 
 ### A counted sum
@@ -407,10 +587,28 @@ interface Sum10<x> extends Sum9<Pad<Num10<x>>> {}
 check Sum10<Z> <: answer;
 ```
 
+Export the query specialized to 55 to Java.
+
+```sh
+lake exe javagen --answer 55 --java Langlib/Examples/JavaGen/sum.jgen > /tmp/JavaGenCheck.java
+```
+
+Run the interpreter to print 55.
+
+```sh
+lake exe javagen Langlib/Examples/JavaGen/sum.jgen
+```
+
 Output:
 
 ```text
 55
+```
+
+Validate the exported query with `javac`; success prints nothing.
+
+```sh
+javac -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
 ```
 
 ### Adding to a positive input
@@ -431,10 +629,28 @@ interface AddTwo<x> extends Result<Succ<Pad<Succ<Pad<x>>>>> {}
 check AddTwo<Succ<Pad<Succ<Z>>>> <: Result<answer>;
 ```
 
+Export the query specialized to 4 to Java.
+
+```sh
+lake exe javagen --answer 4 --java Langlib/Examples/JavaGen/add-two.jgen > /tmp/JavaGenCheck.java
+```
+
+Run the interpreter to print 4.
+
+```sh
+lake exe javagen Langlib/Examples/JavaGen/add-two.jgen
+```
+
 Output:
 
 ```text
 4
+```
+
+Validate the exported query with `javac`; success prints nothing.
+
+```sh
+javac -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
 ```
 
 ### Zero
@@ -453,10 +669,28 @@ interface Zero<x> extends Result<Z> {}
 check Zero<Z> <: Result<answer>;
 ```
 
+Export the query specialized to 0 to Java.
+
+```sh
+lake exe javagen --answer 0 --java Langlib/Examples/JavaGen/zero-answer.jgen > /tmp/JavaGenCheck.java
+```
+
+Run the interpreter to print 0.
+
+```sh
+lake exe javagen Langlib/Examples/JavaGen/zero-answer.jgen
+```
+
 Output:
 
 ```text
 0
+```
+
+Validate the exported query with `javac`; success prints nothing.
+
+```sh
+javac -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
 ```
 
 ### A reversed comparison
@@ -473,6 +707,18 @@ interface Sink<x> {}
 check Sink<Parent<Z>> <: Sink<Child<Z>>;
 ```
 
+Export the closed query to Java.
+
+```sh
+lake exe javagen --java Langlib/Examples/JavaGen/contravariant.jgen > /tmp/JavaGenCheck.java
+```
+
+Run the interpreter to print the proof record.
+
+```sh
+lake exe javagen Langlib/Examples/JavaGen/contravariant.jgen
+```
+
 Output:
 
 ```text
@@ -481,6 +727,12 @@ Sink<Parent<Z>> <: Sink<Child<Z>>
 Child<Z> <: Parent<Z>
   via Parent<Z>
 Z <: Z
+```
+
+Validate the exported query with `javac`; success prints nothing.
+
+```sh
+javac -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
 ```
 
 ### Remembering an erased argument
@@ -496,12 +748,30 @@ interface Finish<x> extends Z {}
 check Finish<Payload<Payload<Z>>> <: Z;
 ```
 
+Export the closed query to Java.
+
+```sh
+lake exe javagen --java Langlib/Examples/JavaGen/ground.jgen > /tmp/JavaGenCheck.java
+```
+
+Run the interpreter to print the proof record.
+
+```sh
+lake exe javagen Langlib/Examples/JavaGen/ground.jgen
+```
+
 Output:
 
 ```text
 accepted
 Finish<Payload<Payload<Z>>> <: Z
   via Z
+```
+
+Validate the exported query with `javac`; success prints nothing.
+
+```sh
+javac -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
 ```
 
 ### An equal inheritance diamond
@@ -520,6 +790,18 @@ interface Bottom<x> extends Left<x>, Right<x> {}
 check Bottom<Z> <: Top<Z>;
 ```
 
+Export the closed query to Java.
+
+```sh
+lake exe javagen --java Langlib/Examples/JavaGen/diamond.jgen > /tmp/JavaGenCheck.java
+```
+
+Run the interpreter to print the proof record.
+
+```sh
+lake exe javagen Langlib/Examples/JavaGen/diamond.jgen
+```
+
 Output:
 
 ```text
@@ -528,6 +810,12 @@ Bottom<Z> <: Top<Z>
   via Left<Z>
   via Top<Z>
 Z <: Z
+```
+
+Validate the exported query with `javac`; success prints nothing.
+
+```sh
+javac -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
 ```
 
 ### A genuinely infinite run
@@ -546,6 +834,12 @@ interface B<x> {}
 check A<Z> <: B<A<Z>>;
 ```
 
+Export the recursive query to Java.
+
+```sh
+lake exe javagen --java Langlib/Examples/JavaGen/loop.jgen > /tmp/JavaGenCheck.java
+```
+
 Run twenty steps; the shared runner exits with status 2 and reports fuel
 exhaustion on stderr.
 
@@ -557,6 +851,15 @@ Output (stderr):
 
 ```text
 javagen: out of fuel after 20 steps (raise with --fuel)
+```
+
+Ask `javac` to check the exported query. There is no answer to validate:
+this recursive query may exhaust compiler resources or fail to finish.
+The command below limits the attempt to 15 seconds using Python; a timeout
+or compiler crash is inconclusive, not a successful check or subtype rejection.
+
+```sh
+python3 -c 'import subprocess; subprocess.run(["javac", "-proc:none", "-Xlint:unchecked", "-Werror", "-d", "/tmp", "/tmp/JavaGenCheck.java"], timeout=15, check=True)'
 ```
 
 

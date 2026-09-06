@@ -7,6 +7,7 @@ import Langlib.Languages.Turpentine.Compile.Brainfuck
 import Langlib.Languages.Turpentine.Compile.MalbolgeUnshackled
 import Langlib.Languages.Turpentine.Compile.Subleq
 import Langlib.Languages.Turpentine.Compile.Whitespace
+import Langlib.Languages.Turpentine.Compile.JavaGen
 
 /-!
 # Turpentine

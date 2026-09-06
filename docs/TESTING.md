@@ -388,3 +388,11 @@ The real-Java suite additionally checks acceptance of the generated
 `emit-three` and `transfer` queries, bringing its total to 34 cases. Those
 closed queries certify halting acceptance only; universal numeric candidate
 queries and the full TC theorem are still pending.
+
+
+The [Turpentine-to-JavaGen tests](../Langlib/Tests/CompileJavaGen.lean) reuse
+the scalar arithmetic/control-flow fixtures from the Minsky front end. They
+compare emitted-and-reparsed JavaGen execution with Turpentine's reference
+interpreter, printing `answer` for the reference run. Additional tests cover
+nested/infinite loops, failed assertions, unsupported constructs and agreement
+of `--compiled-answer` with ordinary proof-record execution at several fuels.

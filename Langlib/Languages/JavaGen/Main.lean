@@ -1,6 +1,7 @@
 import Langlib.Common.Runner
 import Langlib.Languages.JavaGen.Answer
 import Langlib.Languages.JavaGen.Java
+import Langlib.Languages.JavaGen.CompiledAnswer
 
 /-! # JavaGen: run a subtype machine or export its query to Java. -/
 
@@ -17,6 +18,7 @@ def runner : Runner where
     , "  --java FILE             export Java source to stdout"
     , "  --java-declarations FILE export declarations without a query"
     , "  --answer N --java FILE  specialize an answer query for Java checking"
+    , "  --compiled-answer      print a compiled counter program's final answer"
     , "  numeric answers: inference and concrete checking each get --fuel N" ]
 
 private def exportFile (file : String) (query : Bool) (answer : Option Nat := none) : IO UInt32 := do
@@ -50,7 +52,10 @@ def main (args : List String) : IO UInt32 :=
     match n.toNat? with
     | none => do IO.eprintln "javagen: --answer expects a natural number"; return 3
     | some n => exportFile file true (some n)
-  | _ => runner.main args
+  | _ =>
+    if args.contains "--compiled-answer" then
+      { runner with run := CompiledAnswer.run }.main (args.filter (· != "--compiled-answer"))
+    else runner.main args
 
 end Langlib.JavaGen
 

@@ -5,6 +5,41 @@ Entries describe their dated checkpoints; the temporary separate divergence
 interface in the first two proof milestones was superseded by the combined
 `TuringComplete` interface below.
 
+
+## 2026-09-06: hand-written Turpentine-to-JavaGen compiler
+
+Implemented [the JavaGen backend](javagen/compiler.md) for closed nonnegative
+scalar computations with an integer `answer`. It reuses the lightweight
+Turpentine-to-Minsky pass, merges straight-line increments, compacts control
+states and emits ordinary JavaGen through the shared sweeper generator.
+Compilation does not evaluate the source, including on divergent loops.
+
+Added `--to javagen` / `--via javagen` and standalone `--compiled-answer`.
+The answer observation uses the ordinary subtype step with indexed closure
+lookup, retaining only the final control tape rather than a full history.
+It reads register zero at successful completion. Compiled queries are closed;
+the numeric answer-hole certification script remains a separate workflow.
+No end-to-end compiler certificate or `--tc` backend is claimed. Source
+errors at zero divisors and failed assertions follow the shared counter
+pass's existing conventions; tests and documentation record the differences.
+
+Moved the executable sweep generator to the language folder, preserving
+compatibility exports for its existing simulation proofs. Added differential
+fixtures against the Turpentine reference interpreter, fragment rejection,
+nested and infinite loops, assertion behavior and proof-record/answer-mode
+agreement. Updated the spec, compiler guide, README status and workplan.
+
+Validation: `lake build` passes. All 1,813 tests and five property groups
+pass, including the 65 new compiler/reference/fragment cases. Sum, sum of
+squares, factorial, Fibonacci, integer square root and GCD return 10, 30,
+120, 55, 4 and 21 respectively. Standalone emitted-source execution passes,
+as does Java export and `javac` acceptance of a generated zero program.
+The Java conformance suite reports 34 passes, no failures and no inconclusive
+results; generated sweeper fixtures are unchanged. All 315 site checks pass.
+The documentation audit checks 1,151 local links, including 156 numbered
+source links, with no issues. The runtime import graph has no Mathlib or
+cslib dependency. The compiler guide records the measured emitted sizes.
+
 ## 2026-09-06: JavaGen URM generation and flow/sweep simulation proofs
 
 Added an [experimental executable URM compiler](javagen/universal-compiler.md):

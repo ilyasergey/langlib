@@ -192,6 +192,12 @@ taught it to you.
   not installed.
 * Compiler tests: compile Turpentine examples to each target and compare the
   target-language run against the Turpentine reference interpreter's run.
+* JavaGen's hand-written Turpentine backend reuses the Mathlib-free Minsky
+  pass in `Compile/Fractran.lean`. The executable sweep generator lives in
+  `Langlib/Languages/JavaGen/Sweep.lean`; the computability module re-exports
+  it for the existing proofs. Compiled counter queries use the standalone
+  `--compiled-answer` observation, not the numeric `answer`-hole certification
+  script. Keep these two answer paths distinct in code and documentation.
 
 ## Git
 

@@ -88,6 +88,9 @@ Stages 1, 2, 4, 6 and 8 on branch `ilya/java-generics`:
 * [ ] Prove forward answers, generated-source realization and positive-cost
   divergence for the compiler; assemble `javaGenComplete` and derived
   Turpentine support (JG4).
+* [x] Add a hand-written Turpentine backend through the existing Minsky
+  pass, with standalone numeric observation and compiler differential tests.
+  This is separate from the pending certified URM route.
 * [~] Maintain spec/compiler/computability accounts and runnable examples;
   measure generated size and fuel after the universal compiler exists (JG5).
 
@@ -118,11 +121,12 @@ state first-order, I/O explicit.
 
 ## Stage 4: compilers from Turpentine `[~]`
 
-* Turpentine -> JavaGen `[ ]`: design started in
-  [the JavaGen plan](javagen/design.md). First use the certified URM pass
-  and a new subtyping-machine completeness witness through `--tc`.
-  Answer retention is an explicit proof gate; a direct backend and I/O
-  are later work, not promised by the paper's halting reduction.
+* Turpentine -> JavaGen `[~]`: the [hand-written backend](javagen/compiler.md)
+  compiles closed nonnegative scalars through the shared Minsky pass and a
+  JavaGen sweeper. `--compiled-answer` observes the final answer register.
+  Arithmetic, branches, loops and existing examples have differential tests.
+  End-to-end certification, the separate URM-derived `--tc` route, numeric
+  Java certification of compiled answers, and I/O remain pending.
 * Turpentine -> brainfuck `[~]`: the scalar language, with 16-bit
   two's-complement integers in two cells each. Arrays are not supported
   yet. See `docs/brainfuck/compiler.md`.

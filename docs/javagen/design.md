@@ -122,7 +122,8 @@ name hygiene, and every generated inheritance declaration with small
 Available commands include `lake exe javagen file.jgen` and
 `lake exe javagen --java file.jgen` for concrete queries. Answer queries
 use the [inference and certification workflow](spec.md#evaluate-and-certify-with-one-command).
-`lake exe turpentine compile --to javagen --tc file.turp` remains planned.
+`lake exe turpentine compile --to javagen file.turp` now uses the
+[hand-written scalar backend](compiler.md). The `--tc` variant remains planned.
 Follow the shared runner's fuel flags and exit codes. Java export tests
 observe type-check acceptance; `javac` does not print a Turpentine answer.
 
@@ -175,9 +176,10 @@ The existing URM compiler imports computability dependencies. Therefore
 this first backend belongs in the proof-derived `--tc` path, assembled in
 [`Compile/Derived.lean`](../../Langlib/Languages/Turpentine/Compile/Derived.lean).
 Do not make a lightweight handwritten backend import it indirectly.
-A later direct backend, if justified by size measurements, belongs in
-`Langlib/Languages/Turpentine/Compile/JavaGen.lean`; its proof belongs in
-`Compile/Certified/JavaGen.lean`. Full Turpentine I/O is a separate design
+The separate [hand-written backend](compiler.md) now lives in
+`Langlib/Languages/Turpentine/Compile/JavaGen.lean`. It reuses the lightweight
+Minsky pass and shared sweep generator, with no URM or Mathlib imports. Its
+future end-to-end proof belongs in `Compile/Certified/JavaGen.lean`. Full Turpentine I/O is a separate design
 extension, not implied by this target's universality.
 
 ## Answers are the first proof gate
@@ -270,7 +272,7 @@ modules and the standalone runner stay free of Mathlib and cslib.
 | JG2: sweep construction and Java export (done) | Finite-control sweeper generation, checked lookup/initialization certificates, read/turn/halt simulation, growing-source divergence and real-Java probes |
 | JG3: URM bridge (code generated; proof pending) | Existing counter program to finite flow graph to sweeper; all URM instruction forms tested; register/tape invariant, decoder and uniform success still required |
 | JG4: certification | Forward answers, source realization, lawfulness and positive-cost divergence; public witness and derived Turpentine CLI/tests |
-| JG5: documentation and performance | Final spec/compiler/computability accounts, verified examples, status matrices and site catalogue, generated-size/fuel measurements; decide whether a direct backend merits work |
+| JG5: documentation and performance | Final spec/compiler/computability accounts, verified examples, status matrices and site catalogue, generated-size/fuel measurements; maintain the hand-written Minsky backend alongside the pending certified URM route |
 
 The next priority is the JG3 flow/tape invariant and universal
 answer proof, followed by JG4. Completed foundations include

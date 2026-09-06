@@ -74,7 +74,9 @@ for independent Java certification remains pending for this compiler; the
 existing numeric recurrence examples already support that workflow. Neither
 the finite regression tests nor the checked lower-level simulation fills this
 universal answer gap. Only after the full answer and divergence proofs may
-`javaGenComplete` enable the derived Turpentine backend.
+`javaGenComplete` enable the derived Turpentine backend. A separate
+[hand-written backend](compiler.md) is already runnable through the shared
+Minsky pass; it has differential tests and no end-to-end certificate.
 
 ## Why not start with SKI?
 

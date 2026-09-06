@@ -7,6 +7,7 @@ import Langlib.Languages.Turpentine.Compile.Whitespace
 import Langlib.Languages.Turpentine.Compile.Ook
 import Langlib.Languages.Turpentine.Compile.Brainloller
 import Langlib.Languages.Turpentine.Compile.Fractran
+import Langlib.Languages.Turpentine.Compile.JavaGen
 import Langlib.Languages.Turpentine.Compile.Piet
 import Langlib.Languages.Turpentine.Compile.MalbolgeUnshackled
 import Langlib.Languages.Turpentine.Compile.Malbolge
@@ -258,6 +259,11 @@ def backends : List Backend :=
   , { name := "fractran"
     , bespoke := some fractranBespoke
     , certified := some fractranCertified }
+  , { name := "javagen"
+    , bespoke := some (fun src => do
+        let text ← Compile.JavaGen.compileSource src
+        return { text, run := Langlib.JavaGen.CompiledAnswer.run text
+               , runNote := some "lake exe javagen --compiled-answer --fuel 200000000 <file>" }) }
   , { name := "thue"
       -- `finalState` is what makes the answer visible: Thue's only output
       -- primitive is `~`, and the compiled program does not use it, so the
@@ -325,7 +331,7 @@ def runner : Runner where
     , "targets, and the compilers each has:" ]
     ++ backendTable ++
     [ "compiler choice, for compile and exec:"
-    , "  --bespoke    hand-written backend: whole language, compact output, unverified."
+    , "  --bespoke    hand-written backend, with target-specific restrictions."
     , "               This is the default when neither flag is given."
     , "  --tc         derived from the language's Turing-completeness proof: correct by"
     , "               construction, far larger output, and accepts only the I/O-free"
@@ -363,13 +369,12 @@ def helpText : String :=
     ++ backendTable ++
     [ ""
     , "choosing a compiler (compile and exec):"
-    , "  --bespoke  hand-written for that target. Accepts the whole language,"
-    , "             emits compact code, and is not verified. This is the"
-    , "             default when neither flag is given. Two exceptions:"
-    , "             malbolge and malbolge-unshackled take only programs"
-    , "             that do not read input, and malbolge additionally only"
-    , "             those whose output fits in its 59049 words. Both say"
-    , "             so when they refuse one."
+    , "  --bespoke  hand-written for that target, with target-specific restrictions."
+    , "             This is the default when neither flag is given. JavaGen"
+    , "             takes closed nonnegative scalar computations with an integer"
+    , "             answer variable; arrays, I/O and subtraction are rejected."
+    , "             See docs/<target>/compiler.md for each backend's fragment"
+    , "             and proof status. Unsupported constructs are reported."
     , "  --tc       derived from the target's Turing-completeness proof, by"
     , "             composing it with the shared Turpentine-to-URM pass."
     , "             Correct by construction. Accepts only the I/O-free"

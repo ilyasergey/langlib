@@ -80,6 +80,20 @@ Run `lake build turpentine` again after changing the compiler. Alternatively,
 `lake --no-build exe turpentine ...` checks freshness and refuses a stale
 build instead of recompiling it.
 
+The [JavaGen backend](../../../docs/javagen/compiler.md) accepts closed,
+nonnegative scalar computations and reports the final integer `answer`.
+Compile and run a counted sum:
+
+```sh
+lake exe turpentine exec --via javagen Langlib/Examples/Turpentine/sum.turp
+```
+
+Output:
+
+```text
+10
+```
+
 ## Examples ([Langlib/Examples/Turpentine/](../../Examples/Turpentine/))
 
 | File | What it does | Written for |

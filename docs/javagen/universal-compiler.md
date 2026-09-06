@@ -66,7 +66,7 @@ pending simulation must respect.
 
 ## What is proved at the subtype boundary
 
-[Sweep.lean](../../Langlib/Computability/JavaGen/Sweep.lean) defines a finite
+[Sweep.lean](../../Langlib/Languages/JavaGen/Sweep.lean) defines a finite
 machine with symbol replacement and end transitions. Its configuration
 contains control, a written stack and an unread stack, both nearest to the
 scanning head first. A JavaGen configuration represents it as
