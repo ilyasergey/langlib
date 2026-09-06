@@ -64,7 +64,8 @@ taught it to you.
 ## Semantics conventions
 
 * Reference interpreters have a **pure core**: `ByteArray` (or `List Int`)
-  input, fuel parameter, explicit result type (`Langlib.Common.Outcome`).
+  input, fuel parameter, explicit result type (`Langlib.Common.RunResult`,
+  with `Langlib.Common.Exit`, both in `Langlib/Common/Io.lean`).
   The IO runner wraps the pure core; proofs and tests target the pure core.
 * Semantics decisions (cell width, EOF behaviour, tape bounds) must match the
   language's canonical reference implementation, and every such decision must
@@ -91,6 +92,10 @@ taught it to you.
 
 ## Documentation policy
 
+* Do not update READMEs for an in-progress language until its specification,
+  parser, interpreter, runner and tests are all in place. Until then, track
+  the work in its design notes, `docs/PLAN.md`, `docs/PROGRESS.md` and
+  `docs/ROADMAP.md`.
 * Before **every commit**, double-check all project documentation for
   consistency with the code and for link validity, including the root
   documents, `docs/`, every language README and the site documentation.

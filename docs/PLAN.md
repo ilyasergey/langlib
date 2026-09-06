@@ -34,6 +34,7 @@ nine were the initial batch; the last three landed later):
 | unlambda   | David Madore, 1999               | a functional tarpit: prefix application, no variables, no lambdas, and call/cc |
 | ski        | Schönfinkel 1924, Curry 1930     | not an esolang; the calculus Unlambda is, and the functional route to universality |
 | velato     | Daniel Temkin, 2009              | programs are MIDI files: pitch and order are the code. The first musical language here, and the one whose 128-variable ceiling forced a different shape of completeness proof |
+| JavaGen | Radu Grigore, 2017 (core); LangLib adaptation in design | Java-generics subtyping as execution; [design started](javagen/design.md), spec and implementation pending |
 
 Each spec must pin down the exact semantics our interpreter implements
 (cell width, EOF, bounds, errors), with sources. Also: `docs/ROADMAP.md`
@@ -42,7 +43,7 @@ Each spec must pin down the exact semantics our interpreter implements
 ## Stage 2: interpreters `[~]`
 
 Shared infrastructure in `Langlib/Common/`: pure fuel-based execution model
-(`Outcome`), byte I/O, parser helpers, golden-test harness. Then, per
+(`RunResult`), byte I/O, parser helpers, golden-test harness. Then, per
 language: `Syntax`, `Parser`, `Semantics`, `Main` (runner exe), `README.md`,
 examples in `Langlib/Examples/<Langname>/`, golden tests in
 `Langlib/Tests/`. Brainfuck is the exemplar; other languages follow its
@@ -58,6 +59,29 @@ in `Langlib/Common/`, plus a textual grid fallback so programs can live in
 git diffs and tests. Piet semantics per Morgan-Mar's spec (colour blocks,
 DP/CC, the 17-operation colour wheel, codel size flag); brainloller is a
 pixel-decoder front end onto the brainfuck core.
+
+### JavaGen `[~]` — design started, implementation pending
+
+The [design and checkpoints](javagen/design.md#delivery-checkpoints) cover
+Stages 1, 2, 4, 6 and 8 on branch `ilya/java-generics`:
+
+* [x] Read Grigore's paper and draft the Turpentine adaptation (JG0).
+* [~] Settle the result observation: retain the subtype derivation before
+  ground rules erase the answer-bearing tape; validate this proposal early.
+* [ ] Specify and implement the unary contravariant core, checked class
+  tables, parser/renderer, stable fuel semantics, runner and golden tests (JG1).
+* [ ] Generate the paper's Turing-machine construction, exercise answer
+  retention, and validate Java export on small bounded probes (JG2).
+* [ ] Build or reuse an executable URM-to-tape bridge, covering every
+  instruction, initial inputs, tape growth and self-jumps (JG3).
+* [ ] Prove forward answers, source realization and positive-cost
+  divergence; assemble `javaGenComplete` and derived Turpentine support (JG4).
+* [ ] Complete spec/compiler/computability docs, examples, site integration
+  and size/fuel measurements before choosing any direct backend (JG5).
+
+This starts with the existing closed, nonnegative URM fragment of
+Turpentine. Simper and the fluent-interface parser generator are not
+prerequisites. No implementation or completeness witness is claimed yet.
 
 ## Stage 3: Turpentine front end `[x]`
 
@@ -79,6 +103,11 @@ state first-order, I/O explicit.
 
 ## Stage 4: compilers from Turpentine `[~]`
 
+* Turpentine -> JavaGen `[ ]`: design started in
+  [the JavaGen plan](javagen/design.md). First use the certified URM pass
+  and a new subtyping-machine completeness witness through `--tc`.
+  Answer retention is an explicit proof gate; a direct backend and I/O
+  are later work, not promised by the paper's halting reduction.
 * Turpentine -> brainfuck `[~]`: the scalar language, with 16-bit
   two's-complement integers in two cells each. Arrays are not supported
   yet. See `docs/brainfuck/compiler.md`.
@@ -814,6 +843,12 @@ the shape of our simulation statements has settled. Doing it earlier risks
 contorting the statements to fit theorems we have not needed yet.
 
 ### Per-language plan
+
+JavaGen's [proof boundaries](javagen/design.md#proof-boundaries) add a
+pending development under `Langlib/Computability/JavaGen/`. Grigore's
+paper supplies the halting-recognition argument; LangLib's executable
+answer decoder, forward-answer proof and divergence proof are all pending.
+Do not register a `TuringComplete` instance until all three are supplied.
 
 | Language | Claim | Route |
 |---|---|---|

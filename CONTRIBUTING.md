@@ -102,6 +102,15 @@ A complete language contribution consists of:
    compile to, so a completeness proof and a compiler are worth writing
    together.
 
+   For targets that compute by proof search or type checking, distinguish
+   recognition of source halting from computation of a source answer.
+   A successful check alone does not supply the output decoder required
+   by `TuringComplete`. Specify a result observation of actual target
+   execution and prove that it retains the answer, especially when final
+   reduction rules erase machine state. JavaGen's
+   [design gate](docs/javagen/design.md#answers-are-the-first-proof-gate)
+   records this obligation for the subtyping-machine construction.
+
 ## Adding a compiler from Turpentine
 
 Compilers from Turpentine to a target esolang live in

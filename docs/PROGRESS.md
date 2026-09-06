@@ -5,6 +5,32 @@ Entries describe their dated checkpoints; the temporary separate divergence
 interface in the first two proof milestones was superseded by the combined
 `TuringComplete` interface below.
 
+## 2026-09-06: JavaGen design started
+
+Created `ilya/java-generics` from `master` and read Radu Grigore's
+*Java Generics Are Turing Complete* (POPL 2017), concentrating on the
+subtyping machine, Turing-machine reduction and Simper compiler. The
+[JavaGen design](javagen/design.md) adopts the unary contravariant core
+and replaces Simper with Turpentine through the existing certified URM
+pass. It specifies proposed syntax, validation, fuel/rejection behavior,
+Java export, module boundaries, testing and staged proof obligations.
+
+The first proof gate is answer retention: the paper's successful subtype
+query recognizes halting, but its ground halting rules erase the tape.
+The proposed observation retains the successful derivation so a marked
+answer block can be decoded; that proposal still needs an executable
+experiment and proof. No JavaGen code, runner, compiler or completeness
+witness is claimed. Moved JavaGen from the candidate roadmap to active
+design and recorded the general recognition-versus-answer obligation in
+the contribution checklist. README integration is deferred until the spec,
+parser, interpreter, runner and tests are all in place, as requested; this
+threshold is now recorded in the project documentation policy.
+
+Validation at the requested commit: `lake build` passed, the documentation
+audit found no issues in 1,059 local links, and all 305 generated-site
+checks passed. The full `lake test` suite was still running when the user
+requested an immediate commit; no failures had been reported at that point.
+
 ## 2026-09-06: concise README and documentation links
 
 Both README status tables now link bespoke compiler results to compiler
