@@ -38,7 +38,8 @@ compiler](javagen/universal-compiler.md) now uses the existing counter
 translation and a checked sweep layer. Its register-tape simulation now
 preserves URM halting/divergence for the total generated artifact; every
 register, validation and lookup check succeeds uniformly. The textual answer
-decoder and source realization remain pending. A separate
+decoder remains pending; ordinary source realization is now proved for the
+total token-separated renderer. A separate
 [hand-written Turpentine backend](javagen/compiler.md) compiles closed
 nonnegative computations with scalars and fixed-size arrays and observes
 their final answer register. The paper's halting reduction alone does not supply

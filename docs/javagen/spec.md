@@ -443,8 +443,11 @@ uses the existing counter translation, finite flow control and unary register
 sweeps. The register-tape simulation now proves URM halting and all-fuel
 divergence against the public evaluator for the total generated artifact.
 Register bounds, ordinary class validation and the symbolic lookup certificate
-are proved for every source program, regardless of halting. Source realization
-and the textual answer decoder proof remain pending.
+are proved for every source program, regardless of halting. The
+[verified source renderer](universal-compiler.md#ordinary-source-realization)
+emits ordinary JavaGen with spaces between tokens; the unchanged loader
+recovers exactly the artifact used by the simulation. The textual answer
+decoder proof remains pending.
 Its result decoder reads a closed proof record. It does not yet generate
 numeric `answer`-hole queries for independent Java result certification.
 See the [design](design.md) for the remaining proof gates.

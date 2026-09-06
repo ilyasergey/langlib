@@ -215,10 +215,68 @@ example (p : Cslib.URM.Program) (inputs : List Nat)
   urmPrepared_divergence h fuel
 ```
 
-These theorems concern the actual prepared evaluator artifact. They do not
-yet establish that rendering and reparsing every generated artifact returns
-that same value, or that its serialized output decodes to the source answer.
-Those are the two remaining proof gates for the full public TC contract.
+These theorems concern the actual prepared evaluator artifact. The next
+section connects it to ordinary source text. Correct decoding of the serialized
+output remains the final proof gate for the full public TC contract.
+
+## Ordinary source realization
+
+`urmSource` emits ordinary JavaGen syntax with a space after every token,
+including punctuation. For example, `Box < Z >` has the same meaning as
+`Box<Z>`. It introduces no alternative grammar, loader mode, embedded prepared
+state or source-evaluation shortcut. The compact `Program.render` remains
+available; the universal proof currently covers this explicitly spaced
+renderer rather than asserting a compact-renderer round trip.
+
+`urmSource_realized` proves equality of the entire loaded artifact:
+
+```lean
+import Langlib.Computability.JavaGen.SourceRealization
+open Langlib.JavaGen Langlib.Computability.JavaGen.CounterCompiler
+
+example (p : Cslib.URM.Program) (inputs : List Nat) :
+    parse (urmSource p inputs) = .ok (urmPrepared p inputs) :=
+  urmSource_realized p inputs
+```
+
+The proof tracks the lexer and parser's actual resource guards. Every token
+is a legal identifier or punctuation token. Lexing a token and its separating
+space takes two iterations, so source length plus one suffices. Token count
+plus one covers each nested type, superclass list and declaration list.
+Token line/column coordinates remain arbitrary in the parser theorem because
+they affect diagnostics, not successful parsing. The validator then recovers
+the exact closure and inheritance paths used by the execution proofs.
+
+To produce a runnable successor example, save this Lean source as
+`/tmp/javagen-source-example.lean`. The input register starts at `2`, and the
+URM program increments it once:
+
+```lean
+import Langlib.Computability.JavaGen.SourceRealization
+open Langlib.Computability.JavaGen.CounterCompiler
+#eval IO.FS.writeFile "/tmp/javagen-successor.jgen" (urmSource [.S 0] [2])
+```
+
+Generate the JavaGen file; this command prints nothing.
+
+```sh
+lake env lean /tmp/javagen-source-example.lean
+```
+
+Run it with the ordinary JavaGen runner and its experimental numeric readout.
+
+```sh
+lake exe javagen --compiled-answer --fuel 10000 /tmp/javagen-successor.jgen
+```
+
+Output:
+
+```text
+3
+```
+
+This observed result is a regression example. The universal source theorem
+is already proved; the universal byte-level answer theorem remains pending.
 
 ## Reading an answer
 
@@ -297,8 +355,10 @@ trips compare the full prepared machine, including inheritance paths.
    identifies the checked compiler's result with the total `urmPrepared`
    artifact. Halting, divergence and retained-frame answer theorems now apply
    without any compilation-success premise.
-4. Prove source realization uniformly through rendering and the ordinary
-   parser. Concrete round-trip tests are not this universal theorem.
+4. **Done:** `urmSource_realized` proves that the total spaced source renderer
+   loads to exactly `urmPrepared`, through the ordinary lexer, parser and
+   validator. Both frontend budgets are proved sufficient; no concrete
+   round-trip test is used as a universal premise.
 5. Prove the final proof-record byte decoder returns the URM answer. The
    structured retained-frame theorem is complete. Connect a numeric candidate
    query as well for independent Java result certification.

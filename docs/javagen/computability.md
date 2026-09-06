@@ -5,9 +5,10 @@
 (2017), §§4–5, supplies the mathematical subtyping-machine construction.
 LangLib now has a total executable URM compiler. Its register-tape simulation
 preserves halting and divergence in the actual evaluator, and its retained
-proof frame contains the source answer. Source-text realization and byte-level
-answer decoding remain pending: the final public contract must concern the
-ordinary parser and the output bytes it returns.
+proof frame contains the source answer. Every generated artifact now has
+ordinary source text that the existing loader recovers exactly. Byte-level
+answer decoding remains pending: the final public contract must recover the
+source answer from the output bytes the evaluator returns.
 
 The public entry point is
 [Main.lean](../../Langlib/Computability/JavaGen/Main.lean). The current
@@ -110,8 +111,23 @@ The proof covers all three failure gates:
   `checkedCompile` also succeeds uniformly.
 
 `urmPrepared_answer_record` now gives the structured-history answer theorem
-without a compilation-success premise. Still required: source realization
-through the ordinary parser and correctness of the textual answer decoder.
+without a compilation-success premise.
+
+[SourceRealization.lean](../../Langlib/Computability/JavaGen/SourceRealization.lean)
+proves `urmSource_realized`: `parse (urmSource program inputs)` returns exactly
+`urmPrepared program inputs`, including the complete closure and inheritance
+paths. `urmSource` is an executable generator of ordinary JavaGen text, with a
+space after each token. The compact `Program.render` is unchanged; this
+universal theorem concerns the explicitly spaced renderer.
+
+[LexerProof.lean](../../Langlib/Computability/JavaGen/LexerProof.lean) proves
+lexing succeeds at the actual source-length budget and preserves every token
+text. [ParserProof.lean](../../Langlib/Computability/JavaGen/ParserProof.lean)
+proves complete closed-program parsing with arbitrary token coordinates.
+[SourceSyntax.lean](../../Langlib/Computability/JavaGen/SourceSyntax.lean)
+proves the token-count budget covers all nested types and declaration lists,
+then composes both stages. No special loader branch or hidden initial state
+is introduced. Correctness of the textual answer decoder remains required.
 
 The prototype uses closed proof records. Generating a numeric candidate query
 for independent Java certification remains pending for this compiler; the

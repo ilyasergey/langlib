@@ -6,6 +6,32 @@ interface in the first two proof milestones was superseded by the combined
 `TuringComplete` interface below.
 
 
+## 2026-09-06: JavaGen source realization proved
+
+Proved `urmSource_realized`: every URM program and input has ordinary JavaGen
+text that the existing loader recovers as exactly the total generated
+artifact, including its inheritance closure and paths. The
+[source renderer](../Langlib/Computability/JavaGen/SourceRealization.lean)
+separates tokens with spaces; the existing compact renderer is unchanged.
+
+The lexer proof covers legal identifiers, keywords and punctuation at its
+actual source-length guard. The parser proof covers arbitrary token
+coordinates, nested unary types, ordered superclass/declaration lists and
+the final end-of-input check. Token count plus one is proved sufficient for
+all parser recursion. Composition with the existing validation theorem
+establishes equality of complete prepared artifacts.
+
+The ordinary runner evaluates the emitted successor example with input `2`
+to `3`. The specification and universal compiler account document the exact
+renderer and example. Byte-level answer decoding is now the remaining proof
+gate before assembling `javaGenComplete`; no completeness witness is claimed.
+
+Validation: `lake build`, all 1,852 golden tests, all five property groups and
+34 real-`javac` conformance cases pass. The site passes 315 structural checks,
+and all local documentation links and numbered source targets resolve. Both
+the syntax round trip and full loader theorem use only standard Lean axioms.
+
+
 ## 2026-09-06: JavaGen compiler totality proved
 
 Proved that the executable URM compiler always returns its generated artifact,

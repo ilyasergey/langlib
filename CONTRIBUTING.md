@@ -131,6 +131,13 @@ A complete language contribution consists of:
    bound. JavaGen's [totality proof](Langlib/Computability/JavaGen/CompilerTotality.lean)
    connects generated invariants to the ordinary indexed validator and its
    finite lookup certificate.
+   A source-realization theorem must identify its actual renderer. A verified
+   token-separated spelling can use the ordinary grammar and loader while
+   leaving the compact pretty-printer unchanged; do not silently claim the
+   latter's round trip. Prove frontend source/token guards sufficient and
+   preserve the entire loaded artifact, including cached paths used by the
+   evaluator. JavaGen's [source proof](Langlib/Computability/JavaGen/SourceRealization.lean)
+   uses this route without a loader extension.
 
 ## Adding a compiler from Turpentine
 

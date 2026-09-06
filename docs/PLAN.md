@@ -84,12 +84,14 @@ Stages 1, 2, 4, 6 and 8 on branch `ilya/java-generics`:
   proved. The actual retained answer frame contains the source result.
   All register, validator and symbolic lookup checks now succeed uniformly;
   the operational theorems apply to the total artifact without assuming
-  compilation succeeds. Prove source realization and the final textual decoder.
+  compilation succeeds. `urmSource_realized` now proves ordinary spaced
+  source loads to the exact artifact, including all inheritance paths.
+  Prove the final textual answer decoder.
 * [ ] Connect the universal compiler's closed proof-record readout to a
   numeric Java candidate query. Existing answer-hole examples still work;
   compiled universal programs currently use closed queries.
-* [ ] Prove forward answers, generated-source realization and positive-cost
-  divergence for the compiler; assemble `javaGenComplete` and derived
+* [ ] Complete byte-level forward answer preservation; combine the proved
+  source realization and all-fuel divergence into `javaGenComplete` and derived
   Turpentine support (JG4).
 * [x] Add a hand-written Turpentine backend through the existing Minsky
   pass, with standalone numeric observation and compiler differential tests.
@@ -874,8 +876,9 @@ growing infinite executions are proved. An experimental URM compiler and
 checked lower-level sweep simulation are implemented. The register-tape
 invariant and URM halting/divergence preservation now hold for the total
 generated artifact. Every register, validator and symbolic lookup check
-succeeds uniformly. Source realization and textual answer decoding remain
-pending. Do not register `TuringComplete` before those exist.
+succeeds uniformly. A total spaced source renderer loads to the exact artifact
+through the ordinary lexer, parser and validator. Textual answer decoding
+remains pending. Do not register `TuringComplete` before it is proved.
 
 | Language | Claim | Route |
 |---|---|---|
