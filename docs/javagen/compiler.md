@@ -33,8 +33,42 @@ Output:
 10
 ```
 
-Compile and run Fibonacci directly; `exec` reparses the generated text and
-runs JavaGen's subtype machine.
+For Fibonacci, the four separate steps are:
+
+1. Compile Turpentine to a JavaGen file.
+
+   ```sh
+   lake exe turpentine compile --to javagen -o /tmp/fib.jgen Langlib/Examples/Turpentine/fib-tc.turp
+   ```
+
+2. Export that file to Java.
+
+   ```sh
+   lake exe javagen --java /tmp/fib.jgen > /tmp/JavaGenCheck.java
+   ```
+
+3. Run the JavaGen file natively and print `answer`.
+
+   ```sh
+   lake exe javagen --compiled-answer --fuel 200000000 /tmp/fib.jgen
+   ```
+
+   Output:
+
+   ```text
+   55
+   ```
+
+4. Check the exported Java with `javac`, giving its JVM a larger stack.
+   Successful checking prints nothing; a timeout or resource failure is
+   inconclusive. This checks the closed halting query.
+
+   ```sh
+   javac -J-Xss64m -J-Xmx2g -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
+   ```
+
+To compile and run Fibonacci in one command, use `exec`; it reparses the
+generated text and runs JavaGen's subtype machine.
 
 ```sh
 lake exe turpentine exec --via javagen --fuel 200000000 Langlib/Examples/Turpentine/fib-tc.turp
@@ -240,14 +274,19 @@ Export its declarations and closed subtype query to Java.
 lake exe javagen --java /tmp/arrfib.jgen > /tmp/JavaGenCheck.java
 ```
 
-Ask `javac` to type-check the exported query; success prints nothing.
+The generated types can exhaust `javac`'s default stack with a
+`StackOverflowError`. Retry with a 64 MiB thread stack and a 2 GiB heap
+limit; success prints nothing. The `-J` prefix passes these
+[JVM options](https://docs.oracle.com/en/java/javase/11/tools/java.html)
+to the compiler's JVM.
 
 ```sh
-javac -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
+javac -J-Xss64m -J-Xmx2g -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
 ```
 
-On `javac 11.0.15`, this check exceeded a 30-second trial. A timeout or
-compiler resource failure is inconclusive.
+On `javac 11.0.15`, the larger-stack command still exceeded a 45-second
+trial. Successful Java checking of this example has not been confirmed;
+a stack overflow, timeout or other resource failure is inconclusive.
 
 These generated programs have closed queries, so exporting them to Java
 checks halting acceptance, as explained above; `javac` does not independently
