@@ -2558,10 +2558,10 @@ theorem instrRules_J_same_steps (l : Layout) {pc m q : Nat}
       simpa [rule, happly] using RulesStep.head hen
     exact Relation.ReflTransGen.single hstep
 
-theorem instrRules_J_distinct_equal_steps (l : Layout) {pc m r q : Nat}
+theorem instrRules_J_distinct_equal_progress (l : Layout) {pc m r q : Nat}
     (hpc : pc < l.progLen) (hm : m < l.regBound) (hr : r < l.regBound)
     (hmr : m ≠ r) (regs : Cslib.URM.Regs) (heq : regs m = regs r) :
-    RulesSteps (instrRules l pc (.J m r q))
+    Relation.TransGen (RulesStep (instrRules l pc (.J m r q)))
       (boundaryTokens l pc regs) (boundaryTokens l q regs) := by
   classical
   let p0 := l.marker pc 0
@@ -2670,9 +2670,27 @@ theorem instrRules_J_distinct_equal_steps (l : Layout) {pc m r q : Nat}
       exact restoreRules_wellControlled l hp2 hp3 hp6 hp7 ht hm hr hrule
     · exact ⟨p2, hp2, onlyControl_add_single hdataControl hp2⟩
     · exact hrestores
-  have hall := Relation.ReflTransGen.trans hcmpWhole hrestoreWhole
+  have hstart0 : boundaryTokens l pc regs p0 = 1 := by
+    simp [boundaryTokens, targetMarker, hpc, p0, regTokens_noControl l regs _ hp0]
+  have hmid0 : (data + Finsupp.single p2 1 : Tokens) p0 = 0 := by
+    rw [Finsupp.add_apply, hdataControl p0 hp0]
+    simp [p0, p2, Layout.marker]
+  have hpositive := (Relation.reflTransGen_iff_eq_or_transGen.mp hcmpWhole).resolve_left
+    (by intro heq
+        have hval := congrArg (fun t : Tokens => t p0) heq
+        rw [hmid0, hstart0] at hval
+        omega)
+  have hall := hpositive.trans_left hrestoreWhole
   simpa [instrRules, hmr, crs, ers, urs, compareRules, restoreRules,
     drainRules, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9] using hall
+
+/-- Forgetting the positive cost recovers the original forward block lemma. -/
+theorem instrRules_J_distinct_equal_steps (l : Layout) {pc m r q : Nat}
+    (hpc : pc < l.progLen) (hm : m < l.regBound) (hr : r < l.regBound)
+    (hmr : m ≠ r) (regs : Cslib.URM.Regs) (heq : regs m = regs r) :
+    RulesSteps (instrRules l pc (.J m r q))
+      (boundaryTokens l pc regs) (boundaryTokens l q regs) :=
+  (instrRules_J_distinct_equal_progress l hpc hm hr hmr regs heq).to_reflTransGen
 
 theorem instrRules_J_unequal_finish (l : Layout) {pc m r q : Nat}
     (hpc : pc < l.progLen) (hm : m < l.regBound) (hr : r < l.regBound)

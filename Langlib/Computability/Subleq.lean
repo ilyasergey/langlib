@@ -827,7 +827,7 @@ theorem block_T (hok : Ok P inputs m regs) {k x y : Nat} (hk : k < P.length)
 
 /-- The first five subleq instructions of a `J` block: they leave `X - Y` in
 scratch cell 6 and `-X` in scratch cell 5, and branch on `X <= Y`. -/
-private theorem J_prefix (hok : Ok P inputs m regs) {k x y q : Nat} (hk : k < P.length)
+theorem J_prefix (hok : Ok P inputs m regs) {k x y q : Nat} (hk : k < P.length)
     (hPk : P[k] = .J x y q) (inp : Input) (out : ByteArray) (es : List Event) :
     ∃ m5, Reaches exec ⟨m, ((entryAddr P k : Nat) : Int), inp, out, es⟩
         ⟨m5, (if ((regs.read x : Nat) : Int) - ((regs.read y : Nat) : Int) ≤ 0

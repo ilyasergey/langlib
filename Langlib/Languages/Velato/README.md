@@ -10,6 +10,12 @@ The language specification, every semantic decision this implementation
 makes and its source, and the example programs engraved as sheet music, are
 in [`docs/velato/spec.md`](../../../docs/velato/spec.md).
 
+The original TC witness retains **forward answer preservation**. The separate
+[`velatoDivergencePreserving`](../../Computability/Velato/Divergence.lean)
+witness proves divergence preservation for the same compiler: every finite
+budget on a divergent URM input yields `.outOfFuel`. It also supplies
+[halting and result equivalence, output validity, and error freedom](../../../docs/divergence-preservation.md).
+
 ## Running
 
 ```

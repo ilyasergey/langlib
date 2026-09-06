@@ -7,6 +7,11 @@ is a language where everything is possible and nothing is easy, and
 turpentine dissolves tar. Full language reference:
 [docs/turpentine/spec.md](../../../docs/turpentine/spec.md).
 
+The TC-derived compilers still establish forward answer preservation.
+The new [`DivergencePreservingTC`](../../../docs/divergence-preservation.md)
+interface needs individual URM-to-target proofs and does not automatically
+strengthen the Turpentine-to-URM translation.
+
 ## Modules
 
 * `Syntax.lean`: the deep embedding (`Ty`, `Expr`, `Stmt`, `Program`);

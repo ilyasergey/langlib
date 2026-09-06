@@ -235,8 +235,11 @@ What that does **not** say:
   a Lean proof; cslib proves no equivalence between URM-computability and
   any other model. `Langlib.Computability.computes_of_turingComplete` is
   the honest statement of what does follow.
-* It says nothing about divergence. `simulates` constrains halting runs
-  only.
+* The original `simulates` field constrains halting runs only. The separate
+  [`brainlollerDivergencePreserving`](../../Langlib/Computability/Brainloller/Divergence.lean)
+  witness now transfers Brainfuck’s proved divergence preservation through
+  the same runner correspondence. This strengthens the URM-to-target half;
+  the derived Turpentine route still has its own forward specification.
 * The completeness claim is about the *program*. That the program survives
   being painted and read back is the round trip above, whose first step is
   a test rather than a theorem.

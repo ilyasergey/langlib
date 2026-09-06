@@ -295,11 +295,13 @@ computing every partial computable function. This is Shepherdson and Sturgis
 `computes_of_turingComplete` states in cslib's own vocabulary exactly what
 does follow, and no more.
 
-**Open, and deliberately so**: divergence. `simulates` constrains halting
-runs only, so nothing here rules out a compiled program that halts where the
-source machine loops. It does not, but that is not proved; closing the gap
-means strengthening `simulates` to an iff, which is the same obligation
-[`docs/verification.md`](verification.md) defers for every backend.
+**Divergence is now proved separately** in
+[`Velato/Divergence.lean`](../Langlib/Computability/Velato/Divergence.lean).
+Every reachable source state has a successor, each dispatcher body terminates
+with that state, and induction on the target while-loop fuel excludes a
+completed run. Stability handles budgets below the prologue and body
+witnesses. `velatoDivergencePreserving` retains the original compiler and
+provides all four [shared consequences](divergence-preservation.md).
 
 **Stated, not yet proved**: that the 32-bit dialect is *not* Turing
 complete, by a `BoundedStorage` witness. See above.

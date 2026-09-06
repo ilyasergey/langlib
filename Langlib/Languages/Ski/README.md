@@ -15,6 +15,12 @@ call by value and has an output instruction, while this one is normal order
 and has neither. A run's answer here is a term, a tower of `K`s ending in
 `I`, one `K` per unit.
 
+The original TC witness retains **forward answer preservation**. The separate
+[`skiDivergencePreserving`](../../Computability/Ski/Divergence.lean)
+witness proves divergence preservation for the same compiler: every finite
+budget on a divergent URM input yields `.outOfFuel`. It also supplies
+[halting and result equivalence, output validity, and error freedom](../../../docs/divergence-preservation.md).
+
 ## Modules
 
 * `Syntax.lean`: `S`, `K`, `I` and application. `render` prints a term with

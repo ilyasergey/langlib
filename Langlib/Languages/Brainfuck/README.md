@@ -4,6 +4,12 @@ Urban Müller's 1993 tape machine, the library's exemplar language and
 primary compilation target. The full specification, history, and the exact
 semantic choices are in [docs/brainfuck/spec.md](../../../docs/brainfuck/spec.md).
 
+The original TC witness retains **forward answer preservation**. The separate
+[`brainfuckDivergencePreserving`](../../Computability/Brainfuck/Divergence.lean)
+witness proves divergence preservation for the same compiler: every finite
+budget on a divergent URM input yields `.outOfFuel`. It also supplies
+[halting and result equivalence, output validity, and error freedom](../../../docs/divergence-preservation.md).
+
 ## Modules
 
 * `Syntax.lean`: the seven-constructor AST (`Op`, `Prog`); brackets are

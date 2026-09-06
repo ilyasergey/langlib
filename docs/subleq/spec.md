@@ -23,6 +23,11 @@
   - Turing completeness in [`Langlib/Computability/Subleq.lean`](../../Langlib/Computability/Subleq.lean) and [docs/computability-subleq.md](../computability-subleq.md), and
   - a hand-written Turpentine backend proved correct on a fragment in [`Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean`](../../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean), plus a certified one derived from the completeness proof ([docs/subleq/compiler.md](compiler.md))
 
+The original TC witness establishes **forward answer preservation**. The
+separate [`subleqDivergencePreserving`](../../Langlib/Computability/Subleq/Divergence.lean)
+witness proves that divergent URM inputs exhaust every finite target budget,
+with [halting and result equivalence, output validity, and error freedom](../divergence-preservation.md).
+
 ## History
 
 Subleq is the best-known one-instruction set computer (OISC): a machine

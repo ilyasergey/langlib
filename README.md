@@ -86,7 +86,7 @@ status matrix, including compilers):
 | [brainfuck](docs/brainfuck/spec.md) | yes | **[yes](Langlib/Computability/Brainfuck.lean#L1276)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L122) (certified), and [bespoke](docs/brainfuck/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317), trusted) |
 | [whitespace](docs/whitespace/spec.md) | yes | **[yes](Langlib/Computability/Whitespace.lean#L1147)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L114) (certified), and [bespoke](docs/whitespace/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530), [certified on a fragment, behaviourally](Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3790)) |
 | [subleq](docs/subleq/spec.md) | yes | **[yes](Langlib/Computability/Subleq.lean#L1233)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L118) (certified), and [bespoke](docs/subleq/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125), [certified on a fragment](Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639)) |
-| [fractran](docs/fractran/spec.md) | yes | **[yes](Langlib/Computability/Fractran.lean#L4486)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L127) (certified), and [bespoke](docs/fractran/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Fractran.lean), trusted) |
+| [fractran](docs/fractran/spec.md) | yes | **[yes](Langlib/Computability/Fractran.lean#L4504)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L127) (certified), and [bespoke](docs/fractran/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Fractran.lean), trusted) |
 | [piet](docs/piet/spec.md) | yes | **[yes](Langlib/Computability/Piet.lean#L3998)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L139) (certified), and [bespoke](docs/piet/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Piet.lean), trusted) |
 | [thue](docs/thue/spec.md) | yes | **[yes](Langlib/Computability/Thue.lean#L4032)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L133) (certified); [bespoke planned](docs/thue/compiler.md) |
 | [ook](docs/ook/spec.md) | yes, via brainfuck | **[yes](Langlib/Computability/Ook.lean#L545)** | [derived](Langlib/Languages/Turpentine/Compile/Derived.lean#L145) (certified), and [bespoke](docs/ook/compiler.md) ([source](Langlib/Languages/Turpentine/Compile/Ook.lean#L49), trusted) |
@@ -224,14 +224,14 @@ semantics deliberately is not, plus the lemmas
 the two together, so differential tests can run a URM program while every
 theorem is still stated against cslib's relation.
 
-### The three claims
+### The computability claims
 
-All three live in
+These live in
 [`Langlib/Common/Computability.lean`](Langlib/Common/Computability.lean),
 shared infrastructure rather than per-language files, so a claim means the
 same thing for every language.
 
-**[`TuringComplete L`](Langlib/Common/Computability.lean#L114)** is the
+**[`TuringComplete L`](Langlib/Common/Computability.lean#L120)** is the
 positive claim, and it is a *witness* rather than a proposition: a compiler
 from URM programs into `L`, an encoding of the machine's input, a decoding
 of its answer, and a proof that a compiled program halts with the right
@@ -243,29 +243,41 @@ computes nothing, and the axiom audit would not object, since choice is in
 the allowed set. What rules that out is that a noncomputable `compile` must
 say `noncomputable` in the source, and the differential tests execute
 compiled programs, which no such witness survives. The
-[docstring](Langlib/Common/Computability.lean#L88) spells the convention
+[docstring](Langlib/Common/Computability.lean#L94) spells the convention
 out.
-[`computes_of_turingComplete`](Langlib/Common/Computability.lean#L183)
+[`computes_of_turingComplete`](Langlib/Common/Computability.lean#L303)
 translates it into cslib's own vocabulary: such an `L` computes every
 URM-computable partial function, wherever that function is defined. The
 witness also pays for itself, because a compiler from a register machine is
 exactly what a certified Turpentine backend needs (see below).
 
-**[`BoundedStorage L`](Langlib/Common/Computability.lean#L235)** is the
+**[`DivergencePreservingTC L`](Langlib/Common/Computability.lean)** adds a
+separate proof that divergent URM inputs exhaust every finite target fuel
+budget. Its consequences are halting equivalence, result equivalence, valid
+outputs on every normal halt, and freedom from runtime errors. An iff about
+decoded results alone would still allow a spurious halt with undecodable
+output. The eleven existing `TuringComplete` witnesses remain unchanged and
+establish forward answer preservation; each stronger witness needs its own
+proof. Ten now have separately proved `DivergencePreservingTC` upgrades;
+Unlambda has operational groundwork with its full divergence proof still
+open. See [the interface and migration status](docs/divergence-preservation.md).
+MU's existing proof development is unchanged; it has no TC witness yet.
+
+**[`BoundedStorage L`](Langlib/Common/Computability.lean#L355)** is the
 negative claim: a configuration type, a bound on it per program and input,
 an injection into `{0, …, bound - 1}`, and two laws saying the machine is
 deterministic and that halting depends only on the configuration. From
-those, [`halting_decidable`](Langlib/Common/Computability.lean#L399)
+those, [`halting_decidable`](Langlib/Common/Computability.lean#L519)
 follows once and for all — a run that has not halted within `bound` steps
 has repeated a configuration and never will. A language with this witness
 has no *computable* `TuringComplete` witness — a meta-theorem rather than
 a Lean corollary, and by a subtler argument than "its halting would be
 undecidable", since the one-directional `simulates` breaks that naive
 reduction; the
-[docstring](Langlib/Common/Computability.lean#L353) gives the honest
+[docstring](Langlib/Common/Computability.lean#L473) gives the honest
 route, through the recursion theorem.
 
-**[`BoundedRun L`](Langlib/Common/Computability.lean#L267)** asks for the
+**[`BoundedRun L`](Langlib/Common/Computability.lean#L387)** asks for the
 same laws only where the pigeonhole argument uses them: at configurations a
 run actually reaches. Every `BoundedStorage` gives one. It exists because a
 language can have a state *type* that is wide (an unbounded array, an

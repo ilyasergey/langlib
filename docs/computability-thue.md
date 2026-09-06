@@ -13,6 +13,12 @@ not news. What the esolang literature does not have is a check that the
 particular deterministic strategy an interpreter uses cannot wander off the
 intended derivation, and that is most of the work below.
 
+The original witness retains the **forward answer-preservation** interface.
+The separate [`thueDivergencePreserving`](../Langlib/Computability/Thue/Divergence.lean)
+witness proves divergence preservation for that same compiler; the
+[shared interface](divergence-preservation.md) then gives halting and result
+equivalence, output validity, and error freedom.
+
 ## Representation
 
 For a fixed source program, `sourceBound` reserves the source registers and
@@ -165,8 +171,10 @@ three parts into the `TuringComplete` obligation.
 ### What the claim does and does not say
 
 `simulation` covers halting runs, as the shared `TuringComplete` interface
-does for every language here. It says nothing about divergence: a compiler
-that halted where the source machine loops would still satisfy it.
+does for every language here. The separate
+[`thueDivergencePreserving`](../Langlib/Computability/Thue/Divergence.lean)
+witness additionally proves divergence preservation through positive-cost
+dispatcher iterations, excluding both spurious halts and runtime errors.
 Connecting URM computability to every partial computable function relies on
 the classical result of Shepherdson and Sturgis (1963), since cslib contains
 no formal equivalence with another universal model.

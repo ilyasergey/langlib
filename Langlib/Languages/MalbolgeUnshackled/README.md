@@ -8,6 +8,10 @@ change makes the language Turing complete, where Malbolge — 59049 words of
 from Malbolge, and what the language leaves to the implementation are in
 [docs/malbolge-unshackled/spec.md](../../../docs/malbolge-unshackled/spec.md).
 
+The [`DivergencePreservingTC` interface](../../../docs/divergence-preservation.md)
+does not change MU's proof status: no TC witness exists yet. Its current
+foundations and runtime proofs remain unchanged.
+
 ## Modules
 
 * `Syntax.lean`: trits, values and their normalisation, the crazy

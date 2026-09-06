@@ -18,6 +18,11 @@
   - Turing completeness in [`Langlib/Computability/Brainfuck.lean`](../../Langlib/Computability/Brainfuck.lean) and [docs/computability-brainfuck.md](../computability-brainfuck.md), and
   - a hand-written Turpentine backend in [`Langlib/Languages/Turpentine/Compile/Brainfuck.lean`](../../Langlib/Languages/Turpentine/Compile/Brainfuck.lean), plus a certified one derived from the completeness proof ([docs/brainfuck/compiler.md](compiler.md))
 
+The original TC witness establishes **forward answer preservation**. The
+separate [`brainfuckDivergencePreserving`](../../Langlib/Computability/Brainfuck/Divergence.lean)
+witness proves that divergent URM inputs exhaust every finite target budget,
+with [halting and result equivalence, output validity, and error freedom](../divergence-preservation.md).
+
 ## History
 
 Urban Müller wrote brainfuck in 1993 with one design goal: the smallest

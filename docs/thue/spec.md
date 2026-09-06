@@ -15,6 +15,11 @@
   - Turing completeness in [`Langlib/Computability/Thue.lean`](../../Langlib/Computability/Thue.lean) and [docs/computability-thue.md](../computability-thue.md), and
   - a certified Turpentine compiler derived from the completeness proof; the hand-written one is still planned ([docs/thue/compiler.md](compiler.md))
 
+The original TC witness establishes **forward answer preservation**. The
+separate [`thueDivergencePreserving`](../../Langlib/Computability/Thue/Divergence.lean)
+witness proves that divergent URM inputs exhaust every finite target budget,
+with [halting and result equivalence, output validity, and error freedom](../divergence-preservation.md).
+
 ## History: Axel Thue and semi-Thue systems
 
 Axel Thue (1863-1922) was a Norwegian mathematician who studied, among other

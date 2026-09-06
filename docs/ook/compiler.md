@@ -176,9 +176,11 @@ What that does **not** say, and the distinction matters:
   cslib proves no equivalence between URM-computability and any other
   model. `Langlib.Computability.computes_of_turingComplete` is the honest
   statement of what does follow.
-* It says nothing about divergence. `simulates` constrains halting runs
-  only, so nothing here rules out a compiled program halting where the
-  source machine loops.
+* The original `simulates` field constrains halting runs only. The separate
+  [`ookDivergencePreserving`](../../Langlib/Computability/Ook/Divergence.lean)
+  witness now transfers Brainfuck’s proved divergence preservation through
+  the same runner correspondence. This strengthens the URM-to-target half;
+  the derived Turpentine route still has its own forward specification.
 
 ### The axiom audit
 

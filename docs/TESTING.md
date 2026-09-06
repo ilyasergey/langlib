@@ -329,3 +329,21 @@ above. The first two are also exercised through their completeness
 witnesses, by `Langlib/Tests/URMUnlambda.lean` and
 `Langlib/Tests/URMSki.lean`; malbolge-unshackled has no such suite because
 its completeness claim is still open.
+
+## Divergence-preserving computability proofs
+
+Finite test runs cannot establish exhaustion of *every* target fuel budget.
+The kernel-checked divergence proofs live in
+`Langlib/Computability/<Language>/Divergence.lean`, separately from the
+unchanged forward TC witnesses. Ten stronger witnesses are complete;
+Unlambda has operational groundwork and a remaining recursive-call
+obligation. The [migration table](divergence-preservation.md#witness-migration)
+records the exact scope, including Brainloller’s decoded-program interface.
+
+Run `lake build` for all proofs (including the unchanged MU development),
+`lake test` for the existing golden and compiler suites, and
+`lake env lean scripts/axioms.lean` for the interface consequences, positive
+progress helpers, stronger witnesses, and Unlambda groundwork. Only the
+standard logical axioms `propext`, `Classical.choice`, and `Quot.sound` are
+allowed. Existing runnable compilers are inherited directly; no compiler or
+runner is changed to obtain the stronger property.

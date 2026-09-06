@@ -5,6 +5,14 @@ eight commands, cyan and dark cyan to turn the reading head, everything
 else a comment. The specification and semantic notes are in
 [docs/brainloller/spec.md](../../../docs/brainloller/spec.md).
 
+The original TC witness retains **forward answer preservation**. The separate
+[`brainlollerDivergencePreserving`](../../Computability/Brainloller/Divergence.lean)
+witness proves divergence preservation for the same compiler: every finite
+budget on a divergent URM input yields `.outOfFuel`. It also supplies
+[halting and result equivalence, output validity, and error freedom](../../../docs/divergence-preservation.md).
+This uses the existing decoded-program interface; the pixel-walk proof
+remains a separate obligation.
+
 ## Modules
 
 * `Syntax.lean`: the pixel instruction set and the exact colour table,

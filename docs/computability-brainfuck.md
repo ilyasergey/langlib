@@ -15,6 +15,12 @@ The witness also supplies the completeness stage used by the verified
 Turpentine compilation pipeline described in
 [`certified-compilation.md`](certified-compilation.md).
 
+The original witness retains the **forward answer-preservation** interface.
+The separate [`brainfuckDivergencePreserving`](../Langlib/Computability/Brainfuck/Divergence.lean)
+witness proves divergence preservation for that same compiler; the
+[shared interface](divergence-preservation.md) then gives halting and result
+equivalence, output validity, and error freedom.
+
 ## The theorem
 
 The end-to-end result is:
@@ -193,9 +199,10 @@ equivalence with another standard model. Langlib's precise consequence is
 
 Open:
 
-* The theorem constrains halting source runs. It does not prove divergence
-  preservation. The generated dispatcher has no intended exit before a
-  halted PC, though that converse behavior is not formalized.
+* Divergence preservation is now proved separately in
+  [`Brainfuck/Divergence.lean`](../Langlib/Computability/Brainfuck/Divergence.lean):
+  each terminating dispatcher body returns to a positive-cost loop check.
+  This also proves halting equivalence for the unchanged compiler.
 * This proof concerns `URMBrainfuck.compile`. It does not certify the
   separate hand-written Turpentine Brainfuck backend. The shared derived
   compiler composes the verified Turpentine-to-URM pass with this witness.

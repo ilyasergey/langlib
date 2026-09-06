@@ -68,6 +68,17 @@ taught it to you.
   be recorded in the language's doc page with a source.
 * No `sorry` on master. Proofs may be staged, but stubs must be `axiom`-free
   and clearly tracked in `docs/PLAN.md`.
+* `TuringComplete` proves forward answer preservation. Stronger claims use
+  `DivergencePreservingTC`: divergent URM inputs must yield `.outOfFuel` at
+  every finite target fuel, independently of decoding. Upgrade each witness
+  with its own proof; a decoded-result iff alone allows undecodable halts.
+  Track upgrades in `docs/divergence-preservation.md` and `docs/PLAN.md`. Shared
+  positive-cost simulation lives in `Langlib/Common/Divergence.lean`
+  (`ReachesPlus`, free of Mathlib); continuing URM execution lives in
+  `Langlib/Computability/Divergence.lean`. Put stronger witnesses in
+  `Langlib/Computability/<Language>/Divergence.lean` and inherit the original
+  `toTuringComplete`. A zero-cost `Reaches` cycle does not prove divergence;
+  self-jumps must also consume positive target fuel.
 
 ## Documentation policy
 

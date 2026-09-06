@@ -27,6 +27,11 @@
   - Turing completeness in [`Langlib/Computability/Velato.lean`](../../Langlib/Computability/Velato.lean) and [docs/computability-velato.md](../computability-velato.md), and
   - a hand-written Turpentine backend proved correct on a fragment, behaviourally and input included, in [`Langlib/Languages/Turpentine/Certified/BespokeVelato.lean`](../../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean), plus a certified one derived from the completeness proof ([docs/velato/compiler.md](compiler.md))
 
+The original TC witness establishes **forward answer preservation**. The
+separate [`velatoDivergencePreserving`](../../Langlib/Computability/Velato/Divergence.lean)
+witness proves that divergent URM inputs exhaust every finite target budget,
+with [halting and result equivalence, output validity, and error freedom](../divergence-preservation.md).
+
 ## History
 
 Velato is a programming language whose source code is a MIDI file. Not a

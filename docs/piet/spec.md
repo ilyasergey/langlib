@@ -18,6 +18,11 @@
   - Turing completeness in [`Langlib/Computability/Piet.lean`](../../Langlib/Computability/Piet.lean) and [docs/computability-piet.md](../computability-piet.md), and
   - a hand-written Turpentine backend in [`Langlib/Languages/Turpentine/Compile/Piet.lean`](../../Langlib/Languages/Turpentine/Compile/Piet.lean), plus a certified one derived from the completeness proof ([docs/piet/compiler.md](compiler.md))
 
+The original TC witness establishes **forward answer preservation**. The
+separate [`pietDivergencePreserving`](../../Langlib/Computability/Piet/Divergence.lean)
+witness proves that divergent URM inputs exhaust every finite target budget,
+with [halting and result equivalence, output validity, and error freedom](../divergence-preservation.md).
+
 ## History
 
 Piet is named after Piet Mondrian, whose grid-and-primary-colour

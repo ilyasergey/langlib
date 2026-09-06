@@ -15,6 +15,12 @@ the DP and CC rules, the eight exits of every colour block, the white
 slides, and the halt are all the ones the reference evaluator implements,
 because the proof is stated against `Langlib.Piet.evalGrid` itself.
 
+The original witness retains the **forward answer-preservation** interface.
+The separate [`pietDivergencePreserving`](../Langlib/Computability/Piet/Divergence.lean)
+witness proves divergence preservation for that same compiler; the
+[shared interface](divergence-preservation.md) then gives halting and result
+equivalence, output validity, and error freedom.
+
 ## Register representation
 
 The generated program keeps a finite prefix of the URM register file on
@@ -68,8 +74,9 @@ Theorems `runCode_beginDispatch_list` and `runCode_selectInstr_list` prove
 the first two operations. Theorems `runCode_guardedZ_list`,
 `runCode_guardedS_list`, and `runCode_guardedT_list` prove the three guarded
 arithmetic updates. `runCode_guardedJ_list` proves equality conjunction and
-the selection between fall-through and the arbitrary jump target. The whole
-dispatcher induction is still open. `runCode_endDispatch_list`,
+the selection between fall-through and the arbitrary jump target.
+`runCode_dispatchFrom_stackOf` and `runCode_dispatcherCode` assemble the
+dispatcher induction. `runCode_endDispatch_list`,
 `runCode_prepareBranch_list`, and the two `runCode_steerBranch` theorems pin
 the commit, running test, chooser toggle, and direction-pointer rotation.
 
@@ -177,8 +184,10 @@ image printed.
 ### What the claim does and does not say
 
 `simulation` covers halting runs, as the shared `TuringComplete` interface
-does for every language here. It says nothing about divergence: a compiler
-that halted where the source machine loops would still satisfy it.
+does for every language here. The separate
+[`pietDivergencePreserving`](../Langlib/Computability/Piet/Divergence.lean)
+witness additionally proves divergence preservation through positive-cost
+dispatcher iterations, excluding both spurious halts and runtime errors.
 Connecting URM computability to every partial computable function relies on
 the classical result of Shepherdson and Sturgis (1963), since cslib contains
 no formal equivalence with another universal model.

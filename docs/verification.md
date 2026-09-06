@@ -391,6 +391,24 @@ through the Turpentine interpreter and through the compiled program, and
 the outputs must match. That is testing, not proof, and this page exists
 to close the gap.
 
+## Divergence-preserving completeness
+
+The computability interface now separates forward answer preservation
+(`TuringComplete`) from divergence-preserving URM simulation
+(`DivergencePreservingTC`). The latter requires `.outOfFuel` at **every**
+finite target fuel on divergent source inputs, independently of decoding.
+Together with forward simulation and `LawfulProgLang`, it proves halting
+and result equivalences, validity of every normally halting output, and
+freedom from runtime errors, including on divergent inputs. A decoded-result
+iff alone does not exclude a spurious halt whose output decodes to `none`.
+
+The existing eleven TC witnesses and the derived Turpentine compilers remain
+unchanged. Ten separate divergence-preserving witnesses are proved. Unlambda
+has operational groundwork but still needs the guard/body path back to its
+recursive call; the [interface and migration notes](divergence-preservation.md)
+record the exact status. An upgraded URM-to-target witness does not automatically
+supply divergence preservation for the Turpentine-to-URM half.
+
 ## Later
 
 * **Divergence preservation**: if the Turpentine program never halts, neither

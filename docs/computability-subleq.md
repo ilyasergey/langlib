@@ -247,16 +247,14 @@ not claim one. `computes_of_turingComplete` in `Langlib/Common/Computability.lea
 consequence: it quantifies over `Cslib.URM.Computable` functions rather than
 over `Nat.Partrec` ones.
 
-**Open.** Two things, both deliberate.
+**Divergence is now proved separately** in
+[`Subleq/Divergence.lean`](../Langlib/Computability/Subleq/Divergence.lean).
+The block simulation makes positive target progress, including taken
+self-jumps; the intermediate jump prefix witnesses progress even when the
+source boundary does not change. `subleqDivergencePreserving` inherits the
+original compiler.
 
-* **Divergence is not preserved, as far as this theorem says.** `simulates`
-  constrains halting runs only. Nothing here rules out a compiled program
-  halting where the source machine loops. As it happens the construction does
-  preserve divergence, since every subleq block runs a fixed number of
-  instructions and the only exit is the epilogue, but that is an observation
-  and not a proof. Closing the gap means strengthening `simulates` to an iff,
-  which is the same obligation [verification.md](verification.md) defers for
-  the whole library.
+The remaining scope distinction is:
 * **Nothing is claimed about the hand-written backend.** This compiler and
   `Langlib/Languages/Turpentine/Compile/Subleq.lean` are two different programs; the
   proof here says nothing about the latter. Making it say something is what

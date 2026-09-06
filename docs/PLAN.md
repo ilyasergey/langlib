@@ -632,7 +632,7 @@ exhibit the bound and conclude that its halting problem is decidable.
 ### One statement for every language
 
 The claims in the table below must not be eleven unrelated theorems. They
-should be eleven instances of two definitions, so that "LangLib proves X
+should use shared definitions, so that "LangLib proves X
 is Turing complete" means the same thing every time and the reader learns
 the shape once. Concretely, in `Langlib/Common/Compilation.lean` (the
 language, and correct compilation) and `Langlib/Common/Computability.lean`
@@ -654,35 +654,67 @@ claim: the witness is the interesting part, and it is usually a compiler
 we want anyway.
 
 ```lean
-structure TuringComplete (L : Type) [ProgLang L] where
-  compile : URM.Program → ProgLang.Prog L
-  encodeInput : URM.Regs → Input
+structure TuringComplete (L : Type) [ProgLang L] [LawfulProgLang L] where
+  compile : Cslib.URM.Program → List Nat → ProgLang.Prog L
+  encodeInput : List Nat → Input
   decodeOutput : ByteArray → Option Nat
-  simulates : ∀ P regs n, URM.Halts P regs n →
-    ∃ m, let r := ProgLang.run (compile P) (encodeInput regs) m
-         r.exit = .halted ∧ decodeOutput r.output = some (URM.result P regs n)
+  simulates : ∀ P inputs result, Cslib.URM.HaltsWithResult P inputs result →
+    ∃ fuel, let run := ProgLang.run (compile P inputs) (encodeInput inputs) fuel
+            run.exit = .halted ∧ decodeOutput run.output = some result
 ```
 
-**Incompleteness is a finite bound.** The general lemma is proved once,
-and each language supplies only its bound:
+**Incompleteness is a finite bound.** `BoundedStorage` supplies a
+configuration type, an injection into a bounded range, and the laws tying
+configuration equality to execution and halting. `BoundedRun` restricts the
+injection laws to reachable configurations. Both provide
+`halts_iff_search` and `halting_decidable` in
+[`Common/Computability.lean`](../Langlib/Common/Computability.lean).
 
-```lean
-structure BoundedStorage (L : Type) [ProgLang L] where
-  Config : Type
-  configOf : ProgLang.Prog L → Input → Nat → Config
-  finite : ∀ p i, Set.Finite {c | ∃ n, configOf p i n = c}
+The byte-core Befunge result uses `BoundedStorage`; Malbolge uses
+`BoundedRun`. Deadfish instead proves every program terminates and has no
+`BoundedStorage` witness for its unbounded accumulator. These decidability
+results do not prove `¬ TuringComplete L` inside Lean. With a runnable
+compiler, incompatibility with forward answer preservation is a
+meta-theoretic argument; with divergence preservation, `halts_iff` supplies
+the missing halting reduction. See the interface docstrings and the
+per-language proof notes for the precise scopes.
 
-theorem halting_decidable_of_bounded [ProgLang L] (b : BoundedStorage L) :
-    ∀ p i, Decidable (∃ n, (ProgLang.run p i n).exit = .halted)
-```
+### Stage 8 divergence-preserving interface and migration `[~]`
 
-A language with `BoundedStorage` cannot be Turing complete, and that
-implication is one theorem in the library rather than one per language.
-Befunge-93 supplies "80 by 25 playfield, bounded stack", Malbolge supplies
-"59049 words of 59049 values", Deadfish supplies "one accumulator in
-0..255 and no input", and each gets its decidability corollary for free.
-This is the payoff of stating it generally: the negative results become
-three short instances instead of three separate developments.
+* [x] **2026-09-06:** add `DivergencePreservingTC`, extending the existing
+  forward answer-preservation witness with `.outOfFuel` for every finite
+  target budget on divergent URM inputs, independently of decoding.
+* [x] Prove `halts_iff`, `result_iff`, `output_valid`, and `error_free`, with
+  `halted_run_result` and `TuringComplete.simulates_at_completed_run` as
+  reusable helpers. Add all six theorems to the axiom audit.
+* [x] Document that a decoded-result iff permits undecodable spurious halts;
+  preserve existing witness types, compilers, and derived compiler APIs.
+* [x] Upgrade Whitespace and Subleq with positive execution through their
+  block simulations, including self-jumps.
+* [x] Add shared `ReachesPlus`, continuing URM execution, and divergence from
+  positive target progress. Upgrade Brainfuck, Velato and SKI against their
+  actual evaluators; SKI also proves its continuations force the dispatcher.
+* [x] Upgrade FRACTRAN, Thue and Piet through their execution invariants.
+  FRACTRAN’s reflexive forward self-jump case is strengthened to its actual
+  two-step alternating-marker cycle.
+* [x] Transport the stronger Brainfuck witness to Ook and Brainloller, keeping
+  Brainloller’s separate pixel-walk obligation explicit.
+* [x] Start Unlambda’s operational proof: positive fragment-job execution,
+  exact zero-output buffer preservation, positive fixed-point unfolding under
+  arbitrary continuations, and unconditional error freedom.
+* [ ] Complete Unlambda’s guard/body simulation back to the recursive call
+  with the next represented URM state, establish continuing positive
+  execution, and declare `unlambdaDivergencePreserving`. Its existing `EqE`
+  lemmas do not track execution costs and cannot establish progress alone.
+* [x] Validate the checkpoint: full build (8,945 jobs), all 1,700 tests and
+  both Velato round trips, 758 clean axiom reports, and six available
+  external differential cases. MU’s Lean sources remain unchanged.
+
+All eleven existing witnesses remain `TuringComplete`; none is automatically
+promoted. [The migration table](divergence-preservation.md#witness-migration)
+records the ten proved upgrades and Unlambda’s remaining obligation.
+MU has no witness to upgrade; its current proofs
+remain unchanged and must still build and pass the axiom audit.
 
 ### cslib is a dependency
 

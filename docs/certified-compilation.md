@@ -110,11 +110,19 @@ decoder that ignores the output, and neither does.
 It is free of Mathlib and of cslib, deliberately, so a hand-written backend
 can state and prove its own correctness without either reaching the
 interpreters. Only the *computability* half of the story —
-[`TuringComplete`](../Langlib/Common/Computability.lean#L114),
-[`BoundedStorage`](../Langlib/Common/Computability.lean#L235), and
-[the bridge to cslib's vocabulary](../Langlib/Common/Computability.lean#L183)
+[`TuringComplete`](../Langlib/Common/Computability.lean#L120),
+[`BoundedStorage`](../Langlib/Common/Computability.lean#L355), and
+[the bridge to cslib's vocabulary](../Langlib/Common/Computability.lean#L303)
 — needs a universal model, and it lives next door in
 [`Langlib/Common/Computability.lean`](../Langlib/Common/Computability.lean).
+
+The separate [`DivergencePreservingTC`](divergence-preservation.md)
+extension now states divergence-preserving URM simulation and proves
+halting/result equivalence, output validity and error freedom. Existing TC
+witnesses and derived compilers still establish forward answer preservation.
+Ten URM-to-target witnesses now have separately proved upgrades; Unlambda’s
+full divergence proof remains open. Upgrading a witness does
+not automatically strengthen the Turpentine-to-URM translation.
 
 ### 1.2 Behaviour preservation
 
@@ -394,7 +402,7 @@ naturals, and four instructions — `Z n` (zero a register), `S n`
 `n` are equal). It is the yardstick LangLib measures languages against, and
 it comes from [cslib](https://github.com/leanprover/cslib) rather than being
 defined here. Proving a language Turing complete means producing a
-[`TuringComplete L`](../Langlib/Common/Computability.lean#L114) witness,
+[`TuringComplete L`](../Langlib/Common/Computability.lean#L120) witness,
 which *contains a verified compiler from URM programs into `L`*.
 
 That is the observation the whole route rests on. Half of a

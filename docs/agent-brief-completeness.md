@@ -7,7 +7,7 @@ explains why the task is shaped the way it is; read it before adapting.
 ## Why these two jobs are one job
 
 A Turing-completeness proof in LangLib is not a certificate filed away.
-`TuringComplete L` ([Computability.lean:114](../Langlib/Common/Computability.lean#L114))
+`TuringComplete L` ([Computability.lean:120](../Langlib/Common/Computability.lean#L120))
 is a *witness*: it carries a real compiler from the unlimited register
 machine into `L`, plus a proof that the compiled program simulates. So the
 moment somebody proves `<LANG>` complete, `<LANG>` also acquires a verified
@@ -40,7 +40,17 @@ and any other model. It also says nothing about divergence, since
 `simulates` constrains halting runs only. Say both things in the docs; do
 not blur them. `computes_of_turingComplete` in
 `Langlib/Common/Computability.lean` is the honest
-statement of what follows.
+statement of what follows for the existing witnesses.
+
+For the stronger claim, add a separate `DivergencePreservingTC` witness with
+`toTuringComplete := <lang>Complete`. Prove its `preserves_divergence` field:
+for divergent URM inputs, every finite target fuel must yield `.outOfFuel`.
+Do not infer this from forward simulation, lawfulness, or an iff about
+successfully decoded results: that iff still permits a normal halt with
+`decodeOutput = none`. The new interface proves halting equivalence, result
+equivalence, output validity and error freedom generically. See
+[the migration plan](divergence-preservation.md); upgrade witnesses only when
+their additional proofs exist.
 
 **Choosing a representation that caps the range.** The natural instinct is
 to reuse whatever the hand-written backend does. For a bounded-cell target

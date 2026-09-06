@@ -16,6 +16,11 @@
   - Turing completeness in [`Langlib/Computability/Fractran.lean`](../../Langlib/Computability/Fractran.lean) and [docs/computability-fractran.md](../computability-fractran.md), and
   - a hand-written Turpentine backend in [`Langlib/Languages/Turpentine/Compile/Fractran.lean`](../../Langlib/Languages/Turpentine/Compile/Fractran.lean), plus a certified one derived from the completeness proof ([docs/fractran/compiler.md](compiler.md))
 
+The original TC witness establishes **forward answer preservation**. The
+separate [`fractranDivergencePreserving`](../../Langlib/Computability/Fractran/Divergence.lean)
+witness proves that divergent URM inputs exhaust every finite target budget,
+with [halting and result equivalence, output validity, and error freedom](../divergence-preservation.md).
+
 ## History
 
 Conway invented FRACTRAN to see how little a programming language could get

@@ -11,6 +11,12 @@ The witness contains a runnable fraction-list compiler, an input-dependent
 positive starting integer, an output decoder, and a proof through the real
 fuel-based FRACTRAN interpreter.
 
+The original witness retains the **forward answer-preservation** interface.
+The separate [`fractranDivergencePreserving`](../Langlib/Computability/Fractran/Divergence.lean)
+witness proves divergence preservation for that same compiler; the
+[shared interface](divergence-preservation.md) then gives halting and result
+equivalence, output validity, and error freedom.
+
 ## Prime-exponent representation
 
 `URMFractran.primeAt` is an executable sequence of distinct primes beginning
@@ -124,8 +130,11 @@ theorem simulation (P : Program) (inputs : List Nat) (result : Nat)
 ```
 
 As with the shared `TuringComplete` interface, this is the defined, halting
-direction. It does not claim that a divergent URM program produces a
-divergent FRACTRAN run.
+direction. The separate
+[`fractranDivergencePreserving`](../Langlib/Computability/Fractran/Divergence.lean)
+witness now proves the divergent direction through nonempty rule sequences.
+Self-jumps need particular care: a reflexive forward proof is insufficient,
+so the proof follows the compiler’s actual alternating-marker cycle.
 
 ## Differential tests and measured cost
 

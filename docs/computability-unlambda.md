@@ -18,6 +18,13 @@ argument here is bracket abstraction, the translation Schonfinkel and Curry
 used to eliminate variables, applied to a program written in a lambda
 notation that exists only inside the proof.
 
+The TC witness retains **forward answer preservation**.
+[Operational divergence groundwork](../Langlib/Computability/Unlambda/Divergence.lean) now
+proves positive execution of fragment jobs and fixed-point unfolding, and
+unconditional error freedom. The guard/body path back to the recursive call
+still needs a continuing simulation proof; there is no
+`unlambdaDivergencePreserving` witness yet.
+
 ## The statement
 
 ```lean
@@ -229,6 +236,25 @@ Check that nothing in the development rests on an axiom beyond Lean's three.
 ```
 lake env lean scripts/axioms.lean
 ```
+
+## Divergence proof in progress
+
+[`Unlambda/Divergence.lean`](../Langlib/Computability/Unlambda/Divergence.lean)
+starts the operational part without changing `unlambdaComplete`.
+`run_reaches_progress` shows that a terminating fragment job consumes
+positive target fuel; `run_reaches_zero` preserves the entire output buffer
+when its byte count is zero. `selfE_unfold_progress` follows the actual CEK
+transitions: applying the strict fixed point reaches its functional applied
+to itself, retaining the original argument in an `sRight` frame, after a
+nonempty prefix and under any continuation.
+
+The guard/body path back to a recursive call carrying the next represented
+URM state remains open. The existing `EqE` rewriting lemmas preserve
+terminating answers and byte counts; their statements carry no execution
+cost or positive-prefix evidence. Iterating them is therefore insufficient
+to prove divergence. There is no stronger witness yet. Runtime error freedom
+is proved independently for every Unlambda execution, including compiled
+programs, but it does not exclude a spurious normal halt.
 
 ## What is proved, and what is not
 

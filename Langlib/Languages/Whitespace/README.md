@@ -5,6 +5,12 @@ spaces, tabs, and linefeeds; everything visible is a comment. The full
 specification, history, and the exact semantic choices are in
 [docs/whitespace/spec.md](../../../docs/whitespace/spec.md).
 
+The original TC witness retains **forward answer preservation**. The separate
+[`whitespaceDivergencePreserving`](../../Computability/Whitespace/Divergence.lean)
+witness proves divergence preservation for the same compiler: every finite
+budget on a divergent URM input yields `.outOfFuel`. It also supplies
+[halting and result equivalence, output validity, and error freedom](../../../docs/divergence-preservation.md).
+
 ## Modules
 
 * `Syntax.lean`: the instruction AST (`Instr`, `Prog`, `Label`), plus a

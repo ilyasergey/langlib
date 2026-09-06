@@ -6,6 +6,12 @@ that keeps the state integral, and that is already enough for universality.
 The full specification, history, and the exact semantic choices are in
 [docs/fractran/spec.md](../../../docs/fractran/spec.md).
 
+The original TC witness retains **forward answer preservation**. The separate
+[`fractranDivergencePreserving`](../../Computability/Fractran/Divergence.lean)
+witness proves divergence preservation for the same compiler: every finite
+budget on a divergent URM input yields `.outOfFuel`. It also supplies
+[halting and result equivalence, output validity, and error freedom](../../../docs/divergence-preservation.md).
+
 ## Modules
 
 * `Syntax.lean`: `Frac` (a fraction in lowest terms, built with

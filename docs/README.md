@@ -10,7 +10,7 @@
 | [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | [yes, byte core](../Langlib/Computability/Befunge93.lean#L377) | n/a | no, 2000 code cells | [no](befunge93/compiler.md) | n/a |
 | [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [yes, bounded storage](malbolge/spec.md) | [**no**, halting decidable](../Langlib/Computability/Malbolge.lean#L755) | n/a | no, bounded storage | [yes, bounded fragment](malbolge/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Malbolge.lean) | n/a |
 | [malbolge-unshackled](malbolge-unshackled/spec.md) | yes | yes | yes | yes | `malbolge-unshackled` | yes | open | [planned](malbolge-unshackled/compiler.md) | expected yes | [yes, input-free fragment](malbolge-unshackled/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean) | [planned](malbolge-unshackled/compiler.md) |
-| [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | [**yes**](../Langlib/Computability/Fractran.lean#L4486) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L127) | no I/O at all | [yes](fractran/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Fractran.lean) | - |
+| [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | [**yes**](../Langlib/Computability/Fractran.lean#L4504) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L127) | no I/O at all | [yes](fractran/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Fractran.lean) | - |
 | [thue](thue/spec.md) | yes | yes | yes | yes | `thue` | yes | [**yes**](../Langlib/Computability/Thue.lean#L4032) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L133) | expected, unary output | [planned](thue/compiler.md) | [planned](thue/compiler.md) |
 | [piet](piet/spec.md) | yes | yes | yes | yes | `piet` | yes | [**yes**](../Langlib/Computability/Piet.lean#L3998) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L139) | yes | [yes](piet/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Piet.lean) | [planned](piet/compiler.md) |
 | [ook](ook/spec.md) | yes | yes | yes | yes | `ook` | yes (via brainfuck) | [**yes**](../Langlib/Computability/Ook.lean#L545) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L145) | yes, via brainfuck | [yes](ook/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Ook.lean#L49) | [planned](ook/compiler.md) |
@@ -32,6 +32,18 @@ exists or is planned for a language, in `docs/<langname>/compiler.md`.
 In the **Bespoke compiler** column the verdict links to those notes and the
 `source` beside it to the backend itself; in **Bespoke correct** the verdict
 links to the correctness theorem.
+
+### Strength of the completeness proofs
+
+The eleven positive TC witnesses in the table establish **forward answer
+preservation**. The new `DivergencePreservingTC` interface additionally
+requires every finite compiled run on a divergent URM input to return
+`.outOfFuel`, excluding errors and even undecodable normal halts. Halting
+and result equivalence, output validity, and error freedom are proved once
+for that interface. Existing witnesses remain unchanged. Ten separate upgrades
+are proved; Unlambda has operational groundwork and its full divergence proof
+remains [tracked separately](divergence-preservation.md#witness-migration).
+MU's proof development is unchanged and has no TC witness yet.
 
 ### Hosts full Turpentine
 

@@ -19,6 +19,19 @@ Anything else, and in particular `sorryAx`, means the result is not what it
 claims to be. Add a line here whenever a new completeness or
 incompleteness instance lands.
 -/
+import Langlib.Common.Divergence
+import Langlib.Computability.Divergence
+import Langlib.Computability.Brainfuck.Divergence
+import Langlib.Computability.Brainloller.Divergence
+import Langlib.Computability.Fractran.Divergence
+import Langlib.Computability.Ook.Divergence
+import Langlib.Computability.Piet.Divergence
+import Langlib.Computability.Ski.Divergence
+import Langlib.Computability.Subleq.Divergence
+import Langlib.Computability.Thue.Divergence
+import Langlib.Computability.Unlambda.Divergence
+import Langlib.Computability.Velato.Divergence
+import Langlib.Computability.Whitespace.Divergence
 import Langlib.Computability.Whitespace
 import Langlib.Computability.Subleq
 import Langlib.Languages.Subleq.Trace
@@ -61,6 +74,12 @@ open Langlib.Turpentine.Compile
 -- The bridge to cslib's vocabulary: a Turing-complete language computes
 -- every URM-computable partial function, wherever it is defined.
 #print axioms computes_of_turingComplete
+#print axioms TuringComplete.simulates_at_completed_run
+#print axioms DivergencePreservingTC.halts_iff
+#print axioms DivergencePreservingTC.halted_run_result
+#print axioms DivergencePreservingTC.result_iff
+#print axioms DivergencePreservingTC.output_valid
+#print axioms DivergencePreservingTC.error_free
 #print axioms BoundedStorage.halts_iff_search
 #print axioms BoundedStorage.halting_decidable
 
@@ -971,3 +990,83 @@ open Langlib.Turpentine.Compile
 #print axioms Unshackled.Runtime.PaddedCrazy.call
 #print axioms Unshackled.Runtime.PaddedCrazy.pair_call
 #print axioms Unshackled.Runtime.LowTrit.test_padded
+
+-- Divergence-preserving witnesses and operational progress (including Unlambda groundwork).
+#print axioms Langlib.Common.ReachesPlus
+#print axioms Langlib.Common.ReachesPlus.of_ne
+#print axioms Langlib.Common.ReachesPlus.toReaches
+#print axioms Langlib.Common.ReachesPlus.one
+#print axioms Langlib.Common.ReachesPlus.trans_left
+#print axioms Langlib.Common.ReachesPlus.trans_right
+#print axioms Langlib.Common.completed_runs_eq
+#print axioms Langlib.Common.outOfFuel_of_progress
+#print axioms Langlib.Common.Reaches.outOfFuel
+#print axioms Langlib.Computability.URM.diverges_progress
+#print axioms Langlib.Computability.URMBrainfuck.loop_iteration
+#print axioms Langlib.Computability.URMBrainfuck.dispatcher_diverges
+#print axioms Langlib.Computability.URMBrainfuck.preserves_divergence
+#print axioms Langlib.Computability.brainfuckDivergencePreserving
+#print axioms Langlib.Computability.brainlollerDivergencePreserving
+#print axioms Langlib.Computability.URMFractran.self_jump_progress
+#print axioms Langlib.Computability.URMFractran.instrProgress_compileRules
+#print axioms Langlib.Computability.URMFractran.urmStep_progress
+#print axioms Langlib.Computability.URMFractran.concrete_progress
+#print axioms Langlib.Computability.URMFractran.core_diverges
+#print axioms Langlib.Computability.URMFractran.preserves_divergence
+#print axioms Langlib.Computability.fractranDivergencePreserving
+#print axioms Langlib.Computability.ookDivergencePreserving
+#print axioms Langlib.Computability.URMPiet.reaches_iteration_progress
+#print axioms Langlib.Computability.URMPiet.dispatcher_diverges
+#print axioms Langlib.Computability.URMPiet.preserves_divergence
+#print axioms Langlib.Computability.pietDivergencePreserving
+#print axioms Langlib.Computability.URMSki.apps
+#print axioms Langlib.Computability.URMSki.apps_append
+#print axioms Langlib.Computability.URMSki.hiter_apps
+#print axioms Langlib.Computability.URMSki.HR.apps
+#print axioms Langlib.Computability.URMSki.normalise_hiter
+#print axioms Langlib.Computability.URMSki.HR.reaches
+#print axioms Langlib.Computability.URMSki.Forces
+#print axioms Langlib.Computability.URMSki.forces_get
+#print axioms Langlib.Computability.URMSki.forces_set
+#print axioms Langlib.Computability.URMSki.forces_loop
+#print axioms Langlib.Computability.URMSki.forces_unary
+#print axioms Langlib.Computability.URMSki.Forces.comp
+#print axioms Langlib.Computability.URMSki.forces_code
+#print axioms Langlib.Computability.URMSki.commandT
+#print axioms Langlib.Computability.URMSki.applyCode
+#print axioms Langlib.Computability.URMSki.prefix_head
+#print axioms Langlib.Computability.URMSki.command_valid
+#print axioms Langlib.Computability.URMSki.applyCode_valid
+#print axioms Langlib.Computability.URMSki.loop_progress
+#print axioms Langlib.Computability.URMSki.normaliseExit
+#print axioms Langlib.Computability.URMSki.normalise_stable_exit
+#print axioms Langlib.Computability.URMSki.dispatcher_diverges
+#print axioms Langlib.Computability.URMSki.preserves_divergence
+#print axioms Langlib.Computability.skiDivergencePreserving
+#print axioms Langlib.Computability.URMSubleq.block_J_taken_progress
+#print axioms Langlib.Computability.URMSubleq.step_sim_progress
+#print axioms Langlib.Computability.URMSubleq.boundary_diverges
+#print axioms Langlib.Computability.URMSubleq.preserves_divergence
+#print axioms Langlib.Computability.subleqDivergencePreserving
+#print axioms Langlib.Computability.URMThue.reaches_control_progress
+#print axioms Langlib.Computability.URMThue.reaches_step_progress
+#print axioms Langlib.Computability.URMThue.core_diverges
+#print axioms Langlib.Computability.URMThue.preserves_divergence
+#print axioms Langlib.Computability.thueDivergencePreserving
+#print axioms Langlib.Computability.URMUnlambda.run_reaches_progress
+#print axioms Langlib.Computability.URMUnlambda.run_reaches_zero
+#print axioms Langlib.Computability.URMUnlambda.selfE_value
+#print axioms Langlib.Computability.URMUnlambda.selfE_unfold_progress
+#print axioms Langlib.Computability.URMUnlambda.exec_error_free
+#print axioms Langlib.Computability.URMUnlambda.compiled_error_free
+#print axioms Langlib.Computability.URMVelato.append_diverges
+#print axioms Langlib.Computability.URMVelato.dispatcher_diverges
+#print axioms Langlib.Computability.URMVelato.counterProgram_diverges
+#print axioms Langlib.Computability.URMVelato.preserves_divergence
+#print axioms Langlib.Computability.velatoDivergencePreserving
+#print axioms Langlib.Computability.URMWhitespace.block_J_taken_progress
+#print axioms Langlib.Computability.URMWhitespace.step_sim_progress
+#print axioms Langlib.Computability.URMWhitespace.boundary_diverges
+#print axioms Langlib.Computability.URMWhitespace.preserves_divergence
+#print axioms Langlib.Computability.whitespaceDivergencePreserving
+#print axioms Langlib.Computability.URMFractran.instrRules_J_distinct_equal_progress

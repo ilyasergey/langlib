@@ -2,6 +2,50 @@
 
 Newest first. Add a dated entry for every substantial batch of work.
 
+## 2026-09-06: divergence interface, ten stronger witnesses, and Unlambda groundwork
+
+Added `DivergencePreservingTC` in `Langlib/Common/Computability.lean` as a
+separate extension of `TuringComplete`. Its divergence field constrains the
+exit itself: every finite target fuel budget on a divergent URM input must
+yield `.outOfFuel`. This rules out both errors and spurious normal halts
+whose output the decoder rejects; a decoded-result iff alone would not.
+
+Proved `halts_iff`, `result_iff`, `output_valid`, and `error_free`, plus
+`halted_run_result` and `TuringComplete.simulates_at_completed_run`. The
+latter compares completed runs at a common larger fuel using lawfulness,
+so even the old interface excludes early errors on halting source inputs.
+The new field supplies the divergent-input case. The consequences, shared
+progress helpers, new witnesses and Unlambda groundwork are in the axiom
+audit.
+
+All eleven existing TC witnesses, their compilers and derived Turpentine
+compilers remain unchanged. Their claim is forward answer preservation;
+ten separate divergence-preserving witnesses now inherit them exactly.
+Whitespace and Subleq prove positive block progress, FRACTRAN proves
+nonempty rule simulation including self-jumps, Thue and Piet continue their
+dispatchers, Brainfuck and Velato iterate terminating counter bodies, and
+SKI proves positive head reduction plus strictness of compiled continuations.
+Ook and Brainloller transport the Brainfuck result, with Brainloller’s
+pixel-walk obligation still separate.
+
+Unlambda now has positive fragment-job execution, exact zero-output buffer
+preservation, positive strict-fixed-point unfolding under arbitrary
+continuations, and unconditional error freedom. Its guard/body path back to
+the recursive call still needs an operational proof; no stronger witness is
+claimed for it. Progress and this remaining obligation are tracked in
+[the migration table](divergence-preservation.md#witness-migration) and
+Stage 8 of the plan. The documentation and language READMEs now make this
+distinction, and the contribution policy explicitly rejects a decoded-result
+iff as a substitute for the execution obligation. MU's proof development is
+unchanged; it still has no TC witness to upgrade.
+
+Validation: full `lake build` passes (8,945 jobs). The expanded axiom audit
+has 758 reports, all using only `propext`, `Classical.choice`, and
+`Quot.sound`, or no axioms. All 1,700 golden/compiler tests and both Velato
+round-trip checks pass.
+Available external differential tests pass six cases; other sections skip
+when their runner or reference interpreter is unavailable.
+
 
 ## 2026-09-06: MU extracts marker bits and branches through reusable code
 

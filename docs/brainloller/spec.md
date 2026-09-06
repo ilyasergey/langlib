@@ -11,6 +11,13 @@
   - Turing completeness, inherited from brainfuck, in [`Langlib/Computability/Brainloller.lean`](../../Langlib/Computability/Brainloller.lean), and
   - a Turpentine backend via brainfuck in [`Langlib/Languages/Turpentine/Compile/Brainloller.lean`](../../Langlib/Languages/Turpentine/Compile/Brainloller.lean), plus a certified one derived from the completeness proof ([docs/brainloller/compiler.md](compiler.md))
 
+The original TC witness establishes **forward answer preservation**. The
+separate [`brainlollerDivergencePreserving`](../../Langlib/Computability/Brainloller/Divergence.lean)
+witness proves that divergent URM inputs exhaust every finite target budget,
+with [halting and result equivalence, output validity, and error freedom](../divergence-preservation.md).
+This theorem uses the existing decoded-program interface; the separate
+pixel-walk obligation remains open.
+
 ## The idea
 
 Brainloller is brainfuck, encoded one command per pixel. Where Piet makes

@@ -20,6 +20,11 @@
   - Turing completeness in [`Langlib/Computability/Ski.lean`](../../Langlib/Computability/Ski.lean) and [docs/computability-ski.md](../computability-ski.md), and
   - a certified Turpentine compiler derived from the completeness proof, with no hand-written one planned ([docs/ski/compiler.md](compiler.md))
 
+The original TC witness establishes **forward answer preservation**. The
+separate [`skiDivergencePreserving`](../../Langlib/Computability/Ski/Divergence.lean)
+witness proves that divergent URM inputs exhaust every finite target budget,
+with [halting and result equivalence, output validity, and error freedom](../divergence-preservation.md).
+
 ## Why it is here
 
 Every other completeness proof in this library is a register-machine

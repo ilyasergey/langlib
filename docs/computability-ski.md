@@ -17,6 +17,12 @@ combinators and almost nothing else. It is worth saying at the top why the
 Unlambda witness does not simply transfer, because the obvious guess is that
 it should.
 
+The original witness retains the **forward answer-preservation** interface.
+The separate [`skiDivergencePreserving`](../Langlib/Computability/Ski/Divergence.lean)
+witness proves divergence preservation for that same compiler; the
+[shared interface](divergence-preservation.md) then gives halting and result
+equivalence, output validity, and error freedom.
+
 ## Two differences that change everything
 
 **Evaluation order.** Unlambda is call by value; SKI is normal order. That
@@ -196,6 +202,26 @@ Check that nothing in the development rests on an axiom beyond Lean's three.
 ```
 lake env lean scripts/axioms.lean
 ```
+
+## Preserving divergence
+
+[`Ski/Divergence.lean`](../Langlib/Computability/Ski/Divergence.lean) proves
+this for the same normal-order compiler. `normalise_hiter` turns a counted
+head-reduction sequence into exact interpreter fuel consumption. Each
+nonzero dispatcher iteration reaches the next member of the fixed-point
+family, `selfT (I X)`, with an unevaluated argument representing the next
+counter state. The existing terminating body simulation proves that state's
+representation invariant. The recursive call grows syntactically, so the
+head-reduction sequence cannot have length zero.
+
+That progress alone is insufficient under normal order: an outer
+continuation could discard its argument. `Forces` rules this out for this
+compiler. The state accessors, updates, loops, compiled continuations and
+unary output conversion all force their argument at the head. Consequently
+the whole compiled program reaches the dispatcher even though the prefix
+and successive states remain thunks. Positive progress, stability and strong
+induction on target fuel then prove exhaustion at every budget, under any
+extra arguments on the head spine.
 
 ## What is proved, and what is not
 
