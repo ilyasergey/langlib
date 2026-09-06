@@ -3,21 +3,20 @@
 `Langlib/Computability/Thue.lean` contains a total runnable generator from an
 unlimited register machine program and input vector to a parsed Thue program,
 and the simulation theorem that makes it a completeness proof:
-[`thueComplete : TuringComplete ThueLang`](../Langlib/Computability/Thue.lean#L4032).
+[`thueComplete : TuringComplete ThueLang`](../../Langlib/Computability/Thue.lean#L15).
 Composing it with the shared Turpentine-to-URM pass gives a certified
 Turpentine-to-Thue compiler,
-[`derivedThue`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L133).
+[`derivedThue`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L136).
 
 Post proved in 1947 that semi-Thue systems are universal, so the *result* is
 not news. What the esolang literature does not have is a check that the
 particular deterministic strategy an interpreter uses cannot wander off the
 intended derivation, and that is most of the work below.
 
-The original witness retains the **forward answer-preservation** interface.
-The separate [`thueDivergencePreserving`](../Langlib/Computability/Thue/Divergence.lean)
-witness proves divergence preservation for that same compiler; the
-[shared interface](divergence-preservation.md) then gives halting and result
-equivalence, output validity, and error freedom.
+[`thueComplete`](../../Langlib/Computability/Thue.lean) combines this
+halting simulation with the [divergence proof](../../Langlib/Computability/Thue/Divergence.lean)
+for the same compiler. The [shared interface](../divergence-preservation.md)
+gives halting and result equivalence, output validity, and error freedom.
 
 ## Representation
 
@@ -104,45 +103,45 @@ The file connects the compiler to the concrete substring operations in
 Every canonical family reads exactly one character next to its token: to the
 right for the scans, to the left for the two return families. So the phase
 plus that character determines the rule, which is what
-[`reaches_phase_right_cell`](../Langlib/Computability/Thue.lean#L2471) and
-[`reaches_phase_left_cell`](../Langlib/Computability/Thue.lean#L2491) say.
+[`reaches_phase_right_cell`](../../Langlib/Computability/Thue/Simulation.lean#L2472) and
+[`reaches_phase_left_cell`](../../Langlib/Computability/Thue/Simulation.lean#L2492) say.
 That is the whole reason a nondeterministic rewriting system can be made to
 behave like a machine here: the unique `@` fixes *where* a rule can apply,
 and the adjacent cell fixes *which* rule applies there.
 
 Three character-level walks are then proved once each:
-[`reaches_scan_prefix`](../Langlib/Computability/Thue.lean#L2744) crosses
+[`reaches_scan_prefix`](../../Langlib/Computability/Thue/Simulation.lean#L2745) crosses
 complete counters left to right, `reaches_across_xs` crosses one unary run,
-and [`reaches_left_home`](../Langlib/Computability/Thue.lean#L2041) carries a
+and [`reaches_left_home`](../../Langlib/Computability/Thue/Simulation.lean#L2042) carries a
 return token back to the `b` boundary over any tape of `x` and `d`.
 
 ### One counter operation, then a whole derivation
 
 Each counter-machine command becomes a `Reaches` fact about the real
 interpreter: `reaches_inc`,
-[`reaches_dec`](../Langlib/Computability/Thue.lean#L2647),
-[`reaches_zeroTest_zero`](../Langlib/Computability/Thue.lean#L2889) and
-[`reaches_zeroTest_nonzero`](../Langlib/Computability/Thue.lean#L2988) for
+[`reaches_dec`](../../Langlib/Computability/Thue/Simulation.lean#L2648),
+[`reaches_zeroTest_zero`](../../Langlib/Computability/Thue/Simulation.lean#L2890) and
+[`reaches_zeroTest_nonzero`](../../Langlib/Computability/Thue/Simulation.lean#L2989) for
 the two sides of a loop, and
-[`reaches_emit`](../Langlib/Computability/Thue.lean#L3091), which appends one
+[`reaches_emit`](../../Langlib/Computability/Thue/Simulation.lean#L3092), which appends one
 `o` to the output prefix.
 
-[`reaches_exec`](../Langlib/Computability/Thue.lean#L3168) then lifts a whole
+[`reaches_exec`](../../Langlib/Computability/Thue/Simulation.lean#L3169) then lifts a whole
 big-step `URMBrainfuck.Ev` derivation by induction on it. Rule availability
 travels as a subset of `generate done code suffix`, which shrinks along
 `inc`, `dec`, `emit` and a taken loop exit; the one case that does not shrink
 syntactically is `Ev.loopS`, where the continuation becomes
 `body ++ loop :: rest`. That case needs
-[`generate_append`](../Langlib/Computability/Thue.lean#L3115): generation is
+[`generate_append`](../../Langlib/Computability/Thue/Simulation.lean#L3116): generation is
 compositional in the code it traverses, so unrolling a loop asks for no rule
 the loop did not already generate.
 
 ### Dispatch
 
 The macro leaves `nextProgramCounter + 1` in a dedicated counter.
-[`reaches_finish`](../Langlib/Computability/Thue.lean#L3494) seeks that
+[`reaches_finish`](../../Langlib/Computability/Thue/Simulation.lean#L3495) seeks that
 counter, consumes its unary run one cell at a time with
-[`reaches_count`](../Langlib/Computability/Thue.lean#L3430) (which also
+[`reaches_count`](../../Langlib/Computability/Thue/Simulation.lean#L3431) (which also
 clears it, restoring the invariant the next macro needs), selects the
 destination among the dispatch outcomes, and walks the token home to the
 source control marker. Selecting the destination is where
@@ -151,29 +150,28 @@ then they name the same program counter, so they are literally the same rule.
 
 ### A halting run
 
-[`firstMatch_eq_control`](../Langlib/Computability/Thue.lean#L3655) shows
+[`firstMatch_eq_control`](../../Langlib/Computability/Thue/Simulation.lean#L3656) shows
 that a source control marker selects exactly that instruction's entry rule:
 a control phase has no canonical family at all, so nothing but a control rule
 can match, and the marker says which one.
-[`reaches_step`](../Langlib/Computability/Thue.lean#L3711) chains entry,
+[`reaches_step`](../../Langlib/Computability/Thue/Simulation.lean#L3712) chains entry,
 macro and dispatch into one URM transition, and
-[`reaches_steps`](../Langlib/Computability/Thue.lean#L3799) composes those
+[`reaches_steps`](../../Langlib/Computability/Thue/Simulation.lean#L3800) composes those
 over `Cslib.URM.Steps`.
 
-At the end, [`firstMatch_control_none`](../Langlib/Computability/Thue.lean#L3835)
+At the end, [`firstMatch_control_none`](../../Langlib/Computability/Thue/Simulation.lean#L3836)
 proves the converse fact that makes the run *stop*: once the program counter
 has run off the end of the source program, no generated rule matches at all,
 which is exactly Thue's halting condition. `decodeOutput_encodeState` then
 reads register zero out of the final state that `Config.finalState` prints,
-and [`simulation`](../Langlib/Computability/Thue.lean#L3948) assembles the
+and [`simulation`](../../Langlib/Computability/Thue/Simulation.lean#L3949) assembles the
 three parts into the `TuringComplete` obligation.
 
 ### What the claim does and does not say
 
-`simulation` covers halting runs, as the shared `TuringComplete` interface
-does for every language here. The separate
-[`thueDivergencePreserving`](../Langlib/Computability/Thue/Divergence.lean)
-witness additionally proves divergence preservation through positive-cost
+`simulation` supplies the halting-answer field of `TuringComplete`.
+The companion [divergence proof](../../Langlib/Computability/Thue/Divergence.lean)
+supplies its other field through positive-cost
 dispatcher iterations, excluding both spurious halts and runtime errors.
 Connecting URM computability to every partial computable function relies on
 the classical result of Shepherdson and Sturgis (1963), since cslib contains
@@ -248,7 +246,7 @@ all 885 tests passed
 ```
 
 Every theorem on this page is listed in
-[`scripts/axioms.lean`](../scripts/axioms.lean). The witness and the two
+[`scripts/axioms.lean`](../../scripts/axioms.lean). The witness and the two
 halves of the simulation rest only on Lean's standard logical axioms.
 
 ```

@@ -13,11 +13,10 @@ that `L` is Turing complete" means literally the same thing for every `L`.
   and a fuel-based runner.
 * `TuringComplete L` is the positive claim, and it is a *witness*: a
   compiler from the unlimited register machine plus a proof that the
-  compiled program preserves its answers on halting inputs. Producing a
-  runnable term of this type is the existing completeness claim here.
-* `DivergencePreservingTC L` adds an independent execution obligation:
-  divergent source programs exhaust every finite target budget. It proves
-  halting and result equivalences, output validity, and error freedom.
+  compiled program preserves answers on halting inputs and exhausts every
+  finite target fuel budget on divergent inputs. It proves halting and
+  result equivalences, output validity, and error freedom. The compiler
+  must be runnable; the divergence obligation is independent of decoding.
 * `BoundedStorage L` is the negative claim: a finite reachable
   configuration space. The consequence, that halting is decidable, is
   proved once in `halting_decidable`, so a language supplies only its
@@ -52,7 +51,9 @@ The witness is a compiler from URM programs, an encoding of the machine's
 input vector as the language's input stream, and a decoding of the
 language's output bytes back to a natural number, together with the
 simulation theorem: whenever the URM halts, the compiled program halts and
-its output decodes to the contents of URM register 0.
+its output decodes to the contents of URM register 0. A divergent URM
+execution must exhaust every finite target fuel budget, excluding both
+normal halting and runtime errors.
 
 Two deliberate differences from the original Stage 8 sketch, both forced by
 what can actually be proved (see `docs/agent-brief-completeness.md`):
@@ -73,40 +74,34 @@ what can actually be proved (see `docs/agent-brief-completeness.md`):
   constant in its registers from zero, so quantifying over input vectors
   on the left is the same claim.
 
-`TuringComplete` is a *forward answer-preservation* claim, in the sense of
-`Langlib/Common/Compilation.lean`: it says the compiled program halts and
-prints something that decodes to register 0, and nothing about the events
-on the way. That is the right strength here, because a URM has no I/O to
-preserve — its whole interface is the input vector and register 0 — and it
-is why `derived`, which turns a witness into a compiler, produces a
-`CertifiedCompiler` and not an `IOCertifiedCompiler`. It constrains only
-halting source executions. Divergence requires the separate
-`DivergencePreservingTC.preserves_divergence` field; neither lawfulness nor
-an iff about successfully decoded results rules out an undecodable halt.
+`TuringComplete` combines forward answer preservation with divergence
+preservation. Its `simulates` field preserves the final answer, as in
+`Langlib/Common/Compilation.lean`; it makes no claim about intermediate I/O
+traces. Its independent `preserves_divergence` field rules out both errors
+and spurious halts, including halts whose output cannot be decoded. Neither
+lawfulness nor an iff about successfully decoded results supplies that
+obligation automatically. `derived` still produces a `CertifiedCompiler`,
+since the Turpentine-to-URM translation supplies its own forward specification.
 
 The simulation is stated against cslib's `HaltsWithResult`, so the three
 ingredients (`compile`, `encodeInput`, `decodeOutput`) stay explicit fields
 rather than being baked into the statement. That is what makes the claim
-composable: a translation `L → L'` that preserves observable behaviour turns
-a `TuringComplete L` into a `TuringComplete L'` by composing `compile` with
-the translation and leaving the encode and decode functions alone.
+composable: a translation `L → L'` that preserves both halting answers and
+divergence can transport a witness by composing `compile` and preserving
+the encodings. Answer preservation alone is insufficient.
 
 **The proposition alone does not capture Turing completeness; the witness
 being a runnable `def` is part of the claim.** Nothing in this structure
 forces `compile` to be computable, and Lean cannot say "computable" about
-its own functions from inside the logic. A witness built with
-`Classical.choice` — "if the URM halts, choose the answer and emit a program
-that prints it" — typechecks for any language that can print a constant,
-Deadfish included, and no axiom audit catches it: `Classical.choice` is in
-the allowed axiom set, since Mathlib proofs use it freely. What rules the
-cheat out is that such a `compile` must be marked `noncomputable`, which is
-visible in the source and makes `#eval` fail. So the convention in
-`docs/agent-brief-completeness.md` — the witness's `compile` is a plain
-`def` that `#eval` can apply — is not a style preference: it is the
-meta-theoretic half of the completeness claim, checked by the compiler
-rather than the kernel. Every witness in `Langlib/Computability/` satisfies
-it, and the differential tests run the compiled programs, which no
-noncomputable witness could survive.
+its own functions from inside the logic. A noncomputable compiler could
+choose between a program printing the source answer and a program that loops
+forever, using a halting oracle. This can satisfy the structure even for a
+bounded-storage target that supports those two kinds of program. The axiom
+audit cannot detect that cheat: `Classical.choice` is allowed in proofs.
+Requiring a plain runnable `def` rules it out; the witness must not rely on
+`noncomputable` code. Existing differential tests execute the compiled
+programs. A target that cannot diverge at all, such as Deadfish, cannot use
+this oracle construction to satisfy the divergence field.
 
 **Lawfulness is required, not assumed.** `simulates` concludes with "for
 some fuel bound `m`", and against an unlawful interpreter that existential
@@ -135,15 +130,6 @@ structure TuringComplete (L : Type) [ProgLang L] [LawfulProgLang L] where
         decodeOutput (ProgLang.run (compile P inputs) (encodeInput inputs) m).output =
           some result
 
-/-- Forward answer preservation together with preservation of divergence.
-
-A divergent URM must exhaust every finite target fuel budget. This excludes
-both normal halting (even with undecodable output) and runtime errors.
-Existing `TuringComplete` witnesses must supply this additional proof
-individually; forward simulation and lawfulness do not imply it. -/
-structure DivergencePreservingTC (L : Type)
-    [ProgLang L] [LawfulProgLang L]
-    extends TuringComplete L where
   /-- Divergent sources neither halt nor error at any finite target fuel. -/
   preserves_divergence : ∀ P inputs,
     Cslib.URM.Diverges P inputs →
@@ -165,14 +151,11 @@ is defined, some `L` program halts and outputs the right answer.
 
 Two limits of this statement, both deliberate and both worth knowing:
 
-* It covers the **defined** direction only. cslib's `Computes` is an
-  equality of `Part ℕ`, which also constrains divergence: where `f` is
-  undefined, the program must not halt. Our `simulates` says nothing about
-  URM programs that diverge, so a compiler could in principle halt where
-  the source machine loops and still satisfy `TuringComplete`. The separate
-  `DivergencePreservingTC` interface closes that gap with an execution
-  constraint independent of decoding. Upgrading a witness requires its own
-  divergence proof; see `docs/divergence-preservation.md`.
+* This particular corollary states the **defined** direction. The witness
+  also preserves undefined executions: `preserves_divergence` requires
+  exhaustion at every finite fuel, and `halts_iff` below reflects target
+  halting independently of decoding. `result_iff` and `output_valid` give
+  the corresponding result and encoding guarantees.
 * The step from "simulates every URM program" to "computes every partial
   computable function" is a **cited** classical result (Shepherdson and
   Sturgis 1963), not a Lean proof: cslib proves no equivalence between
@@ -221,11 +204,11 @@ theorem TuringComplete.simulates_at_completed_run
   rw [heq]
   exact ⟨hh, hd⟩
 
-namespace DivergencePreservingTC
+namespace TuringComplete
 
 /-- Source halting is equivalent to normal target halting at some fuel,
 independently of the output decoder. -/
-theorem halts_iff (tc : DivergencePreservingTC L) (P : Program) (inputs : List Nat) :
+theorem halts_iff (tc : TuringComplete L) (P : Program) (inputs : List Nat) :
     Cslib.URM.Halts P inputs ↔
       ∃ fuel, (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) fuel).exit =
         .halted := by
@@ -239,7 +222,7 @@ theorem halts_iff (tc : DivergencePreservingTC L) (P : Program) (inputs : List N
     simp [hf] at this
 
 /-- Every normally halting compiled run decodes to an actual source result. -/
-theorem halted_run_result (tc : DivergencePreservingTC L)
+theorem halted_run_result (tc : TuringComplete L)
     (P : Program) (inputs : List Nat) (fuel : Nat)
     (hh : (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) fuel).exit =
       .halted) :
@@ -250,12 +233,12 @@ theorem halted_run_result (tc : DivergencePreservingTC L)
   obtain ⟨s, hs, hhalt⟩ := (tc.halts_iff P inputs).mpr ⟨fuel, hh⟩
   have hres : HaltsWithResult P inputs s.regs.output := ⟨s, hs, hhalt, rfl⟩
   exact ⟨s.regs.output, hres,
-    (tc.toTuringComplete.simulates_at_completed_run P inputs _ fuel hres
+    (tc.simulates_at_completed_run P inputs _ fuel hres
       (by rw [hh]; nofun)).2⟩
 
 /-- Source results are exactly the decoded outputs of normally halting
 compiled runs. Output validity is proved separately, not assumed here. -/
-theorem result_iff (tc : DivergencePreservingTC L)
+theorem result_iff (tc : TuringComplete L)
     (P : Program) (inputs : List Nat) (result : Nat) :
     HaltsWithResult P inputs result ↔
       ∃ fuel,
@@ -271,7 +254,7 @@ theorem result_iff (tc : DivergencePreservingTC L)
     exact heq ▸ hr
 
 /-- No normally halting compiled run has an invalid output encoding. -/
-theorem output_valid (tc : DivergencePreservingTC L)
+theorem output_valid (tc : TuringComplete L)
     (P : Program) (inputs : List Nat) (fuel : Nat)
     (hh : (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) fuel).exit =
       .halted) :
@@ -283,20 +266,20 @@ theorem output_valid (tc : DivergencePreservingTC L)
 
 /-- Compiled runs never report runtime errors, whether the source halts
 or diverges, and including fuel budgets below the simulation's witness. -/
-theorem error_free (tc : DivergencePreservingTC L)
+theorem error_free (tc : TuringComplete L)
     (P : Program) (inputs : List Nat) (fuel : Nat) (msg : String) :
     (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) fuel).exit ≠
       .error msg := by
   intro he
   by_cases h : Cslib.URM.Halts P inputs
   · obtain ⟨s, hs, hh⟩ := h
-    have hf := (tc.toTuringComplete.simulates_at_completed_run P inputs s.regs.output
+    have hf := (tc.simulates_at_completed_run P inputs s.regs.output
       fuel ⟨s, hs, hh, rfl⟩ (by rw [he]; nofun)).1
     simp [he] at hf
   · have hf := tc.preserves_divergence P inputs h fuel
     simp [he] at hf
 
-end DivergencePreservingTC
+end TuringComplete
 
 /-- A Turing-complete language computes every URM-computable partial
 function, wherever that function is defined. -/
@@ -470,17 +453,12 @@ theorem halts_iff_search (b : BoundedRun L) (p : ProgLang.Prog L) (i : Input) :
 
 /-- Halting is decidable for a language whose runs have bounded storage.
 
-That a language cannot have both this witness and a *computable*
-`TuringComplete` witness is true but **meta-theoretic**, and subtler than
-"the halting problem is undecidable": `simulates` is one-directional, so a
-compiled program may halt where its URM diverges, and deciding the target's
-halting does not decide the URM's. The argument that does work: bounded
-search plus a computable `compile` would make "the decoded answer of the
-compiled run, when it halts" a total computable extension of the URM result
-function, which the recursion theorem forbids. Neither argument can be run
-inside Lean — "computable" is not a predicate Lean can state about its own
-functions, and without it `TuringComplete` *is* (noncomputably) inhabitable
-for bounded languages; see the `TuringComplete` docstring. -/
+With an effective compiler, `TuringComplete.halts_iff` reduces URM halting
+to target halting. Deciding the latter would decide the former, contradicting
+the classical undecidability theorem. The effectiveness requirement is
+meta-theoretic: Lean does not express computability of arbitrary Lean
+functions here, and a noncomputable compiler can use a halting oracle for
+some bounded-storage targets. See the `TuringComplete` docstring. -/
 def halting_decidable (b : BoundedRun L) (p : ProgLang.Prog L) (i : Input) :
     Decidable (∃ n, (ProgLang.run p i n).isHalted = true) :=
   decidable_of_iff _ (b.halts_iff_search p i).symm

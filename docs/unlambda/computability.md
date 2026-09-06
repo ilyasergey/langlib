@@ -1,6 +1,6 @@
 # Unlambda is Turing complete
 
-[`Langlib/Computability/Unlambda.lean`](../Langlib/Computability/Unlambda.lean)
+[`Langlib/Computability/Unlambda.lean`](../../Langlib/Computability/Unlambda.lean)
 compiles an arbitrary unlimited register machine into Unlambda and proves the
 simulation. The result is the term
 
@@ -9,7 +9,7 @@ def unlambdaComplete : TuringComplete UnlambdaLang
 ```
 
 which is langlib's statement of the claim, in the sense fixed once for every
-language by [`Langlib/Common/Computability.lean`](../Langlib/Common/Computability.lean).
+language by [`Langlib/Common/Computability.lean`](../../Langlib/Common/Computability.lean).
 
 Every other completeness proof in the library simulates a register machine
 with a machine: a tape, a stack, a memory, a playfield. Unlambda has none of
@@ -18,11 +18,12 @@ argument here is bracket abstraction, the translation Schonfinkel and Curry
 used to eliminate variables, applied to a program written in a lambda
 notation that exists only inside the proof.
 
-The original TC witness retains **forward answer preservation**. The separate
-[`unlambdaDivergencePreserving`](../Langlib/Computability/Unlambda/Divergence.lean)
-witness now proves divergence preservation for that same compiler: every
-finite budget on a divergent URM input yields `.outOfFuel`. Its positive CEK
-prefixes follow the guard and terminating body back to the recursive call.
+[`unlambdaComplete`](../../Langlib/Computability/Unlambda.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Langlib/Computability/Unlambda/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
+Positive CEK prefixes follow the guard and terminating body back to the recursive call.
 
 ## The statement
 
@@ -34,7 +35,7 @@ theorem simulation (P : Program) (inputs : List Nat) (result : Nat)
 ```
 
 `HaltsWithResult` is cslib's, `evalProg` is our reference interpreter from
-[`Langlib/Languages/Unlambda/Semantics.lean`](../Langlib/Languages/Unlambda/Semantics.lean),
+[`Langlib/Languages/Unlambda/Semantics.lean`](../../Langlib/Languages/Unlambda/Semantics.lean),
 and the fuel bound is existential. Read it as: whenever the register machine
 halts with `result` in register 0, the compiled Unlambda term halts too, and
 its output decodes to `result`.
@@ -60,7 +61,7 @@ from the start.
 ## Two halves, and only one of them is new
 
 The register-machine half of this compiler is shared. `counterProgram` in
-[`Langlib/Computability/Counter.lean`](../Langlib/Computability/Counter.lean)
+[`Langlib/Computability/Counter.lean`](../../Langlib/Computability/Counter.lean)
 already turns a URM program and its input vector into the structured counter
 machine `Cmd`: increment a register, decrement a register, emit one byte, and
 `loop r b`, which runs `b` while register `r` is nonzero. It ends by emitting
@@ -91,7 +92,7 @@ The **answer** comes back in unary. Every byte the compiled term prints is
 the same one, so `decodeOutput` is the length of the output, and there is
 nothing to overflow and no decoder lemma to prove. For a large answer this is
 absurd, and for a proof it is exactly right. See "the two traps" in
-[agent-brief-completeness.md](agent-brief-completeness.md).
+[agent-brief-completeness.md](../agent-brief-completeness.md).
 
 ## Bracket abstraction, and the clause that had to go
 
@@ -209,7 +210,7 @@ unrolled register accesses. This compiler exists to be proved, not to be run,
 and the numbers are the honest evidence of what that trade costs.
 
 The differential tests in
-[`Langlib/Tests/URMUnlambda.lean`](../Langlib/Tests/URMUnlambda.lean) run four
+[`Langlib/Tests/URMUnlambda.lean`](../../Langlib/Tests/URMUnlambda.lean) run four
 small URM programs through both the executable URM interpreter and the
 compiled Unlambda, and compare the decoded answers. A fifth case pins the
 compiled size so that a regression in the encoding shows up as a test
@@ -238,7 +239,7 @@ lake env lean scripts/axioms.lean
 
 ## Preserving divergence
 
-[`Unlambda/Divergence.lean`](../Langlib/Computability/Unlambda/Divergence.lean)
+[`Unlambda/Divergence.lean`](../../Langlib/Computability/Unlambda/Divergence.lean)
 proves this for the unchanged compiler. `selfE_unfold_progress` follows the
 strict fixed point into its functional under an arbitrary continuation.
 `lam_app_prefix` evaluates the two parts of an abstracted application and
@@ -267,20 +268,18 @@ the CEK machine), and `simulation` composing them.
 every partial computable function. That is Shepherdson and Sturgis 1963;
 cslib proves no equivalence between URM-computability and any other model.
 `computes_of_turingComplete` in
-[`Langlib/Common/Computability.lean`](../Langlib/Common/Computability.lean)
+[`Langlib/Common/Computability.lean`](../../Langlib/Common/Computability.lean)
 is the honest form of what follows.
 
 **Not proved, and not claimed**:
 
-* Divergence preservation. `simulation` constrains halting runs only, so
-  nothing here says that a compiled term loops when the URM does.
 * Anything about `c` or `d`. The compiler never emits them and the proof
   never reasons about them. Unlambda with call/cc is a strictly larger
   language than the one shown complete here, and the completeness of the
   smaller one settles the larger one only in the direction that matters.
 * Anything about SKI. The SKI calculus in
-  [`Langlib/Languages/Ski/`](../Langlib/Languages/Ski/) is the same
+  [`Langlib/Languages/Ski/`](../../Langlib/Languages/Ski) is the same
   combinators under normal-order reduction to normal form, and its answer is
   the normal form rather than a stream of printed bytes, so the witness here
-  does not transfer to it. Its proof is a separate obligation, still open;
-  see [PLAN.md](PLAN.md).
+  does not transfer to it. SKI has its own completed
+  [answer and divergence proofs](../ski/computability.md).

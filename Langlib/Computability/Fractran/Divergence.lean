@@ -1,4 +1,4 @@
-import Langlib.Computability.Fractran
+import Langlib.Computability.Fractran.Simulation
 import Langlib.Computability.Divergence
 
 /-! # FRACTRAN preserves URM divergence -/
@@ -165,14 +165,3 @@ theorem preserves_divergence (P : Program) (inputs : List Nat)
   exact core_diverges P inputs hd fuel
 
 end Langlib.Computability.URMFractran
-
-namespace Langlib.Computability
-
-open Langlib.Common
-
-/-- The original FRACTRAN compiler, with divergence preservation. -/
-def fractranDivergencePreserving : DivergencePreservingTC FractranLang where
-  toTuringComplete := fractranComplete
-  preserves_divergence := URMFractran.preserves_divergence
-
-end Langlib.Computability

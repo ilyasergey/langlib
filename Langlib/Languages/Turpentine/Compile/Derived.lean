@@ -17,8 +17,10 @@ import Langlib.Languages.Turpentine.Compile.URM
 `Langlib/Languages/Turpentine/Compile/URM.lean` compiles a fragment of
 Turpentine into cslib's unlimited register machine and proves the
 simulation. A `TuringComplete L` witness compiles an arbitrary URM into `L`
-and proves *its* simulation. Composing the two gives a verified compiler
-from Turpentine into `L`, and this file is that composition.
+and proves both answer and divergence preservation. Composing the forward
+simulations gives a verified compiler from Turpentine into `L`, and this
+file is that composition. Its `CertifiedCompiler` contract remains forward:
+divergence of the Turpentine-to-URM translation is a separate obligation.
 
 The point of writing it as one `derived` construction rather than as one
 definition per language is that `derived` quantifies over `L` and over the
@@ -174,7 +176,7 @@ for a small machine, because the whole register file is one variable -- and
 its *text* is not, because each of those statements carries a prime as a
 decimal numeral and Velato spends one note per digit. `sumsq.turp` comes out
 at 509 kB of note names, against subleq's 1.8 kB and brainfuck's 1.2 MB.
-`docs/computability-velato.md` measures this. -/
+`docs/velato/computability.md` measures this. -/
 def derivedVelato : TurpentineCompiler VelatoLang := derived velatoComplete
 
 /-- **Two verified Turpentine compilers for one target agree**:

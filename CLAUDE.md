@@ -33,6 +33,9 @@ taught it to you.
   helpers, test harness) lives in `Langlib/Common/`.
 * Documentation for each language goes to `docs/<langname>/` (lowercase),
   Lean code to `Langlib/Languages/<Langname>/` (capitalised Lean module name).
+  Per-language computability accounts live in `docs/<langname>/computability.md`.
+  Numbered source links must point to the exact declaration line; update
+  both the path and line number when moving a definition or its proof.
 * Example programs go to `Langlib/Examples/<Langname>/`, using the
   language's customary file extension. Language READMEs link their example
   folder and test module with relative markdown links (e.g.
@@ -68,17 +71,20 @@ taught it to you.
   be recorded in the language's doc page with a source.
 * No `sorry` on master. Proofs may be staged, but stubs must be `axiom`-free
   and clearly tracked in `docs/PLAN.md`.
-* `TuringComplete` proves forward answer preservation. Stronger claims use
-  `DivergencePreservingTC`: divergent URM inputs must yield `.outOfFuel` at
-  every finite target fuel, independently of decoding. Upgrade each witness
-  with its own proof; a decoded-result iff alone allows undecodable halts.
-  Track upgrades in `docs/divergence-preservation.md` and `docs/PLAN.md`. Shared
-  positive-cost simulation lives in `Langlib/Common/Divergence.lean`
-  (`ReachesPlus`, free of Mathlib); continuing URM execution lives in
-  `Langlib/Computability/Divergence.lean`. Put stronger witnesses in
-  `Langlib/Computability/<Language>/Divergence.lean` and inherit the original
-  `toTuringComplete`. A zero-cost `Reaches` cycle does not prove divergence;
-  self-jumps must also consume positive target fuel.
+* `TuringComplete` requires both forward answer preservation and divergence
+  preservation: divergent URM inputs must yield `.outOfFuel` at every finite
+  target fuel, independently of decoding. Prove both fields for each runnable
+  compiler; a decoded-result iff alone allows undecodable halts. The shared
+  consequences and proof routes are in `docs/divergence-preservation.md`.
+  Put compilers, forward proofs and language instances in
+  `Langlib/Computability/<Language>/Simulation.lean`, operational divergence
+  proofs in its sibling `Divergence.lean`, and assemble `<lang>Complete` in
+  the public `Langlib/Computability/<Language>.lean` module, which imports
+  `Divergence`. This order avoids a circular dependency. Shared positive-cost
+  simulation lives in `Langlib/Common/Divergence.lean` (`ReachesPlus`, free
+  of Mathlib); continuing URM execution lives in
+  `Langlib/Computability/Divergence.lean`. A zero-cost `Reaches` cycle does
+  not prove divergence; self-jumps must also consume positive target fuel.
 
 ## Documentation policy
 

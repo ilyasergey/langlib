@@ -15,7 +15,7 @@ lake exe turpentine exec    --via velato prog.turp                    # compile 
   input included.
 * **certified** — [`derivedVelato`](../../Langlib/Languages/Turpentine/Compile/Derived.lean),
   correct by construction, obtained from
-  [Velato's completeness proof](../computability-velato.md) with no new
+  [Velato's completeness proof](computability.md) with no new
   proof written, and enormous.
 
 ## The bespoke backend
@@ -182,7 +182,7 @@ and Velato spends one note per digit. `sumsq.turp` comes out at:
 | **velato** | **509 kB** |
 | brainfuck | 1.2 MB |
 
-[docs/computability-velato.md](../computability-velato.md) explains where
+[docs/velato/computability.md](computability.md) explains where
 that goes.
 
 ## A program, end to end: Turpentine in, music out
@@ -374,7 +374,7 @@ Velato that goes missing; Velato itself is covered whole. The interpreter in
 [`Langlib/Languages/Velato/Semantics.lean`](../../Langlib/Languages/Velato/Semantics.lean)
 implements the entire language, and Velato's Turing completeness is proved
 outright, on all of it, by
-[`velatoComplete`](../../Langlib/Computability/Velato.lean#L745). Nothing in
+[`velatoComplete`](../../Langlib/Computability/Velato.lean#L43). Nothing in
 this directory is a partial account of the target.
 
 What narrows is which Turpentine programs the correctness theorem talks
@@ -382,17 +382,20 @@ about, and it narrows in four layers that are easy to conflate:
 
 | layer | narrowed by | what it excludes |
 | --- | --- | --- |
-| what the backend accepts | Velato's expressiveness | arrays, `readInt`, `assert`; see [What is refused](#what-is-refused-and-why) |
+| what the backend accepts | the current translation and target primitives | arrays, `readInt`, `assert`; see [What is refused](#what-is-refused-and-why) |
 | what the proof covers | our proof effort so far | additionally `/`, `%`, initialisers, duplicate names, and programs with no `answer : int` |
 | what the proof cannot cover | a real disagreement | `printByte`, where the compiled program and the source disagree above 127 |
 | what the specification assumes | Velato's `Input` | streams containing a NUL byte |
 
-Only the second layer is about effort rather than about the languages, and
-only it will move. The first will not: Velato has no arrays and no way to
-fail, so no amount of proving will let `a[i]` or `assert` through. The
-third and fourth are places where source and target genuinely disagree,
-recorded rather than papered over; widening the fragment to admit them
-would make the theorem false.
+The first two layers require different work: accepting arrays or `readInt`
+needs additional translation code, while widening the certified fragment
+needs proofs about code already generated. The
+[completeness proof](computability.md) already encodes an unbounded register
+file in one integer, so the absence of primitive arrays is not a storage
+bound. Runtime errors need an explicit representation because Velato has no
+`assert` trap. The third and fourth rows are observable disagreements;
+widening the theorem to admit those cases without changing the translation
+or its input/output contract would make it false.
 
 A program in the fragment is compiled by exactly the same code generator
 that compiles everything else. `bespokeCompile` is `checkFragment` followed

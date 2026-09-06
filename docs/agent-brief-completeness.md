@@ -7,7 +7,7 @@ explains why the task is shaped the way it is; read it before adapting.
 ## Why these two jobs are one job
 
 A Turing-completeness proof in LangLib is not a certificate filed away.
-`TuringComplete L` ([Computability.lean:120](../Langlib/Common/Computability.lean#L120))
+`TuringComplete L` ([Computability.lean:115](../Langlib/Common/Computability.lean#L115))
 is a *witness*: it carries a real compiler from the unlimited register
 machine into `L`, plus a proof that the compiled program simulates. So the
 moment somebody proves `<LANG>` complete, `<LANG>` also acquires a verified
@@ -32,25 +32,20 @@ the theorem that makes the composition work.
 
 ## The two traps
 
-**Overclaiming.** `TuringComplete L` says the language simulates every URM
-program that halts. It does not say the language computes every partial
-computable function: that step is a cited classical result (Shepherdson and
-Sturgis 1963), because cslib proves no equivalence between URM-computability
-and any other model. It also says nothing about divergence, since
-`simulates` constrains halting runs only. Say both things in the docs; do
-not blur them. `computes_of_turingComplete` in
-`Langlib/Common/Computability.lean` is the honest
-statement of what follows for the existing witnesses.
+**Overclaiming.** `TuringComplete L` requires both answer preservation on
+halting URM inputs and `.outOfFuel` at every finite target fuel on divergent
+inputs. It proves halting/result equivalence, output validity and error
+freedom. Prove the independent `preserves_divergence` field; forward
+simulation, lawfulness, or an iff about successfully decoded results does
+not rule out a spurious normal halt with `decodeOutput = none`.
+See [the interface and proof routes](divergence-preservation.md).
 
-For the stronger claim, add a separate `DivergencePreservingTC` witness with
-`toTuringComplete := <lang>Complete`. Prove its `preserves_divergence` field:
-for divergent URM inputs, every finite target fuel must yield `.outOfFuel`.
-Do not infer this from forward simulation, lawfulness, or an iff about
-successfully decoded results: that iff still permits a normal halt with
-`decodeOutput = none`. The new interface proves halting equivalence, result
-equivalence, output validity and error freedom generically. See
-[the migration plan](divergence-preservation.md); upgrade witnesses only when
-their additional proofs exist.
+The identification of URM-computability with partial computability in other
+models remains a cited classical result (Shepherdson and Sturgis 1963):
+cslib proves no equivalence with another model. `computes_of_turingComplete`
+states the defined-input corollary in cslib's own vocabulary; `halts_iff`
+also reflects halting independently of decoding. Keep this distinction
+explicit in the docs.
 
 **Choosing a representation that caps the range.** The natural instinct is
 to reuse whatever the hand-written backend does. For a bounded-cell target
@@ -79,9 +74,9 @@ proved, not to be run.
 > - `Langlib/Common/Computability.lean` (`TuringComplete`,
 >   `BoundedStorage`, and `computes_of_turingComplete`)
 > - **`Langlib/Computability/Whitespace.lean`**, the finished, axiom-clean
->   instance. This is your model: match how it lays out its compiler, states
->   `simulation`, and structures the induction. These proofs should look
->   alike.
+>   instance, and its `Whitespace/Simulation.lean` and
+>   `Whitespace/Divergence.lean` proof modules. Match that dependency order:
+>   runnable compiler and forward proof, operational divergence, then witness.
 > - `Langlib/Computability/URM.lean` and cslib's
 >   `Cslib/Computability/URM/{Defs,Execution,Basic}.lean` in
 >   `.lake/packages/cslib/`. Instructions are `Z n` (zero), `S n`
@@ -99,8 +94,11 @@ proved, not to be run.
 > 1. `Langlib/Computability/<LANG>.lean` (namespace `Langlib.Computability`)
 >    with: a `ProgLang` instance if one does not exist; a total, runnable
 >    `compile : URM.Program → List Nat → <LANG>.Prog` that `#eval` can
->    apply; `encodeInput` and `decodeOutput`; the `simulation` theorem; and
->    `<lang>Complete : TuringComplete <LANG>Lang`.
+>    apply; `encodeInput` and `decodeOutput`; both `simulation` and
+>    `preserves_divergence`; and `<lang>Complete : TuringComplete <LANG>Lang`.
+>    Put the compiler and forward proof in `<LANG>/Simulation.lean`, the
+>    divergence proof in `<LANG>/Divergence.lean`, and assemble the witness
+>    in the public `<LANG>.lean` module.
 > 2. Append your declarations to `scripts/axioms.lean` and verify with
 >    `lake env lean scripts/axioms.lean` that each reports only
 >    `[propext, Classical.choice, Quot.sound]`.
@@ -109,7 +107,7 @@ proved, not to be run.
 >    (a constant, addition, a copy loop, a backward `J` jump) and run them
 >    on our interpreter, checking decoded answers. Keep programs tiny and
 >    fuel generous, and note in a comment that the output is huge by design.
-> 4. `docs/computability-<lang>.md`: the representation, why it was chosen,
+> 4. `docs/<lang>/computability.md`: the representation, why it was chosen,
 >    the shape of the simulation, the measured cost of compiled output, and
 >    a plain statement of what is proved versus what is cited or open.
 >
@@ -126,8 +124,8 @@ proved, not to be run.
 > - Other agents may share this checkout. NEVER run bare `lake build` or
 >   `lake test`; build only your own targets by name. On lake lock or busy
 >   errors, sleep a few seconds and retry.
-> - You own: `Langlib/Computability/<LANG>.lean`,
->   `Langlib/Tests/URM<Lang>.lean`, `docs/computability-<lang>.md`, and
+> - You own: `Langlib/Computability/<LANG>.lean` and its `<LANG>/` proof modules,
+>   `Langlib/Tests/URM<Lang>.lean`, `docs/<lang>/computability.md`, and
 >   appending to `scripts/axioms.lean`.
 > - Do NOT edit: `lakefile.toml`, `Langlib.lean`, `Langlib/Tests/Main.lean`,
 >   `Langlib/Common/**`, `Langlib/Computability/{Class,URM,Whitespace}.lean`
@@ -162,7 +160,7 @@ machine simulations at all.
 
 Read `Langlib/Computability/Unlambda.lean` and
 `Langlib/Computability/Ski.lean` before taking a functional target, and read
-`docs/computability-ski.md` on why the first of them did not transfer to the
+`docs/ski/computability.md` on why the first of them did not transfer to the
 second. Its front half is the shared counter machine of
 `Langlib/Computability/Counter.lean`, extracted from the brainfuck proof
 precisely so that a new backend has only four commands to interpret; its
@@ -188,7 +186,7 @@ decidability consequence is proved once in `halting_decidable`, so a new
 language supplies only its bound.
 
 If you take a bounded language next, read
-[computability-malbolge.md](computability-malbolge.md) first: it is the one
+[malbolge/computability.md](malbolge/computability.md) first: it is the one
 whose state type is not finite by construction, so it shows the general
 shape (a step function the evaluator does not give you, an invariant
 carried through every instruction, and a proof that the finite part

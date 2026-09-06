@@ -70,10 +70,10 @@ that do read.
 
 Turpentine's compilers are this type at Turpentine's own specification, one
 line in
-[`Derived.lean`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L82):
+[`Derived.lean`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L85):
 
 ```lean
-abbrev TurpentineCompiler (L : Type) [ProgLang L] :=
+abbrev TurpentineCompiler (L : Type) [ProgLang L] [LawfulProgLang L] :=
   CertifiedCompiler TurpentineHaltsWith L
 ```
 
@@ -110,18 +110,24 @@ decoder that ignores the output, and neither does.
 It is free of Mathlib and of cslib, deliberately, so a hand-written backend
 can state and prove its own correctness without either reaching the
 interpreters. Only the *computability* half of the story —
-[`TuringComplete`](../Langlib/Common/Computability.lean#L120),
-[`BoundedStorage`](../Langlib/Common/Computability.lean#L355), and
-[the bridge to cslib's vocabulary](../Langlib/Common/Computability.lean#L303)
+[`TuringComplete`](../Langlib/Common/Computability.lean#L115),
+[`BoundedStorage`](../Langlib/Common/Computability.lean#L338), and
+[the bridge to cslib's vocabulary](../Langlib/Common/Computability.lean#L286)
 — needs a universal model, and it lives next door in
 [`Langlib/Common/Computability.lean`](../Langlib/Common/Computability.lean).
 
-The separate [`DivergencePreservingTC`](divergence-preservation.md)
-extension now states divergence-preserving URM simulation and proves
-halting/result equivalence, output validity and error freedom. Existing TC
-witnesses and derived compilers still establish forward answer preservation.
-All eleven URM-to-target witnesses now have separately proved upgrades. Upgrading a witness does
-not automatically strengthen the Turpentine-to-URM translation.
+[`TuringComplete`](divergence-preservation.md) now requires both forward
+answer preservation and divergence-preserving URM simulation. All eleven
+witnesses prove `.outOfFuel` at **every** finite target fuel on divergent
+source inputs, independently of decoding. The shared consequences are
+halting and result equivalences, output validity, and error freedom.
+An iff about decoded results alone would still permit undecodable halts.
+
+The runnable compilers are unchanged. The derived Turpentine compilers keep
+their forward `CertifiedCompiler` specification: the stronger URM-to-target
+witness does not automatically prove divergence preservation for the
+Turpentine-to-URM half. [The proof notes](divergence-preservation.md)
+record the individual target proofs.
 
 ### 1.2 Behaviour preservation
 
@@ -401,7 +407,7 @@ naturals, and four instructions — `Z n` (zero a register), `S n`
 `n` are equal). It is the yardstick LangLib measures languages against, and
 it comes from [cslib](https://github.com/leanprover/cslib) rather than being
 defined here. Proving a language Turing complete means producing a
-[`TuringComplete L`](../Langlib/Common/Computability.lean#L120) witness,
+[`TuringComplete L`](../Langlib/Common/Computability.lean#L115) witness,
 which *contains a verified compiler from URM programs into `L`*.
 
 That is the observation the whole route rests on. Half of a
@@ -430,12 +436,12 @@ and every target shares it.
 of `tc : TuringComplete L`, and its theorem `tc.simulates` says a halting URM
 run becomes a halting `L` run whose output decodes to the same answer.
 Whitespace's, for instance, is
-[`compile`](../Langlib/Computability/Whitespace.lean#L126) and
-[`simulation`](../Langlib/Computability/Whitespace.lean#L1051), inside
-[`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L1147).
+[`compile`](../Langlib/Computability/Whitespace/Simulation.lean#L126) and
+[`simulation`](../Langlib/Computability/Whitespace/Simulation.lean#L1051), inside
+[`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L24).
 
 **The composition** is
-[`derived`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L96), one
+[`derived`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L99), one
 function quantifying over an arbitrary `L` and an arbitrary witness:
 
 ```lean
@@ -445,16 +451,16 @@ def derived [ProgLang L] (tc : TuringComplete L) : TurpentineCompiler L
 so it is proved once and every completeness proof landing afterwards yields a
 verified Turpentine compiler by applying it. Eight exist today, each one line
 and no new proof:
-[whitespace](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114),
-[subleq](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118),
-[brainfuck](../Langlib/Languages/Turpentine/Compile/Derived.lean#L122),
-[FRACTRAN](../Langlib/Languages/Turpentine/Compile/Derived.lean#L127),
-[Thue](../Langlib/Languages/Turpentine/Compile/Derived.lean#L133),
-[Piet](../Langlib/Languages/Turpentine/Compile/Derived.lean#L139),
-[Ook!](../Langlib/Languages/Turpentine/Compile/Derived.lean#L145),
-[Brainloller](../Langlib/Languages/Turpentine/Compile/Derived.lean#L150),
-[Unlambda](../Langlib/Languages/Turpentine/Compile/Derived.lean#L156) and
-[SKI](../Langlib/Languages/Turpentine/Compile/Derived.lean#L163).
+[whitespace](../Langlib/Languages/Turpentine/Compile/Derived.lean#L117),
+[subleq](../Langlib/Languages/Turpentine/Compile/Derived.lean#L121),
+[brainfuck](../Langlib/Languages/Turpentine/Compile/Derived.lean#L125),
+[FRACTRAN](../Langlib/Languages/Turpentine/Compile/Derived.lean#L130),
+[Thue](../Langlib/Languages/Turpentine/Compile/Derived.lean#L136),
+[Piet](../Langlib/Languages/Turpentine/Compile/Derived.lean#L142),
+[Ook!](../Langlib/Languages/Turpentine/Compile/Derived.lean#L148),
+[Brainloller](../Langlib/Languages/Turpentine/Compile/Derived.lean#L153),
+[Unlambda](../Langlib/Languages/Turpentine/Compile/Derived.lean#L159) and
+[SKI](../Langlib/Languages/Turpentine/Compile/Derived.lean#L166).
 
 ### 2.1 The first hop, in detail
 
@@ -780,18 +786,19 @@ The compilers people actually run are hand-written per target:
 [whitespace](../Langlib/Languages/Turpentine/Compile/Whitespace.lean),
 [subleq](../Langlib/Languages/Turpentine/Compile/Subleq.lean),
 [Ook!](../Langlib/Languages/Turpentine/Compile/Ook.lean) and
-[Brainloller](../Langlib/Languages/Turpentine/Compile/Brainloller.lean).
+[Brainloller](../Langlib/Languages/Turpentine/Compile/Brainloller.lean), among others.
 They accept the *entire* language — I/O and negative integers included — and
 emit output a person could plausibly run. Verifying one is real per-language
-proof work, and two have been done.
+proof work; Whitespace, Subleq and Velato have certified fragments.
 
-Both are second inhabitants of `TurpentineCompiler` beside the derived one,
+Each supplies another inhabitant of `TurpentineCompiler` beside the derived one,
 which is the whole point: with two inhabitants,
-[`agree`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L174) applies,
+[`agree`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L191) applies,
 and "the derived compiler is an oracle for the hand-written one" stops being
 a testing practice and becomes a corollary
 ([`bespokeSubleq_agrees_derived`](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L681),
-[`bespokeWhitespace_agrees_derived`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3824)).
+[`bespokeWhitespace_agrees_derived`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3824),
+[`bespokeVelato_agrees_derived`](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2053)).
 
 **[`bespokeWhitespace`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3770)**
 covers the larger fragment: scalar `int` and `bool` declarations without
@@ -812,7 +819,13 @@ relate printed bytes to the source value. The backend prints integers with a
 of a self-modifying calling convention; proving *that* correct is a large
 arithmetic development, and it is not attempted.
 
-**The two fragments are incomparable**, which is the useful part. The
+**[`bespokeVelato`](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2015)**
+covers scalar programs with output, and
+[`bespokeVelatoIO`](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032)
+also certifies `readByte` on NUL-free streams. Its
+[compiler notes](velato/compiler.md) give the exact fragment and encodings.
+
+**The bespoke Whitespace and derived fragments are incomparable**, which is the useful part. The
 bespoke whitespace fragment has subtraction and negative integers, which the
 derived route cannot express because a register holds a natural; the derived
 route has arrays, division and modulo, which the bespoke proof leaves out. So
@@ -842,7 +855,7 @@ hand-written backends redundant. It does not.
 | | bespoke | derived |
 |---|---|---|
 | written by | hand, per language | composition, once |
-| verified | whitespace and subleq, on fragments | by construction, all ten |
+| verified | whitespace, subleq and velato, on fragments | by construction, all eleven |
 | fragment | the whole language | I/O-free, non-negative, no `-` |
 | output size | small | 13× to 16× larger, and much slower; for the two combinator targets, larger and slower again by orders of magnitude |
 | purpose | running programs | proving, and testing the other one |

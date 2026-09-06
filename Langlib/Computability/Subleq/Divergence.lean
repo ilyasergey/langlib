@@ -1,4 +1,4 @@
-import Langlib.Computability.Subleq
+import Langlib.Computability.Subleq.Simulation
 import Langlib.Computability.Divergence
 
 /-! # Subleq preserves URM divergence -/
@@ -130,15 +130,3 @@ theorem preserves_divergence (P : Program) (inputs : List Nat)
   exact hp.outOfFuel Prod.snd exec_stable ht fuel
 
 end Langlib.Computability.URMSubleq
-
-namespace Langlib.Computability
-
-open Langlib.Common
-
-/-- The original Subleq compiler, with divergence preservation. -/
-def subleqDivergencePreserving : DivergencePreservingTC SubleqLang where
-  toTuringComplete := subleqComplete
-  preserves_divergence := fun P inputs hd fuel =>
-    URMSubleq.preserves_divergence P inputs hd (Input.ofString "") fuel
-
-end Langlib.Computability

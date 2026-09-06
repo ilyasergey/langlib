@@ -173,7 +173,7 @@ imported into the compiled test executable, and why the suite below now runs
 as part of `lake test`. The cardinality is a theorem, not a table.
 
 The fixed memory bound is the restriction removed by Malbolge Unshackled.
-See [the compiler note](malbolge/compiler.md) for the practical consequence
+See [the compiler note](compiler.md) for the practical consequence
 for source-language compilation: LangLib does compile Turpentine to
 Malbolge, but the backend is bounded by this theorem rather than by
 effort, and it reports the bound in bytes of output. A code row of 29157
@@ -232,7 +232,7 @@ all 718 tests passed
 ```
 
 Every declaration on this page is listed in
-[`scripts/axioms.lean`](../scripts/axioms.lean), which prints the axioms
+[`scripts/axioms.lean`](../../scripts/axioms.lean), which prints the axioms
 each one rests on. The cardinality theorems, the run invariant, the
 configuration extensionality lemma, the `BoundedRun` witness and the
 halting decision all report only `propext`, `Classical.choice` and

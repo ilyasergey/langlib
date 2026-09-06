@@ -19,10 +19,10 @@
   - runner `lake exe malbolge-unshackled`,
   - [examples](../../Langlib/Examples/MalbolgeUnshackled/),
   - tests in [`Langlib/Tests/MalbolgeUnshackled.lean`](../../Langlib/Tests/MalbolgeUnshackled.lean),
-  - the ground floor of a completeness proof, not yet a witness, in [`Langlib/Computability/MalbolgeUnshackled.lean`](../../Langlib/Computability/MalbolgeUnshackled.lean) and [docs/computability-malbolge-unshackled.md](../computability-malbolge-unshackled.md), with running notes in [completeness-progress.md](completeness-progress.md), and
+  - the ground floor of a completeness proof, not yet a witness, in [`Langlib/Computability/MalbolgeUnshackled.lean`](../../Langlib/Computability/MalbolgeUnshackled.lean) and [docs/malbolge-unshackled/computability.md](computability.md), with running notes in [completeness-progress.md](completeness-progress.md), and
   - a Turpentine backend over the input-free fragment in [`Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean`](../../Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean) ([docs/malbolge-unshackled/compiler.md](compiler.md))
 * **See also**: [Malbolge](../malbolge/spec.md), the bounded original, and
-  [its computability page](../computability-malbolge.md), which proves that
+  [its computability page](../malbolge/computability.md), which proves that
   the bound makes Malbolge's halting problem decidable.
 
 ## Why the variant exists

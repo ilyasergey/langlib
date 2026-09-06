@@ -1,4 +1,4 @@
-import Langlib.Computability.Piet
+import Langlib.Computability.Piet.Simulation
 import Langlib.Computability.Divergence
 
 /-! # Piet preserves URM divergence -/
@@ -136,14 +136,3 @@ theorem preserves_divergence (P : Program) (inputs : List Nat)
   exact hstart
 
 end Langlib.Computability.URMPiet
-
-namespace Langlib.Computability
-
-open Langlib.Common
-
-/-- The original Piet image compiler, with divergence preservation. -/
-def pietDivergencePreserving : DivergencePreservingTC PietLang where
-  toTuringComplete := pietComplete
-  preserves_divergence := URMPiet.preserves_divergence
-
-end Langlib.Computability

@@ -11,11 +11,10 @@ The witness contains a runnable fraction-list compiler, an input-dependent
 positive starting integer, an output decoder, and a proof through the real
 fuel-based FRACTRAN interpreter.
 
-The original witness retains the **forward answer-preservation** interface.
-The separate [`fractranDivergencePreserving`](../Langlib/Computability/Fractran/Divergence.lean)
-witness proves divergence preservation for that same compiler; the
-[shared interface](divergence-preservation.md) then gives halting and result
-equivalence, output validity, and error freedom.
+[`fractranComplete`](../../Langlib/Computability/Fractran.lean) combines this
+halting simulation with the [divergence proof](../../Langlib/Computability/Fractran/Divergence.lean)
+for the same compiler. The [shared interface](../divergence-preservation.md)
+gives halting and result equivalence, output validity, and error freedom.
 
 ## Prime-exponent representation
 
@@ -129,10 +128,9 @@ theorem simulation (P : Program) (inputs : List Nat) (result : Nat)
           (compileProgram P inputs).start fuel).output = some result
 ```
 
-As with the shared `TuringComplete` interface, this is the defined, halting
-direction. The separate
-[`fractranDivergencePreserving`](../Langlib/Computability/Fractran/Divergence.lean)
-witness now proves the divergent direction through nonempty rule sequences.
+This supplies the defined, halting direction of `TuringComplete`. The
+companion [divergence proof](../../Langlib/Computability/Fractran/Divergence.lean)
+supplies its other field through nonempty rule sequences.
 Self-jumps need particular care: a reflexive forward proof is insufficient,
 so the proof follows the compiler’s actual alternating-marker cycle.
 

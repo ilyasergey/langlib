@@ -6,11 +6,11 @@ string, and execution rewrites the string until no rule applies. The full
 specification, history, and the exact semantic choices are in
 [docs/thue/spec.md](../../../docs/thue/spec.md).
 
-The original TC witness retains **forward answer preservation**. The separate
-[`thueDivergencePreserving`](../../Computability/Thue/Divergence.lean)
-witness proves divergence preservation for the same compiler: every finite
-budget on a divergent URM input yields `.outOfFuel`. It also supplies
-[halting and result equivalence, output validity, and error freedom](../../../docs/divergence-preservation.md).
+[`thueComplete`](../../Computability/Thue.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Computability/Thue/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../../../docs/divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
 
 ## Modules
 

@@ -1,22 +1,22 @@
-import Langlib.Computability.Brainloller
+import Langlib.Computability.Brainloller.Simulation
 import Langlib.Computability.Brainfuck.Divergence
 
 /-! # Brainloller preserves URM divergence
 
 The existing program representation and evaluator agree definitionally with
-Brainfuck, so the established Brainfuck divergence proof applies directly.
-
-This concerns the existing decoded-program interface; the separate pixel-walk
-obligation is unchanged.
+Brainfuck, so its divergence proof transfers to the same compiled programs.
+This is the decoded-program interface; the pixel-walk obligation is separate.
 -/
 
-namespace Langlib.Computability
+namespace Langlib.Computability.URMBrainloller
 
 open Langlib.Common
 
-/-- The original Brainloller compiler, with divergence preservation. -/
-def brainlollerDivergencePreserving : DivergencePreservingTC BrainlollerLang where
-  toTuringComplete := brainlollerComplete
-  preserves_divergence := brainfuckDivergencePreserving.preserves_divergence
+/-- The shared Brainfuck execution exhausts every finite fuel on divergent input. -/
+theorem preserves_divergence (P : Cslib.URM.Program) (inputs : List Nat)
+    (hd : Cslib.URM.Diverges P inputs) (fuel : Nat) :
+    (Langlib.Brainfuck.evalProg {} (URMBrainfuck.compile P inputs)
+      (URMBrainfuck.encodeInput inputs) fuel).exit = .outOfFuel :=
+  URMBrainfuck.preserves_divergence P inputs hd (URMBrainfuck.encodeInput inputs) fuel
 
-end Langlib.Computability
+end Langlib.Computability.URMBrainloller

@@ -1,4 +1,4 @@
-import Langlib.Computability.Brainfuck
+import Langlib.Computability.Brainfuck.Simulation
 import Langlib.Computability.Divergence
 
 /-! # Brainfuck preserves URM divergence
@@ -115,15 +115,3 @@ theorem preserves_divergence (P : Cslib.URM.Program) (inputs : List Nat)
     (fun n m q hle hc => Brainfuck.exec_stable {} n m q.1 q.2 hle hc) ht fuel
 
 end Langlib.Computability.URMBrainfuck
-
-namespace Langlib.Computability
-
-open Langlib.Common
-
-/-- The original Brainfuck compiler, with divergence preservation. -/
-def brainfuckDivergencePreserving : DivergencePreservingTC BrainfuckLang where
-  toTuringComplete := brainfuckComplete
-  preserves_divergence := fun P inputs hd fuel =>
-    URMBrainfuck.preserves_divergence P inputs hd (Input.ofString "") fuel
-
-end Langlib.Computability

@@ -1,7 +1,7 @@
 import Langlib.Computability.Thue
 
 /-!
-Size and cost of the generated Thue rulebase, for `docs/computability-thue.md`.
+Size and cost of the generated Thue rulebase, for `docs/thue/computability.md`.
 
 Run from the repository root:
 

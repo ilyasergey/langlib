@@ -10,17 +10,18 @@ specification and the exact semantic choices are in
 It is **proved Turing complete**
 ([`Langlib/Computability/Unlambda.lean`](../../Computability/Unlambda.lean),
 account in
-[docs/computability-unlambda.md](../../../docs/computability-unlambda.md)),
+[docs/unlambda/computability.md](../../../docs/unlambda/computability.md)),
 and it is the first result in the library that is not a machine simulation.
 The proof uses `s`, `k`, `i`, `.x` and application, and nothing else: `d`
 never appears, so the delay rule never fires, and `c` never appears, so no
 continuation is reified.
 
-The original TC witness retains **forward answer preservation**. The separate
-[`unlambdaDivergencePreserving`](../../Computability/Unlambda/Divergence.lean)
-witness now proves divergence preservation for that same compiler: every
-finite budget on a divergent URM input yields `.outOfFuel`. Its positive CEK
-prefixes follow the guard and terminating body back to the recursive call.
+[`unlambdaComplete`](../../Computability/Unlambda.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Computability/Unlambda/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../../../docs/divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
+Positive CEK prefixes follow the guard and terminating body back to the recursive call.
 
 ## Modules
 

@@ -2,7 +2,7 @@
 
 **Construction re-scoped on 2026-09-05.** This is a notebook of local
 results. Its proposed unary-tape architecture is superseded by the
-[proof audit and fixed-counter construction](malbolge-unshackled/proof-audit.md):
+[proof audit and fixed-counter construction](proof-audit.md):
 `RegMem` cannot hold with natural-seeded fill, operand restoration is
 missing, and the width theorem alone does not bound storage. The remaining
 work is more than a walk pass. See the audit for the current dependencies.
@@ -13,14 +13,14 @@ constructive evidence includes Matthias Lutter's
 and the later MalbolgeLisp (2020). Inspecting a working interpreter is not
 itself a proof of its unbounded simulation. LangLib wants the claim as a
 `TuringComplete MalbolgeUnshackledLang` witness, in the sense of
-[`Langlib/Common/Computability.lean`](../Langlib/Common/Computability.lean):
+[`Langlib/Common/Computability.lean`](../../Langlib/Common/Computability.lean):
 a total compiler from the unlimited register machine, plus a simulation
 theorem.
 
 **That witness does not exist yet.** This page says what has been proved,
 what the two real obstructions are, and which route past them the code is
 laid out for. Everything asserted below as proved lives in
-[`Langlib/Computability/MalbolgeUnshackled.lean`](../Langlib/Computability/MalbolgeUnshackled.lean)
+[`Langlib/Computability/MalbolgeUnshackled.lean`](../../Langlib/Computability/MalbolgeUnshackled.lean)
 and is checked by `scripts/axioms.lean`.
 
 ## What is proved
@@ -558,7 +558,7 @@ proof. For any fixed printable word in one background phase,
 later by a halt opcode in the same phase. Neither theorem proves that the
 later address is reached. The recommendation to use finite self-modifying
 control is a construction choice, not an impossibility theorem for all
-fresh-memory designs. See the [audit](malbolge-unshackled/proof-audit.md).
+fresh-memory designs. See the [audit](proof-audit.md).
 
 ## Re-enterable gadgets: the two-sweep discipline
 
@@ -911,17 +911,17 @@ The external constructions include Lutter's 2016 Brainfuck interpreter and
 MalbolgeLisp. The audit describes what still needs a Lean simulation proof.
 
 **Open**: the current dependency-ordered obligations are in the
-[proof audit](malbolge-unshackled/proof-audit.md) and
-[progress tracker](malbolge-unshackled/completeness-progress.md). They
+[proof audit](proof-audit.md) and
+[progress tracker](completeness-progress.md). They
 include reusable runtime arithmetic, width growth with a return path,
 a total layout and source initializer, and the counter simulation.
 The older loop prologue and the general loader fill equation also remain
 unproved. No `TuringComplete` witness exists.
 
 When a witness does land, the two traps in
-[`agent-brief-completeness.md`](agent-brief-completeness.md) apply as they
-do everywhere: `TuringComplete` covers halting runs only and says nothing
-about divergence, and the step from "simulates every URM" to "computes
+[`agent-brief-completeness.md`](../agent-brief-completeness.md) apply as they
+do everywhere: `TuringComplete` requires both halting-answer and divergence
+preservation, and the step from "simulates every URM" to "computes
 every partial computable function" is Shepherdson and Sturgis 1963 rather
 than a Lean proof.
 

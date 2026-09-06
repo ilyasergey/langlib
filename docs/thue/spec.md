@@ -12,13 +12,14 @@
   - runner `lake exe thue`,
   - [examples](../../Langlib/Examples/Thue/),
   - tests in [`Langlib/Tests/Thue.lean`](../../Langlib/Tests/Thue.lean),
-  - Turing completeness in [`Langlib/Computability/Thue.lean`](../../Langlib/Computability/Thue.lean) and [docs/computability-thue.md](../computability-thue.md), and
+  - Turing completeness in [`Langlib/Computability/Thue.lean`](../../Langlib/Computability/Thue.lean) and [docs/thue/computability.md](computability.md), and
   - a certified Turpentine compiler derived from the completeness proof; the hand-written one is still planned ([docs/thue/compiler.md](compiler.md))
 
-The original TC witness establishes **forward answer preservation**. The
-separate [`thueDivergencePreserving`](../../Langlib/Computability/Thue/Divergence.lean)
-witness proves that divergent URM inputs exhaust every finite target budget,
-with [halting and result equivalence, output validity, and error freedom](../divergence-preservation.md).
+[`thueComplete`](../../Langlib/Computability/Thue.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Langlib/Computability/Thue/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
 
 ## History: Axel Thue and semi-Thue systems
 
@@ -38,10 +39,10 @@ constraint-programming Turing tarpit: you do not write instructions, you
 write a grammar and let the string sort itself out. Thue is
 Turing-complete, by the obvious embedding of unrestricted grammars — and
 here that is a theorem rather than an appeal to the obvious:
-[`thueComplete`](../../Langlib/Computability/Thue.lean#L4032) compiles a
+[`thueComplete`](../../Langlib/Computability/Thue.lean#L15) compiles a
 register machine into Thue and proves the compiled rules simulate it under
 this interpreter's own strategy. See
-[docs/computability-thue.md](../computability-thue.md).
+[docs/thue/computability.md](computability.md).
 
 ## The language
 

@@ -1,6 +1,6 @@
 # Subleq is Turing complete
 
-[`Langlib/Computability/Subleq.lean`](../Langlib/Computability/Subleq.lean)
+[`Langlib/Computability/Subleq.lean`](../../Langlib/Computability/Subleq.lean)
 compiles an arbitrary unlimited register machine into subleq and proves the
 simulation. The result is the term
 
@@ -9,10 +9,10 @@ def subleqComplete : TuringComplete SubleqLang
 ```
 
 which is langlib's statement of the claim, in the sense fixed once for every
-language by [`Langlib/Common/Computability.lean`](../Langlib/Common/Computability.lean).
+language by [`Langlib/Common/Computability.lean`](../../Langlib/Common/Computability.lean).
 Because `TuringComplete` is a witness rather than a certificate, subleq also
 acquires a verified compiler from Turpentine the moment `compileToURM` lands;
-see [certified-compilation.md](certified-compilation.md).
+see [certified-compilation.md](../certified-compilation.md).
 
 ## The statement
 
@@ -24,7 +24,7 @@ theorem simulation (P : Program) (inputs : List Nat) (result : Nat)
 ```
 
 `HaltsWithResult` is cslib's, `evalProg` is our reference interpreter from
-[`Langlib/Languages/Subleq/Semantics.lean`](../Langlib/Languages/Subleq/Semantics.lean),
+[`Langlib/Languages/Subleq/Semantics.lean`](../../Langlib/Languages/Subleq/Semantics.lean),
 and the fuel bound is existential. Read it as: whenever the register machine
 halts with `result` in register 0, the compiled subleq image halts too, and
 its output decodes to `result`.
@@ -35,7 +35,7 @@ A URM register `r` is **one memory cell**, at address `regBase P + r`,
 holding the register's value directly.
 
 Subleq words are arbitrary-precision signed integers and its memory is
-unbounded (both are pinned down in [subleq/spec.md](subleq/spec.md)), so
+unbounded (both are pinned down in [subleq/spec.md](spec.md)), so
 there is no encoding problem here at all. The trap the standing brief warns
 about, a fixed-width representation that caps the representable range and
 attaches a side-condition to every arithmetic lemma, does not arise: nothing
@@ -167,7 +167,7 @@ What unary costs and what it does not:
   a million prints a megabyte. The hand-written backend at
   `Langlib/Languages/Turpentine/Compile/Subleq.lean` has a real `printint`; this
   compiler is not for running programs, which
-  [certified-compilation.md](certified-compilation.md) says at more length.
+  [certified-compilation.md](../certified-compilation.md) says at more length.
 
 ## The shape of the proof
 
@@ -248,11 +248,11 @@ consequence: it quantifies over `Cslib.URM.Computable` functions rather than
 over `Nat.Partrec` ones.
 
 **Divergence is now proved separately** in
-[`Subleq/Divergence.lean`](../Langlib/Computability/Subleq/Divergence.lean).
+[`Subleq/Divergence.lean`](../../Langlib/Computability/Subleq/Divergence.lean).
 The block simulation makes positive target progress, including taken
 self-jumps; the intermediate jump prefix witnesses progress even when the
-source boundary does not change. `subleqDivergencePreserving` inherits the
-original compiler.
+source boundary does not change. `subleqComplete` now includes this field
+for the original compiler.
 
 The remaining scope distinction is:
 * **Nothing is claimed about the hand-written backend.** This compiler and
@@ -267,7 +267,7 @@ lake env lean scripts/axioms.lean
 ```
 
 and the differential suite in
-[`Langlib/Tests/URMSubleq.lean`](../Langlib/Tests/URMSubleq.lean), 18 cases,
+[`Langlib/Tests/URMSubleq.lean`](../../Langlib/Tests/URMSubleq.lean), 18 cases,
 which compiles small URM programs, runs each one on both langlib's executable
 URM interpreter and the subleq interpreter, and passes only when the two
 agree on the answer.

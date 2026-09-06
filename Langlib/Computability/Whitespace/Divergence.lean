@@ -1,4 +1,4 @@
-import Langlib.Computability.Whitespace
+import Langlib.Computability.Whitespace.Simulation
 import Langlib.Computability.Divergence
 
 /-! # Whitespace preserves URM divergence
@@ -162,15 +162,3 @@ theorem preserves_divergence (P : Program) (inputs : List Nat)
   exact (hp.trans hlab).outOfFuel Prod.snd (exec_stable _ _) ht fuel
 
 end Langlib.Computability.URMWhitespace
-
-namespace Langlib.Computability
-
-open Langlib.Common
-
-/-- The original Whitespace compiler, now with divergence preservation. -/
-def whitespaceDivergencePreserving : DivergencePreservingTC WhitespaceLang where
-  toTuringComplete := whitespaceComplete
-  preserves_divergence := fun P inputs hd fuel =>
-    URMWhitespace.preserves_divergence P inputs hd (Input.ofString "") fuel
-
-end Langlib.Computability

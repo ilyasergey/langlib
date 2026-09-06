@@ -5,11 +5,11 @@ or equal to zero. The full specification, the history, and every semantic
 choice (word size, I/O convention, EOF, halting, errors) are in
 [docs/subleq/spec.md](../../../docs/subleq/spec.md).
 
-The original TC witness retains **forward answer preservation**. The separate
-[`subleqDivergencePreserving`](../../Computability/Subleq/Divergence.lean)
-witness proves divergence preservation for the same compiler: every finite
-budget on a divergent URM input yields `.outOfFuel`. It also supplies
-[halting and result equivalence, output validity, and error freedom](../../../docs/divergence-preservation.md).
+[`subleqComplete`](../../Computability/Subleq.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Computability/Subleq/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../../../docs/divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
 
 ## Modules
 

@@ -15,14 +15,15 @@
   - runner `lake exe unlambda`,
   - [examples](../../Langlib/Examples/Unlambda/),
   - tests in [`Langlib/Tests/Unlambda.lean`](../../Langlib/Tests/Unlambda.lean),
-  - Turing completeness in [`Langlib/Computability/Unlambda.lean`](../../Langlib/Computability/Unlambda.lean) and [docs/computability-unlambda.md](../computability-unlambda.md), and
+  - Turing completeness in [`Langlib/Computability/Unlambda.lean`](../../Langlib/Computability/Unlambda.lean) and [docs/unlambda/computability.md](computability.md), and
   - a hand-written Turpentine backend in [`Langlib/Languages/Turpentine/Compile/Unlambda.lean`](../../Langlib/Languages/Turpentine/Compile/Unlambda.lean), plus a certified one derived from the completeness proof ([docs/unlambda/compiler.md](compiler.md))
 
-The original TC witness retains **forward answer preservation**. The separate
-[`unlambdaDivergencePreserving`](../../Langlib/Computability/Unlambda/Divergence.lean)
-witness now proves divergence preservation for that same compiler: every
-finite budget on a divergent URM input yields `.outOfFuel`. Its positive CEK
-prefixes follow the guard and terminating body back to the recursive call.
+[`unlambdaComplete`](../../Langlib/Computability/Unlambda.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Langlib/Computability/Unlambda/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
+Positive CEK prefixes follow the guard and terminating body back to the recursive call.
 
 ## The joke
 
@@ -169,7 +170,7 @@ holding them a Scott list, and the answer in unary, one `*` per unit. The
 finding worth carrying away is that the textbook bracket-abstraction clause
 `[x] e = k e` for an `e` without `x` is **unsound under call by value**,
 because it evaluates `e` when the closure is built. See
-[computability-unlambda.md](../computability-unlambda.md) for the account,
+[unlambda/computability.md](computability.md) for the account,
 the costs, and what is cited rather than proved.
 
 The same finding shapes the *hand-written* compiler, which is a separate

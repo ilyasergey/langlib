@@ -22,7 +22,7 @@ because the entire register file is one Velato variable holding
 `2^w0 * 3^w1 * ...`. What is not short is the arithmetic: the number grows
 exponentially in the register values, so the fuel is generous and the
 programs are kept small. `sizeOf` reports the statement count, so the cost is
-pinned down rather than described. See `docs/computability-velato.md`.
+pinned down rather than described. See `docs/velato/computability.md`.
 
 The notation, one item per line, `#` to end of line is a comment:
 

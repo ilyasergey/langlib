@@ -24,7 +24,7 @@ bounded storage; and code restoration does not restore operands. The
 * **Machine-checked groundwork**:
   [`Langlib/Computability/MalbolgeUnshackled.lean`](../../Langlib/Computability/MalbolgeUnshackled.lean),
   written up in
-  [computability-malbolge-unshackled.md](../computability-malbolge-unshackled.md).
+  [malbolge-unshackled/computability.md](computability.md).
 
 ## Why this target as well as Malbolge
 
@@ -1156,7 +1156,7 @@ and proposes a smaller fixed-counter construction to formalize. LangLib has **no
 proof yet**, and no `TuringComplete` witness, so the library currently
 asserts nothing about the language's computational class. The entry in
 [docs/README.md](../README.md) tracks it, and
-[computability-malbolge-unshackled.md](../computability-malbolge-unshackled.md)
+[malbolge-unshackled/computability.md](computability.md)
 says exactly what is proved, what is measured, and what is open.
 
 Because a completeness witness in LangLib *carries* a compiler from the

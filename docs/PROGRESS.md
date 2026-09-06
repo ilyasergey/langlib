@@ -1,6 +1,51 @@
 # Progress log
 
 Newest first. Add a dated entry for every substantial batch of work.
+Entries describe their dated checkpoints; the temporary separate divergence
+interface in the first two proof milestones was superseded by the combined
+`TuringComplete` interface below.
+
+## 2026-09-06: TuringComplete includes divergence preservation
+
+After committing and pushing the all-eleven proof milestone (`052b87e`),
+folded `preserves_divergence` into `TuringComplete` and removed the temporary
+extension and duplicate witnesses. All eleven original `<lang>Complete`
+names now include both answer and divergence proofs. The generic
+`halts_iff`, `result_iff`, `halted_run_result`, `output_valid`, and
+`error_free` theorems live in `Langlib.Common.TuringComplete`.
+
+The proof layout avoids circular imports: `<Language>/Simulation.lean`
+contains the original compiler, forward proof and language instances;
+`<Language>/Divergence.lean` proves continuing execution; the original public
+`<Language>.lean` imports both and assembles the witness. Compiler functions,
+public import paths and derived Turpentine APIs are retained. The stronger
+URM-to-target contract does not automatically strengthen the separate
+Turpentine-to-URM forward specification. Brainloller still uses its existing
+decoded-program interface, with the pixel-walk proof a separate obligation.
+MU's proof terms remain unchanged; its documentation-path comments follow
+the moved computability account.
+
+Updated the plan, contribution/proof policies, shared interface and testing
+notes, every affected language README/spec, and per-language computability
+accounts. All twelve `docs/computability-<language>.md` accounts now live
+in `docs/<language>/computability.md`, including the negative and unfinished
+claims. Incoming links, relative links within the moved pages and code
+comments follow those paths. Every numbered source link in the root docs
+and under `docs/` points to its exact declaration line. Old statements that SKI and
+Unlambda divergence remained open are corrected. The bounded-storage
+explanation now uses halting reflection, while keeping effectiveness of the
+compiler an explicit meta-theoretic requirement.
+
+Validation: `lake build` passes all 8,956 jobs, including MU. All 1,700
+golden/compiler tests and both Velato round-trip checks pass. All 761 axiom
+reports are clean (728 use only the standard logical axioms; 33 use none).
+The available external differential suite passes six cases, with unavailable
+references/runners skipped. The documentation audit checks 1,099 local links
+and 240 numbered links to 116 distinct declarations, with no failures.
+
+The requested continuation is a uniform computability folder layout, followed
+by divergence-preserving compiler correctness, the Turpentine-to-URM proof,
+and upgrades of the derived and certified bespoke compilers.
 
 ## 2026-09-06: all eleven divergence-preserving witnesses
 
@@ -13,7 +58,7 @@ continuations. An increment-only initialization lemma reaches the loop from
 the actual compiled term. `unlambdaDivergencePreserving` inherits
 `unlambdaComplete` exactly; all eleven stronger witnesses are now proved.
 
-Next, as requested, move divergence preservation into `TuringComplete` and
+The next stage was to move divergence preservation into `TuringComplete` and
 remove the temporary extension, migrating every client and document. MU’s
 Lean sources remain unchanged. Validation of this proof-only milestone:
 full build passes (8,945 jobs), and all 770 axiom reports are clean.
@@ -1939,7 +1984,7 @@ advice.
 `skiComplete : TuringComplete SkiLang`, axiom-clean. Both halves of the
 functional route are now proved, and the second did **not** come free from
 the first even though the two languages share their combinators. See
-[computability-ski.md](computability-ski.md).
+[ski/computability.md](ski/computability.md).
 
 **What did not transfer, and why.** Unlambda is call by value and SKI is
 normal order, so the compiled terms are different programs, not different
@@ -1992,7 +2037,7 @@ having an output instruction.
 completeness result in the library that is not a machine simulation: the
 target has no store and no jumps, so the argument is bracket abstraction
 applied to a program written in a lambda notation that exists only inside
-the proof. See [computability-unlambda.md](computability-unlambda.md).
+the proof. See [unlambda/computability.md](unlambda/computability.md).
 
 **The counter machine is now shared.** The register-machine half of the
 brainfuck proof was never about brainfuck. `Cmd`, its big-step semantics,
@@ -2281,7 +2326,7 @@ the resource Unshackled has and Malbolge lacks.
 
 Next: loop construction from the longer orbits, phased so exactly one cell
 of a run fires per pass. That is the HeLL assembler's technique and
-everything else waits on it. `docs/computability-malbolge-unshackled.md`
+everything else waits on it. `docs/malbolge-unshackled/computability.md`
 has the full account, including what is cited rather than proved.
 
 ## 2026-08-30: Piet examples that loop, branch, and hang a painting
@@ -2566,7 +2611,7 @@ exactly what the dispatcher's trailing `switch` was already compensating
 for — the layout and the arithmetic agreed before either was proved.
 
 What is left is composition rather than discovery, and
-`docs/computability-piet.md` lists it: the two corridor instantiations, the
+`docs/piet/computability.md` lists it: the two corridor instantiations, the
 pivot, the induction over `Cslib.URM.Steps`, and the assembly. The image is
 one column narrower than it was.
 
@@ -2658,7 +2703,7 @@ arbitrary phase, so `backPC` reuses it and `reaches_back_across` and
 `reaches_scan_prefix`.
 
 `scripts/thue-cost.lean` replaces the scratch runner the notes referred to,
-so the sizes in `docs/computability-thue.md` are reproducible: the
+so the sizes in `docs/thue/computability.md` are reproducible: the
 one-iteration addition program is 1,211 rules, a 17-character initial state
 and exactly 1,665 rewrites.
 

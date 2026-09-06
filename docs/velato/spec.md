@@ -24,13 +24,14 @@
   - runner `lake exe velato`,
   - [examples](../../Langlib/Examples/Velato/),
   - tests in [`Langlib/Tests/Velato.lean`](../../Langlib/Tests/Velato.lean),
-  - Turing completeness in [`Langlib/Computability/Velato.lean`](../../Langlib/Computability/Velato.lean) and [docs/computability-velato.md](../computability-velato.md), and
+  - Turing completeness in [`Langlib/Computability/Velato.lean`](../../Langlib/Computability/Velato.lean) and [docs/velato/computability.md](computability.md), and
   - a hand-written Turpentine backend proved correct on a fragment, behaviourally and input included, in [`Langlib/Languages/Turpentine/Certified/BespokeVelato.lean`](../../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean), plus a certified one derived from the completeness proof ([docs/velato/compiler.md](compiler.md))
 
-The original TC witness establishes **forward answer preservation**. The
-separate [`velatoDivergencePreserving`](../../Langlib/Computability/Velato/Divergence.lean)
-witness proves that divergent URM inputs exhaust every finite target budget,
-with [halting and result equivalence, output validity, and error freedom](../divergence-preservation.md).
+[`velatoComplete`](../../Langlib/Computability/Velato.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Langlib/Computability/Velato/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
 
 ## History
 
@@ -556,7 +557,7 @@ converts.
 `Langlib.Computability.velatoComplete` is a `TuringComplete VelatoLang`,
 compiling an arbitrary unlimited register machine into Velato and proving
 the simulation. The prose account is
-[docs/computability-velato.md](../computability-velato.md); the summary is
+[docs/velato/computability.md](computability.md); the summary is
 that the proof had to be done differently from every other backend in the
 library, and the reason is the 128-variable limit.
 

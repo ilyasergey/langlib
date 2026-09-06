@@ -5,11 +5,11 @@ and commands are the colour differences between adjacent colour blocks.
 The full specification, history, and the exact semantic choices are in
 [docs/piet/spec.md](../../../docs/piet/spec.md).
 
-The original TC witness retains **forward answer preservation**. The separate
-[`pietDivergencePreserving`](../../Computability/Piet/Divergence.lean)
-witness proves divergence preservation for the same compiler: every finite
-budget on a divergent URM input yields `.outOfFuel`. It also supplies
-[halting and result equivalence, output validity, and error freedom](../../../docs/divergence-preservation.md).
+[`pietComplete`](../../Computability/Piet.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Computability/Piet/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../../../docs/divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
 
 ## Modules
 

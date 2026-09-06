@@ -789,8 +789,9 @@ today, and all of it is covered by tests only:
 * `assert` and the trap, and the claim that a Turpentine runtime error
   becomes a subleq runtime error;
 * `readByte` and `readInt`, and the end-of-input convention;
-* divergence preservation, which `docs/verification.md` defers for every
-  backend;
+* divergence preservation for the Turpentine source, which
+  `docs/verification.md` defers for every Turpentine backend; the separate
+  URM-to-Subleq completeness witness now includes that proof for URM inputs;
 * the code generator on any program outside the two shapes: `backend_skipZero`
   and `backend_printLit` are statements about those two, not about the
   emitter in general.

@@ -4,21 +4,21 @@
 
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved / disproved | Correct via TC | Hosts full Turpentine | Bespoke compiler | Bespoke correct |
 | ---------- | ------ | -------- | ------------- | ------------------ | -------- | ----------------- | ----------- | ---------------- | ----------------------- | ------------------ | ----------------- |
-| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | [**yes**](../Langlib/Computability/Brainfuck.lean#L1276) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L122) | yes | [yes](brainfuck/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317) | - |
-| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L1147) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | yes | [yes](whitespace/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530) | [**yes**, behaviourally](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3790) |
-| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L1233) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118) | yes | [yes](subleq/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125) | [**yes**, two shapes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) |
+| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | [**yes**](../Langlib/Computability/Brainfuck.lean#L19) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L125) | yes | [yes](brainfuck/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317) | - |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace.lean#L24) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L117) | yes | [yes](whitespace/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530) | [**yes**, behaviourally](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3790) |
+| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq.lean#L31) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L121) | yes | [yes](subleq/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125) | [**yes**, two shapes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) |
 | [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | [yes, byte core](../Langlib/Computability/Befunge93.lean#L377) | n/a | no, 2000 code cells | [no](befunge93/compiler.md) | n/a |
-| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [yes, bounded storage](malbolge/spec.md) | [**no**, halting decidable](../Langlib/Computability/Malbolge.lean#L755) | n/a | no, bounded storage | [yes, bounded fragment](malbolge/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Malbolge.lean) | n/a |
+| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [no, bounded storage](malbolge/spec.md) | [**no**, halting decidable](../Langlib/Computability/Malbolge.lean#L755) | n/a | no, bounded storage | [yes, bounded fragment](malbolge/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Malbolge.lean) | n/a |
 | [malbolge-unshackled](malbolge-unshackled/spec.md) | yes | yes | yes | yes | `malbolge-unshackled` | yes | open | [planned](malbolge-unshackled/compiler.md) | expected yes | [yes, input-free fragment](malbolge-unshackled/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean) | [planned](malbolge-unshackled/compiler.md) |
-| [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | [**yes**](../Langlib/Computability/Fractran.lean#L4504) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L127) | no I/O at all | [yes](fractran/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Fractran.lean) | - |
-| [thue](thue/spec.md) | yes | yes | yes | yes | `thue` | yes | [**yes**](../Langlib/Computability/Thue.lean#L4032) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L133) | expected, unary output | [planned](thue/compiler.md) | [planned](thue/compiler.md) |
-| [piet](piet/spec.md) | yes | yes | yes | yes | `piet` | yes | [**yes**](../Langlib/Computability/Piet.lean#L3998) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L139) | yes | [yes](piet/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Piet.lean) | [planned](piet/compiler.md) |
-| [ook](ook/spec.md) | yes | yes | yes | yes | `ook` | yes (via brainfuck) | [**yes**](../Langlib/Computability/Ook.lean#L545) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L145) | yes, via brainfuck | [yes](ook/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Ook.lean#L49) | [planned](ook/compiler.md) |
-| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `brainloller` | yes (via brainfuck) | [**yes**](../Langlib/Computability/Brainloller.lean#L334), bar the [pixel walk](brainloller/compiler.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L150) | yes, via brainfuck | [yes](brainloller/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Brainloller.lean#L57) | [planned](brainloller/compiler.md) |
-| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `deadfish` | [yes, every program halts](deadfish/spec.md) | [**no**, halting decidable](../Langlib/Computability/Deadfish.lean#L99) | n/a | no, output only | [planned, output-only](deadfish/compiler.md) | [planned](deadfish/compiler.md) |
-| [unlambda](unlambda/spec.md) | yes | yes | yes | yes | `unlambda` | yes | [**yes**](../Langlib/Computability/Unlambda.lean#L1725) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L156) | yes | [yes](unlambda/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Unlambda.lean#L965) | [planned](unlambda/compiler.md) |
-| [ski](ski/spec.md) | yes | yes | yes | yes | `ski` | yes | [**yes**](../Langlib/Computability/Ski.lean#L1019) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L163) | no, no I/O | [no](ski/compiler.md) | n/a |
-| [velato](velato/spec.md) | yes | yes | yes | yes | `velato` | [yes, with unbounded ints](velato/spec.md#computational-class) | [**yes**](../Langlib/Computability/Velato.lean#L745) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L178) | no arrays, no readInt | [yes](velato/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Velato.lean#L360) | [**yes**, behaviourally, input included](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032) |
+| [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | [**yes**](../Langlib/Computability/Fractran.lean#L15) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L130) | no I/O at all | [yes](fractran/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Fractran.lean) | - |
+| [thue](thue/spec.md) | yes | yes | yes | yes | `thue` | yes | [**yes**](../Langlib/Computability/Thue.lean#L15) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L136) | expected, unary output | [planned](thue/compiler.md) | [planned](thue/compiler.md) |
+| [piet](piet/spec.md) | yes | yes | yes | yes | `piet` | yes | [**yes**](../Langlib/Computability/Piet.lean#L16) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L142) | yes | [yes](piet/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Piet.lean) | [planned](piet/compiler.md) |
+| [ook](ook/spec.md) | yes | yes | yes | yes | `ook` | yes (via brainfuck) | [**yes**](../Langlib/Computability/Ook.lean#L25) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L148) | yes, via brainfuck | [yes](ook/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Ook.lean#L49) | [planned](ook/compiler.md) |
+| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `brainloller` | yes (via brainfuck) | [**yes**](../Langlib/Computability/Brainloller.lean#L24), bar the [pixel walk](brainloller/compiler.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L153) | yes, via brainfuck | [yes](brainloller/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Brainloller.lean#L57) | [planned](brainloller/compiler.md) |
+| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `deadfish` | [no, every program halts](deadfish/spec.md) | [**no**, halting decidable](../Langlib/Computability/Deadfish.lean#L99) | n/a | no, output only | [planned, output-only](deadfish/compiler.md) | [planned](deadfish/compiler.md) |
+| [unlambda](unlambda/spec.md) | yes | yes | yes | yes | `unlambda` | yes | [**yes**](../Langlib/Computability/Unlambda.lean#L30) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L159) | yes | [yes](unlambda/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Unlambda.lean#L965) | [planned](unlambda/compiler.md) |
+| [ski](ski/spec.md) | yes | yes | yes | yes | `ski` | yes | [**yes**](../Langlib/Computability/Ski.lean#L30) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L166) | no, no I/O | [no](ski/compiler.md) | n/a |
+| [velato](velato/spec.md) | yes | yes | yes | yes | `velato` | [yes, with unbounded ints](velato/spec.md#computational-class) | [**yes**](../Langlib/Computability/Velato.lean#L43) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L180) | [restricted I/O/error correspondence](velato/compiler.md#the-fragment-is-a-fragment-of-turpentine) | [yes](velato/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Velato.lean#L360) | [**yes**, behaviourally, input included](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032) |
 | [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `turpentine` | yes | open | (source) | (source) | (source) | (source) |
 | [URM](#the-urm) (yardstick) | [here](#the-urm) | n/a | [yes](../Langlib/Computability/URM.lean) | yes | n/a | yes | (yardstick) | (the route itself) | no I/O at all | [yes, certified fragment](../Langlib/Languages/Turpentine/Compile/URM.lean) | [**yes**](../Langlib/Languages/Turpentine/Compile/URM.lean#L3985) |
 
@@ -35,13 +35,12 @@ links to the correctness theorem.
 
 ### Strength of the completeness proofs
 
-The eleven positive TC witnesses in the table establish **forward answer
-preservation**. The new `DivergencePreservingTC` interface additionally
-requires every finite compiled run on a divergent URM input to return
-`.outOfFuel`, excluding errors and even undecodable normal halts. Halting
-and result equivalence, output validity, and error freedom are proved once
-for that interface. Existing witnesses remain unchanged. All eleven separate upgrades
-are proved and [documented together](divergence-preservation.md#witness-migration).
+The eleven positive `TuringComplete` witnesses in the table preserve both
+halting answers and divergence. Every finite compiled run on a divergent
+URM input returns `.outOfFuel`, excluding errors and undecodable normal
+halts. Halting and result equivalence, output validity, and error freedom
+are proved once for that interface. Each compiler has its own
+[operational divergence proof](divergence-preservation.md#witness-migration).
 MU's proof development is unchanged and has no TC witness yet.
 
 ### Hosts full Turpentine
@@ -193,7 +192,7 @@ whole point of this library.
     [befunge93](befunge93/spec.md) core has finitely many configurations by
     construction, packaged as a `BoundedStorage`, so a run that has not
     halted by the bound never will.
-    [Malbolge](computability-malbolge.md) is the hard one, because its
+    [Malbolge](malbolge/computability.md) is the hard one, because its
     state type is wide (an unbounded array, an unbounded output, a cursor
     whose range depends on the input) while its *reachable* states are
     few: the proof carries an invariant through every instruction, drops
@@ -203,7 +202,7 @@ whole point of this library.
   * `wip` would be a proof under way with the load-bearing step still
     missing. No row is in that state: `fractran` and `piet`, the two that
     were, are proved
-    ([fractran](computability-fractran.md), [piet](computability-piet.md)).
+    ([fractran](fractran/computability.md), [piet](piet/computability.md)).
   * `open` means nobody here has proven it in either direction, whatever
     the literature believes. The claims themselves are in the languages'
     spec pages; the roadmap for closing them is
@@ -296,20 +295,20 @@ The three columns follow from that, in the order the table puts them.
   compiler with its proof.
 
   The general theorem is
-  [`derived`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L96): given any
+  [`derived`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L99): given any
   `TuringComplete L` it returns a `TurpentineCompiler L`, proved once for
   an arbitrary target. Per-language instances are one line each, for
   example
-  [`derivedWhitespace`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114),
-  [`derivedSubleq`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118),
-  [`derivedBrainfuck`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L122),
-  [`derivedFractran`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L127),
-  [`derivedThue`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L133) and
-  [`derivedPiet`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L139). It rests
+  [`derivedWhitespace`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L117),
+  [`derivedSubleq`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L121),
+  [`derivedBrainfuck`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L125),
+  [`derivedFractran`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L130),
+  [`derivedThue`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L136) and
+  [`derivedPiet`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L142). It rests
   on
   [`compileToURM_correct`](../Langlib/Languages/Turpentine/Compile/URM.lean#L3985)
   for the shared Turpentine-to-URM pass, and
-  [`agree`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L174) says any two
+  [`agree`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L191) says any two
   verified compilers for one target produce the same answers.
 
   A `TurpentineCompiler` is
@@ -339,7 +338,7 @@ The three columns follow from that, in the order the table puts them.
   The first one has landed:
   [`bespokeSubleq`](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) is a
   second `TurpentineCompiler SubleqLang` beside the derived one, so
-  [`agree`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L174) applies and "the
+  [`agree`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L191) applies and "the
   derived compiler is an oracle for the hand-written one" is a corollary
   rather than a testing practice. Its fragment is two program shapes, which
   is small, and honestly so: `docs/subleq/compiler.md` lists what is

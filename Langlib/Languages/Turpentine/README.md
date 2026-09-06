@@ -8,9 +8,9 @@ turpentine dissolves tar. Full language reference:
 [docs/turpentine/spec.md](../../../docs/turpentine/spec.md).
 
 The TC-derived compilers still establish forward answer preservation.
-The new [`DivergencePreservingTC`](../../../docs/divergence-preservation.md)
-interface needs individual URM-to-target proofs and does not automatically
-strengthen the Turpentine-to-URM translation.
+All eleven [`TuringComplete`](../../../docs/divergence-preservation.md)
+URM-to-target witnesses also preserve divergence. This does not automatically
+strengthen the separate Turpentine-to-URM translation.
 
 ## Modules
 

@@ -51,13 +51,13 @@ A complete language contribution consists of:
      translated program halts with output encoding the same result. A
      translation sketch in prose is enough for the spec page; the proof
      belongs in `Langlib/Computability/` and is tracked in `docs/PLAN.md`,
-     Stage 8. Existing `TuringComplete` witnesses establish **forward answer
-     preservation** only. Claim divergence preservation only with a separate
-     `DivergencePreservingTC` witness proving `.outOfFuel` at every finite
-     target fuel on divergent URM inputs. An iff about decoded results alone
-     permits spurious halting with `decodeOutput = none`; it is insufficient.
-     Upgrade witnesses individually, retaining their runnable compilers;
-     see [the interface and migration status](docs/divergence-preservation.md).
+     Stage 8. `TuringComplete` also requires **divergence preservation**:
+     prove `.outOfFuel` at every finite target fuel on divergent URM inputs.
+     An iff about decoded results alone permits spurious halting with
+     `decodeOutput = none`; it is insufficient. Prove both obligations for
+     the actual runnable compiler, using the `Simulation` / `Divergence` /
+     public witness layout in `CLAUDE.md`; see
+     [the interface and proof routes](docs/divergence-preservation.md).
      `docs/agent-brief-completeness.md` is a ready-made brief for
      that work, including the two mistakes people make: overclaiming what
      the theorem says, and choosing a representation that caps the

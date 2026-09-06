@@ -3,10 +3,10 @@
 LangLib contains a total runnable URM-to-Piet compiler that accepts
 arbitrary `J` instructions, including backward jumps, and the simulation
 theorem that makes it a completeness proof:
-[`pietComplete : TuringComplete PietLang`](../Langlib/Computability/Piet.lean#L3998).
+[`pietComplete : TuringComplete PietLang`](../../Langlib/Computability/Piet.lean#L16).
 Composing it with the shared Turpentine-to-URM pass gives a certified
 Turpentine-to-Piet compiler,
-[`derivedPiet`](../Langlib/Languages/Turpentine/Compile/Derived.lean#L139).
+[`derivedPiet`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L142).
 
 The claim is not that Piet is universal — that has never been in doubt, and
 the esolang wiki has said so since 2002. The claim is that *this image*,
@@ -15,11 +15,10 @@ the DP and CC rules, the eight exits of every colour block, the white
 slides, and the halt are all the ones the reference evaluator implements,
 because the proof is stated against `Langlib.Piet.evalGrid` itself.
 
-The original witness retains the **forward answer-preservation** interface.
-The separate [`pietDivergencePreserving`](../Langlib/Computability/Piet/Divergence.lean)
-witness proves divergence preservation for that same compiler; the
-[shared interface](divergence-preservation.md) then gives halting and result
-equivalence, output validity, and error freedom.
+[`pietComplete`](../../Langlib/Computability/Piet.lean) combines this
+halting simulation with the [divergence proof](../../Langlib/Computability/Piet/Divergence.lean)
+for the same compiler. The [shared interface](../divergence-preservation.md)
+gives halting and result equivalence, output validity, and error freedom.
 
 ## Register representation
 
@@ -116,9 +115,9 @@ operations touch DP and CC. `copyAt`, `storeTop`, `zeroAt`, `succTop` and
 the guarded instruction traces are all proved this way.
 
 **The arithmetic layer.**
-[`stackOf`](../Langlib/Computability/Piet.lean#L967) models the dispatcher's
+[`stackOf`](../../Langlib/Computability/Piet/Simulation.lean#L967) models the dispatcher's
 stack as a URM register file followed by the three control slots, and
-[`dispatchUpdate_step`](../Langlib/Computability/Piet.lean#L1271) proves
+[`dispatchUpdate_step`](../../Langlib/Computability/Piet/Simulation.lean#L1271) proves
 that one pass over the whole program performs exactly one
 `Cslib.URM.Step`. The argument is the masking one the branchless design
 rests on: instructions whose guard is zero are the identity, the one
@@ -132,18 +131,18 @@ parts.
 *Corridors.* Every command codel in a generated image is an isolated
 singleton block, because every Piet command changes the colour and the row
 below the corridor is black.
-[`unitCorridor_of_row`](../Langlib/Computability/Piet.lean#L1918) builds
+[`unitCorridor_of_row`](../../Langlib/Computability/Piet/Simulation.lean#L1918) builds
 those runs from row lookups and
-[`exec_unitCorridor`](../Langlib/Computability/Piet.lean#L448) executes
+[`exec_unitCorridor`](../../Langlib/Computability/Piet/Simulation.lean#L448) executes
 them through the real evaluator. The dispatcher's last two commands, the
 `switch` and the `pointer`, move the chooser and the direction and so
 cannot be inside a corridor;
-[`exec_toPivot`](../Langlib/Computability/Piet.lean#L3180) takes them one at
+[`exec_toPivot`](../../Langlib/Computability/Piet/Simulation.lean#L3180) takes them one at
 a time.
 
 *White transits.* A slide executes no command; it only moves, and each
 blocked turn rotates the direction and toggles the chooser.
-[`slide_return`](../Langlib/Computability/Piet.lean#L2108) is the whole
+[`slide_return`](../../Langlib/Computability/Piet/Simulation.lean#L2108) is the whole
 return corridor — down from the pivot's `pop`, left along the bottom, up the
 white column, and right into the first codel of the body — and its three
 blocked turns leave the chooser toggled exactly once, which is what the
@@ -158,35 +157,34 @@ neighbour, and one of the eight selected exits steps straight back into it.
 So the terminal is an L of three codels — the top-right corner, the codel
 below it, and the codel to the left of that — which is the smallest shape
 that can hide its own entry.
-[`flood_lblock`](../Langlib/Computability/Piet.lean#L2314) computes
+[`flood_lblock`](../../Langlib/Computability/Piet/Simulation.lean#L2314) computes
 `Langlib.Piet.flood` on it, ten worklist steps over a symbolic grid with the
 visited array tracked through three `set!` calls at distinct indices;
-[`localInfoAt?_lblock`](../Langlib/Computability/Piet.lean#L2374) turns that
+[`localInfoAt?_lblock`](../../Langlib/Computability/Piet/Simulation.lean#L2374) turns that
 into the block's eight exits; and
-[`tryFrom_lblock`](../Langlib/Computability/Piet.lean#L2400) proves every
+[`tryFrom_lblock`](../../Langlib/Computability/Piet/Simulation.lean#L2400) proves every
 one of them blocked, so the interpreter runs out of attempts and halts in
 the state it arrived in.
 
 **Putting it together.**
-[`reaches_iteration`](../Langlib/Computability/Piet.lean#L3478) is one whole
+[`reaches_iteration`](../../Langlib/Computability/Piet/Simulation.lean#L3478) is one whole
 turn of the loop: the corridor, the pivot, the `pop`, the return corridor,
 and back to the first codel of the body with the chooser where it started.
-[`exec_run`](../Langlib/Computability/Piet.lean#L3656) composes those over
+[`exec_run`](../../Langlib/Computability/Piet/Simulation.lean#L3656) composes those over
 `Cslib.URM.Steps`, taking the other branch — print the answer, slide into
 the terminal, halt — on the iteration whose committed program counter falls
 off the end of the source.
-[`exec_entry`](../Langlib/Computability/Piet.lean#L3746) covers the start
+[`exec_entry`](../../Langlib/Computability/Piet/Simulation.lean#L3746) covers the start
 slide and the prologue that loads the register file, and
-[`simulation`](../Langlib/Computability/Piet.lean#L3911) assembles the whole
+[`simulation`](../../Langlib/Computability/Piet/Simulation.lean#L3911) assembles the whole
 thing through `evalGrid` and reads the answer back out of the decimal the
 image printed.
 
 ### What the claim does and does not say
 
-`simulation` covers halting runs, as the shared `TuringComplete` interface
-does for every language here. The separate
-[`pietDivergencePreserving`](../Langlib/Computability/Piet/Divergence.lean)
-witness additionally proves divergence preservation through positive-cost
+`simulation` supplies the halting-answer field of `TuringComplete`.
+The companion [divergence proof](../../Langlib/Computability/Piet/Divergence.lean)
+supplies its other field through positive-cost
 dispatcher iterations, excluding both spurious halts and runtime errors.
 Connecting URM computability to every partial computable function relies on
 the classical result of Shepherdson and Sturgis (1963), since cslib contains
@@ -243,7 +241,7 @@ all 975 tests passed
 ```
 
 Every theorem on this page is listed in
-[`scripts/axioms.lean`](../scripts/axioms.lean). The witness rests only on
+[`scripts/axioms.lean`](../../scripts/axioms.lean). The witness rests only on
 Lean's standard logical axioms.
 
 ```

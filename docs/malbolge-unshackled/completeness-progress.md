@@ -124,6 +124,6 @@ as a hypothesis do not satisfy that criterion.
 The obstruction and runtime modules build with the library; their public
 results are included in [the axiom audit](../../scripts/axioms.lean). See the
 [progress log](../PROGRESS.md) for the completed checks. The older
-[technical account](../computability-malbolge-unshackled.md) and
+[technical account](computability.md) and
 [compiler notebook](compiler.md) retain useful derivations, but their
 superseded construction recommendations should be read through this audit.

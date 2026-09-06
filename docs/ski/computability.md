@@ -1,6 +1,6 @@
 # SKI is Turing complete
 
-[`Langlib/Computability/Ski.lean`](../Langlib/Computability/Ski.lean)
+[`Langlib/Computability/Ski.lean`](../../Langlib/Computability/Ski.lean)
 compiles an arbitrary unlimited register machine into the SKI combinator
 calculus and proves the simulation. The result is the term
 
@@ -9,19 +9,18 @@ def skiComplete : TuringComplete SkiLang
 ```
 
 which is langlib's statement of the claim, in the sense fixed once for every
-language by [`Langlib/Common/Computability.lean`](../Langlib/Common/Computability.lean).
+language by [`Langlib/Common/Computability.lean`](../../Langlib/Common/Computability.lean).
 
 This is the second half of the functional route.
-[Unlambda](computability-unlambda.md) was the first, and the two share their
+[Unlambda](../unlambda/computability.md) was the first, and the two share their
 combinators and almost nothing else. It is worth saying at the top why the
 Unlambda witness does not simply transfer, because the obvious guess is that
 it should.
 
-The original witness retains the **forward answer-preservation** interface.
-The separate [`skiDivergencePreserving`](../Langlib/Computability/Ski/Divergence.lean)
-witness proves divergence preservation for that same compiler; the
-[shared interface](divergence-preservation.md) then gives halting and result
-equivalence, output validity, and error freedom.
+[`skiComplete`](../../Langlib/Computability/Ski.lean) combines this
+halting simulation with the [divergence proof](../../Langlib/Computability/Ski/Divergence.lean)
+for the same compiler. The [shared interface](../divergence-preservation.md)
+gives halting and result equivalence, output validity, and error freedom.
 
 ## Two differences that change everything
 
@@ -51,7 +50,7 @@ theorem simulation (P : Program) (inputs : List Nat) (result : Nat)
 ```
 
 `HaltsWithResult` is cslib's, `evalProg` is our reference interpreter from
-[`Langlib/Languages/Ski/Semantics.lean`](../Langlib/Languages/Ski/Semantics.lean),
+[`Langlib/Languages/Ski/Semantics.lean`](../../Langlib/Languages/Ski/Semantics.lean),
 and the fuel bound is existential. Read it as: whenever the register machine
 halts with `result` in register 0, the compiled term has a normal form, and
 that normal form decodes to `result`.
@@ -141,7 +140,7 @@ Nothing has to be forced.
 ## The simulation
 
 The induction is on the step count of
-[`Counter.EvN`](../Langlib/Computability/Counter.lean), as in the Unlambda
+[`Counter.EvN`](../../Langlib/Computability/Counter.lean), as in the Unlambda
 proof and for the same reason: the `loopS` premise is a derivation for
 `b ++ Cmd.loop r b :: cs` whose two halves are not subderivations of it.
 
@@ -174,7 +173,7 @@ number of steps, and a URM program with even one instruction does not finish:
 twelve million steps take four minutes and are not enough. That is a property
 of the reference interpreter rather than of the compiler, and it is why the
 tests in
-[`Langlib/Tests/URMSki.lean`](../Langlib/Tests/URMSki.lean) are split in two.
+[`Langlib/Tests/URMSki.lean`](../../Langlib/Tests/URMSki.lean) are split in two.
 The URM suite covers what does run end to end, the empty program, which still
 exercises loading the inputs, running the dispatcher to a halt, and encoding
 the answer. The counter suite tests the half that is new here against an
@@ -205,7 +204,7 @@ lake env lean scripts/axioms.lean
 
 ## Preserving divergence
 
-[`Ski/Divergence.lean`](../Langlib/Computability/Ski/Divergence.lean) proves
+[`Ski/Divergence.lean`](../../Langlib/Computability/Ski/Divergence.lean) proves
 this for the same normal-order compiler. `normalise_hiter` turns a counted
 head-reduction sequence into exact interpreter fuel consumption. Each
 nonzero dispatcher iteration reaches the next member of the fixed-point
@@ -238,7 +237,6 @@ cslib proves no equivalence between URM-computability and any other model.
 
 **Not proved, and not claimed**:
 
-* Divergence preservation. `simulation` constrains halting runs only.
 * Confluence, standardisation, or anything else about SKI reduction in
   general. The proof never needs them: it exhibits the leftmost reduction
   sequence rather than reasoning about arbitrary ones, which is why `hstep`

@@ -588,8 +588,9 @@ decoder, renderer, parser) that the statement does not constrain.
   I/O, `/` and `%` and the tests say it compiles them correctly; nothing in
   this file says so.
 * **Non-halting source programs.** The theorem is conditional on the source
-  halting. Divergence preservation is a separate statement
-  (`docs/verification.md`, "Later").
+  halting. Divergence preservation for Turpentine is a separate statement
+  (`docs/verification.md`, "Later"). The URM-to-Whitespace completeness
+  witness already preserves divergence for its own source model.
 * **Runtime errors.** A failed `assert` and a division by zero make the
   hypothesis false, so the theorem says nothing about them. The four
   semantic gaps above are still documented and tested, not proved: in

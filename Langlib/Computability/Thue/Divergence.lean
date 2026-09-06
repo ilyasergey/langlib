@@ -1,4 +1,4 @@
-import Langlib.Computability.Thue
+import Langlib.Computability.Thue.Simulation
 import Langlib.Computability.Divergence
 
 /-! # Thue preserves URM divergence -/
@@ -163,14 +163,3 @@ theorem preserves_divergence (P : Cslib.URM.Program) (inputs : List Nat)
   exact h
 
 end Langlib.Computability.URMThue
-
-namespace Langlib.Computability
-
-open Langlib.Common
-
-/-- The original Thue compiler, with divergence preservation. -/
-def thueDivergencePreserving : DivergencePreservingTC ThueLang where
-  toTuringComplete := thueComplete
-  preserves_divergence := URMThue.preserves_divergence
-
-end Langlib.Computability

@@ -17,13 +17,14 @@
   - runner `lake exe ski`,
   - [examples](../../Langlib/Examples/Ski/),
   - tests in [`Langlib/Tests/Ski.lean`](../../Langlib/Tests/Ski.lean),
-  - Turing completeness in [`Langlib/Computability/Ski.lean`](../../Langlib/Computability/Ski.lean) and [docs/computability-ski.md](../computability-ski.md), and
+  - Turing completeness in [`Langlib/Computability/Ski.lean`](../../Langlib/Computability/Ski.lean) and [docs/ski/computability.md](computability.md), and
   - a certified Turpentine compiler derived from the completeness proof, with no hand-written one planned ([docs/ski/compiler.md](compiler.md))
 
-The original TC witness establishes **forward answer preservation**. The
-separate [`skiDivergencePreserving`](../../Langlib/Computability/Ski/Divergence.lean)
-witness proves that divergent URM inputs exhaust every finite target budget,
-with [halting and result equivalence, output validity, and error freedom](../divergence-preservation.md).
+[`skiComplete`](../../Langlib/Computability/Ski.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Langlib/Computability/Ski/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
 
 ## Why it is here
 
@@ -116,7 +117,7 @@ decoder counts them.
 Normal order is a licence as much as an obstacle. Nothing has to be forced
 before it is stored, so a register holds the unevaluated application that
 computes it, a loop's branches need no guard, and the ordinary fixed point
-works. See [computability-ski.md](../computability-ski.md) for the account,
+works. See [ski/computability.md](computability.md) for the account,
 the measured costs, and what is cited rather than proved.
 
 ## Trying it

@@ -1,6 +1,6 @@
 # Velato is Turing complete
 
-[`Langlib/Computability/Velato.lean`](../Langlib/Computability/Velato.lean)
+[`Langlib/Computability/Velato.lean`](../../Langlib/Computability/Velato.lean)
 compiles an arbitrary unlimited register machine into Velato and proves the
 simulation. The result is the term
 
@@ -9,7 +9,7 @@ def velatoComplete : TuringComplete VelatoLang
 ```
 
 which is langlib's statement of the claim, in the sense fixed once for every
-language by [`Langlib/Common/Computability.lean`](../Langlib/Common/Computability.lean).
+language by [`Langlib/Common/Computability.lean`](../../Langlib/Common/Computability.lean).
 
 This page is about *why the proof is different*. Every other backend in the
 library follows the same recipe, and for Velato the recipe does not work at
@@ -31,7 +31,7 @@ The compiled program ignores its input stream: the input vector is compiled
 into the register-loading prologue.
 
 The register-machine half is shared with every other backend and lives in
-[`Langlib/Computability/Counter.lean`](../Langlib/Computability/Counter.lean).
+[`Langlib/Computability/Counter.lean`](../../Langlib/Computability/Counter.lean).
 It turns a URM program into a structured counter machine with four commands
 — increment a register, decrement one, emit a byte, and loop while a
 register is nonzero — and proves that this simulates the URM. A backend has
@@ -55,7 +55,7 @@ because a URM program may mention any register whatever. So the obvious
 compiler — one register per variable — is a compiler that works for small
 programs and fails for large ones. That is not a completeness proof. It is
 precisely the failure mode
-[`docs/agent-brief-completeness.md`](agent-brief-completeness.md) warns
+[`docs/agent-brief-completeness.md`](../agent-brief-completeness.md) warns
 about: a representation that caps the representable range, dressed up as a
 theorem by quantifying only over the programs it happens to fit.
 
@@ -112,7 +112,7 @@ deliberately:
 
 A completeness witness that cannot be run is a much weaker thing than one
 that can, and the differential tests in
-[`Langlib/Tests/URMVelato.lean`](../Langlib/Tests/URMVelato.lean) run it:
+[`Langlib/Tests/URMVelato.lean`](../../Langlib/Tests/URMVelato.lean) run it:
 they compile a URM program, execute the resulting Velato program on the
 Velato interpreter, and compare against langlib's URM interpreter. A
 noncomputable witness would fail there rather than in the kernel.
@@ -149,7 +149,7 @@ The encoding needs `N` to grow without bound. A URM register holding `k`
 contributes `pᵣ^k`, so a machine with a few registers holding a few hundred
 each has an `N` with hundreds of digits. Lean's `Int` is arbitrary
 precision, and
-[`Langlib/Languages/Velato/Semantics.lean`](../Langlib/Languages/Velato/Semantics.lean)
+[`Langlib/Languages/Velato/Semantics.lean`](../../Langlib/Languages/Velato/Semantics.lean)
 uses it, so this is fine.
 
 The 2009 reference compiler emits C# `int`, which is `System.Int32`. Under
@@ -159,7 +159,7 @@ reading Velato has a **finite state space**: at most 128 variables, each
 holding one of finitely many values, plus a position in a fixed program. A
 language with a finite state space is not Turing complete, and its halting
 problem is decidable by the pigeonhole argument
-[`Langlib/Common/Computability.lean`](../Langlib/Common/Computability.lean)
+[`Langlib/Common/Computability.lean`](../../Langlib/Common/Computability.lean)
 packages as `BoundedStorage`: run it, and if it has not halted by the time
 it revisits a configuration it never will.
 
@@ -184,8 +184,8 @@ The reference implementation's reading gives a real and provable theorem
 too, and it is the more surprising of the two: *a language whose programs
 are music, with unbounded loops and arithmetic and nesting, is not Turing
 complete, because it can only name 128 variables and each one is 32 bits.*
-That result is stated in [`docs/velato/spec.md`](velato/spec.md) and is not
-yet proved; it is tracked in [`docs/PLAN.md`](PLAN.md), Stage 8. Proving it
+That result is stated in [`docs/velato/spec.md`](spec.md) and is not
+yet proved; it is tracked in [`docs/PLAN.md`](../PLAN.md), Stage 8. Proving it
 means a second `ProgLang` instance for a 32-bit dialect and a
 `BoundedStorage` witness for it, and the interesting part is that the bound
 is enormous but finite: 2^(64·128) configurations is not a number anyone
@@ -193,7 +193,7 @@ will enumerate, and decidability does not care.
 
 ## The shape of the proof
 
-[`docs/verification.md`](verification.md) prescribes a state relation,
+[`docs/verification.md`](../verification.md) prescribes a state relation,
 per-construct simulation lemmas, and a composition step. All three are
 present.
 
@@ -232,7 +232,7 @@ all.
 
 **Fuel** is threaded by taking the maximum of the two branches' bounds and
 raising both to it with `execList_stable`. That lemma —
-[`Langlib/Languages/Velato/Stability.lean`](../Langlib/Languages/Velato/Stability.lean),
+[`Langlib/Languages/Velato/Stability.lean`](../../Langlib/Languages/Velato/Stability.lean),
 registered as `LawfulProgLang VelatoLang` — is not bookkeeping either.
 Without it the `∃ m` in `simulates` could be satisfied by an interpreter
 that treated fuel as an input channel, halting with the right answer exactly
@@ -296,12 +296,12 @@ computing every partial computable function. This is Shepherdson and Sturgis
 does follow, and no more.
 
 **Divergence is now proved separately** in
-[`Velato/Divergence.lean`](../Langlib/Computability/Velato/Divergence.lean).
+[`Velato/Divergence.lean`](../../Langlib/Computability/Velato/Divergence.lean).
 Every reachable source state has a successor, each dispatcher body terminates
 with that state, and induction on the target while-loop fuel excludes a
 completed run. Stability handles budgets below the prologue and body
-witnesses. `velatoDivergencePreserving` retains the original compiler and
-provides all four [shared consequences](divergence-preservation.md).
+witnesses. `velatoComplete` retains the original compiler and
+provides all four [shared consequences](../divergence-preservation.md).
 
 **Stated, not yet proved**: that the 32-bit dialect is *not* Turing
 complete, by a `BoundedStorage` witness. See above.

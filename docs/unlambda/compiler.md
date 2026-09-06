@@ -15,7 +15,7 @@ lake exe turpentine exec    --via unlambda prog.turp                  # compile 
   byte-exact output, all of it.
 * **certified** — [`derivedUnlambda`](../../Langlib/Languages/Turpentine/Compile/Derived.lean),
   correct by construction, obtained from
-  [Unlambda's completeness proof](../computability-unlambda.md) with no new
+  [Unlambda's completeness proof](computability.md) with no new
   proof written, and enormous.
 
 ## The bespoke backend
@@ -68,7 +68,7 @@ Bracket abstraction as textbooks state it has a clause that is unsound here:
 `` `kE `` evaluates `E` when the closure is *built*. Under call by value that
 means a loop body runs before its test, and a `print` inside a branch prints
 whether or not the branch is taken. The completeness proof found this
-first — [computability-unlambda.md](../computability-unlambda.md) records
+first — [unlambda/computability.md](computability.md) records
 it — and kept the clause for **value expressions**: terms whose evaluation
 neither prints, nor loops, nor computes anything. `abs` uses the same side
 condition, with `isVal` as the test, and falls back to
@@ -296,7 +296,7 @@ Its price here is the steepest in the library. On `sum.turp`:
 | certified | 41 235 167 B |
 
 A factor of ten thousand, and it buys a proof.
-[computability-unlambda.md](../computability-unlambda.md) explains where the
+[unlambda/computability.md](computability.md) explains where the
 size goes — the counter machine's dispatcher is re-selected at every step —
 and [certified-compilation.md](../certified-compilation.md) explains why the
 library keeps the two kinds of compiler apart rather than choosing.

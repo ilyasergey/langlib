@@ -10,7 +10,7 @@ natural numbers**, using runtime rotation loops for arithmetic.
 The new kernel-checked results are in
 [`Obstructions.lean`](../../Langlib/Computability/MalbolgeUnshackled/Obstructions.lean).
 This page supersedes the construction recommendations in the earlier
-[technical account](../computability-malbolge-unshackled.md) and
+[technical account](computability.md) and
 [compiler notebook](compiler.md). It distinguishes a proposed construction
 from the operational theorems still needed to establish it.
 

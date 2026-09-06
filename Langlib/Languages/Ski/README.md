@@ -9,17 +9,17 @@ of these two is a register-machine simulation. The specification is in
 
 It is **proved Turing complete**
 ([`Langlib/Computability/Ski.lean`](../../Computability/Ski.lean), account in
-[docs/computability-ski.md](../../../docs/computability-ski.md)), and the
+[docs/ski/computability.md](../../../docs/ski/computability.md)), and the
 proof is its own: Unlambda's does not carry over, because that language is
 call by value and has an output instruction, while this one is normal order
 and has neither. A run's answer here is a term, a tower of `K`s ending in
 `I`, one `K` per unit.
 
-The original TC witness retains **forward answer preservation**. The separate
-[`skiDivergencePreserving`](../../Computability/Ski/Divergence.lean)
-witness proves divergence preservation for the same compiler: every finite
-budget on a divergent URM input yields `.outOfFuel`. It also supplies
-[halting and result equivalence, output validity, and error freedom](../../../docs/divergence-preservation.md).
+[`skiComplete`](../../Computability/Ski.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Computability/Ski/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../../../docs/divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
 
 ## Modules
 

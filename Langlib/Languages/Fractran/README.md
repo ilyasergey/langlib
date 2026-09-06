@@ -6,11 +6,11 @@ that keeps the state integral, and that is already enough for universality.
 The full specification, history, and the exact semantic choices are in
 [docs/fractran/spec.md](../../../docs/fractran/spec.md).
 
-The original TC witness retains **forward answer preservation**. The separate
-[`fractranDivergencePreserving`](../../Computability/Fractran/Divergence.lean)
-witness proves divergence preservation for the same compiler: every finite
-budget on a divergent URM input yields `.outOfFuel`. It also supplies
-[halting and result equivalence, output validity, and error freedom](../../../docs/divergence-preservation.md).
+[`fractranComplete`](../../Computability/Fractran.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Computability/Fractran/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../../../docs/divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
 
 ## Modules
 

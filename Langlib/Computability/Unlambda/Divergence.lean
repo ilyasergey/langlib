@@ -1,4 +1,4 @@
-import Langlib.Computability.Unlambda
+import Langlib.Computability.Unlambda.Simulation
 import Langlib.Computability.Divergence
 
 /-! # Unlambda preserves URM divergence
@@ -405,15 +405,3 @@ theorem preserves_divergence (P : Cslib.URM.Program) (inputs : List Nat)
   exact hp.outOfFuel Prod.snd exec_stable ht fuel
 
 end Langlib.Computability.URMUnlambda
-
-namespace Langlib.Computability
-
-open Langlib.Common
-
-/-- The original Unlambda compiler, with divergence preservation. -/
-def unlambdaDivergencePreserving : DivergencePreservingTC UnlambdaLang where
-  toTuringComplete := unlambdaComplete
-  preserves_divergence := fun P inputs hd fuel =>
-    URMUnlambda.preserves_divergence P inputs hd (URMUnlambda.encodeInput inputs) fuel
-
-end Langlib.Computability

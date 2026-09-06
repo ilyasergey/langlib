@@ -1,4 +1,4 @@
-import Langlib.Computability.Velato
+import Langlib.Computability.Velato.Simulation
 import Langlib.Computability.Divergence
 
 /-! # Velato preserves URM divergence
@@ -151,15 +151,3 @@ theorem preserves_divergence (P : Cslib.URM.Program) (inputs : List Nat)
   exact hc hout
 
 end Langlib.Computability.URMVelato
-
-namespace Langlib.Computability
-
-open Langlib.Common
-
-/-- The original Velato compiler, with divergence preservation. -/
-def velatoDivergencePreserving : DivergencePreservingTC VelatoLang where
-  toTuringComplete := velatoComplete
-  preserves_divergence := fun P inputs hd fuel =>
-    URMVelato.preserves_divergence P inputs hd (URMVelato.encodeInput inputs) fuel
-
-end Langlib.Computability

@@ -661,6 +661,8 @@ structure TuringComplete (L : Type) [ProgLang L] [LawfulProgLang L] where
   simulates : ∀ P inputs result, Cslib.URM.HaltsWithResult P inputs result →
     ∃ fuel, let run := ProgLang.run (compile P inputs) (encodeInput inputs) fuel
             run.exit = .halted ∧ decodeOutput run.output = some result
+  preserves_divergence : ∀ P inputs, Cslib.URM.Diverges P inputs →
+    ∀ fuel, (ProgLang.run (compile P inputs) (encodeInput inputs) fuel).exit = .outOfFuel
 ```
 
 **Incompleteness is a finite bound.** `BoundedStorage` supplies a
@@ -674,18 +676,18 @@ The byte-core Befunge result uses `BoundedStorage`; Malbolge uses
 `BoundedRun`. Deadfish instead proves every program terminates and has no
 `BoundedStorage` witness for its unbounded accumulator. These decidability
 results do not prove `¬ TuringComplete L` inside Lean. With a runnable
-compiler, incompatibility with forward answer preservation is a
-meta-theoretic argument; with divergence preservation, `halts_iff` supplies
-the missing halting reduction. See the interface docstrings and the
+compiler, `TuringComplete.halts_iff` reduces URM halting to target halting;
+incompatibility is meta-theoretic because effectiveness of arbitrary Lean
+functions is not formalized here. See the interface docstrings and the
 per-language proof notes for the precise scopes.
 
-### Stage 8 divergence-preserving interface and migration `[~]`
+### Stage 8 divergence-preserving interface and migration `[x]`
 
-Current continuation: finish Unlambda for the unchanged compiler, validate all
-eleven stronger witnesses, then commit and push that milestone. Afterward
-fold `preserves_divergence` into `TuringComplete`, remove the separate
-`DivergencePreservingTC` structure and witnesses, and migrate all clients,
-audits, policies and documentation. MU’s existing proofs remain unchanged.
+The all-eleven divergence-proof milestone was committed and pushed as
+`052b87e` on `ilya/divergence` before the interface refactor. The refactor is
+complete: `TuringComplete` includes `preserves_divergence`, the temporary
+extension is removed, and clients, audits, policies and docs are updated.
+MU’s proof terms remain unchanged; only documentation-path comments changed.
 
 * [x] **2026-09-06:** add `DivergencePreservingTC`, extending the existing
   forward answer-preservation witness with `.outOfFuel` for every finite
@@ -712,15 +714,46 @@ audits, policies and documentation. MU’s existing proofs remain unchanged.
   with the next represented URM state, establish continuing positive
   execution, and declare `unlambdaDivergencePreserving`. The proof uses `EqE`
   only for terminating pieces and actual CEK prefixes for recursive progress.
-* [x] Validate the checkpoint: full build (8,945 jobs), all 1,700 tests and
+* [x] Validate the initial ten-witness checkpoint: full build (8,945 jobs),
+  all 1,700 tests and
   both Velato round trips, 758 clean axiom reports, and six available
   external differential cases. MU’s Lean sources remain unchanged.
 
-All eleven existing witnesses remain `TuringComplete`; none is automatically
-promoted. [The migration table](divergence-preservation.md#witness-migration)
-records all eleven proved upgrades.
+* [x] Commit and push the all-eleven proof milestone (`052b87e`), after a
+  full build (8,945 jobs) and 770 clean axiom reports.
+* [x] Merge the divergence field and consequences into `TuringComplete`;
+  remove the temporary extension and duplicate witnesses. Preserve public
+  import paths and compiler functions using separate proof modules.
+* [x] Move all twelve per-language computability accounts into their language
+  folders; update all incoming and relative links, including code comments.
+* [x] Review root/docs text for consistency and verify every numbered source
+  link points to the exact definition or theorem (including both READMEs).
+* [x] Validate the single interface and final documentation paths: 8,956 build
+  jobs, all 1,700 tests plus two property checks, 761 clean axiom reports,
+  and 1,099 valid local documentation links (240 exact declaration anchors).
+
+All eleven `<lang>Complete` witnesses now supply both proof fields.
+[The proof table](divergence-preservation.md#witness-migration)
+records their operational routes.
 MU has no witness to upgrade; its current proofs
 remain unchanged and must still build and pass the axiom audit.
+
+### Uniform computability layout and compiler divergence `[~]`
+
+Requested after the completeness refactor on 2026-09-06:
+
+* [ ] Put every language's computability development in its own folder;
+  migrate imports and all documentation and declaration links.
+* [ ] Strengthen compiler correctness with an explicit source-divergence
+  predicate tied to the source interpreter and exhaustion at every finite
+  target fuel. Cover both answer and I/O compiler interfaces; do not define
+  divergence as absence of a successfully decoded answer.
+* [ ] Prove divergence preservation for the Turpentine-to-URM translation
+  and restate all derived compilers using both halves of the pipeline.
+* [ ] Upgrade the certified bespoke Whitespace, Subleq and Velato compilers,
+  including the existing I/O witnesses, for their accepted fragments.
+* [ ] Update all documentation, run build/tests and the axiom audit, check
+  exact declaration links, then commit and push the completed checkpoints.
 
 ### cslib is a dependency
 
@@ -771,16 +804,16 @@ contorting the statements to fit theorems we have not needed yet.
 | brainfuck | **complete, PROVED** (`Langlib/Computability/Brainfuck.lean`, axiom-clean) | the textbook proof, but the honest one is fiddly: byte cells mean a URM register needs a multi-cell bignum representation, or a two-counter (Minsky) machine argument with unary counters on the tape. Prefer Minsky: two counters, each a tape region, and `>` `<` for selection. |
 | befunge93 | **it depends, and that is the finding**; the byte core is **PROVED incomplete** (`Langlib/Computability/Befunge93.lean`, axiom-clean) | The classical claim is that Befunge-93 is not Turing complete. Checking it against `bef.c` sharpens it: the playfield is `char pg[80*25]`, so the control state is finite, and the stack is a malloc'd list of `signed long`, so it has unbounded *depth* but a finite *alphabet*. Finite control plus one finite-alphabet stack is a pushdown automaton, which is not Turing complete. **Our implementation is a different language on this point**: we store unbounded `Int` in both stack and playfield cells (deviations 1 and 2 in the spec), which turns the 2000 cells into 2000 unbounded registers, and a register machine with two unbounded registers is already universal. So prove *both*: `BoundedStorage` for a faithful char-cell variant, and `TuringComplete` for the semantics we actually implement. The pair is the most instructive entry in this table. |
 | fractran | **complete, PROVED** (`Langlib/Computability/Fractran.lean`, axiom-clean) | Conway's own result: a register machine's registers are prime exponents. The simulation is arithmetic rather than operational, so this proof looks different from the others and is worth doing for that reason. |
-| thue | **complete, PROVED** (`Langlib/Computability/Thue.lean`, axiom-clean) | semi-Thue systems are universal (Post), but the interesting part here was the deterministic strategy. A configuration is a unique `@` marker carrying the phase, plus one unary run per counter; every generated rule reads that marker and exactly one adjacent cell, so `firstMatch` is a function on represented states and the intended derivation is the only one the interpreter can follow. Strategy *independence* (the same answer under `Strategy.random`) is one step further and not claimed; see `docs/computability-thue.md`. |
+| thue | **complete, PROVED** (`Langlib/Computability/Thue.lean`, axiom-clean) | semi-Thue systems are universal (Post), but the interesting part here was the deterministic strategy. A configuration is a unique `@` marker carrying the phase, plus one unary run per counter; every generated rule reads that marker and exactly one adjacent cell, so `firstMatch` is a function on represented states and the intended derivation is the only one the interpreter can follow. Strategy *independence* (the same answer under `Strategy.random`) is one step further and not claimed; see `docs/thue/computability.md`. |
 | malbolge-unshackled | complete (external construction); Lean proof open | **Reworked foundations 2026-09-05.** Fixed-cell representation, reusable three-step work/reset calls, a concrete six-step rotation loop, marker algebra, and a five-step growth-and-return segment are checked; two loadable examples exercise them at default and odd widths. An eleven-step reusable growth service now preserves code, return records, and reads for every future width; a third loadable example initializes its no-op orbit and calls the same service twice. A 34-step marker reset now restores one and all resident constants with no input consumption; a fourth loadable example rotates and resets the same marker. **2026-09-06:** a 50-step cycle now repeats rotation/reset on the same marker and unchanged adjacent record, with exact rotor restoration and arbitrary iteration proved; a fifth loadable example initializes and exercises this cycle. An 87-step cycle now integrates growth and reset on the same marker, preserving all resident services and future return reads; arbitrary iteration reaches width `2^n*w`, and a sixth loadable example exercises successive doublings. Nine-step low-trit extraction and scratch-reset calls and a separate two/three-step reusable bit branch are now proved; a seventh loadable example exercises both branch outcomes in both no-op phases. A seven-step padded working call now reserves two branch continuation slots, and a fourteen-step marker test preserves them. Connecting its result pointer to dispatch, restoring the caller on both paths, a terminating scan, carry/borrow, conditional overflow retry, and general source initialization remain open. See [runtime proof](malbolge-unshackled/runtime-proof.md). The audit proves `RegMem` impossible for natural-seeded fill, even after finite writes; code restoration does not restore operands, and the width theorem alone is not a storage bound. Existing local lemmas remain valid, but there is no runtime counter compiler or `TuringComplete` witness. Prefer fixed cells holding unbounded natural counters, with reusable rotation scans, carry/borrow arithmetic, width growth **and return**, and a source initializer. Matthias Lutter’s 2016 MU Brainfuck interpreter provides concrete prior art. Next milestone: a loadable, symbolically verified counter routine that crosses a width boundary and remains callable. See [proof audit and construction](malbolge-unshackled/proof-audit.md). |
-| malbolge | **incomplete, PROVED** (`Langlib/Computability/Malbolge.lean`, axiom-clean) | a bounded-storage machine: 59049 words of 59049 values is a large finite state space, so its halting problem is decidable and it cannot be Turing complete. The proof turned out *not* to be the same shape as Befunge-93's: that language's restricted core is finite by construction, while Malbolge's state type is wide (an unbounded array, a growing output, a cursor whose range depends on the input), so the reachable states had to be cut out with an invariant carried through every instruction. That is also why the witness is a `BoundedRun` (the reachable-only form of `BoundedStorage`, added for this) rather than a `BoundedStorage`; see `docs/computability-malbolge.md`. The interesting sequel is Scheffer's Malbolge-T (the program reads its own output, lifting the bound) and Ørjan Johansen's Malbolge Unshackled (2007), whose constructive evidence includes Lutter’s 2016 Brainfuck interpreter; its Lean completeness proof remains open. |
+| malbolge | **incomplete, PROVED** (`Langlib/Computability/Malbolge.lean`, axiom-clean) | a bounded-storage machine: 59049 words of 59049 values is a large finite state space, so its halting problem is decidable and it cannot be Turing complete. The proof turned out *not* to be the same shape as Befunge-93's: that language's restricted core is finite by construction, while Malbolge's state type is wide (an unbounded array, a growing output, a cursor whose range depends on the input), so the reachable states had to be cut out with an invariant carried through every instruction. That is also why the witness is a `BoundedRun` (the reachable-only form of `BoundedStorage`, added for this) rather than a `BoundedStorage`; see `docs/malbolge/computability.md`. The interesting sequel is Scheffer's Malbolge-T (the program reads its own output, lifting the bound) and Ørjan Johansen's Malbolge Unshackled (2007), whose constructive evidence includes Lutter’s 2016 Brainfuck interpreter; its Lean completeness proof remains open. |
 | piet | **complete, PROVED** (`Langlib/Computability/Piet.lean`, axiom-clean) | unbounded stack of unbounded integers plus conditional branching, so the arithmetic was never in doubt; the work was geometric. The generated image is one branchless dispatcher loop, and the proof is stated against `evalGrid` itself: DP/CC movement, the eight exits of every colour block, the white slides, and the halt. The finding worth keeping is that **a singleton colour block can never halt a Piet program** — whatever codel the run arrived from is an unblocked neighbour — so the terminal is an L of three codels, the smallest shape that can hide its own entry. |
 | ook | **complete, PROVED** (`Langlib/Computability/Ook.lean`, axiom-clean) | free: `parse . render = id` against brainfuck, so it inherits the brainfuck result by composition. |
 | brainloller | **complete, PROVED** (`Langlib/Computability/Brainloller.lean`, axiom-clean) | likewise free, via its decoder into the brainfuck AST. |
 | turpentine | complete | our own front end, so this is a statement about the *source* language: a URM compiles to Turpentine directly (registers are array elements, the decrement-or-jump is a `while`), which also makes every Turing-complete backend's compiler a second, independent completeness proof for that target. |
-| unlambda | **complete, PROVED** (`Langlib/Computability/Unlambda.lean`, axiom-clean) | the one completeness argument in this table that is not a machine simulation. The register-machine half is the shared counter machine; what is new is running its four commands in combinators, with a register a Scott numeral, the file a Scott list, and the answer in unary. Three things call by value forces, all recorded in `docs/computability-unlambda.md`: the textbook clause `[x] e = k e` for an `e` without `x` is **unsound**, because it evaluates `e` when the closure is built (restricted to closed value expressions it is sound, and keeps a numeral linear rather than exponential); a loop's zero test has to guard both branches and force the chosen one, or the body runs once on a zero register and then forever; and `Y` diverges, so the fixed point is the strict variant. `c` and `d` never appear, so the two places the machine would intercept a delay are dead code. |
-| SKI | **complete, PROVED** (`Langlib/Computability/Ski.lean`, axiom-clean) | the same counter machine in front, and nothing shared behind it. Unlambda's witness does not carry over even though the two languages share their combinators: SKI is normal order where Unlambda is call by value, so the compiled terms are different programs, and SKI has no output instruction, so the answer has to be a term. It is a tower of `K`s ending in `I`, one `K` per unit, and the register file carries one cell more than the machine has registers so that `emit` has somewhere to count. Normal order pays for itself everywhere else: nothing is forced before it is stored, no branch needs a guard, the ordinary fixed point works, and the register cells need no nil case. The whole file rests on one lemma, that a spine step commutes with application with no side condition, because the three operators that make a redex at the root are all head normal forms. See `docs/computability-ski.md`. |
-| velato | **complete, PROVED** (`Langlib/Computability/Velato.lean`, axiom-clean), *for the unbounded-integer reading* | the one entry in this table where the proof could not lay registers out side by side. A Velato variable is a MIDI note, so a program has at most 128 of them, while `counterProgram` may ask for arbitrarily many: one register per variable would be a compiler that works for small programs and fails for large ones, which is the failure `docs/agent-brief-completeness.md` warns about. So the register file lives *inside* one cell instead of across cells, as `2^w0 * 3^w1 * 5^w2 * ...` in a single variable — increment multiplies by a prime, decrement divides, and "is register r nonzero" is "does prime r divide the number". The primes had to be built by a Bertrand-bounded search rather than taken from `Nat.nth Nat.Prime`, which is noncomputable, because `TuringComplete.compile` must run and the differential tests run it. **Still open, and stated in `docs/velato/spec.md` rather than assumed:** the converse for the 2009 reference compiler's 32-bit `int`, under which the language has at most 128 variables of finite width, hence a finite state space, hence a decidable halting problem and no completeness. That wants a second `ProgLang` instance for a 32-bit dialect and a `BoundedStorage` witness for it. See `docs/computability-velato.md`. |
+| unlambda | **complete, PROVED** (`Langlib/Computability/Unlambda.lean`, axiom-clean) | the one completeness argument in this table that is not a machine simulation. The register-machine half is the shared counter machine; what is new is running its four commands in combinators, with a register a Scott numeral, the file a Scott list, and the answer in unary. Three things call by value forces, all recorded in `docs/unlambda/computability.md`: the textbook clause `[x] e = k e` for an `e` without `x` is **unsound**, because it evaluates `e` when the closure is built (restricted to closed value expressions it is sound, and keeps a numeral linear rather than exponential); a loop's zero test has to guard both branches and force the chosen one, or the body runs once on a zero register and then forever; and `Y` diverges, so the fixed point is the strict variant. `c` and `d` never appear, so the two places the machine would intercept a delay are dead code. |
+| SKI | **complete, PROVED** (`Langlib/Computability/Ski.lean`, axiom-clean) | the same counter machine in front, and nothing shared behind it. Unlambda's witness does not carry over even though the two languages share their combinators: SKI is normal order where Unlambda is call by value, so the compiled terms are different programs, and SKI has no output instruction, so the answer has to be a term. It is a tower of `K`s ending in `I`, one `K` per unit, and the register file carries one cell more than the machine has registers so that `emit` has somewhere to count. Normal order pays for itself everywhere else: nothing is forced before it is stored, no branch needs a guard, the ordinary fixed point works, and the register cells need no nil case. The whole file rests on one lemma, that a spine step commutes with application with no side condition, because the three operators that make a redex at the root are all head normal forms. See `docs/ski/computability.md`. |
+| velato | **complete, PROVED** (`Langlib/Computability/Velato.lean`, axiom-clean), *for the unbounded-integer reading* | the one entry in this table where the proof could not lay registers out side by side. A Velato variable is a MIDI note, so a program has at most 128 of them, while `counterProgram` may ask for arbitrarily many: one register per variable would be a compiler that works for small programs and fails for large ones, which is the failure `docs/agent-brief-completeness.md` warns about. So the register file lives *inside* one cell instead of across cells, as `2^w0 * 3^w1 * 5^w2 * ...` in a single variable — increment multiplies by a prime, decrement divides, and "is register r nonzero" is "does prime r divide the number". The primes had to be built by a Bertrand-bounded search rather than taken from `Nat.nth Nat.Prime`, which is noncomputable, because `TuringComplete.compile` must run and the differential tests run it. **Still open, and stated in `docs/velato/spec.md` rather than assumed:** the converse for the 2009 reference compiler's 32-bit `int`, under which the language has at most 128 variables of finite width, hence a finite state space, hence a decidable halting problem and no completeness. That wants a second `ProgLang` instance for a 32-bit dialect and a `BoundedStorage` witness for it. See `docs/velato/computability.md`. |
 | deadfish | **incomplete, PROVED** (`Langlib/Computability/Deadfish.lean`, axiom-clean) | no input, no loops, no conditionals: the reachable state is a function of the program text alone. Prove that every program's output is computable by a total function of its source, hence its halting problem is trivially decidable. The easiest theorem here and the one most worth stating, since Deadfish's fame rests on it. |
 
 ### A combinator language for the other side of the argument
@@ -798,7 +831,7 @@ non-imperative idea in the esolang canon. Unlambda's `c` (call/cc) and `d`
 without being reasoned about.
 
 **Unlambda is done** (2026-08-30, `Langlib/Computability/Unlambda.lean`),
-and the account of it is `docs/computability-unlambda.md`. SKI is still
+and the account of it is `docs/unlambda/computability.md`. SKI is still
 open, and the entry above says why the Unlambda witness does not transfer
 to it.
 

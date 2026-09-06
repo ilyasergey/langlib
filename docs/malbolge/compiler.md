@@ -437,7 +437,7 @@ Malbolge quine in 2012. Everything here is written from scratch. See
 Settled and negative: 59049 words of 59049 values is finite, so the
 halting problem is decidable and Malbolge is not Turing complete
 (`Langlib/Computability/Malbolge.lean`, and
-[docs/computability-malbolge.md](../computability-malbolge.md)).
+[docs/malbolge/computability.md](computability.md)).
 
 The bound is lifted by Lou Scheffer's Malbolge-T, in which a program may
 re-read its own output, and by Ørjan Johansen's Malbolge Unshackled

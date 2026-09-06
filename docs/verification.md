@@ -302,7 +302,7 @@ pages for why), so they have no proof obligations.
 One thing, and it is not a compiler-correctness result: **Whitespace is
 proved Turing complete**
 ([Whitespace.lean](../Langlib/Computability/Whitespace.lean),
-[`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L1147)), by
+[`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L24)), by
 compiling cslib's unlimited register machine into it and proving the
 compilation simulates. `#print axioms` on the result reports only
 `propext`, `Classical.choice` and `Quot.sound`.
@@ -321,17 +321,17 @@ as the proof.
 
 | Backend | Effective compiler | Simulation | End-to-end theorem | Derived compiler | Behavioural (I/O) |
 |---------|--------------------|------------|--------------------|------------------|-------------------|
-| whitespace | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L2695) | [yes, scalars and output](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3744) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | [**yes**, output only, `encodeTrace = id`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3790) |
-| subleq | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) | [yes, two shapes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L118) | - |
-| velato | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L1254) | [yes, scalars, output and `readByte`](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L1983) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L178) | [**yes**, input included, `encodeTrace = encodeInput = id`, NUL-free streams](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032) |
-| brainfuck | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L122) | - |
-| fractran | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L127) | n/a (no I/O) |
-| thue | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L133) | - |
-| piet | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L139) | - |
-| ook | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L145) | - |
-| brainloller | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L150) | - |
-| unlambda | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L156) | - |
-| ski | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L163) | n/a (no I/O) |
+| whitespace | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L2695) | [yes, scalars and output](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3744) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L117) | [**yes**, output only, `encodeTrace = id`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3790) |
+| subleq | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) | [yes, two shapes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L121) | - |
+| velato | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L1254) | [yes, scalars, output and `readByte`](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L1983) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L180) | [**yes**, input included, `encodeTrace = encodeInput = id`, NUL-free streams](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032) |
+| brainfuck | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L125) | - |
+| fractran | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L130) | n/a (no I/O) |
+| thue | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L136) | - |
+| piet | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L142) | - |
+| ook | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L148) | - |
+| brainloller | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L153) | - |
+| unlambda | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L159) | - |
+| ski | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L166) | n/a (no I/O) |
 | deadfish | - | - | - | n/a (not complete) | - |
 | malbolge | - | - | - | n/a (not complete) | - |
 
@@ -393,20 +393,18 @@ to close the gap.
 
 ## Divergence-preserving completeness
 
-The computability interface now separates forward answer preservation
-(`TuringComplete`) from divergence-preserving URM simulation
-(`DivergencePreservingTC`). The latter requires `.outOfFuel` at **every**
-finite target fuel on divergent source inputs, independently of decoding.
-Together with forward simulation and `LawfulProgLang`, it proves halting
-and result equivalences, validity of every normally halting output, and
-freedom from runtime errors, including on divergent inputs. A decoded-result
-iff alone does not exclude a spurious halt whose output decodes to `none`.
+[`TuringComplete`](divergence-preservation.md) now requires both forward
+answer preservation and divergence-preserving URM simulation. All eleven
+witnesses prove `.outOfFuel` at **every** finite target fuel on divergent
+source inputs, independently of decoding. The shared consequences are
+halting and result equivalences, output validity, and error freedom.
+An iff about decoded results alone would still permit undecodable halts.
 
-The existing eleven TC witnesses and the derived Turpentine compilers remain
-unchanged. All eleven separate divergence-preserving witnesses are proved; the
-[interface and migration notes](divergence-preservation.md) record their
-operational proof routes. An upgraded URM-to-target witness does not automatically
-supply divergence preservation for the Turpentine-to-URM half.
+The runnable compilers are unchanged. The derived Turpentine compilers keep
+their forward `CertifiedCompiler` specification: the stronger URM-to-target
+witness does not automatically prove divergence preservation for the
+Turpentine-to-URM half. [The proof notes](divergence-preservation.md)
+record the individual target proofs.
 
 ## Later
 

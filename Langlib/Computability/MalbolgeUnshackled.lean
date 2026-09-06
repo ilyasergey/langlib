@@ -44,7 +44,7 @@ folklore:
   uninterrupted walk through untouched fill, not generated code or jumps
   over bad cells.
 
-`docs/computability-malbolge-unshackled.md` says how the intended proof
+`docs/malbolge-unshackled/computability.md` says how the intended proof
 gets past both, and what is still open.
 -/
 
@@ -62,7 +62,7 @@ inductive MalbolgeUnshackledLang : Type
 starting rotation width 10, the loader's permissive mode. The rotation
 width is a knob the language leaves open, so a completeness claim stated
 through this instance is a claim about the least legal width; see
-`docs/computability-malbolge-unshackled.md`. -/
+`docs/malbolge-unshackled/computability.md`. -/
 instance : ProgLang MalbolgeUnshackledLang where
   Prog := Image
   parse := load

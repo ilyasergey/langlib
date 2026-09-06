@@ -1,4 +1,4 @@
-import Langlib.Computability.Ski
+import Langlib.Computability.Ski.Simulation
 import Langlib.Computability.Divergence
 
 /-! # SKI preserves URM divergence
@@ -274,14 +274,3 @@ theorem preserves_divergence (P : Cslib.URM.Program) (inputs : List Nat)
   | some t => simp [hn, normaliseExit] at hout
 
 end Langlib.Computability.URMSki
-
-namespace Langlib.Computability
-
-open Langlib.Common
-
-/-- The original SKI compiler, with divergence preservation. -/
-def skiDivergencePreserving : DivergencePreservingTC SkiLang where
-  toTuringComplete := skiComplete
-  preserves_divergence := URMSki.preserves_divergence
-
-end Langlib.Computability

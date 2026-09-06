@@ -1,6 +1,6 @@
 # Brainfuck is Turing complete
 
-[`Langlib/Computability/Brainfuck.lean`](../Langlib/Computability/Brainfuck.lean)
+[`Langlib/Computability/Brainfuck.lean`](../../Langlib/Computability/Brainfuck.lean)
 contains a total compiler from cslib's unlimited register machine to
 Brainfuck and a proof that every halting source run is simulated. The public
 witness is
@@ -10,16 +10,15 @@ def brainfuckComplete : TuringComplete BrainfuckLang
 ```
 
 `TuringComplete` is the common interface from
-[`Langlib/Common/Computability.lean`](../Langlib/Common/Computability.lean).
+[`Langlib/Common/Computability.lean`](../../Langlib/Common/Computability.lean).
 The witness also supplies the completeness stage used by the verified
 Turpentine compilation pipeline described in
-[`certified-compilation.md`](certified-compilation.md).
+[`certified-compilation.md`](../certified-compilation.md).
 
-The original witness retains the **forward answer-preservation** interface.
-The separate [`brainfuckDivergencePreserving`](../Langlib/Computability/Brainfuck/Divergence.lean)
-witness proves divergence preservation for that same compiler; the
-[shared interface](divergence-preservation.md) then gives halting and result
-equivalence, output validity, and error freedom.
+[`brainfuckComplete`](../../Langlib/Computability/Brainfuck.lean) combines this
+halting simulation with the [divergence proof](../../Langlib/Computability/Brainfuck/Divergence.lean)
+for the same compiler. The [shared interface](../divergence-preservation.md)
+gives halting and result equivalence, output validity, and error freedom.
 
 ## The theorem
 
@@ -197,10 +196,10 @@ equivalence with another standard model. Langlib's precise consequence is
 `computes_of_turingComplete`, which quantifies over
 `Cslib.URM.Computable` functions.
 
-Open:
+Scope:
 
-* Divergence preservation is now proved separately in
-  [`Brainfuck/Divergence.lean`](../Langlib/Computability/Brainfuck/Divergence.lean):
+* Divergence preservation is proved in
+  [`Brainfuck/Divergence.lean`](../../Langlib/Computability/Brainfuck/Divergence.lean):
   each terminating dispatcher body returns to a positive-cost loop check.
   This also proves halting equivalence for the unchanged compiler.
 * This proof concerns `URMBrainfuck.compile`. It does not certify the
@@ -212,7 +211,7 @@ Open:
 ## Checking it
 
 The standalone differential suite is
-[`Langlib/Tests/URMBrainfuck.lean`](../Langlib/Tests/URMBrainfuck.lean). It
+[`Langlib/Tests/URMBrainfuck.lean`](../../Langlib/Tests/URMBrainfuck.lean). It
 contains six cases, including compiled size, a constant, transfer, zeroing,
 an addition loop, and a copy loop with a backward jump.
 

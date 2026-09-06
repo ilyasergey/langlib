@@ -1,0 +1,1271 @@
+import Langlib.Common.Fuel
+import Langlib.Common.Computability
+import Langlib.Computability.URM
+import Langlib.Computability.Counter
+import Langlib.Languages.Brainfuck
+
+/-!
+# Brainfuck is Turing complete
+
+This file compiles an arbitrary unlimited register machine into brainfuck and
+proves the simulation, giving `brainfuckComplete : TuringComplete
+BrainfuckLang`.
+
+The register-machine half of the compiler is shared, and lives in
+`Langlib/Computability/Counter.lean`: it turns a URM program into the
+structured counter machine `Cmd`, whose four commands are what this file
+lays out on the tape.
+
+See `docs/brainfuck/computability.md` for the prose account.
+-/
+
+namespace Langlib.Computability.URMBrainfuck
+
+open Langlib.Common
+
+open Langlib.Computability.Counter
+
+/-! ## Paired unary columns on the Brainfuck tape
+
+For a fixed positive register bound `R`, a row occupies `2 * R` cells.  The
+two columns belonging to register `r` are its data column and a guide column.
+If the counter contains `n`, both columns contain `1` in rows `0, ..., n-1`
+and `0` from row `n` onward.  A zero guard row precedes row zero.  The guide
+column lets the generated code return to row zero after finding the end of a
+counter without storing a bounded row number.
+-/
+
+open Langlib.Brainfuck
+
+/-- Number of tape cells in one row of the paired-column layout. -/
+def stride (R : Nat) : Nat := 2 * R
+
+/-- Absolute tape position of the data cell for `(row, r)`.  Row zero starts
+after the guard row. -/
+def dataPos (R row r : Nat) : Nat := stride R * (row + 1) + 2 * r
+
+/-- Absolute tape position of the guide cell for `(row, r)`. -/
+def guidePos (R row r : Nat) : Nat := dataPos R row r + 1
+
+/-- The finite part of the zipper tape, read from cell zero to the last cell
+that has been allocated. -/
+def tapeCells (s : Brainfuck.State) : List UInt8 :=
+  s.left.reverse ++ s.cell :: s.right
+
+/-- Read a tape position, treating the unallocated suffix as zero. -/
+def tapeAt (s : Brainfuck.State) (p : Nat) : UInt8 :=
+  (tapeCells s).getD p 0
+
+/-- The interpreter lifted to a configuration whose first component is the
+remaining Brainfuck command queue. -/
+def bfExec (cfg : Brainfuck.Config) :
+    Nat → (List Brainfuck.Op × Brainfuck.State) → Brainfuck.State × Exit :=
+  fun fuel q => Brainfuck.exec cfg fuel q.1 q.2
+
+/-- `n` consecutive pointer moves. -/
+def rights (n : Nat) : List Brainfuck.Op := List.replicate n .right
+def lefts (n : Nat) : List Brainfuck.Op := List.replicate n .left
+
+/-- Move from the row-zero data cell of register zero to that of `r`. -/
+def toReg (r : Nat) : List Brainfuck.Op := rights (2 * r)
+
+/-- Move from the row-zero data cell of `r` back to register zero. -/
+def fromReg (r : Nat) : List Brainfuck.Op := lefts (2 * r)
+
+/-- Brainfuck code for incrementing the unary counter under the pointer.
+It first finds the zero just after the run, fills the data and guide cells,
+then follows the guide column back to the guard row. -/
+def incAt (R : Nat) : List Brainfuck.Op :=
+  [.loop (rights (stride R)), .inc, .right, .inc, .loop (lefts (stride R))] ++
+  rights (stride R) ++ [.left]
+
+/-- Brainfuck code for decrementing a nonzero unary counter under the
+pointer. -/
+def decAt (R : Nat) : List Brainfuck.Op :=
+  [.loop (rights (stride R))] ++ lefts (stride R) ++ [.dec, .right, .dec] ++
+  lefts (stride R) ++ [.loop (lefts (stride R))] ++ rights (stride R) ++ [.left]
+
+/-- Compositional translation of structured counter code.  Every translated
+command starts and ends at the row-zero cell of register zero. -/
+def lower (R : Nat) : Code → List Brainfuck.Op
+  | [] => []
+  | .inc r :: cs => toReg r ++ incAt R ++ fromReg r ++ lower R cs
+  | .dec r :: cs => toReg r ++ decAt R ++ fromReg r ++ lower R cs
+  | .emit :: cs => .output :: lower R cs
+  | .loop r body :: cs =>
+      toReg r ++
+        [.loop (fromReg r ++ lower R body ++ toReg r)] ++
+        fromReg r ++ lower R cs
+
+theorem lower_append (R : Nat) (a b : Code) :
+    lower R (a ++ b) = lower R a ++ lower R b := by
+  induction a with
+  | nil => simp [lower]
+  | cons c cs ih =>
+    cases c <;> simp only [lower, List.cons_append, ih, List.append_assoc]
+
+/-! ### Exact one-command execution -/
+
+variable {cfg : Brainfuck.Config} {k : List Brainfuck.Op} {s : Brainfuck.State}
+
+theorem reaches_bf_inc :
+    Reaches (bfExec cfg) (.inc :: k, s) (k, { s with cell := s.cell + 1 }) :=
+  Reaches.one fun f => by simp only [bfExec, Brainfuck.exec]
+
+theorem reaches_bf_dec :
+    Reaches (bfExec cfg) (.dec :: k, s) (k, { s with cell := s.cell - 1 }) :=
+  Reaches.one fun f => by simp only [bfExec, Brainfuck.exec]
+
+theorem reaches_bf_right :
+    Reaches (bfExec cfg) (.right :: k, s) (k, s.moveRight) :=
+  Reaches.one fun f => by simp only [bfExec, Brainfuck.exec]
+
+theorem reaches_bf_left {s' : Brainfuck.State} (h : s.moveLeft? = some s') :
+    Reaches (bfExec cfg) (.left :: k, s) (k, s') :=
+  Reaches.one fun f => by simp only [bfExec, Brainfuck.exec, h]
+
+theorem reaches_bf_output :
+    Reaches (bfExec cfg) (.output :: k, s)
+      (k, { s with output := s.output.push s.cell }) :=
+  Reaches.one fun f => by simp only [bfExec, Brainfuck.exec]
+
+theorem reaches_bf_loop_zero {body : List Brainfuck.Op} (h : s.cell = 0) :
+    Reaches (bfExec cfg) (.loop body :: k, s) (k, s) :=
+  Reaches.one fun f => by simp [bfExec, Brainfuck.exec, h]
+
+theorem reaches_bf_loop_nonzero {body : List Brainfuck.Op} (h : s.cell ≠ 0) :
+    Reaches (bfExec cfg) (.loop body :: k, s)
+      (body ++ .loop body :: k, s) :=
+  Reaches.one fun f => by
+    simp only [bfExec, Brainfuck.exec]
+    rw [if_neg (by simpa using h)]
+
+/-! ### Tape movement -/
+
+theorem tapeCells_moveLeft {s s' : Brainfuck.State} (h : s.moveLeft? = some s') :
+    tapeCells s' = tapeCells s := by
+  cases s with
+  | mk left cell right input output =>
+    cases left with
+    | nil => simp [Brainfuck.State.moveLeft?] at h
+    | cons c cs =>
+      simp only [Brainfuck.State.moveLeft?, Option.some.injEq] at h
+      subst s'
+      simp [tapeCells, List.reverse_cons, List.append_assoc]
+
+theorem tapeAt_moveLeft {s s' : Brainfuck.State} (h : s.moveLeft? = some s') (p : Nat) :
+    tapeAt s' p = tapeAt s p := by
+  unfold tapeAt
+  rw [tapeCells_moveLeft h]
+
+theorem pointer_moveLeft {s s' : Brainfuck.State} (h : s.moveLeft? = some s') :
+    s'.left.length + 1 = s.left.length := by
+  cases s with
+  | mk left cell right input output =>
+    cases left with
+    | nil => simp [Brainfuck.State.moveLeft?] at h
+    | cons c cs =>
+      simp only [Brainfuck.State.moveLeft?, Option.some.injEq] at h
+      subst s'
+      simp
+
+theorem pointer_moveRight (s : Brainfuck.State) :
+    s.moveRight.left.length = s.left.length + 1 := by
+  cases s with
+  | mk left cell right input output =>
+    cases right <;> simp [Brainfuck.State.moveRight]
+
+private theorem getD_append_zero (xs : List UInt8) (p : Nat) :
+    (xs ++ [0]).getD p 0 = xs.getD p 0 := by
+  rw [List.getD_eq_getElem?_getD, List.getD_eq_getElem?_getD,
+    List.getElem?_append]
+  by_cases h : p < xs.length
+  · simp [h]
+  · have hle : xs.length ≤ p := by omega
+    rw [if_neg h, List.getElem?_eq_none hle]
+    by_cases hp : p - xs.length = 0 <;> simp [hp]
+
+theorem tapeAt_moveRight (s : Brainfuck.State) (p : Nat) :
+    tapeAt s.moveRight p = tapeAt s p := by
+  cases s with
+  | mk left cell right input output =>
+    cases right with
+    | nil =>
+      simp only [Brainfuck.State.moveRight, tapeAt, tapeCells, List.reverse_cons]
+      exact getD_append_zero _ _
+    | cons c cs =>
+      simp [Brainfuck.State.moveRight, tapeAt, tapeCells, List.reverse_cons,
+        List.append_assoc]
+
+theorem tapeAt_pointer (s : Brainfuck.State) : tapeAt s s.left.length = s.cell := by
+  unfold tapeAt tapeCells
+  rw [List.getD_eq_getElem?_getD,
+    List.getElem?_append_right (by simp : s.left.reverse.length ≤ s.left.length)]
+  simp
+
+theorem moveLeft?_moveRight (s : Brainfuck.State) :
+    ∃ s', s.moveRight.moveLeft? = some s' := by
+  cases s with
+  | mk left cell right input output =>
+    cases right with
+    | nil => exact ⟨⟨left, cell, [0], input, output⟩, rfl⟩
+    | cons c cs => exact ⟨⟨left, cell, c :: cs, input, output⟩, rfl⟩
+
+/-- Functional iteration of right moves. -/
+def moveRightN : Nat → Brainfuck.State → Brainfuck.State
+  | 0, s => s
+  | n + 1, s => moveRightN n s.moveRight
+
+/-- Relational iteration of successful left moves. -/
+inductive MoveLeftN : Nat → Brainfuck.State → Brainfuck.State → Prop where
+  | zero (s : Brainfuck.State) : MoveLeftN 0 s s
+  | succ {n : Nat} {s s₁ t : Brainfuck.State} :
+      s.moveLeft? = some s₁ → MoveLeftN n s₁ t → MoveLeftN (n + 1) s t
+
+theorem reaches_rights (n : Nat) (k : List Brainfuck.Op) (s : Brainfuck.State) :
+    Reaches (bfExec cfg) (rights n ++ k, s) (k, moveRightN n s) := by
+  induction n generalizing s with
+  | zero => simpa [rights, moveRightN] using Reaches.refl (bfExec cfg) (k, s)
+  | succ n ih =>
+    simp only [rights, List.replicate_succ, List.cons_append, moveRightN]
+    exact Reaches.trans reaches_bf_right (ih s.moveRight)
+
+theorem reaches_lefts {n : Nat} {s t : Brainfuck.State} (h : MoveLeftN n s t)
+    (k : List Brainfuck.Op) :
+    Reaches (bfExec cfg) (lefts n ++ k, s) (k, t) := by
+  induction h with
+  | zero s => simpa [lefts] using Reaches.refl (bfExec cfg) (k, s)
+  | succ h _ ih =>
+    simp only [lefts, List.replicate_succ, List.cons_append]
+    exact Reaches.trans (reaches_bf_left h) ih
+
+theorem moveRightN_pointer (n : Nat) (s : Brainfuck.State) :
+    (moveRightN n s).left.length = s.left.length + n := by
+  induction n generalizing s with
+  | zero => simp [moveRightN]
+  | succ n ih => simp only [moveRightN, ih, pointer_moveRight]; omega
+
+theorem moveRightN_tapeAt (n : Nat) (s : Brainfuck.State) (p : Nat) :
+    tapeAt (moveRightN n s) p = tapeAt s p := by
+  induction n generalizing s with
+  | zero => rfl
+  | succ n ih => rw [moveRightN, ih, tapeAt_moveRight]
+
+theorem moveRightN_cell (n : Nat) (s : Brainfuck.State) :
+    (moveRightN n s).cell = tapeAt s (s.left.length + n) := by
+  rw [← tapeAt_pointer (moveRightN n s), moveRightN_tapeAt, moveRightN_pointer]
+
+theorem MoveLeftN.pointer {n : Nat} {s t : Brainfuck.State} (h : MoveLeftN n s t) :
+    t.left.length + n = s.left.length := by
+  induction h with
+  | zero => simp
+  | succ hm _ ih => have hp := pointer_moveLeft hm; omega
+
+theorem MoveLeftN.tapeAt {n : Nat} {s t : Brainfuck.State} (h : MoveLeftN n s t)
+    (p : Nat) : tapeAt t p = tapeAt s p := by
+  induction h with
+  | zero => rfl
+  | succ hm _ ih => rw [ih, tapeAt_moveLeft hm]
+
+theorem exists_moveLeftN {n : Nat} {s : Brainfuck.State} (h : n ≤ s.left.length) :
+    ∃ t, MoveLeftN n s t := by
+  induction n generalizing s with
+  | zero => exact ⟨s, .zero s⟩
+  | succ n ih =>
+    cases s with
+    | mk left cell right input output =>
+      cases left with
+      | nil => simp at h
+      | cons c cs =>
+        let s₁ : Brainfuck.State := ⟨cs, c, cell :: right, input, output⟩
+        have hm : (⟨c :: cs, cell, right, input, output⟩ : Brainfuck.State).moveLeft? =
+            some s₁ := rfl
+        have hn : n ≤ s₁.left.length := by simp only [s₁]; simp only [List.length_cons] at h; omega
+        obtain ⟨t, ht⟩ := ih hn
+        exact ⟨t, .succ hm ht⟩
+
+/-- Moving right and then the same distance left returns to the original
+absolute pointer and preserves every tape cell. -/
+theorem right_left_roundtrip (n : Nat) (s : Brainfuck.State) :
+    ∃ t, MoveLeftN n (moveRightN n s) t ∧
+      t.left.length = s.left.length ∧ ∀ p, tapeAt t p = tapeAt s p := by
+  have hle : n ≤ (moveRightN n s).left.length := by rw [moveRightN_pointer]; omega
+  obtain ⟨t, ht⟩ := exists_moveLeftN hle
+  refine ⟨t, ht, ?_, ?_⟩
+  · have := ht.pointer; rw [moveRightN_pointer] at this; omega
+  · intro p; rw [ht.tapeAt, moveRightN_tapeAt]
+
+theorem moveRightN_add (a b : Nat) (s : Brainfuck.State) :
+    moveRightN (a + b) s = moveRightN b (moveRightN a s) := by
+  induction a generalizing s with
+  | zero => simp [moveRightN]
+  | succ a ih =>
+    rw [Nat.succ_add]
+    simp only [moveRightN]
+    exact ih s.moveRight
+
+theorem tapeAt_setCell_self (s : Brainfuck.State) (v : UInt8) :
+    tapeAt { s with cell := v } s.left.length = v := by
+  simpa using tapeAt_pointer ({ s with cell := v } : Brainfuck.State)
+
+theorem tapeAt_setCell_of_ne (s : Brainfuck.State) (v : UInt8) (p : Nat)
+    (h : p ≠ s.left.length) :
+    tapeAt { s with cell := v } p = tapeAt s p := by
+  unfold tapeAt tapeCells
+  rw [List.getD_eq_getElem?_getD, List.getD_eq_getElem?_getD]
+  by_cases hp : p < s.left.length
+  · rw [List.getElem?_append_left (by simpa using hp),
+      List.getElem?_append_left (by simpa using hp)]
+  · have hgt : s.left.length < p := by omega
+    rw [List.getElem?_append_right (by simpa using (Nat.le_of_lt hgt) :
+        s.left.reverse.length ≤ p),
+      List.getElem?_append_right (by simpa using (Nat.le_of_lt hgt) :
+        s.left.reverse.length ≤ p)]
+    have heq : p - s.left.reverse.length = (p - s.left.length - 1) + 1 := by
+      simp only [List.length_reverse]
+      omega
+    rw [heq]
+    simp only [List.getElem?_cons_succ]
+
+theorem tapeAt_setCell (s : Brainfuck.State) (v : UInt8) (p : Nat) :
+    tapeAt { s with cell := v } p =
+      if p = s.left.length then v else tapeAt s p := by
+  by_cases h : p = s.left.length
+  · subst p; rw [if_pos rfl, tapeAt_setCell_self]
+  · rw [if_neg h, tapeAt_setCell_of_ne _ _ _ h]
+
+theorem moveRightN_output (n : Nat) (s : Brainfuck.State) :
+    (moveRightN n s).output = s.output := by
+  induction n generalizing s with
+  | zero => rfl
+  | succ n ih =>
+    rw [moveRightN, ih]
+    cases s with
+    | mk left cell right input output => cases right <;> rfl
+
+private theorem output_moveLeft {s s' : Brainfuck.State} (h : s.moveLeft? = some s') :
+    s'.output = s.output := by
+  cases s with
+  | mk left cell right input output =>
+    cases left with
+    | nil => simp [Brainfuck.State.moveLeft?] at h
+    | cons c cs =>
+      simp only [Brainfuck.State.moveLeft?, Option.some.injEq] at h
+      subst s'
+      rfl
+
+theorem MoveLeftN.output {n : Nat} {s t : Brainfuck.State} (h : MoveLeftN n s t) :
+    t.output = s.output := by
+  induction h with
+  | zero => rfl
+  | succ hm _ ih => exact ih.trans (output_moveLeft hm)
+
+private theorem slot_sub (width q slot j : Nat) (hj : j ≤ q) :
+    width * q + slot - width * j = width * (q - j) + slot := by
+  have hq : q = j + (q - j) := by omega
+  conv_lhs => rw [hq, Nat.mul_add]
+  omega
+
+/-- The Brainfuck tape and output represent a counter-machine state at the
+fixed base pointer. -/
+def Matches (R : Nat) (c : CState) (s : Brainfuck.State) : Prop :=
+  0 < R ∧
+  s.left.length = stride R ∧
+  s.output.size = c.out ∧
+  (∀ r, r < R → tapeAt s (2 * r + 1) = 0) ∧
+  ∀ r, r < R → ∀ row,
+    tapeAt s (dataPos R row r) = (if row < c.regs r then 1 else 0) ∧
+    tapeAt s (guidePos R row r) = (if row < c.regs r then 1 else 0)
+
+theorem Matches.cell_at_reg {R : Nat} {c : CState} {s : Brainfuck.State}
+    (h : Matches R c s) {r : Nat} (hr : r < R) :
+    (moveRightN (2 * r) s).cell = (if 0 < c.regs r then 1 else 0) := by
+  rw [moveRightN_cell, h.2.1]
+  simpa [dataPos] using (h.2.2.2.2 r hr 0).1
+
+theorem Matches.output_push {R : Nat} {c : CState} {s : Brainfuck.State}
+    (h : Matches R c s) :
+    Matches R c.emitOne { s with output := s.output.push s.cell } := by
+  refine ⟨h.1, h.2.1, ?_, ?_⟩
+  · simp [CState.emitOne, h.2.2.1]
+  · exact ⟨h.2.2.2.1, h.2.2.2.2⟩
+
+private theorem slotPos_inj {R a b x y : Nat} (hR : 0 < R)
+    (hx : x < stride R) (hy : y < stride R)
+    (h : stride R * a + x = stride R * b + y) : a = b ∧ x = y := by
+  have hm := congrArg (fun z => z % stride R) h
+  have hxy : x = y := by
+    simpa [Nat.add_mod, Nat.mod_eq_of_lt hx, Nat.mod_eq_of_lt hy] using hm
+  subst y
+  have hab : stride R * a = stride R * b := by omega
+  exact ⟨Nat.eq_of_mul_eq_mul_left (by simp [stride, hR]) hab, rfl⟩
+
+theorem dataPos_inj {R row row' r r' : Nat} (hR : 0 < R)
+    (hr : r < R) (hr' : r' < R)
+    (h : dataPos R row r = dataPos R row' r') : row = row' ∧ r = r' := by
+  have hs := slotPos_inj hR (by simp [stride]; omega : 2 * r < stride R)
+    (by simp [stride]; omega : 2 * r' < stride R) h
+  constructor <;> omega
+
+theorem guidePos_inj {R row row' r r' : Nat} (hR : 0 < R)
+    (hr : r < R) (hr' : r' < R)
+    (h : guidePos R row r = guidePos R row' r') : row = row' ∧ r = r' := by
+  have hh : stride R * (row + 1) + (2 * r + 1) =
+      stride R * (row' + 1) + (2 * r' + 1) := by
+    unfold guidePos dataPos at h
+    omega
+  have hs := slotPos_inj (a := row + 1) (b := row' + 1) hR
+    (by simp [stride]; omega : 2 * r + 1 < stride R)
+    (by simp [stride]; omega : 2 * r' + 1 < stride R) hh
+  constructor <;> omega
+
+theorem dataPos_ne_guidePos {R row row' r r' : Nat} (hR : 0 < R)
+    (hr : r < R) (hr' : r' < R) : dataPos R row r ≠ guidePos R row' r' := by
+  intro h
+  have hh : stride R * (row + 1) + 2 * r =
+      stride R * (row' + 1) + (2 * r' + 1) := by
+    unfold guidePos dataPos at h
+    omega
+  have hs := slotPos_inj (a := row + 1) (b := row' + 1) hR
+    (by simp [stride]; omega : 2 * r < stride R)
+    (by simp [stride]; omega : 2 * r' + 1 < stride R) hh
+  omega
+
+theorem guard_ne_dataPos {R row r r' : Nat} (hR : 0 < R)
+    (hr : r < R) (hr' : r' < R) : 2 * r + 1 ≠ dataPos R row r' := by
+  intro h
+  have hh : stride R * 0 + (2 * r + 1) = stride R * (row + 1) + 2 * r' := by
+    unfold dataPos at h
+    simpa only [Nat.mul_zero, Nat.zero_add] using h
+  have hs := slotPos_inj (a := 0) (b := row + 1) hR
+    (by simp [stride]; omega : 2 * r + 1 < stride R)
+    (by simp [stride]; omega : 2 * r' < stride R)
+    hh
+  omega
+
+theorem guard_ne_guidePos {R row r r' : Nat} (hR : 0 < R)
+    (hr : r < R) (hr' : r' < R) : 2 * r + 1 ≠ guidePos R row r' := by
+  intro h
+  have hh : stride R * 0 + (2 * r + 1) =
+      stride R * (row + 1) + (2 * r' + 1) := by
+    unfold guidePos dataPos at h
+    simp only [Nat.mul_zero, Nat.zero_add]
+    omega
+  have hs := slotPos_inj (a := 0) (b := row + 1) hR
+    (by simp [stride]; omega : 2 * r + 1 < stride R)
+    (by simp [stride]; omega : 2 * r' + 1 < stride R)
+    hh
+  omega
+
+theorem matches_up_of_tape {R r : Nat} {c : CState} {s t : Brainfuck.State}
+    (h : Matches R c s) (hr : r < R)
+    (hptr : t.left.length = stride R) (hout : t.output = s.output)
+    (htape : ∀ p, tapeAt t p =
+      if p = dataPos R (c.regs r) r ∨ p = guidePos R (c.regs r) r then 1
+      else tapeAt s p) :
+    Matches R (c.up r) t := by
+  refine ⟨h.1, hptr, ?_, ?_, ?_⟩
+  · rw [hout, h.2.2.1]
+    rfl
+  · intro r' hr'
+    rw [htape]
+    rw [if_neg]
+    · exact h.2.2.2.1 r' hr'
+    · simp only [not_or]
+      exact ⟨guard_ne_dataPos h.1 hr' hr,
+        guard_ne_guidePos h.1 hr' hr⟩
+  · intro r' hr' row
+    constructor
+    · rw [htape]
+      have hcross : dataPos R row r' ≠ guidePos R (c.regs r) r :=
+        dataPos_ne_guidePos h.1 hr' hr
+      by_cases heq : dataPos R row r' = dataPos R (c.regs r) r
+      · have hi := dataPos_inj h.1 hr' hr heq
+        rw [if_pos (Or.inl heq)]
+        rcases hi with ⟨hrow, hrr⟩
+        subst r'
+        subst row
+        simp [CState.up]
+      · rw [if_neg (by simp [heq, hcross])]
+        rw [(h.2.2.2.2 r' hr' row).1]
+        by_cases hrr : r' = r
+        · subst r'
+          have hrow : row ≠ c.regs r := by
+            intro hrow
+            exact heq (by simp [hrow])
+          simp only [CState.up_regs_self]
+          by_cases hlt : row < c.regs r
+          · rw [if_pos hlt, if_pos (by omega)]
+          · rw [if_neg hlt, if_neg (by omega)]
+        · simp [CState.up, Function.update_of_ne hrr]
+    · rw [htape]
+      have hcross : guidePos R row r' ≠ dataPos R (c.regs r) r :=
+        (dataPos_ne_guidePos h.1 hr hr').symm
+      by_cases heq : guidePos R row r' = guidePos R (c.regs r) r
+      · have hi := guidePos_inj h.1 hr' hr heq
+        rw [if_pos (Or.inr heq)]
+        rcases hi with ⟨hrow, hrr⟩
+        subst r'
+        subst row
+        simp [CState.up]
+      · rw [if_neg (by simp [heq, hcross])]
+        rw [(h.2.2.2.2 r' hr' row).2]
+        by_cases hrr : r' = r
+        · subst r'
+          have hrow : row ≠ c.regs r := by
+            intro hrow
+            exact heq (by simp [hrow])
+          simp only [CState.up_regs_self]
+          by_cases hlt : row < c.regs r
+          · rw [if_pos hlt, if_pos (by omega)]
+          · rw [if_neg hlt, if_neg (by omega)]
+        · simp [CState.up, Function.update_of_ne hrr]
+
+theorem matches_down_of_tape {R r : Nat} {c : CState} {s t : Brainfuck.State}
+    (h : Matches R c s) (hr : r < R) (_hnz : c.regs r ≠ 0)
+    (hptr : t.left.length = stride R) (hout : t.output = s.output)
+    (htape : ∀ p, tapeAt t p =
+      if p = dataPos R (c.regs r - 1) r ∨ p = guidePos R (c.regs r - 1) r then 0
+      else tapeAt s p) :
+    Matches R (c.down r) t := by
+  refine ⟨h.1, hptr, ?_, ?_, ?_⟩
+  · rw [hout, h.2.2.1]
+    rfl
+  · intro r' hr'
+    rw [htape, if_neg]
+    · exact h.2.2.2.1 r' hr'
+    · push Not
+      exact ⟨guard_ne_dataPos h.1 hr' hr,
+        guard_ne_guidePos h.1 hr' hr⟩
+  · intro r' hr' row
+    constructor
+    · rw [htape]
+      have hcross : dataPos R row r' ≠ guidePos R (c.regs r - 1) r :=
+        dataPos_ne_guidePos h.1 hr' hr
+      by_cases heq : dataPos R row r' = dataPos R (c.regs r - 1) r
+      · have hi := dataPos_inj h.1 hr' hr heq
+        rw [if_pos (Or.inl heq)]
+        rcases hi with ⟨hrow, hrr⟩
+        subst r'
+        subst row
+        simp [CState.down]
+      · rw [if_neg (by simp [heq, hcross])]
+        rw [(h.2.2.2.2 r' hr' row).1]
+        by_cases hrr : r' = r
+        · subst r'
+          have hrow : row ≠ c.regs r - 1 := by
+            intro hrow
+            exact heq (by simp [hrow])
+          simp only [CState.down_regs_self]
+          by_cases hlt : row < c.regs r
+          · by_cases hlt' : row < c.regs r - 1
+            · rw [if_pos hlt, if_pos hlt']
+            · exfalso; omega
+          · rw [if_neg hlt, if_neg (by omega)]
+        · simp [CState.down, Function.update_of_ne hrr]
+    · rw [htape]
+      have hcross : guidePos R row r' ≠ dataPos R (c.regs r - 1) r :=
+        (dataPos_ne_guidePos h.1 hr hr').symm
+      by_cases heq : guidePos R row r' = guidePos R (c.regs r - 1) r
+      · have hi := guidePos_inj h.1 hr' hr heq
+        rw [if_pos (Or.inr heq)]
+        rcases hi with ⟨hrow, hrr⟩
+        subst r'
+        subst row
+        simp [CState.down]
+      · rw [if_neg (by simp [heq, hcross])]
+        rw [(h.2.2.2.2 r' hr' row).2]
+        by_cases hrr : r' = r
+        · subst r'
+          have hrow : row ≠ c.regs r - 1 := by
+            intro hrow
+            exact heq (by simp [hrow])
+          simp only [CState.down_regs_self]
+          by_cases hlt : row < c.regs r
+          · by_cases hlt' : row < c.regs r - 1
+            · rw [if_pos hlt, if_pos hlt']
+            · exfalso; omega
+          · rw [if_neg hlt, if_neg (by omega)]
+        · simp [CState.down, Function.update_of_ne hrr]
+
+/-! ### Scanning a unary column -/
+
+theorem reaches_scan_right (step n : Nat) (s : Brainfuck.State) (k : List Brainfuck.Op)
+    (hcell : ∀ j, j ≤ n →
+      (moveRightN (step * j) s).cell = (if j < n then 1 else 0)) :
+    Reaches (bfExec cfg) (.loop (rights step) :: k, s)
+      (k, moveRightN (step * n) s) := by
+  induction n generalizing s with
+  | zero =>
+    have hz : s.cell = 0 := by
+      have hz₀ := hcell 0 (by omega)
+      simpa [moveRightN] using hz₀
+    simpa [moveRightN] using (reaches_bf_loop_zero (cfg := cfg) (k := k)
+      (body := rights step) hz)
+  | succ n ih =>
+    have hone : s.cell ≠ 0 := by
+      have := hcell 0 (by omega)
+      simp only [Nat.mul_zero, moveRightN, if_pos (by omega : 0 < n + 1)] at this
+      rw [this]
+      decide
+    have hshift : ∀ j, j ≤ n →
+        (moveRightN (step * j) (moveRightN step s)).cell =
+          (if j < n then 1 else 0) := by
+      intro j hj
+      rw [← moveRightN_add,
+        show step + step * j = step * (j + 1) by simp [Nat.mul_add, Nat.add_comm]]
+      have hs := hcell (j + 1) (by omega)
+      simpa only [Nat.add_lt_add_iff_right] using hs
+    have hloop := reaches_bf_loop_nonzero (cfg := cfg) (k := k)
+      (body := rights step) hone
+    have hmove := reaches_rights (cfg := cfg) step (.loop (rights step) :: k) s
+    have hrest := ih (moveRightN step s) hshift
+    have hchain := Reaches.trans hloop (Reaches.trans hmove hrest)
+    rw [← moveRightN_add] at hchain
+    simpa [Nat.mul_add, Nat.add_comm] using hchain
+
+theorem MoveLeftN.trans {a b : Nat} {s t u : Brainfuck.State}
+    (h₁ : MoveLeftN a s t) (h₂ : MoveLeftN b t u) : MoveLeftN (a + b) s u := by
+  induction h₁ with
+  | zero => simpa using h₂
+  | succ hm _ ih =>
+    rw [Nat.succ_add]
+    exact .succ hm (ih h₂)
+
+theorem reaches_scan_left (step n : Nat) (s : Brainfuck.State) (k : List Brainfuck.Op)
+    (hptr : step * n ≤ s.left.length)
+    (hcell : ∀ j, j ≤ n →
+      tapeAt s (s.left.length - step * j) = (if j < n then 1 else 0)) :
+    ∃ t, Reaches (bfExec cfg) (.loop (lefts step) :: k, s) (k, t) ∧
+      MoveLeftN (step * n) s t := by
+  induction n generalizing s with
+  | zero =>
+    have hz : s.cell = 0 := by
+      rw [← tapeAt_pointer]
+      have hz₀ := hcell 0 (by omega)
+      simpa using hz₀
+    refine ⟨s, reaches_bf_loop_zero (cfg := cfg) (k := k) (body := lefts step) hz, ?_⟩
+    simpa using MoveLeftN.zero s
+  | succ n ih =>
+    have hone : s.cell ≠ 0 := by
+      rw [← tapeAt_pointer]
+      have h₁ := hcell 0 (by omega)
+      simp only [Nat.mul_zero, Nat.sub_zero, if_pos (by omega : 0 < n + 1)] at h₁
+      rw [h₁]
+      decide
+    have hsle : step ≤ s.left.length := by
+      have : step * (n + 1) = step * n + step := Nat.mul_succ step n
+      omega
+    obtain ⟨s₁, hm⟩ := exists_moveLeftN hsle
+    have hp₁ : s₁.left.length + step = s.left.length := hm.pointer
+    have hptr₁ : step * n ≤ s₁.left.length := by
+      have htotal : step * (n + 1) ≤ s.left.length := hptr
+      rw [Nat.mul_succ] at htotal
+      omega
+    have hcell₁ : ∀ j, j ≤ n →
+        tapeAt s₁ (s₁.left.length - step * j) = (if j < n then 1 else 0) := by
+      intro j hj
+      rw [hm.tapeAt]
+      have hindex : s₁.left.length - step * j =
+          s.left.length - step * (j + 1) := by
+        have hjle : step * j ≤ s₁.left.length := by
+          exact Nat.le_trans (Nat.mul_le_mul_left step hj) hptr₁
+        rw [Nat.mul_succ]
+        omega
+      rw [hindex]
+      have hs := hcell (j + 1) (by omega)
+      simpa only [Nat.add_lt_add_iff_right] using hs
+    obtain ⟨t, hreach, htail⟩ := ih s₁ hptr₁ hcell₁
+    have hloop := reaches_bf_loop_nonzero (cfg := cfg) (k := k)
+      (body := lefts step) hone
+    have hmove := reaches_lefts (cfg := cfg) hm (.loop (lefts step) :: k)
+    refine ⟨t, Reaches.trans hloop (Reaches.trans hmove hreach), ?_⟩
+    rw [Nat.mul_succ, Nat.add_comm]
+    exact MoveLeftN.trans hm htail
+
+/-! ### Incrementing one represented counter -/
+
+theorem reaches_inc_cmd {R r : Nat} {c : CState} {s : Brainfuck.State}
+    (h : Matches R c s) (hr : r < R) (k : List Brainfuck.Op) :
+    ∃ t, Reaches (bfExec cfg)
+        (toReg r ++ incAt R ++ fromReg r ++ k, s) (k, t) ∧
+      Matches R (c.up r) t := by
+  let v := c.regs r
+  let sr := moveRightN (2 * r) s
+  let tail₀ := .inc :: .right :: .inc :: .loop (lefts (stride R)) ::
+    (rights (stride R) ++ .left :: (fromReg r ++ k))
+  have hto : Reaches (bfExec cfg)
+      (toReg r ++ (incAt R ++ fromReg r ++ k), s)
+      (incAt R ++ fromReg r ++ k, sr) := by
+    simpa [toReg, sr] using reaches_rights (cfg := cfg) (2 * r)
+      (incAt R ++ fromReg r ++ k) s
+  have hscanCells : ∀ j, j ≤ v →
+      (moveRightN (stride R * j) sr).cell = (if j < v then 1 else 0) := by
+    intro j hj
+    rw [moveRightN_cell, moveRightN_pointer, moveRightN_tapeAt]
+    have hc := (h.2.2.2.2 r hr j).1
+    have hp : s.left.length + 2 * r + stride R * j = dataPos R j r := by
+      rw [h.2.1]
+      simp only [dataPos, Nat.mul_succ]
+      omega
+    rw [hp]
+    simpa [v] using hc
+  have hscan : Reaches (bfExec cfg)
+      (.loop (rights (stride R)) :: tail₀, sr)
+      (tail₀, moveRightN (stride R * v) sr) :=
+    reaches_scan_right (cfg := cfg) (stride R) v sr tail₀ hscanCells
+  let d₀ := moveRightN (stride R * v) sr
+  have hd₀pos : d₀.left.length = dataPos R v r := by
+    simp only [d₀, moveRightN_pointer, sr, h.2.1]
+    simp only [dataPos, Nat.mul_succ]
+    omega
+  have hd₀cell : d₀.cell = 0 := by
+    have := hscanCells v (by omega)
+    simpa [d₀] using this
+  have hd₀tape (p : Nat) : tapeAt d₀ p = tapeAt s p := by
+    simp only [d₀, sr]
+    rw [moveRightN_tapeAt, moveRightN_tapeAt]
+  let d₁ : Brainfuck.State := { d₀ with cell := d₀.cell + 1 }
+  have hd₁cell : d₁.cell = 1 := by simp [d₁, hd₀cell]
+  have hd₁tape (p : Nat) : tapeAt d₁ p =
+      if p = dataPos R v r then 1 else tapeAt s p := by
+    rw [show d₁ = { d₀ with cell := d₀.cell + 1 } from rfl, tapeAt_setCell,
+      hd₀pos, hd₀tape]
+    simp only [hd₀cell]
+    rfl
+  have hinc₁ : Reaches (bfExec cfg) (.inc :: tail₀.tail, d₀)
+      (tail₀.tail, d₁) := by
+    simpa [d₁] using (reaches_bf_inc (cfg := cfg) (k := tail₀.tail) (s := d₀))
+  let g₀ := d₁.moveRight
+  have hg₀pos : g₀.left.length = guidePos R v r := by
+    simp [g₀, pointer_moveRight, d₁, hd₀pos, guidePos]
+  have hg₀cell : g₀.cell = 0 := by
+    rw [← tapeAt_pointer, show g₀.left.length = guidePos R v r from hg₀pos]
+    simp only [g₀, tapeAt_moveRight]
+    rw [hd₁tape, if_neg (dataPos_ne_guidePos h.1 hr hr).symm]
+    simpa [v] using (h.2.2.2.2 r hr v).2
+  have hright : Reaches (bfExec cfg) (.right :: tail₀.tail.tail, d₁)
+      (tail₀.tail.tail, g₀) := by
+    simpa [g₀] using
+      (reaches_bf_right (cfg := cfg) (k := tail₀.tail.tail) (s := d₁))
+  let g₁ : Brainfuck.State := { g₀ with cell := g₀.cell + 1 }
+  have hg₁tape (p : Nat) : tapeAt g₁ p =
+      if p = guidePos R v r then 1
+      else if p = dataPos R v r then 1 else tapeAt s p := by
+    rw [show g₁ = { g₀ with cell := g₀.cell + 1 } from rfl, tapeAt_setCell,
+      hg₀pos]
+    simp only [hg₀cell]
+    rw [show tapeAt g₀ p = tapeAt d₁ p from tapeAt_moveRight d₁ p,
+      hd₁tape]
+    rfl
+  have hinc₂ : Reaches (bfExec cfg) (.inc :: tail₀.tail.tail.tail, g₀)
+      (tail₀.tail.tail.tail, g₁) := by
+    simpa [g₁] using
+      (reaches_bf_inc (cfg := cfg) (k := tail₀.tail.tail.tail) (s := g₀))
+  have hleftPtr : stride R * (v + 1) ≤ g₁.left.length := by
+    simp only [g₁, hg₀pos, guidePos, dataPos]
+    omega
+  have hleftCells : ∀ j, j ≤ v + 1 →
+      tapeAt g₁ (g₁.left.length - stride R * j) =
+        (if j < v + 1 then 1 else 0) := by
+    intro j hj
+    rw [hg₁tape]
+    by_cases jz : j = 0
+    · subst j
+      rw [if_pos]
+      · simp
+      · simp [g₁, hg₀pos]
+    · by_cases je : j = v + 1
+      · subst j
+        have hidx : g₁.left.length - stride R * (v + 1) = 2 * r + 1 := by
+          simp only [g₁, hg₀pos, guidePos, dataPos]
+          omega
+        rw [hidx, if_neg, if_neg, h.2.2.2.1 r hr, if_neg (by omega)]
+        · exact guard_ne_dataPos h.1 hr hr
+        · exact guard_ne_guidePos h.1 hr hr
+      · have hjv : j ≤ v := by omega
+        let row := v - j
+        have hidx : g₁.left.length - stride R * j = guidePos R row r := by
+          rw [show g₁.left.length = stride R * (v + 1) + (2 * r + 1) by
+            rw [hg₀pos]; simp [guidePos, dataPos]; omega]
+          rw [slot_sub (stride R) (v + 1) (2 * r + 1) j (by omega)]
+          simp only [guidePos, dataPos, row]
+          have he : v + 1 - j = v - j + 1 := by omega
+          rw [he]
+          omega
+        have hneGuide : guidePos R row r ≠ guidePos R v r := by
+          intro heqg
+          have hi := guidePos_inj h.1 hr hr heqg
+          have : row = v := hi.1
+          simp only [row] at this
+          omega
+        rw [hidx, if_neg hneGuide, if_neg (dataPos_ne_guidePos h.1 hr hr).symm,
+          (h.2.2.2.2 r hr row).2]
+        simp only [row]
+        rw [if_pos (by omega), if_pos (by omega)]
+  let tailL := rights (stride R) ++ .left :: (fromReg r ++ k)
+  obtain ⟨guard, hback, hmoveBack⟩ := reaches_scan_left (cfg := cfg) (stride R) (v + 1)
+    g₁ tailL hleftPtr hleftCells
+  have hguardPos : guard.left.length = 2 * r + 1 := by
+    have hp := hmoveBack.pointer
+    simp only [g₁, hg₀pos, guidePos, dataPos] at hp
+    rw [Nat.mul_succ] at hp
+    omega
+  let rowGuide := moveRightN (stride R) guard
+  have htoGuide := reaches_rights (cfg := cfg) (stride R) (.left :: (fromReg r ++ k)) guard
+  have hrowGuidePos : rowGuide.left.length = stride R + 2 * r + 1 := by
+    rw [show rowGuide.left.length = guard.left.length + stride R by
+      simp [rowGuide, moveRightN_pointer]]
+    rw [hguardPos]
+    omega
+  obtain ⟨rowData, hmleft⟩ := exists_moveLeftN (n := 1) (s := rowGuide) (by
+    rw [hrowGuidePos]; omega)
+  have hleftOne := reaches_lefts (cfg := cfg) hmleft (fromReg r ++ k)
+  have hrowDataPos : rowData.left.length = stride R + 2 * r := by
+    have hp := hmleft.pointer
+    rw [hrowGuidePos] at hp
+    omega
+  obtain ⟨t, hmhome⟩ := exists_moveLeftN (n := 2 * r) (s := rowData) (by
+    rw [hrowDataPos]; omega)
+  have hhome := reaches_lefts (cfg := cfg) hmhome k
+  have htptr : t.left.length = stride R := by
+    have hp := hmhome.pointer
+    rw [hrowDataPos] at hp
+    omega
+  have httape (p : Nat) : tapeAt t p =
+      if p = dataPos R v r ∨ p = guidePos R v r then 1 else tapeAt s p := by
+    rw [hmhome.tapeAt, hmleft.tapeAt, moveRightN_tapeAt, hmoveBack.tapeAt, hg₁tape]
+    by_cases hg : p = guidePos R v r
+    · simp [hg]
+    · by_cases hd : p = dataPos R v r <;> simp [hg, hd]
+  have htout : t.output = s.output := by
+    rw [hmhome.output, hmleft.output, moveRightN_output, hmoveBack.output]
+    change d₁.moveRight.output = s.output
+    have hro : d₁.moveRight.output = d₁.output := by
+      cases d₁ with
+      | mk left cell right input output => cases right <;> rfl
+    rw [hro]
+    change d₀.output = s.output
+    simp only [d₀, sr, moveRightN_output]
+  have hscan' : Reaches (bfExec cfg) (incAt R ++ fromReg r ++ k, sr)
+      (tail₀, d₀) := by
+    simpa [incAt, tail₀, List.append_assoc, d₀] using hscan
+  have htotal := Reaches.trans hto
+    (Reaches.trans hscan' (Reaches.trans hinc₁ (Reaches.trans hright
+      (Reaches.trans hinc₂ (Reaches.trans hback
+        (Reaches.trans htoGuide (Reaches.trans hleftOne hhome)))))))
+  refine ⟨t, ?_, matches_up_of_tape h hr htptr htout httape⟩
+  simpa [incAt, tail₀, tailL, List.append_assoc] using htotal
+
+/-! ### Decrementing one represented counter -/
+
+theorem reaches_dec_cmd {R r : Nat} {c : CState} {s : Brainfuck.State}
+    (h : Matches R c s) (hr : r < R) (hnz : c.regs r ≠ 0)
+    (k : List Brainfuck.Op) :
+    ∃ t, Reaches (bfExec cfg)
+        (toReg r ++ decAt R ++ fromReg r ++ k, s) (k, t) ∧
+      Matches R (c.down r) t := by
+  let v := c.regs r
+  let q := v - 1
+  let sr := moveRightN (2 * r) s
+  let tailAfter := rights (stride R) ++ .left :: (fromReg r ++ k)
+  let tailLoop := .loop (lefts (stride R)) :: tailAfter
+  let tailBeforeLoop := lefts (stride R) ++ tailLoop
+  let tailDecGuide := .dec :: tailBeforeLoop
+  let tailRight := .right :: tailDecGuide
+  let tailDecData := .dec :: tailRight
+  let tail₀ := lefts (stride R) ++ tailDecData
+  have hto : Reaches (bfExec cfg)
+      (toReg r ++ (decAt R ++ fromReg r ++ k), s)
+      (decAt R ++ fromReg r ++ k, sr) := by
+    simpa [toReg, sr] using reaches_rights (cfg := cfg) (2 * r)
+      (decAt R ++ fromReg r ++ k) s
+  have hscanCells : ∀ j, j ≤ v →
+      (moveRightN (stride R * j) sr).cell = (if j < v then 1 else 0) := by
+    intro j hj
+    rw [moveRightN_cell, moveRightN_pointer, moveRightN_tapeAt]
+    have hc := (h.2.2.2.2 r hr j).1
+    have hp : s.left.length + 2 * r + stride R * j = dataPos R j r := by
+      rw [h.2.1]
+      simp only [dataPos, Nat.mul_succ]
+      omega
+    rw [hp]
+    simpa [v] using hc
+  have hscan : Reaches (bfExec cfg)
+      (.loop (rights (stride R)) :: tail₀, sr)
+      (tail₀, moveRightN (stride R * v) sr) :=
+    reaches_scan_right (cfg := cfg) (stride R) v sr tail₀ hscanCells
+  let d₀ := moveRightN (stride R * v) sr
+  have hd₀pos : d₀.left.length = dataPos R v r := by
+    simp only [d₀, moveRightN_pointer, sr, h.2.1]
+    simp only [dataPos, Nat.mul_succ]
+    omega
+  have hd₀tape (p : Nat) : tapeAt d₀ p = tapeAt s p := by
+    simp only [d₀, sr]
+    rw [moveRightN_tapeAt, moveRightN_tapeAt]
+  have hstepLeft : stride R ≤ d₀.left.length := by
+    rw [hd₀pos]
+    unfold dataPos
+    have hm : stride R ≤ stride R * (v + 1) := by
+      have := Nat.mul_le_mul_left (stride R) (show 1 ≤ v + 1 by omega)
+      simpa using this
+    exact Nat.le_trans hm (Nat.le_add_right _ _)
+  obtain ⟨dLast, hmLast⟩ := exists_moveLeftN hstepLeft
+  have htoLast := reaches_lefts (cfg := cfg) hmLast tailDecData
+  have hdLastPos : dLast.left.length = dataPos R q r := by
+    have hp := hmLast.pointer
+    rw [hd₀pos] at hp
+    have hq : q + 1 = v := by simp only [q]; omega
+    have hpos : dataPos R v r = dataPos R q r + stride R := by
+      simp only [dataPos]
+      rw [← hq, Nat.mul_succ]
+      omega
+    rw [hpos] at hp
+    omega
+  have hdLastCell : dLast.cell = 1 := by
+    rw [← tapeAt_pointer, hdLastPos, hmLast.tapeAt, hd₀tape]
+    have hc := (h.2.2.2.2 r hr q).1
+    rw [hc, if_pos (by simp [q]; omega)]
+  let d₁ : Brainfuck.State := { dLast with cell := dLast.cell - 1 }
+  have hd₁tape (p : Nat) : tapeAt d₁ p =
+      if p = dataPos R q r then 0 else tapeAt s p := by
+    rw [show d₁ = { dLast with cell := dLast.cell - 1 } from rfl,
+      tapeAt_setCell, hdLastPos]
+    simp only [hdLastCell]
+    rw [hmLast.tapeAt, hd₀tape]
+    rfl
+  have hdecData : Reaches (bfExec cfg) (.dec :: tailRight, dLast) (tailRight, d₁) := by
+    simpa [d₁] using (reaches_bf_dec (cfg := cfg) (k := tailRight) (s := dLast))
+  let g₀ := d₁.moveRight
+  have hg₀pos : g₀.left.length = guidePos R q r := by
+    simp [g₀, pointer_moveRight, d₁, hdLastPos, guidePos]
+  have hg₀cell : g₀.cell = 1 := by
+    rw [← tapeAt_pointer, hg₀pos]
+    simp only [g₀, tapeAt_moveRight]
+    rw [hd₁tape, if_neg (dataPos_ne_guidePos h.1 hr hr).symm]
+    have hc := (h.2.2.2.2 r hr q).2
+    rw [hc, if_pos (by simp [q]; omega)]
+  have hright : Reaches (bfExec cfg) (.right :: tailDecGuide, d₁)
+      (tailDecGuide, g₀) := by
+    simpa [g₀] using
+      (reaches_bf_right (cfg := cfg) (k := tailDecGuide) (s := d₁))
+  let g₁ : Brainfuck.State := { g₀ with cell := g₀.cell - 1 }
+  have hg₁tape (p : Nat) : tapeAt g₁ p =
+      if p = guidePos R q r then 0
+      else if p = dataPos R q r then 0 else tapeAt s p := by
+    rw [show g₁ = { g₀ with cell := g₀.cell - 1 } from rfl,
+      tapeAt_setCell, hg₀pos]
+    simp only [hg₀cell]
+    rw [show tapeAt g₀ p = tapeAt d₁ p from tapeAt_moveRight d₁ p,
+      hd₁tape]
+    rfl
+  have hdecGuide : Reaches (bfExec cfg) (.dec :: tailBeforeLoop, g₀)
+      (tailBeforeLoop, g₁) := by
+    simpa [g₁] using
+      (reaches_bf_dec (cfg := cfg) (k := tailBeforeLoop) (s := g₀))
+  have hpreLeft : stride R ≤ g₁.left.length := by
+    rw [show g₁.left.length = guidePos R q r from hg₀pos]
+    unfold guidePos dataPos
+    have hm : stride R ≤ stride R * (q + 1) := by
+      have := Nat.mul_le_mul_left (stride R) (show 1 ≤ q + 1 by omega)
+      simpa using this
+    omega
+  obtain ⟨pre, hmPre⟩ := exists_moveLeftN hpreLeft
+  have htoPre := reaches_lefts (cfg := cfg) hmPre tailLoop
+  have hprePos : pre.left.length = stride R * q + 2 * r + 1 := by
+    have hp := hmPre.pointer
+    rw [show g₁.left.length = guidePos R q r from hg₀pos] at hp
+    simp only [guidePos, dataPos, Nat.mul_succ] at hp
+    omega
+  have hbackPtr : stride R * q ≤ pre.left.length := by rw [hprePos]; omega
+  have hbackCells : ∀ j, j ≤ q →
+      tapeAt pre (pre.left.length - stride R * j) = (if j < q then 1 else 0) := by
+    intro j hj
+    rw [hmPre.tapeAt, hg₁tape]
+    have hidx : pre.left.length - stride R * j =
+        stride R * (q - j) + 2 * r + 1 := by
+      rw [hprePos]
+      rw [show stride R * q + 2 * r + 1 = stride R * q + (2 * r + 1) by omega,
+        slot_sub (stride R) q (2 * r + 1) j hj]
+      omega
+    rw [hidx]
+    by_cases je : j = q
+    · subst j
+      simp only [Nat.sub_self, Nat.mul_zero, Nat.zero_add]
+      rw [if_neg (guard_ne_guidePos h.1 hr hr),
+        if_neg (guard_ne_dataPos h.1 hr hr), h.2.2.2.1 r hr, if_neg (by omega)]
+    · let row := q - j - 1
+      have hjq : j < q := by omega
+      have hrow : q - j = row + 1 := by simp only [row]; omega
+      rw [hrow]
+      have hpos : stride R * (row + 1) + 2 * r + 1 = guidePos R row r := by
+        simp [guidePos, dataPos]
+      rw [hpos]
+      have hneGuide : guidePos R row r ≠ guidePos R q r := by
+        intro heq
+        have hi := guidePos_inj h.1 hr hr heq
+        simp only [row] at hi
+        omega
+      rw [if_neg hneGuide, if_neg (dataPos_ne_guidePos h.1 hr hr).symm,
+        (h.2.2.2.2 r hr row).2]
+      have hrowv : row < v := by simp only [row, q, v]; omega
+      rw [if_pos hrowv, if_pos hjq]
+  obtain ⟨guard, hback, hmBack⟩ := reaches_scan_left (cfg := cfg) (stride R) q pre
+    tailAfter hbackPtr hbackCells
+  have hguardPos : guard.left.length = 2 * r + 1 := by
+    have hp := hmBack.pointer
+    rw [hprePos] at hp
+    omega
+  let rowGuide := moveRightN (stride R) guard
+  have htoGuide := reaches_rights (cfg := cfg) (stride R) (.left :: (fromReg r ++ k)) guard
+  have hrowGuidePos : rowGuide.left.length = stride R + 2 * r + 1 := by
+    rw [show rowGuide.left.length = guard.left.length + stride R by
+      simp [rowGuide, moveRightN_pointer]]
+    rw [hguardPos]
+    omega
+  obtain ⟨rowData, hmleft⟩ := exists_moveLeftN (n := 1) (s := rowGuide) (by
+    rw [hrowGuidePos]; omega)
+  have hleftOne := reaches_lefts (cfg := cfg) hmleft (fromReg r ++ k)
+  have hrowDataPos : rowData.left.length = stride R + 2 * r := by
+    have hp := hmleft.pointer
+    rw [hrowGuidePos] at hp
+    omega
+  obtain ⟨t, hmhome⟩ := exists_moveLeftN (n := 2 * r) (s := rowData) (by
+    rw [hrowDataPos]; omega)
+  have hhome := reaches_lefts (cfg := cfg) hmhome k
+  have htptr : t.left.length = stride R := by
+    have hp := hmhome.pointer
+    rw [hrowDataPos] at hp
+    omega
+  have httape (p : Nat) : tapeAt t p =
+      if p = dataPos R q r ∨ p = guidePos R q r then 0 else tapeAt s p := by
+    rw [hmhome.tapeAt, hmleft.tapeAt, moveRightN_tapeAt, hmBack.tapeAt,
+      hmPre.tapeAt, hg₁tape]
+    by_cases hg : p = guidePos R q r
+    · simp [hg]
+    · by_cases hd : p = dataPos R q r <;> simp [hg, hd]
+  have htout : t.output = s.output := by
+    rw [hmhome.output, hmleft.output, moveRightN_output, hmBack.output, hmPre.output]
+    change d₁.moveRight.output = s.output
+    have hro : d₁.moveRight.output = d₁.output := by
+      cases d₁ with
+      | mk left cell right input output => cases right <;> rfl
+    rw [hro]
+    change dLast.output = s.output
+    rw [hmLast.output]
+    simp only [d₀, sr, moveRightN_output]
+  have hscan' : Reaches (bfExec cfg) (decAt R ++ fromReg r ++ k, sr)
+      (tail₀, d₀) := by
+    simpa [decAt, tail₀, tailDecData, tailRight, tailDecGuide, tailBeforeLoop,
+      tailLoop, tailAfter, List.append_assoc, d₀] using hscan
+  have htotal := Reaches.trans hto
+    (Reaches.trans hscan' (Reaches.trans htoLast (Reaches.trans hdecData
+      (Reaches.trans hright (Reaches.trans hdecGuide (Reaches.trans htoPre
+        (Reaches.trans hback (Reaches.trans htoGuide
+          (Reaches.trans hleftOne hhome)))))))))
+  refine ⟨t, ?_, matches_down_of_tape h hr hnz htptr htout ?_⟩
+  · simpa [decAt, tail₀, tailDecData, tailRight, tailDecGuide, tailBeforeLoop,
+      tailLoop, tailAfter, List.append_assoc] using htotal
+  · simpa [q, v] using httape
+
+/-! ## Correctness of lowering structured counter code -/
+
+theorem matches_right_left {R : Nat} {c : CState} {s t : Brainfuck.State}
+    (h : Matches R c s) (n : Nat) (hm : MoveLeftN n (moveRightN n s) t) :
+    Matches R c t := by
+  refine ⟨h.1, ?_, ?_, ?_, ?_⟩
+  · have hp := hm.pointer
+    rw [moveRightN_pointer] at hp
+    have hs := h.2.1
+    omega
+  · rw [hm.output, moveRightN_output, h.2.2.1]
+  · intro r hr
+    rw [hm.tapeAt, moveRightN_tapeAt]
+    exact h.2.2.2.1 r hr
+  · intro r hr row
+    constructor
+    · rw [hm.tapeAt, moveRightN_tapeAt]
+      exact (h.2.2.2.2 r hr row).1
+    · rw [hm.tapeAt, moveRightN_tapeAt]
+      exact (h.2.2.2.2 r hr row).2
+
+/-- A complete counter-machine derivation is simulated by the lowered
+Brainfuck code, with any continuation appended. -/
+theorem ev_lower {R : Nat} {code : Code} {c t : CState}
+    (hev : Ev R code c t) {s : Brainfuck.State} (hm : Matches R c s)
+    (k : List Brainfuck.Op) :
+    ∃ u, Reaches (bfExec cfg) (lower R code ++ k, s) (k, u) ∧ Matches R t u := by
+  induction hev generalizing s with
+  | nil =>
+    exact ⟨s, by simpa [lower] using Reaches.refl (bfExec cfg) (k, s), hm⟩
+  | inc hr _ ih =>
+    obtain ⟨s₁, hinc, hm₁⟩ := reaches_inc_cmd (cfg := cfg) hm hr (lower R _ ++ k)
+    obtain ⟨u, hrest, hmu⟩ := ih hm₁
+    refine ⟨u, ?_, hmu⟩
+    simpa [lower, List.append_assoc] using Reaches.trans hinc hrest
+  | dec hr hnz _ ih =>
+    obtain ⟨s₁, hdec, hm₁⟩ := reaches_dec_cmd (cfg := cfg) hm hr hnz (lower R _ ++ k)
+    obtain ⟨u, hrest, hmu⟩ := ih hm₁
+    refine ⟨u, ?_, hmu⟩
+    simpa [lower, List.append_assoc] using Reaches.trans hdec hrest
+  | emit hev ih =>
+    rename_i cs s₀ t₀
+    let s₁ : Brainfuck.State := { s with output := s.output.push s.cell }
+    have hout := reaches_bf_output (cfg := cfg) (k := lower R cs ++ k) (s := s)
+    obtain ⟨u, hrest, hmu⟩ := ih (Matches.output_push hm)
+    refine ⟨u, ?_, hmu⟩
+    simpa [lower, List.append_assoc] using Reaches.trans hout hrest
+  | loopZ hr hz hev ih =>
+    rename_i r body cs c₀ t₀
+    let cont := fromReg r ++ lower R cs ++ k
+    let sr := moveRightN (2 * r) s
+    have hto : Reaches (bfExec cfg)
+        (toReg r ++ (.loop (fromReg r ++ lower R body ++ toReg r) :: cont), s)
+        (.loop (fromReg r ++ lower R body ++ toReg r) :: cont, sr) := by
+      simpa [toReg, sr] using reaches_rights (cfg := cfg) (2 * r)
+        (.loop (fromReg r ++ lower R body ++ toReg r) :: cont) s
+    have hcell : sr.cell = 0 := by
+      have hc := Matches.cell_at_reg hm hr
+      simpa [sr, hz] using hc
+    have hloop : Reaches (bfExec cfg)
+        (.loop (fromReg r ++ lower R body ++ toReg r) :: cont, sr) (cont, sr) :=
+      reaches_bf_loop_zero (cfg := cfg) hcell
+    have hle : 2 * r ≤ sr.left.length := by
+      simp only [sr, moveRightN_pointer, hm.2.1]
+      omega
+    obtain ⟨sb, hmb⟩ := exists_moveLeftN hle
+    have hback : Reaches (bfExec cfg) (cont, sr) (lower R cs ++ k, sb) := by
+      simpa [cont, fromReg] using reaches_lefts (cfg := cfg) hmb (lower R cs ++ k)
+    have hmbm : Matches R c₀ sb := matches_right_left hm (2 * r) hmb
+    obtain ⟨u, hrest, hmu⟩ := ih hmbm
+    refine ⟨u, ?_, hmu⟩
+    have htotal := Reaches.trans hto (Reaches.trans hloop (Reaches.trans hback hrest))
+    simpa [lower, cont, List.append_assoc] using htotal
+  | loopS hr hnz hev ih =>
+    rename_i r bodyCode cs c₀ t₀
+    let body := fromReg r ++ lower R bodyCode ++ toReg r
+    let cont := fromReg r ++ lower R cs ++ k
+    let sr := moveRightN (2 * r) s
+    have hto : Reaches (bfExec cfg)
+        (toReg r ++ (.loop body :: cont), s) (.loop body :: cont, sr) := by
+      simpa [toReg, sr] using reaches_rights (cfg := cfg) (2 * r) (.loop body :: cont) s
+    have hcell : sr.cell ≠ 0 := by
+      have hc := Matches.cell_at_reg hm hr
+      rw [if_pos (Nat.pos_of_ne_zero hnz)] at hc
+      rw [hc]
+      decide
+    have hloop : Reaches (bfExec cfg) (.loop body :: cont, sr)
+        (body ++ .loop body :: cont, sr) := reaches_bf_loop_nonzero (cfg := cfg) hcell
+    have hle : 2 * r ≤ sr.left.length := by
+      simp only [sr, moveRightN_pointer, hm.2.1]
+      omega
+    obtain ⟨sb, hmb⟩ := exists_moveLeftN hle
+    have hback : Reaches (bfExec cfg) (body ++ .loop body :: cont, sr)
+        (lower R (bodyCode ++ .loop r bodyCode :: cs) ++ k, sb) := by
+      have hb := reaches_lefts (cfg := cfg) hmb
+        (lower R (bodyCode ++ .loop r bodyCode :: cs) ++ k)
+      simpa [body, cont, fromReg, lower_append, lower, List.append_assoc] using hb
+    have hmbm : Matches R c₀ sb := matches_right_left hm (2 * r) hmb
+    obtain ⟨u, hrest, hmu⟩ := ih hmbm
+    refine ⟨u, ?_, hmu⟩
+    have htotal := Reaches.trans hto (Reaches.trans hloop (Reaches.trans hback hrest))
+    simpa [lower, body, cont, List.append_assoc] using htotal
+
+/-! ## End-to-end Brainfuck compiler -/
+
+/-- Moving one row right from Brainfuck's all-zero initial tape establishes
+the paired-column invariant for the zero counter state. -/
+theorem initial_matches (R : Nat) (hR : 0 < R) (input : Input) :
+    Matches R ⟨fun _ => 0, 0⟩
+      (moveRightN (stride R) ({ input := input } : Brainfuck.State)) := by
+  let s₀ : Brainfuck.State := { input := input }
+  have htape₀ : ∀ p, tapeAt s₀ p = 0 := by
+    intro p
+    cases p <;> simp [s₀, tapeAt, tapeCells]
+  refine ⟨hR, ?_, ?_, ?_, ?_⟩
+  · simp [moveRightN_pointer]
+  · simp [moveRightN_output]
+  · intro r hr
+    rw [moveRightN_tapeAt]
+    exact htape₀ _
+  · intro r hr row
+    rw [moveRightN_tapeAt, moveRightN_tapeAt, htape₀, htape₀]
+    simp
+
+/-- Total runnable compiler from a URM program and input vector. -/
+def compile (P : Cslib.URM.Program) (inputs : List Nat) : Brainfuck.Prog :=
+  let R := counterBound (sourceBound P inputs)
+  rights (stride R) ++ lower R (counterProgram P inputs)
+
+/-- Decode the unary output convention by counting emitted bytes. -/
+def decodeOutput (out : ByteArray) : Option Nat := some out.size
+
+/-- The compiled program embeds the URM input vector, so its runtime input
+stream is empty. -/
+def encodeInput (_inputs : List Nat) : Input := Input.ofString ""
+
+/-- **Simulation theorem.** A halting URM run becomes a halting execution of
+the compiled Brainfuck program whose byte-count output is the URM result. -/
+theorem simulation (P : Cslib.URM.Program) (inputs : List Nat) (result : Nat)
+    (h : Cslib.URM.HaltsWithResult P inputs result) (input : Input) :
+    ∃ m, (Brainfuck.evalProg {} (compile P inputs) input m).exit = Exit.halted ∧
+      decodeOutput (Brainfuck.evalProg {} (compile P inputs) input m).output =
+        some result := by
+  let B := sourceBound P inputs
+  let R := counterBound B
+  let c₀ : CState := ⟨fun _ => 0, 0⟩
+  let s₀ : Brainfuck.State := { input := input }
+  let sB := moveRightN (stride R) s₀
+  obtain ⟨wF, hcounter⟩ := counterProgram_spec P inputs result h
+  have hcounter' : Ev R (counterProgram P inputs) c₀ ⟨wF, result⟩ := by
+    simpa [R, B, c₀] using hcounter
+  have hR : 0 < R := by simp [R, counterBound]
+  have hmB : Matches R c₀ sB := by
+    simpa [sB, s₀, c₀] using initial_matches R hR input
+  have hmove : Reaches (bfExec ({} : Brainfuck.Config))
+      (rights (stride R) ++ lower R (counterProgram P inputs), s₀)
+      (lower R (counterProgram P inputs), sB) := by
+    simpa [sB] using reaches_rights (cfg := ({} : Brainfuck.Config))
+      (stride R) (lower R (counterProgram P inputs)) s₀
+  obtain ⟨sF, hlower, hmF⟩ :=
+    ev_lower (cfg := ({} : Brainfuck.Config)) hcounter' hmB []
+  have hlower' : Reaches (bfExec ({} : Brainfuck.Config))
+      (lower R (counterProgram P inputs), sB) ([], sF) := by
+    simpa using hlower
+  have htotal : Reaches (bfExec ({} : Brainfuck.Config))
+      (compile P inputs, s₀) ([], sF) := by
+    have := Reaches.trans hmove hlower'
+    simpa [compile, R, B] using this
+  obtain ⟨m, hm⟩ := htotal.eval 1
+  have hexec : Brainfuck.exec {} m (compile P inputs) s₀ = (sF, Exit.halted) := by
+    simpa [bfExec, Brainfuck.exec] using hm
+  refine ⟨m, ?_, ?_⟩
+  · simp only [Brainfuck.evalProg]
+    rw [show ({ input := input } : Brainfuck.State) = s₀ by rfl, hexec]
+  · simp only [Brainfuck.evalProg]
+    rw [show ({ input := input } : Brainfuck.State) = s₀ by rfl, hexec]
+    simp [decodeOutput, hmF.2.2.1]
+
+
+end Langlib.Computability.URMBrainfuck
+
+namespace Langlib.Computability
+
+open Langlib.Common
+
+/-- The tag type naming Brainfuck for the shared computability interface. -/
+inductive BrainfuckLang : Type
+
+instance : ProgLang BrainfuckLang where
+  Prog := Langlib.Brainfuck.Prog
+  parse := Langlib.Brainfuck.parse
+  run := Langlib.Brainfuck.evalProg {}
+
+/-- **Brainfuck is lawful**: a completed run is a fixed point of more fuel.
+Proved in `Langlib/Languages/Brainfuck/Stability.lean`, at every
+configuration, so Ook! and brainloller — which run through the same
+interpreter — inherit their instances from the same lemma. -/
+instance : LawfulProgLang BrainfuckLang where
+  halted_stable := Langlib.Brainfuck.evalProg_stable {}
+
+end Langlib.Computability

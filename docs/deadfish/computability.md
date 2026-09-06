@@ -11,7 +11,7 @@ executions. The Lean development proves that no such witness exists for this
 interface.
 
 The definitions and proofs are in
-[`Langlib/Computability/Deadfish.lean`](../Langlib/Computability/Deadfish.lean).
+[`Langlib/Computability/Deadfish.lean`](../../Langlib/Computability/Deadfish.lean).
 
 ## The storage picture
 

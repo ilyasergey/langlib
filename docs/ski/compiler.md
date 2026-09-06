@@ -51,7 +51,7 @@ instruction can still report an answer.
 Known and classical: bracket abstraction embeds the untyped lambda
 calculus, so SKI computes every computable function. **Proved**, in
 [`Langlib/Computability/Ski.lean`](../../Langlib/Computability/Ski.lean);
-the account is [computability-ski.md](../computability-ski.md). It is one of
+the account is [ski/computability.md](computability.md). It is one of
 the two completeness proofs in the library that are not register-machine
 simulations, and the compiled program's cost is the reason the derived
 compiler above is a demonstration rather than a tool.

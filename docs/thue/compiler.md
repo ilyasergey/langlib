@@ -1,7 +1,7 @@
 # Compiling Turpentine to Thue
 
 * **Status**: a *derived*, certified compiler exists
-  ([`derivedThue`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L133)); the
+  ([`derivedThue`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L136)); the
   bespoke one is still planned, and is the least like the others.
 * **Family**: would need its own IR (a "rewriting" IR; see
   `docs/PLAN.md`, Stage 4).
@@ -11,12 +11,12 @@
 
 ## What already exists
 
-[`thueComplete`](../../Langlib/Computability/Thue.lean#L4032) compiles an
+[`thueComplete`](../../Langlib/Computability/Thue.lean#L15) compiles an
 arbitrary register machine into Thue and proves the simulation, so composing
 it with the shared Turpentine-to-URM pass gives a verified Turpentine-to-Thue
 compiler today. It has the limits every derived compiler has: no I/O, because
 everything routes through a register machine, and an enormous output, because
-every register is a unary run. `docs/computability-thue.md` has the measured
+every register is a unary run. `docs/thue/computability.md` has the measured
 sizes. What it does *not* have is a readable program, which is what a bespoke
 backend would be for.
 

@@ -1,18 +1,15 @@
 # Divergence-preserving URM simulation
 
-[`TuringComplete`](../Langlib/Common/Computability.lean) establishes **forward
-answer preservation**: if a URM program halts with result `r`, its compiled
-target halts at some fuel and its output decodes to `r`. All eleven existing
-witnesses retain that type and their existing compilers. Eleven separate
-`DivergencePreservingTC` witnesses now establish the stronger property.
+[`TuringComplete`](../Langlib/Common/Computability.lean) requires both
+**forward answer preservation** and **divergence preservation**. If a URM
+program halts with result `r`, its compiled target halts at some fuel and
+its output decodes to `r`. If the source diverges, every finite target fuel
+budget is exhausted. All eleven witnesses prove both fields for their
+existing runnable compilers.
 
-`DivergencePreservingTC` extends that interface with an independent constraint
-on execution:
+The independent execution obligation is this field of `TuringComplete`:
 
 ```lean
-structure DivergencePreservingTC (L : Type)
-    [ProgLang L] [LawfulProgLang L]
-    extends TuringComplete L where
   preserves_divergence : ∀ P inputs,
     Cslib.URM.Diverges P inputs →
       ∀ fuel,
@@ -39,7 +36,7 @@ can remain perfectly stable as the fuel increases.
 
 ## Consequences proved once
 
-The following theorems live in the `Langlib.Common.DivergencePreservingTC`
+The following theorems live in the `Langlib.Common.TuringComplete`
 namespace. “Target run” always means running `tc.compile P inputs` on
 `tc.encodeInput inputs`.
 
@@ -52,45 +49,53 @@ namespace. “Target run” always means running `tc.compile P inputs` on
 | `error_free` | At every fuel, the target exit differs from `.error msg` for every message. |
 
 For `halts_iff`, a target halt contradicts the divergence field if the source
-does not halt. Once source halting is known, inherited forward simulation
+does not halt. Once source halting is known, forward simulation
 supplies a correctly decoded target run. `LawfulProgLang.halted_stable`
 compares that run with any other completed run at the maximum of their fuel
 budgets, proving that their whole results agree. This is also exposed as
-`TuringComplete.simulates_at_completed_run`: the old interface already
+`TuringComplete.simulates_at_completed_run`: forward simulation already
 excludes erroneous or inconsistent completed runs **on halting source inputs**.
-The new divergence field supplies the missing case for unconditional error
+The divergence field supplies the missing case for unconditional error
 freedom.
 
 ## Witness migration
 
-No automatic conversion from `TuringComplete` is provided. Add a separate
-`<lang>DivergencePreserving : DivergencePreservingTC <Lang>Lang` when its
-proof exists, setting `toTuringComplete := <lang>Complete` and proving
-`preserves_divergence` for exactly that compiler and input encoding. This
-keeps the existing witness and its derived Turpentine compiler compatible.
-The stronger URM interface does not by itself strengthen the Turpentine-to-URM
-translation or `CertifiedCompiler`; those still have their own forward
-correctness specifications.
+The migration is complete: each `<lang>Complete : TuringComplete <Lang>Lang`
+now supplies both fields. The temporary extension was proved for all eleven
+languages and committed and pushed as `052b87e` before folding it into
+`TuringComplete`. There is no separate stronger structure or duplicate
+witness, and no automatic inference of divergence from forward simulation.
 
-The interface and eleven witness upgrades are complete. Each stronger witness
-inherits the corresponding original `<lang>Complete` value exactly.
+The proof files have an acyclic dependency order:
 
-| Stronger witness | Proved route |
+1. `<Language>/Simulation.lean` defines the runnable compiler, forward
+   simulation, language tag and lawful interpreter instances.
+2. `<Language>/Divergence.lean` imports that module and proves the operational
+   divergence obligation for the same compiler and input encoding.
+3. The public `<Language>.lean` imports `Divergence` and assembles the original
+   `<lang>Complete` name with both fields. Existing imports and compiler
+   functions remain available.
+
+The stronger URM contract does not automatically strengthen the
+Turpentine-to-URM translation or `CertifiedCompiler`; those still have their
+own forward correctness specifications.
+
+| Witness | Proved route |
 | --- | --- |
-| [`whitespaceDivergencePreserving`](../Langlib/Computability/Whitespace/Divergence.lean) | Positive labelled-block simulation, including taken self-jumps. |
-| [`subleqDivergencePreserving`](../Langlib/Computability/Subleq/Divergence.lean) | Positive block simulation; an intermediate jump prefix handles self-jumps. |
-| [`brainfuckDivergencePreserving`](../Langlib/Computability/Brainfuck/Divergence.lean) | Terminating dispatcher bodies return to a positive-cost structured loop check. |
-| [`fractranDivergencePreserving`](../Langlib/Computability/Fractran/Divergence.lean) | Nonempty fraction-rule sequences, including the alternating-marker cycle for a self-jump. |
-| [`thueDivergencePreserving`](../Langlib/Computability/Thue/Divergence.lean) | Nonempty deterministic macro rewriting through each dispatcher turn. |
-| [`pietDivergencePreserving`](../Langlib/Computability/Piet/Divergence.lean) | Positive execution through the compiled codel dispatcher and its looping branch. |
-| [`ookDivergencePreserving`](../Langlib/Computability/Ook/Divergence.lean) | Transfer of the proved Brainfuck property through its existing runner correspondence. |
-| [`brainlollerDivergencePreserving`](../Langlib/Computability/Brainloller/Divergence.lean) | Transfer of the proved Brainfuck property for the existing decoded-program interface; the pixel-walk obligation remains separate. |
-| [`unlambdaDivergencePreserving`](../Langlib/Computability/Unlambda/Divergence.lean) | Positive CEK prefixes through the strict fixed point, terminating guard and body, and recursive call. |
-| [`skiDivergencePreserving`](../Langlib/Computability/Ski/Divergence.lean) | Positive head reduction of recursive calls; strict compiled continuations force the dispatcher under normal order. |
-| [`velatoDivergencePreserving`](../Langlib/Computability/Velato/Divergence.lean) | Induction on while-loop fuel using terminating dispatcher bodies, then stability across the initial prefix. |
+| [`whitespaceComplete`](../Langlib/Computability/Whitespace.lean) | Positive labelled-block simulation, including taken self-jumps. |
+| [`subleqComplete`](../Langlib/Computability/Subleq.lean) | Positive block simulation; an intermediate jump prefix handles self-jumps. |
+| [`brainfuckComplete`](../Langlib/Computability/Brainfuck.lean) | Terminating dispatcher bodies return to a positive-cost structured loop check. |
+| [`fractranComplete`](../Langlib/Computability/Fractran.lean) | Nonempty fraction-rule sequences, including the alternating-marker cycle for a self-jump. |
+| [`thueComplete`](../Langlib/Computability/Thue.lean) | Nonempty deterministic macro rewriting through each dispatcher turn. |
+| [`pietComplete`](../Langlib/Computability/Piet.lean) | Positive execution through the compiled codel dispatcher and its looping branch. |
+| [`ookComplete`](../Langlib/Computability/Ook.lean) | Transfer of the proved Brainfuck property through its existing runner correspondence. |
+| [`brainlollerComplete`](../Langlib/Computability/Brainloller.lean) | Transfer of the proved Brainfuck property for the existing decoded-program interface; the pixel-walk obligation remains separate. |
+| [`unlambdaComplete`](../Langlib/Computability/Unlambda.lean) | Positive CEK prefixes through the strict fixed point, terminating guard and body, and recursive call. |
+| [`skiComplete`](../Langlib/Computability/Ski.lean) | Positive head reduction of recursive calls; strict compiled continuations force the dispatcher under normal order. |
+| [`velatoComplete`](../Langlib/Computability/Velato.lean) | Induction on while-loop fuel using terminating dispatcher bodies, then stability across the initial prefix. |
 
 **Unlambda is now complete.**
-[`unlambdaDivergencePreserving`](../Langlib/Computability/Unlambda/Divergence.lean)
+[The Unlambda divergence proof](../Langlib/Computability/Unlambda/Divergence.lean)
 uses positive CEK execution prefixes under arbitrary continuations. The
 fixed point unfolds, the guard terminates with the selected branch closure,
 and the terminating dispatcher body supplies the next represented state.
@@ -115,13 +120,14 @@ A proof by reflection of completed target executions,
 including errors, is another valid route.
 
 MU has no `TuringComplete` witness to upgrade. Its existing foundations and
-local runtime proofs are unchanged and remain part of the full build and
+local runtime proof terms are unchanged (documentation paths were updated)
+and remain part of the full build and
 [axiom audit](../scripts/axioms.lean). Its open construction is tracked in
 [the runtime proof notes](malbolge-unshackled/runtime-proof.md).
 
 ## Validation
 
-Build every library module and runner, including MU:
+Build every library module, including runner sources and MU:
 
 ```sh
 lake build
@@ -133,8 +139,8 @@ Run the golden and compiler test suites:
 lake test
 ```
 
-Check axiom dependencies, including the interface consequences, shared
-progress lemmas, all eleven stronger witnesses, including Unlambda’s operational lemmas:
+Check the interface consequences, shared progress lemmas, all eleven
+witnesses and their operational proof lemmas:
 
 ```sh
 lake env lean scripts/axioms.lean
@@ -143,11 +149,5 @@ lake env lean scripts/axioms.lean
 Every report must use only the standard logical axioms `propext`,
 `Classical.choice`, and `Quot.sound`, or no axioms. A finite collection of
 looping examples cannot establish the universally quantified divergence
-field; the kernel-checked theorems are the validation for this interface.
-
-Validation of the preceding ten-witness checkpoint on 2026-09-06: `lake build` passes all 8,945 jobs, including MU;
-`lake test` passes all 1,700 cases and both Velato round-trip checks. The
-expanded axiom audit has 758 clean reports: 725 use only the standard
-logical axioms and 33 use none. Available external differential tests pass
-six cases; unavailable runners and reference interpreters are skipped by
-`scripts/difftest.sh`.
+field; the kernel-checked theorems validate that obligation. See the dated
+[progress log](PROGRESS.md) for build, test and audit results.

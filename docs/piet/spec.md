@@ -15,13 +15,14 @@
   - runner `lake exe piet`,
   - [examples](../../Langlib/Examples/Piet/),
   - tests in [`Langlib/Tests/Piet.lean`](../../Langlib/Tests/Piet.lean),
-  - Turing completeness in [`Langlib/Computability/Piet.lean`](../../Langlib/Computability/Piet.lean) and [docs/computability-piet.md](../computability-piet.md), and
+  - Turing completeness in [`Langlib/Computability/Piet.lean`](../../Langlib/Computability/Piet.lean) and [docs/piet/computability.md](computability.md), and
   - a hand-written Turpentine backend in [`Langlib/Languages/Turpentine/Compile/Piet.lean`](../../Langlib/Languages/Turpentine/Compile/Piet.lean), plus a certified one derived from the completeness proof ([docs/piet/compiler.md](compiler.md))
 
-The original TC witness establishes **forward answer preservation**. The
-separate [`pietDivergencePreserving`](../../Langlib/Computability/Piet/Divergence.lean)
-witness proves that divergent URM inputs exhaust every finite target budget,
-with [halting and result equivalence, output validity, and error freedom](../divergence-preservation.md).
+[`pietComplete`](../../Langlib/Computability/Piet.lean) preserves both halting answers
+and divergence. Its [divergence proof](../../Langlib/Computability/Piet/Divergence.lean)
+requires every finite budget on a divergent URM input to yield `.outOfFuel`.
+The [shared interface](../divergence-preservation.md) gives halting and result
+equivalence, output validity, and error freedom.
 
 ## History
 
@@ -174,12 +175,12 @@ recommendations and npiet where the spec is silent:
 ## Computational class
 
 **Turing complete, and proved so here**:
-[`pietComplete`](../../Langlib/Computability/Piet.lean#L3998) compiles an
+[`pietComplete`](../../Langlib/Computability/Piet.lean#L16) compiles an
 unlimited register machine into a codel grid and proves that
 `Langlib.Piet.evalGrid` — the evaluator specified on this page, with these
 DP and CC rules, these exits and these white slides — computes what the
 machine computes. The stack of unbounded integers was never the hard part;
-the geometry was. [docs/computability-piet.md](../computability-piet.md)
+the geometry was. [docs/piet/computability.md](computability.md)
 has the proof's shape, including the one fact about the language that fell
 out of it: a colour block of a single codel can never halt a Piet program.
 
