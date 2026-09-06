@@ -33,40 +33,6 @@ Output:
 10
 ```
 
-For Fibonacci, the four separate steps are:
-
-1. Compile Turpentine to a JavaGen file.
-
-   ```sh
-   lake exe turpentine compile --to javagen -o /tmp/fib.jgen Langlib/Examples/Turpentine/fib-tc.turp
-   ```
-
-2. Export that file to Java.
-
-   ```sh
-   lake exe javagen --java /tmp/fib.jgen > /tmp/JavaGenCheck.java
-   ```
-
-3. Run the JavaGen file natively and print `answer`.
-
-   ```sh
-   lake exe javagen --compiled-answer --fuel 200000000 /tmp/fib.jgen
-   ```
-
-   Output:
-
-   ```text
-   55
-   ```
-
-4. Check the exported Java with `javac`, giving its JVM a larger stack.
-   Successful checking prints nothing; a timeout or resource failure is
-   inconclusive. This checks the closed halting query.
-
-   ```sh
-   javac -J-Xss64m -J-Xmx2g -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
-   ```
-
 To compile and run Fibonacci in one command, use `exec`; it reparses the
 generated text and runs JavaGen's subtype machine.
 
@@ -83,6 +49,67 @@ Output:
 The same command with `fact-tc.turp` produces `120`. These files leave a
 result in `answer`; the Turpentine reference interpreter itself prints
 nothing unless a print statement is added for comparison.
+
+### Inspecting the generated Java and checking the result
+
+The one-command run does not save its intermediate files. Retain them to
+inspect the Java code and check the result explicitly:
+
+1. Compile Turpentine to a JavaGen file.
+
+   ```sh
+   lake exe turpentine compile --to javagen -o /tmp/fib.jgen Langlib/Examples/Turpentine/fib-tc.turp
+   ```
+
+2. Export that file to Java.
+
+   ```sh
+   lake exe javagen --java /tmp/fib.jgen > /tmp/JavaGenCheck.java
+   ```
+
+3. Inspect the exported Java in a pager. Use `/return value` to find the
+   checking method, whose argument has the source type and whose return type
+   is the target type. `-S` keeps the long generated lines from wrapping;
+   press `q` to exit.
+
+   ```sh
+   less -S /tmp/JavaGenCheck.java
+   ```
+
+4. Run the JavaGen file natively and print `answer`.
+
+   ```sh
+   lake exe javagen --compiled-answer --fuel 200000000 /tmp/fib.jgen
+   ```
+
+   Output:
+
+   ```text
+   55
+   ```
+
+5. Check explicitly that JavaGen's numeric result equals the expected `55`.
+   This command succeeds silently with exit status 0 for a match, or exits
+   with status 1 otherwise.
+
+   ```sh
+   test "$(lake exe javagen --compiled-answer --fuel 200000000 /tmp/fib.jgen)" = 55
+   ```
+
+6. Check the exported Java with `javac`, giving its JVM a larger stack.
+   Successful checking prints nothing; a timeout or resource failure is
+   inconclusive. This checks the closed halting query.
+
+   ```sh
+   javac -J-Xss64m -J-Xmx2g -proc:none -Xlint:unchecked -Werror -d /tmp /tmp/JavaGenCheck.java
+   ```
+
+The numeric check in step 5 uses JavaGen's interpreter. **The `javac`
+check does not independently verify `55`:** this compiler emits a closed
+halting query, so `--answer 55 --java /tmp/fib.jgen` cannot be used on it.
+Independent Java certification of compiled numeric results remains pending.
+The spec's [candidate-check example](spec.md#a-small-candidate-check) shows
+how `--answer` works for programs that contain an open answer hole.
 
 ## Supported fragment
 
