@@ -4,21 +4,21 @@
 
 | Language | Spec | Parser | Interpreter | Examples + tests | Runner | Turing complete | TC proved / disproved | Correct via TC | Hosts full Turpentine | Bespoke compiler | Bespoke correct |
 | ---------- | ------ | -------- | ------------- | ------------------ | -------- | ----------------- | ----------- | ---------------- | ----------------------- | ------------------ | ----------------- |
-| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | [**yes**](../Langlib/Computability/Brainfuck/Main.lean#L19) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L103) | yes | [yes](brainfuck/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Brainfuck.lean#L1317) | - |
-| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](../Langlib/Computability/Whitespace/Main.lean#L24) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L95) | yes | [yes](whitespace/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Whitespace.lean#L530) | [**yes**, behaviourally](../Langlib/Languages/Turpentine/Compile/Certified/BespokeWhitespace.lean#L43) |
-| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](../Langlib/Computability/Subleq/Main.lean#L31) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L99) | yes | [yes](subleq/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Subleq.lean#L1125) | [**yes**, two shapes](../Langlib/Languages/Turpentine/Compile/Certified/BespokeSubleq.lean#L656) |
-| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | [yes, byte core](../Langlib/Computability/Befunge93/Main.lean#L377) | n/a | no, 2000 code cells | [no](befunge93/compiler.md) | n/a |
-| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [no, bounded storage](malbolge/spec.md) | [**no**, halting decidable](../Langlib/Computability/Malbolge/Main.lean#L755) | n/a | no, bounded storage | [yes, bounded fragment](malbolge/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Malbolge.lean) | n/a |
-| [malbolge-unshackled](malbolge-unshackled/spec.md) | yes | yes | yes | yes | `malbolge-unshackled` | yes | open | [planned](malbolge-unshackled/compiler.md) | expected yes | [yes, input-free fragment](malbolge-unshackled/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/MalbolgeUnshackled.lean) | [planned](malbolge-unshackled/compiler.md) |
-| [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | [**yes**](../Langlib/Computability/Fractran/Main.lean#L15) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L108) | no I/O at all | [yes](fractran/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Fractran.lean) | - |
-| [thue](thue/spec.md) | yes | yes | yes | yes | `thue` | yes | [**yes**](../Langlib/Computability/Thue/Main.lean#L15) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | expected, unary output | [planned](thue/compiler.md) | [planned](thue/compiler.md) |
-| [piet](piet/spec.md) | yes | yes | yes | yes | `piet` | yes | [**yes**](../Langlib/Computability/Piet/Main.lean#L16) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L120) | yes | [yes](piet/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Piet.lean) | [planned](piet/compiler.md) |
-| [ook](ook/spec.md) | yes | yes | yes | yes | `ook` | yes (via brainfuck) | [**yes**](../Langlib/Computability/Ook/Main.lean#L25) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L126) | yes, via brainfuck | [yes](ook/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Ook.lean#L49) | [planned](ook/compiler.md) |
-| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `brainloller` | yes (via brainfuck) | [**yes**](../Langlib/Computability/Brainloller/Main.lean#L24), bar the [pixel walk](brainloller/compiler.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L131) | yes, via brainfuck | [yes](brainloller/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Brainloller.lean#L57) | [planned](brainloller/compiler.md) |
-| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `deadfish` | [no, every program halts](deadfish/spec.md) | [**no**, halting decidable](../Langlib/Computability/Deadfish/Main.lean#L99) | n/a | no, output only | [planned, output-only](deadfish/compiler.md) | [planned](deadfish/compiler.md) |
-| [unlambda](unlambda/spec.md) | yes | yes | yes | yes | `unlambda` | yes | [**yes**](../Langlib/Computability/Unlambda/Main.lean#L30) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L137) | yes | [yes](unlambda/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Unlambda.lean#L965) | [planned](unlambda/compiler.md) |
-| [ski](ski/spec.md) | yes | yes | yes | yes | `ski` | yes | [**yes**](../Langlib/Computability/Ski/Main.lean#L30) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L144) | no, no I/O | [no](ski/compiler.md) | n/a |
-| [velato](velato/spec.md) | yes | yes | yes | yes | `velato` | [yes, with unbounded ints](velato/spec.md#computational-class) | [**yes**](../Langlib/Computability/Velato/Main.lean#L43) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L158) | [restricted I/O/error correspondence](velato/compiler.md#the-fragment-is-a-fragment-of-turpentine) | [yes](velato/compiler.md), [source](../Langlib/Languages/Turpentine/Compile/Velato.lean#L360) | [**yes**, behaviourally, input included](../Langlib/Languages/Turpentine/Compile/Certified/BespokeVelato.lean#L24) |
+| [brainfuck](brainfuck/spec.md) | yes | yes | yes | yes | `brainfuck` | yes | [**yes**](brainfuck/computability.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L103) | yes | [yes](brainfuck/compiler.md) | - |
+| [whitespace](whitespace/spec.md) | yes | yes | yes | yes | `whitespace` | yes | [**yes**](whitespace/computability.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L95) | yes | [yes](whitespace/compiler.md) | [**yes**, behaviourally](whitespace/compiler.md) |
+| [subleq](subleq/spec.md) | yes | yes | yes | yes | `subleq` | yes | [**yes**](subleq/computability.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L99) | yes | [yes](subleq/compiler.md) | [**yes**, two shapes](subleq/compiler.md) |
+| [befunge93](befunge93/spec.md) | yes | yes | yes | yes | `befunge93` | [depends on value width](befunge93/spec.md#computational-class-and-why-our-deviations-matter) | [yes, byte core](befunge93/computability.md) | n/a | no, 2000 code cells | [no](befunge93/compiler.md) | n/a |
+| [malbolge](malbolge/spec.md) | yes | yes | yes | yes | `malbolge` | [no, bounded storage](malbolge/spec.md) | [**no**, halting decidable](malbolge/computability.md) | n/a | no, bounded storage | [yes, bounded fragment](malbolge/compiler.md) | n/a |
+| [malbolge-unshackled](malbolge-unshackled/spec.md) | yes | yes | yes | yes | `malbolge-unshackled` | yes | [open](malbolge-unshackled/computability.md) | [planned](malbolge-unshackled/compiler.md) | expected yes | [yes, input-free fragment](malbolge-unshackled/compiler.md) | [planned](malbolge-unshackled/compiler.md) |
+| [fractran](fractran/spec.md) | yes | yes | yes | yes | `fractran` | yes | [**yes**](fractran/computability.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L108) | no I/O at all | [yes](fractran/compiler.md) | - |
+| [thue](thue/spec.md) | yes | yes | yes | yes | `thue` | yes | [**yes**](thue/computability.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | expected, unary output | [planned](thue/compiler.md) | [planned](thue/compiler.md) |
+| [piet](piet/spec.md) | yes | yes | yes | yes | `piet` | yes | [**yes**](piet/computability.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L120) | yes | [yes](piet/compiler.md) | [planned](piet/compiler.md) |
+| [ook](ook/spec.md) | yes | yes | yes | yes | `ook` | yes (via brainfuck) | [**yes**](ook/computability.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L126) | yes, via brainfuck | [yes](ook/compiler.md) | [planned](ook/compiler.md) |
+| [brainloller](brainloller/spec.md) | yes | yes | yes | yes | `brainloller` | yes (via brainfuck) | [**yes**](brainloller/computability.md), bar the [pixel walk](brainloller/computability.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L131) | yes, via brainfuck | [yes](brainloller/compiler.md) | [planned](brainloller/compiler.md) |
+| [deadfish](deadfish/spec.md) | yes | yes | yes | yes | `deadfish` | [no, every program halts](deadfish/spec.md) | [**no**, halting decidable](deadfish/computability.md) | n/a | no, output only | [planned, output-only](deadfish/compiler.md) | [planned](deadfish/compiler.md) |
+| [unlambda](unlambda/spec.md) | yes | yes | yes | yes | `unlambda` | yes | [**yes**](unlambda/computability.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L137) | yes | [yes](unlambda/compiler.md) | [planned](unlambda/compiler.md) |
+| [ski](ski/spec.md) | yes | yes | yes | yes | `ski` | yes | [**yes**](ski/computability.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L144) | no, no I/O | [no](ski/compiler.md) | n/a |
+| [velato](velato/spec.md) | yes | yes | yes | yes | `velato` | [yes, with unbounded ints](velato/spec.md#computational-class) | [**yes**](velato/computability.md) | [**yes**](../Langlib/Languages/Turpentine/Compile/Derived.lean#L158) | [restricted I/O/error correspondence](velato/compiler.md#the-fragment-is-a-fragment-of-turpentine) | [yes](velato/compiler.md) | [**yes**, behaviourally, input included](velato/compiler.md) |
 | [Turpentine](turpentine/spec.md) (front end) | yes | yes | yes | yes | `turpentine` | yes | open | (source) | (source) | (source) | (source) |
 | [URM](#the-urm) (yardstick) | [here](#the-urm) | n/a | [yes](../Langlib/Computability/Common/URM.lean) | yes | n/a | yes | (yardstick) | (the route itself) | no I/O at all | [yes, certified fragment](../Langlib/Languages/Turpentine/Compile/URM.lean) | [**yes**](../Langlib/Languages/Turpentine/Compile/URM.lean#L3985) |
 
@@ -29,9 +29,10 @@ applicable, and, in the completeness column only, `open` for a question
 nobody has proven here either way. Per-language specifications live in
 `docs/<langname>/spec.md`, and compiler notes, once a Turpentine compiler
 exists or is planned for a language, in `docs/<langname>/compiler.md`.
-In the **Bespoke compiler** column the verdict links to those notes and the
-`source` beside it to the backend itself; in **Bespoke correct** the verdict
-links to the correctness theorem.
+The **Bespoke compiler** and **Bespoke correct** verdicts link to the
+compiler notes, which describe the fragment and link to the implementation
+and correctness proofs. **TC proved / disproved** links to the language’s
+`computability.md`, where the result and its proof are explained.
 
 ### Strength of the completeness proofs
 
@@ -50,20 +51,19 @@ Lean definitions and proofs:
 
 * [Befunge-93](befunge93/computability.md)
 * [Brainfuck](brainfuck/computability.md)
+* [Brainloller](brainloller/computability.md)
 * [Deadfish](deadfish/computability.md)
 * [FRACTRAN](fractran/computability.md)
 * [Malbolge](malbolge/computability.md)
 * [Malbolge Unshackled](malbolge-unshackled/computability.md)
+* [Ook!](ook/computability.md)
 * [Piet](piet/computability.md)
 * [SKI](ski/computability.md)
 * [Subleq](subleq/computability.md)
 * [Thue](thue/computability.md)
 * [Unlambda](unlambda/computability.md)
 * [Velato](velato/computability.md)
-
-Whitespace, Ook! and Brainloller describe their completeness routes in
-[Whitespace’s specification](whitespace/spec.md), [Ook!’s compiler notes](ook/compiler.md),
-and [Brainloller’s compiler notes](brainloller/compiler.md).
+* [Whitespace](whitespace/computability.md)
 
 ### Hosts full Turpentine
 
@@ -296,9 +296,9 @@ with both gets `agree` for free: on every program both accept, the two
 provably decode the same answer. Not the same *behaviour* — that is a
 stronger claim, and the interface for it is
 [`CertifiedCompiler`](../Langlib/Common/Compilation.lean#L329), which
-[whitespace's hand-written backend](../Langlib/Languages/Turpentine/Compile/Certified/BespokeWhitespace.lean#L43)
+[whitespace's hand-written backend](whitespace/compiler.md)
 inhabits over its output fragment and
-[Velato's](../Langlib/Languages/Turpentine/Compile/Certified/BespokeVelato.lean#L24)
+[Velato's](velato/compiler.md)
 over a fragment that reads as well.
 
 The three columns follow from that, in the order the table puts them.
@@ -383,7 +383,8 @@ The three columns follow from that, in the order the table puts them.
   distinguishes the closed derived route from Velato's input-reading API.
 
 `planned` in either correctness column means no theorem exists here yet,
-whatever the tests say; when one lands the cell links to it. `n/a` means
+whatever the tests say; when one lands the compiler notes explain it and
+link to its proof. `n/a` means
 there is nothing to prove: either no compiler is planned for that target,
 or the language is not Turing complete, so no derived compiler can exist
 for it.

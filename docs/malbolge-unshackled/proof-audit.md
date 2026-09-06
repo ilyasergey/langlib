@@ -35,8 +35,9 @@ source initialization, and the completeness witness remain open.
 
 The shared interface is
 [`TuringComplete`](../../Langlib/Common/Computability.lean): a total,
-runnable compiler, input encoder, output decoder, and a theorem preserving
-halting answers. The interpreter must be lawful with respect to fuel. MU
+runnable compiler that embeds the URM input, an output decoder, and proofs
+preserving halting answers and divergence. The target runs on `Input.empty`;
+the interpreter must be lawful with respect to fuel. MU
 already has the language and lawfulness instances. The target-independent
 [`Counter`](../../Langlib/Computability/Common/Counter.lean) development already
 translates URM programs and their finite inputs into `inc`, nonzero `dec`,

@@ -5,6 +5,21 @@ Entries describe their dated checkpoints; the temporary separate divergence
 interface in the first two proof milestones was superseded by the combined
 `TuringComplete` interface below.
 
+## 2026-09-06: concise README and documentation links
+
+Both README status tables now link bespoke compiler results to compiler
+notes and computational-class results to per-language computability accounts.
+Added the missing accounts for Whitespace, Ook! and Brainloller, retaining
+Brainloller's pixel-walk proviso. The main README now explains matrix statuses
+in bullets and gives shorter accounts of lawful execution and compiler
+correctness; the separate bespoke-compiler rationale is folded into the
+compiler overview.
+
+Refreshed MU's computability overview with the checked fixed-cell runtime
+milestones and current obligations. Recorded the proved returning width
+growth and adjacent-fill obstruction, and
+updated the audit's completeness contract to include divergence preservation.
+
 ## 2026-09-06: separate closed and input-parametrised compiler contracts
 
 `CertifiedCompilerNoIO spec diverges L` now describes closed computations:

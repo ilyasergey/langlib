@@ -1,11 +1,15 @@
-# Malbolge Unshackled: the ground floor of a completeness proof
+# Malbolge Unshackled: completeness in progress
 
-**Construction re-scoped on 2026-09-05.** This is a notebook of local
-results. Its proposed unary-tape architecture is superseded by the
+**Status updated 2026-09-06: no completeness witness yet.** The current
+construction uses fixed cells holding unbounded counters. The
+[runtime account](runtime-proof.md) describes the checked implementation;
+the [progress tracker](completeness-progress.md) lists the remaining work.
+The older unary-tape architecture developed below is superseded by the
 [proof audit and fixed-counter construction](proof-audit.md):
 `RegMem` cannot hold with natural-seeded fill, operand restoration is
-missing, and the width theorem alone does not bound storage. The remaining
-work is more than a walk pass. See the audit for the current dependencies.
+missing from that architecture, and the width theorem alone does not bound
+storage. Its local algebra remains useful, but it is not the current
+construction plan.
 
 Malbolge Unshackled (Ørjan Johansen, 2007) is claimed Turing complete, and
 constructive evidence includes Matthias Lutter's
@@ -14,14 +18,34 @@ and the later MalbolgeLisp (2020). Inspecting a working interpreter is not
 itself a proof of its unbounded simulation. LangLib wants the claim as a
 `TuringComplete MalbolgeUnshackledLang` witness, in the sense of
 [`Langlib/Common/Computability.lean`](../../Langlib/Common/Computability.lean):
-a total compiler from the unlimited register machine, plus a simulation
-theorem.
+a total compiler from the unlimited register machine with its input embedded,
+an output decoder, and proofs preserving both halting answers and divergence.
+The target runs on `Input.empty`.
 
-**That witness does not exist yet.** This page says what has been proved,
-what the two real obstructions are, and which route past them the code is
-laid out for. Everything asserted below as proved lives in
+## Current construction
+
+The checked runtime foundations include a fixed-cell counter representation,
+reusable working calls, marker reset, and a closed rotation/reset cycle.
+An [87-step growth cycle](runtime-proof.md#a-closed-growth-cycle-on-one-marker)
+reuses the same marker and returns at each larger width; arbitrary repetition
+and unbounded width are proved. Width growth with a return path is therefore
+already established.
+
+[Low-trit extraction and conditional dispatch](runtime-proof.md#low-trit-extraction-and-conditional-dispatch)
+also have reusable operational contracts. Connecting the marker test's result
+to dispatch while restoring the caller remains open, as do a terminating
+arithmetic scan, carry/borrow routines, conditional overflow retry, general
+source initialization, and the final counter simulation with divergence
+preservation. The generated source examples exercise runtime components;
+they do not establish general loader reachability or a completeness witness.
+
+## Earlier local results and tape design
+
+The remainder records the original local results and proposed tape design.
+The base results live in
 [`Langlib/Computability/MalbolgeUnshackled/Main.lean`](../../Langlib/Computability/MalbolgeUnshackled/Main.lean)
-and is checked by `scripts/axioms.lean`.
+and are checked by `scripts/axioms.lean`; the newer runtime and obstruction
+modules are audited there too.
 
 ## What is proved
 
@@ -700,7 +724,7 @@ operation against the same constant restores it, and a blank survives both
 untouched, so the pair is a non-destructive test whichever the cell held
 (`register_test_roundtrip`).
 
-### A better encoding, and the one the compiler uses
+### An alternative encoding for the proposed tape
 
 Since the test is the loop condition and so runs on every iteration of
 every compiled loop, it is worth asking whether an encoding avoids the
@@ -896,15 +920,20 @@ the address arithmetic
 Quot.sound]` or less for every one of them.
 
 **Measured, not proved**: the periods of `cat.mu` (3060) and `truth.mu`
-(408), the five-step control cycle above, and that **no pair of printable
-seeds puts `...000` into the memory fill**, so a walk never finds a blank
-cell ahead of itself and every pass must normalise the cells it is about to
-use (or change the blank encoding). This is not an allocator proof:
+(408), and the five-step control cycle above. These come from running the
+reference interpreter, not kernel-checked theorems.
+
+The older finite check that no pair of printable seeds puts zero into the
+fill is also a measurement. The obstruction module proves the sufficient
+structural fact: of two adjacent untouched natural addresses, at least one
+has a nonzero repeating trit when the fill seeds are natural. Consequently,
+finitely many writes cannot establish the proposed infinite blank-tail
+invariant. See the [proof audit](proof-audit.md#the-infinite-blank-tail-is-impossible-with-the-canonical-kind-of-fill)
+and [`Obstructions.lean`](../../Langlib/Computability/MalbolgeUnshackled/Obstructions.lean).
+This is not an allocator proof:
 `fillAt_slot` only shows that with a slot stride
 divisible by 6, the fill value at a given offset is the same in every
-slot. These come from running the
-reference interpreter, so they are facts about our semantics, but they are
-`#eval` output rather than kernel-checked theorems.
+slot.
 
 **Cited, not proved**: that Malbolge Unshackled is Turing complete at all.
 The external constructions include Lutter's 2016 Brainfuck interpreter and
@@ -913,8 +942,9 @@ MalbolgeLisp. The audit describes what still needs a Lean simulation proof.
 **Open**: the current dependency-ordered obligations are in the
 [proof audit](proof-audit.md) and
 [progress tracker](completeness-progress.md). They
-include reusable runtime arithmetic, width growth with a return path,
-a total layout and source initializer, and the counter simulation.
+include reusable runtime arithmetic, conditional overflow retry using the
+proved growth/return cycle, a total layout and source initializer, and the
+counter simulation with both answer and divergence preservation.
 The older loop prologue and the general loader fill equation also remain
 unproved. No `TuringComplete` witness exists.
 
