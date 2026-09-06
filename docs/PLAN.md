@@ -73,11 +73,18 @@ Stages 1, 2, 4, 6 and 8 on branch `ilya/java-generics`:
   with positive and wrong-answer conformance tests.
 * [x] Prove completed-run stability, the lawful language instance, injective
   unbounded numerals, and all-fuel divergence of one source-realizable loop.
-* [~] Generate the paper's Turing-machine construction and prove the numeric
-  answer protocol works for arbitrary simulated computations (JG2).
-  Java export and small conformance probes are implemented.
-* [ ] Build or reuse an executable URM-to-tape bridge, covering every
-  instruction, initial inputs, tape growth and self-jumps (JG3).
+* [x] Generate a finite-control sweeper using the paper's read/write and
+  end-turn mechanism; prove halting and positive-cost divergence under
+  decidable lookup/initialization certificates. Prove a growing source
+  machine diverges at every fuel (JG2).
+* [~] Implement URM → existing counter program → flow graph → sweeper (JG3).
+  All URM instruction forms, distinct input-dependent results and self-jumps
+  have compiler regressions. Generated flow locations, structured-counter
+  simulation and URM-to-flow forward answers are proved. Prove the flow/tape
+  invariant, uniform generation success, source realization and final answer decoder.
+* [ ] Connect the universal compiler's closed proof-record readout to a
+  numeric Java candidate query. Existing answer-hole examples still work;
+  compiled universal programs currently use closed queries.
 * [ ] Prove forward answers, generated-source realization and positive-cost
   divergence for the compiler; assemble `javaGenComplete` and derived
   Turpentine support (JG4).
@@ -86,9 +93,10 @@ Stages 1, 2, 4, 6 and 8 on branch `ilya/java-generics`:
 
 This starts with the existing closed, nonnegative URM fragment of Turpentine.
 SKI is an alternative bridge, but would need a new tree/duplication simulation;
-use the paper's tape-machine construction first. The finite arithmetic
-examples are not Turpentine compilations. No universal compiler or completeness
-witness is claimed. See the [current proof boundary](javagen/computability.md).
+continue the implemented counter/sweeper bridge. The finite arithmetic
+examples are not Turpentine compilations. The experimental URM compiler and
+checked sweep simulation exist; no completeness witness is claimed. See the
+[current proof boundary](javagen/computability.md).
 
 ## Stage 3: Turpentine front end `[x]`
 
@@ -853,10 +861,12 @@ contorting the statements to fit theorems we have not needed yet.
 
 JavaGen's [proof boundaries](javagen/design.md#proof-boundaries) add a
 development under `Langlib/Computability/JavaGen/`. The lawful executable
-instance, injective numeral encoding and one source-realizable infinite
-execution are proved. Grigore's paper supplies the halting-recognition
-argument; a universal compiler, forward-answer proof and compiler divergence
-proof remain pending. Do not register `TuringComplete` before those exist.
+instance, injective numeral encoding and source-realizable stationary and
+growing infinite executions are proved. An experimental URM compiler and
+checked lower-level sweep simulation are implemented. Grigore's paper
+supplies the halting-recognition
+argument; uniform generation success, forward answers and URM divergence
+preservation remain pending. Do not register `TuringComplete` before those exist.
 
 | Language | Claim | Route |
 |---|---|---|

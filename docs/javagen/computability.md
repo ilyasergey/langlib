@@ -3,8 +3,8 @@
 **No `TuringComplete JavaGenLang` witness exists yet.** Grigore's
 [*Java Generics Are Turing Complete*](https://doi.org/10.1145/3009837.3009871)
 (2017), §§4–5, supplies the mathematical subtyping-machine construction.
-LangLib still needs an executable universal compiler and proofs against
-its own evaluator. In particular, recognizing halting is weaker than
+LangLib now has an experimental executable URM compiler. Its end-to-end
+correctness proof against the actual evaluator remains pending. In particular, recognizing halting is weaker than
 preserving the natural-number answer required by our interface.
 
 The public entry point is
@@ -30,30 +30,51 @@ evaluator separately: [Stability.lean](../../Langlib/Languages/JavaGen/Stability
 and [AnswerStability.lean](../../Langlib/Languages/JavaGen/AnswerStability.lean).
 Increasing fuel preserves completed runs, including their output bytes.
 
-## The remaining construction
+## The universal compiler and remaining construction
 
-Use the existing URM contract, with the paper's tape-machine construction as
-the initial bridge. Compilation must inspect program syntax and initial data
-without evaluating the source. An executable URM-to-tape compiler needs
-initialization, extensible register storage, every instruction and a register-0
-readout. The tape-to-subtyping compiler needs validated, source-realizable
-class tables and simulation of turns, growth and halting.
+The implemented route is URM → existing structured-counter program → finite
+flow graph → sweeping transducer → JavaGen. The
+[universal compiler account](universal-compiler.md) describes its representation,
+API, tests and proof obligations in detail.
 
-The central unresolved obligation is the answer interface. A final ground
-inheritance rule can erase the simulated tape. Prefer generating a numeric
-`answer` query whose unique result survives that reduction. Prove that the
-implemented deterministic inference does not reject an ambiguous head or
-erase an unconstrained answer on generated programs. Alternatively, establish
-a decoder of the concrete derivation record with the same answer theorem.
-The [design gate](design.md#answers-are-the-first-proof-gate) records both routes.
+[SweepProof.lean](../../Langlib/Computability/JavaGen/SweepProof.lean) proves
+symbol replacement in two target steps, turning in three, and boundary halting
+in three. It composes finite source runs and positive-cost continuing source
+invariants. `checkedCompile` decides the finite symbolic lookup equations and
+checks the runner's actual initial query/mode. `ready_halting` and
+`ready_divergence` establish the corresponding behavior of `evalPrepared`
+for every returned certificate. This is a checked lower-level simulation.
 
-Forward simulation must preserve every halting URM answer. Operational
-divergence must show `.outOfFuel` at **every** finite target budget for each
-divergent source input, including self-jumps and intermediate simulation
-phases. In numeric mode this includes inference, not only concrete checking.
-An iff about successfully decoded answers is insufficient. Only after both
-fields are proved can `javaGenComplete` expose the compiler and enable the
-derived Turpentine backend.
+[Growth.lean](../../Langlib/Computability/JavaGen/Growth.lean) proves source
+realization and all-fuel divergence for a generated sweeper that duplicates
+visited symbols. Its query and tape change during execution. The ordinary
+stationary-loop theorem remains available separately.
+
+[CounterCompiler.lean](../../Langlib/Computability/JavaGen/CounterCompiler.lean)
+generates the URM bridge without evaluating the source. Counter registers
+become unary tape blocks; a designated register counts emitted answer units.
+`flatten_length` in [CounterProof.lean](../../Langlib/Computability/JavaGen/CounterProof.lean)
+proves loop bodies are emitted once. The experimental byte decoder counts
+output-register units in the final control query of the retained proof record.
+
+[FlowProof.lean](../../Langlib/Computability/JavaGen/FlowProof.lean) additionally
+proves generated instruction/continuation locations and preservation of
+arbitrary structured-counter executions. `urm_flow_simulation` composes the
+existing URM theorem, preserving halting answers at the flow terminal node.
+
+Still required: the flow/tape simulation invariant, uniform successful
+validation/certification and source realization, and correctness of the answer
+decoder. Connect continuing URM execution to the proved positive-cost sweep
+simulation to exclude errors and premature halts at every target budget.
+The compiler currently returns `Except`, so proving that it always succeeds
+is a real part of obtaining the total compiler field of `TuringComplete`.
+
+The prototype uses closed proof records. Generating a numeric candidate query
+for independent Java certification remains pending for this compiler; the
+existing numeric recurrence examples already support that workflow. Neither
+the finite regression tests nor the checked lower-level simulation fills this
+universal answer gap. Only after the full answer and divergence proofs may
+`javaGenComplete` enable the derived Turpentine backend.
 
 ## Why not start with SKI?
 
@@ -61,8 +82,8 @@ A compiler from the already proved [SKI language](../ski/computability.md)
 would be a valid alternative. Its existing universality theorem would save
 the source-side proof, but would not encode application trees, implement
 normal-order `S` duplication in unary chains, preserve answers or establish
-positive-cost target simulation. The paper gives a concrete tape-machine
-construction already, so it is the current first choice. Either route must
+positive-cost target simulation. The current counter/sweeper route already has executable generation and a
+checked lower-level simulation, so it remains the first choice. Either route must
 end at the same runnable, answer- and divergence-preserving URM contract.
 
 ## What the examples and Java checks establish

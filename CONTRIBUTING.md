@@ -114,6 +114,10 @@ A complete language contribution consists of:
    candidate, retaining its computation. For Java export, check declarations
    separately before treating an incompatible query as rejection; compiler
    crashes and resource exhaustion are inconclusive, never rejection.
+   A certificate for generated lookup tables must also cover the runner's
+   actual initial query and execution mode. Its local simulation guarantees
+   do not prove that generation always succeeds or that an earlier compiler
+   stage preserves source behavior; keep those obligations explicit.
 
 ## Adding a compiler from Turpentine
 

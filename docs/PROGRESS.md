@@ -5,6 +5,50 @@ Entries describe their dated checkpoints; the temporary separate divergence
 interface in the first two proof milestones was superseded by the combined
 `TuringComplete` interface below.
 
+## 2026-09-06: JavaGen URM generation and flow/sweep simulation proofs
+
+Added an [experimental executable URM compiler](javagen/universal-compiler.md):
+the existing structured-counter translation becomes a finite flow graph,
+then a sweeping transducer over unary register blocks, then ordinary JavaGen
+source. Loop bodies are emitted once and iterations use control-flow edges;
+compilation never executes the source. The compiler uses the ordinary
+validator and a decidable certificate for symbolic lookup, the actual initial
+query and closed execution mode. The experimental decoder counts output units
+in the final control query retained by the existing proof-record evaluator.
+
+Proved the two-step symbol replacement, three-step end turn and three-step
+halt against the actual subtype evaluator. The generic sweep simulation
+preserves finite halting runs and all-fuel divergence under continuing source
+invariants; the checked artifact theorems target `evalPrepared`. A generated
+one-state symbol-duplicating sweeper has proved source realization, a checked
+lookup certificate and all-fuel divergence despite its changing query/tape.
+
+Proved `flatten_length`, generated instruction/continuation locations,
+structured-counter execution preservation through arbitrary nested loops,
+and forward URM answers at the flow graph's actual terminal node. These
+establish the upper and lower simulation layers. The middle flow/tape
+invariant, URM divergence composition, answer-decoder correctness, uniform
+compiler success and uniform source realization remain open. No
+`javaGenComplete` or certified Turpentine backend is claimed. General numeric
+candidate queries for independent Java result certification are also pending;
+the existing numeric recurrence examples retain that workflow.
+
+Added compiler-generated source fixtures, a drift-checking Lean generator,
+13 counter/URM compiler regression cases plus round trips and divergence
+prefixes, and real-Java acceptance probes for two generated counter programs.
+Updated the plan, compiler/proof accounts and specification. The current route
+reuses existing counter arithmetic with the paper's read/write and turning
+mechanism; a separate ordinary Turing-machine adapter is no longer the first
+step. Recorded the initial-query/mode certificate obligation in CONTRIBUTING.
+
+Validation: `lake build`, all 1,748 golden tests and all property groups pass,
+including the new compiler regressions. All 34 real-`javac` conformance cases
+pass on Java 11.0.15. Generated fixtures are current; the documented URM
+successor example evaluates to `Except.ok (some 3)`. All 315 generated-site
+checks pass. The proof audit uses only Lean's standard axioms, with no
+`sorry` or native-evaluation axiom; the documentation/link audit passes.
+
+
 ## 2026-09-06: JavaGen evaluator, numeric answers and real-Java certification
 
 Implemented the [JavaGen specification](javagen/spec.md), total parser,

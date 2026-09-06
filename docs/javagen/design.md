@@ -1,7 +1,7 @@
 # JavaGen: design and implementation plan
 
-**Status: executable core and Java certification implemented; universal
-compiler and TC proof pending.** Work started on `ilya/java-generics`,
+**Status: executable core, Java certification and experimental URM code
+generation implemented; the full TC proof remains pending.** Work started on `ilya/java-generics`,
 branched from `master`, on 2026-09-06. The [specification](spec.md) describes
 the implemented language. This note records the remaining construction and
 proof obligations; the [computability account](computability.md) distinguishes
@@ -25,7 +25,7 @@ JavaGen exposes that computation as an ordinary LangLib language.
 | Paper component | JavaGen use |
 | --- | --- |
 | §§3–4: nominal subtyping and subtyping machines | Unary contravariant core, executable subtype proof search |
-| §5, Figures 2–3: Turing-machine simulation | First universal target construction and its invariants |
+| §5: symbol replacement and end turns | Implemented sweeping-transducer compiler and operational simulation; register bridge under proof |
 | §6: fluent interfaces and parser generation | Background and a possible later demonstration |
 | §7.1, Figure 8: extended Turing machines | Optional later optimization for inserting tape symbols |
 | §7.2: Simper compilation | Replace with Turpentine compilation; reuse the existing URM pass first |
@@ -128,15 +128,22 @@ observe type-check acceptance; `javac` does not print a Turpentine answer.
 
 ## Replacing Simper with Turpentine
 
-The first route is:
+The current implemented route is:
 
 ```text
-Turpentine's certified closed fragment
-  -> existing Turpentine-to-URM compiler
-  -> a finite ordinary Turing machine with encoded initial registers
-  -> Grigore's generated class table and subtype query
-  -> JavaGen execution (optionally export the query to Java)
+URM program and initial registers
+  -> existing structured-counter translation
+  -> finite flow graph with loop back edges
+  -> finite-control sweeper over delimited unary registers
+  -> generated JavaGen declarations and closed subtype query
 ```
+
+The [universal compiler account](universal-compiler.md) records the code,
+checked lower-level simulation, experimental decoder and remaining proofs.
+This reuses the paper's symbol-replacement/end-turn mechanism directly;
+a separate ordinary tape-machine adapter is no longer the first milestone.
+Turpentine integration will compose its certified URM pass with this bridge
+once the full witness is established.
 
 Reuse the exact accepted fragment and diagnostics of
 [`compileToURM`](../../Langlib/Languages/Turpentine/Compile/URM.lean).
@@ -148,29 +155,21 @@ runtime errors remain outside its answer/divergence guarantees. Do not
 silently import Simper's saturating decrement or its array model into
 Turpentine, whose integers and errors have different semantics.
 
-For the initial URM-to-tape bridge, use delimited unary registers: a finite
-block for each register mentioned by the program, register 0, and any
-initial input registers. Alphabet and control are finite for each compiled
-program; register blocks can grow without bound. Specify zero, increment,
-copy and equality/jump as tape routines with scratch markers and restored
-boundary invariants. Encode the initial finite input vector in the query.
-Compilation traverses program/data syntax; it never executes the source
-to discover whether it halts. Audit cslib/Mathlib for an executable bridge
-before implementing these routines, checking its initialization, answer
-and divergence theorems rather than relying on an abstract equivalence.
+The source bridge now uses the existing structured-counter compiler. A
+finite control-flow graph encodes its commands and loops, and a sweeper
+implements each instruction over register-specific unary blocks. Register
+zero is reserved for emitted units; source registers are shifted by one.
+The runtime tape grows, while the finite control and alphabet depend on the
+source. `flatten_length` establishes that loop bodies are emitted once. The generated
+flow locations and preservation of arbitrary counter executions are proved,
+and forward URM answers now reach the flow graph's actual terminal node.
 
-An initial search of the pinned dependencies found cslib's URM development
-and `Cslib.Computability.Machines.Turing.SingleTape.Deterministic`, but no
-direct URM-to-tape bridge in the searched computability modules. Its
-`SingleTapeTM` halts through an optional next state, whereas the paper uses
-a distinguished halting state. Reuse therefore needs an explicit adapter
-for halting, tape initialization and transition granularity. Treat the
-bridge as new proof work until a suitable executable construction is found.
-
-Ordinary Turing machines let the first construction use §5 unchanged.
-Binary registers and §7's insertion machines are later optimizations.
-The paper's polynomial bounds for Simper do not automatically apply to
-this unary URM route or to Turpentine's arithmetic operations.
+A search of the pinned dependencies found a single-tape machine definition
+but no ready-made executable URM-to-tape bridge. Reusing the structured
+counter arithmetic and the paper's sweeping mechanism gives a working
+prototype with fewer new adapters. Its register invariant, decoder theorem
+and uniform generation-success proof are still required. The paper's
+polynomial bounds for Simper are not claimed for this counter route.
 
 The existing URM compiler imports computability dependencies. Therefore
 this first backend belongs in the proof-derived `--tc` path, assembled in
@@ -214,8 +213,10 @@ queries never encounter ambiguous numeric heads or erase an unconstrained
 hole, and that inference itself preserves divergence. The concrete subtype
 simulation alone does not prove these properties of `evalPrepared`.
 
-**This universal answer gate remains open.** The existing examples validate
-the result interface, not its adequacy for every URM program. Recognition
+**This universal answer gate remains open.** The experimental URM compiler
+now decodes its closed-query proof record by counting output-register units
+in the final control query. That count has not yet been proved equal to
+every URM answer, and it is not yet a numeric Java candidate query. Recognition
 results may land independently with their weaker statement explicit.
 
 ### Why keep the tape-machine route before SKI?
@@ -225,9 +226,9 @@ so a faithful SKI-to-JavaGen compiler could be composed with it. It would
 still need to encode application trees into unary type chains, implement
 normal-order reduction including `S` duplication, preserve the encoded
 answer and prove positive-cost divergence. Those target-side constructions
-are not supplied by the existing SKI theorem. The paper already supplies a
-tape-machine-to-subtyping construction, making that the better-supported
-first route. The public contract remains URM in either case. Revisit SKI if
+are not supplied by the existing SKI theorem. The implemented sweep compiler already has a checked operational
+simulation, and the counter arithmetic is shared with existing proofs.
+Those are the current reasons to continue this route. The public contract remains URM in either case. Revisit SKI if
 a concrete, simpler JavaGen simulation is found; merely changing the source
 formalism does not discharge the answer gate.
 
@@ -266,13 +267,13 @@ modules and the standalone runner stay free of Mathlib and cslib.
 | --- | --- |
 | JG0: initial design (done) | This note, project-plan integration, reviewed result-observation choice |
 | JG1: executable core (done) | Spec first; `Syntax`, `Parser`, `Semantics`, `Stability`, `Main`, language README, Lake/root-module registration, original examples and golden tests |
-| JG2: paper construction (pending), Java export (done) | Small tape machines translated to validated tables; left/right turns, growth, ground halting and result retention exercised; original Java probes and optional differential tests |
-| JG3: URM bridge | Executable total translation for all URM instructions and finite inputs, tape invariants, distinct answers, self-loop and growth regressions |
+| JG2: sweep construction and Java export (done) | Finite-control sweeper generation, checked lookup/initialization certificates, read/turn/halt simulation, growing-source divergence and real-Java probes |
+| JG3: URM bridge (code generated; proof pending) | Existing counter program to finite flow graph to sweeper; all URM instruction forms tested; register/tape invariant, decoder and uniform success still required |
 | JG4: certification | Forward answers, source realization, lawfulness and positive-cost divergence; public witness and derived Turpentine CLI/tests |
 | JG5: documentation and performance | Final spec/compiler/computability accounts, verified examples, status matrices and site catalogue, generated-size/fuel measurements; decide whether a direct backend merits work |
 
-The next priority is the JG2 tape-machine construction and universal
-answer experiment, followed by JG3 and JG4. Completed foundations include
+The next priority is the JG3 flow/tape invariant and universal
+answer proof, followed by JG4. Completed foundations include
 `LawfulProgLang`, injective unbounded numerals and an all-fuel theorem for
 one source-realizable loop; they are not a completeness witness. Do not build Simper or the fluent-interface parser generator
 as prerequisites.

@@ -33,8 +33,10 @@ proof. Work has started on `ilya/java-generics`; the
 [design note](javagen/design.md) replaces the paper's Simper source with
 Turpentine and plans a certified route through the existing URM compiler.
 The [subtype core, numeric inference and Java export](javagen/spec.md) are
-implemented, with real-`javac` conformance tests. The universal compiler and
-its answer/divergence proofs remain pending. The paper's halting reduction alone does not supply
+implemented, with real-`javac` conformance tests. An [experimental URM
+compiler](javagen/universal-compiler.md) now uses the existing counter
+translation and a checked sweep layer. Its full answer/divergence proof
+and uniform generation-success theorem remain pending. The paper's halting reduction alone does not supply
 LangLib's answer-preserving, divergence-preserving completeness witness.
 
 ## Strong candidates

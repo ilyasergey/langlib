@@ -14,6 +14,8 @@ def cases():
     examples = ROOT / "Langlib/Examples/JavaGen"
     for name in ["reflexive", "contravariant", "ground", "diamond", "rejected"]:
         yield name, (examples / f"{name}.jgen").read_text(), name != "rejected", None
+    for name in ["emit-three", "transfer"]:
+        yield "compiled-" + name, (examples / "compiled" / f"{name}.jgen").read_text(), True, None
     hierarchy = ("zero Z; interface P<x> {} interface C<x> extends P<x> {} "
                  "interface S<x> {} ")
     for name, lhs, rhs, accepted in [

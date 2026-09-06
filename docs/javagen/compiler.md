@@ -8,6 +8,13 @@ answer using JavaGen's evaluator, then asks real `javac` to check the
 original query specialized with that answer. Neither command compiles
 Turpentine.
 
+An [experimental URM compiler](universal-compiler.md) now generates finite
+flow control, unary register sweeps and ordinary JavaGen source. The sweep
+layer has checked halting/divergence guarantees; the counter bridge and
+final answer decoder still need their general correctness proofs. This API
+is not yet exposed as a Turpentine CLI backend. Its closed-query readout
+also differs from the numeric candidate queries used by the command below.
+
 For example, evaluate `fib.jgen` and certify its result in one command:
 
 ```sh
@@ -40,6 +47,7 @@ This route imports proof dependencies, so it belongs under `--tc`; it must
 not enter the lightweight JavaGen runner. No `--to javagen` option exists
 in Turpentine yet. Full streaming I/O and a direct backend are later work.
 
-The first proof priority is the universal answer protocol, followed by the
-executable bridge and its forward/divergence proofs. See
+The next proof priority is the flow/tape invariant and answer decoder, then
+URM divergence composition and uniform compiler success. Forward URM answers
+are already proved through the generated finite flow graph. See
 [computability](computability.md) and the [workplan](../PLAN.md).
