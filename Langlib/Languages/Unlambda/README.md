@@ -8,7 +8,7 @@ specification and the exact semantic choices are in
 [docs/unlambda/spec.md](../../../docs/unlambda/spec.md).
 
 It is **proved Turing complete**
-([`Langlib/Computability/Unlambda.lean`](../../Computability/Unlambda.lean),
+([`Langlib/Computability/Unlambda/Main.lean`](../../Computability/Unlambda/Main.lean#L30),
 account in
 [docs/unlambda/computability.md](../../../docs/unlambda/computability.md)),
 and it is the first result in the library that is not a machine simulation.
@@ -16,8 +16,8 @@ The proof uses `s`, `k`, `i`, `.x` and application, and nothing else: `d`
 never appears, so the delay rule never fires, and `c` never appears, so no
 continuation is reified.
 
-[`unlambdaComplete`](../../Computability/Unlambda.lean) preserves both halting answers
-and divergence. Its [divergence proof](../../Computability/Unlambda/Divergence.lean)
+[`unlambdaComplete`](../../Computability/Unlambda/Main.lean#L30) preserves both halting answers
+and divergence. Its [divergence proof](../../Computability/Unlambda/Divergence.lean#L377)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../../../docs/divergence-preservation.md) gives halting and result
 equivalence, output validity, and error freedom.

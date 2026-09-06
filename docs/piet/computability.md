@@ -3,10 +3,10 @@
 LangLib contains a total runnable URM-to-Piet compiler that accepts
 arbitrary `J` instructions, including backward jumps, and the simulation
 theorem that makes it a completeness proof:
-[`pietComplete : TuringComplete PietLang`](../../Langlib/Computability/Piet.lean#L16).
+[`pietComplete : TuringComplete PietLang`](../../Langlib/Computability/Piet/Main.lean#L16).
 Composing it with the shared Turpentine-to-URM pass gives a certified
 Turpentine-to-Piet compiler,
-[`derivedPiet`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L142).
+[`derivedPiet`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L120).
 
 The claim is not that Piet is universal — that has never been in doubt, and
 the esolang wiki has said so since 2002. The claim is that *this image*,
@@ -15,7 +15,7 @@ the DP and CC rules, the eight exits of every colour block, the white
 slides, and the halt are all the ones the reference evaluator implements,
 because the proof is stated against `Langlib.Piet.evalGrid` itself.
 
-[`pietComplete`](../../Langlib/Computability/Piet.lean) combines this
+[`pietComplete`](../../Langlib/Computability/Piet/Main.lean) combines this
 halting simulation with the [divergence proof](../../Langlib/Computability/Piet/Divergence.lean)
 for the same compiler. The [shared interface](../divergence-preservation.md)
 gives halting and result equivalence, output validity, and error freedom.
@@ -213,7 +213,7 @@ command sources, which simplifies the pending flood-fill proof.
 The module builds on its own.
 
 ```
-lake build Langlib.Computability.Piet
+lake build Langlib.Computability.Piet.Main
 ```
 
 Output:

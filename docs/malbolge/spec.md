@@ -25,7 +25,7 @@
   - runner `lake exe malbolge`,
   - [examples](../../Langlib/Examples/Malbolge/),
   - tests in [`Langlib/Tests/Malbolge.lean`](../../Langlib/Tests/Malbolge.lean),
-  - the finite control space and decidable halting, so Malbolge is not Turing complete, in [`Langlib/Computability/Malbolge.lean`](../../Langlib/Computability/Malbolge.lean) and [docs/malbolge/computability.md](computability.md), and
+  - the finite control space and decidable halting, so Malbolge is not Turing complete, in [`Langlib/Computability/Malbolge/Main.lean`](../../Langlib/Computability/Malbolge/Main.lean) and [docs/malbolge/computability.md](computability.md), and
   - a Turpentine backend, bounded by the language rather than by us, in [`Langlib/Languages/Turpentine/Compile/Malbolge.lean`](../../Langlib/Languages/Turpentine/Compile/Malbolge.lean) ([docs/malbolge/compiler.md](compiler.md))
 
 ## History

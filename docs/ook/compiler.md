@@ -3,7 +3,7 @@
 * **Status**: implemented, and the syntax round trip is proved.
 * **Family**: TapeIR, via brainfuck.
 * **Implementation**: [`Langlib/Languages/Turpentine/Compile/Ook.lean`](../../Langlib/Languages/Turpentine/Compile/Ook.lean).
-* **Completeness witness**: [`Langlib/Computability/Ook.lean`](../../Langlib/Computability/Ook.lean).
+* **Completeness witness**: [`Langlib/Computability/Ook/Main.lean`](../../Langlib/Computability/Ook/Main.lean).
 * **Tests**: [`Langlib/Tests/CompileOok.lean`](../../Langlib/Tests/CompileOok.lean), 27 cases.
 
 ## There really is nothing to generate
@@ -160,7 +160,7 @@ a hand-written Ook! program need not use this layout.
 
 ## Ook! is Turing complete
 
-`Langlib/Computability/Ook.lean` carries
+`Langlib/Computability/Ook/Main.lean` carries
 `ookComplete : TuringComplete OokLang`. Since the program type and the
 evaluator are brainfuck's, the witness is `brainfuckComplete`'s
 unchanged: same compiler from the unlimited register machine, same input
@@ -176,12 +176,13 @@ What that does **not** say, and the distinction matters:
   cslib proves no equivalence between URM-computability and any other
   model. `Langlib.Computability.computes_of_turingComplete` is the honest
   statement of what does follow.
-* [`ookComplete`](../../Langlib/Computability/Ook.lean) now includes
+* [`ookComplete`](../../Langlib/Computability/Ook/Main.lean) now includes
   both answer and divergence preservation. Its
   [divergence proof](../../Langlib/Computability/Ook/Divergence.lean)
   transfers Brainfuck’s proved divergence preservation through
   the same runner correspondence. This strengthens the URM-to-target half;
-  the derived Turpentine route still has its own forward specification.
+  the derived Turpentine route also preserves divergence, using the separate
+  operational proof for the shared Turpentine-to-URM pass.
 
 ### The axiom audit
 

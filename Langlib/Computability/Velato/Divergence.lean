@@ -1,6 +1,5 @@
 import Langlib.Computability.Velato.Simulation
-import Langlib.Computability.Divergence
-
+import Langlib.Computability.Common.Divergence
 /-! # Velato preserves URM divergence
 
 The dispatcher body terminates after each individual URM step. Stability

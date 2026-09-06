@@ -1,7 +1,7 @@
 # A finite-state restriction of Befunge-93
 
 This result concerns `BoundedByteBefunge93`, a restricted language defined
-in `Langlib/Computability/Befunge93.lean`. It does not classify either the
+in `Langlib/Computability/Befunge93/Main.lean`. It does not classify either the
 reference `bef.c` machine or LangLib's main Befunge-93 semantics.
 
 ## Three different machines
@@ -96,7 +96,7 @@ would require a compiler and simulation theorem and remains open here.
 The focused targets build successfully. Expect the final line below.
 
 ```
-lake build Langlib.Computability.Befunge93 Langlib.Tests.BoundedBefunge93
+lake build Langlib.Computability.Befunge93.Main Langlib.Tests.BoundedBefunge93
 ```
 
 Output:

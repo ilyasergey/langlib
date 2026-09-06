@@ -14,7 +14,6 @@ open Langlib.Common
 /-- Thue is Turing complete, via the verified URM-to-Thue generator. -/
 def thueComplete : TuringComplete ThueLang where
   compile := URMThue.compile
-  encodeInput := URMThue.encodeInput
   decodeOutput := URMThue.decodeOutput
   simulates := fun P inputs result h => URMThue.simulation P inputs result h
   preserves_divergence := URMThue.preserves_divergence

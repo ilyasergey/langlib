@@ -1,6 +1,6 @@
 import Langlib.Common.Fuel
 import Langlib.Common.Computability
-import Langlib.Computability.URM
+import Langlib.Computability.Common.URM
 import Langlib.Languages.Subleq.Semantics
 import Langlib.Languages.Subleq.Trace
 import Langlib.Languages.Subleq.Stability
@@ -79,7 +79,7 @@ bytes that invents nothing. See `docs/subleq/computability.md`.
 ## The shape of the proof
 
 `Langlib.Common.Reaches` carries the fuel exactly, as in
-`Langlib/Computability/Whitespace.lean`, and the lemmas compose by
+`Langlib/Computability/Whitespace/Main.lean`, and the lemmas compose by
 `Reaches.trans`.
 
 The state relation is `Ok`: the code region still agrees with the compiled
@@ -1206,7 +1206,7 @@ instance : TraceLang SubleqLang where
 /-- **Subleq is lawful**: a completed run is a fixed point of more fuel.
 Proved in `Langlib/Languages/Subleq/Stability.lean`; it upgrades every
 `∃ m` statement about a subleq run to "every fuel from some point on"
-(`CertifiedCompiler.correct_stable`, `TuringComplete.simulates_stable`). -/
+(`CertifiedCompilerNoIO.correct_stable`, `TuringComplete.simulates_stable`). -/
 instance : LawfulProgLang SubleqLang where
   halted_stable := Langlib.Subleq.evalProg_stable
 

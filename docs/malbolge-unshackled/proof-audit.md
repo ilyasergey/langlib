@@ -38,7 +38,7 @@ The shared interface is
 runnable compiler, input encoder, output decoder, and a theorem preserving
 halting answers. The interpreter must be lawful with respect to fuel. MU
 already has the language and lawfulness instances. The target-independent
-[`Counter`](../../Langlib/Computability/Counter.lean) development already
+[`Counter`](../../Langlib/Computability/Common/Counter.lean) development already
 translates URM programs and their finite inputs into `inc`, nonzero `dec`,
 `emit`, and structured `loop`, with `counterProgram_spec` proving the
 translation. This part should be reused.
@@ -272,11 +272,10 @@ Lutter's dialect uses unbounded signed integers and Unicode I/O. The
 existing unary-column construction is a good candidate, but its full runs
 must be shown not to rely on byte wraparound, negative cells, left-boundary
 behavior, or incompatible output. Names alone do not give that simulation.
-Also, the generic `encodeInput` field cannot depend on the URM program: a
-fixed interpreter with the compiled program in its input needs that stream
+The completeness contract runs the compiled target on `Input.empty`. A fixed
+interpreter needing the compiled program as input therefore needs that data
 injected by a generated MU wrapper, or the Brainfuck code initialized in
-memory by `compile`. One cannot silently give `encodeInput` an extra
-program argument. The fixed-counter route avoids both this dialect bridge
+memory by `compile`. There is no external input-encoding field to carry it. The fixed-counter route avoids both this dialect bridge
 and the interpreter's dynamic instruction and data tape allocator.
 
 ## Validation and next acceptance criterion

@@ -11,7 +11,7 @@ The witness contains a runnable fraction-list compiler, an input-dependent
 positive starting integer, an output decoder, and a proof through the real
 fuel-based FRACTRAN interpreter.
 
-[`fractranComplete`](../../Langlib/Computability/Fractran.lean) combines this
+[`fractranComplete`](../../Langlib/Computability/Fractran/Main.lean) combines this
 halting simulation with the [divergence proof](../../Langlib/Computability/Fractran/Divergence.lean)
 for the same compiler. The [shared interface](../divergence-preservation.md)
 gives halting and result equivalence, output validity, and error freedom.
@@ -104,7 +104,7 @@ theorem decodeOutput_encode (n : Nat) :
     decodeOutput ((toString (2 ^ n) ++ "\n").toUTF8) = some n
 ```
 
-`encodeInput_eq_encodeTokens_boundary` proves that the compiler's starting
+`targetInput_eq_encodeTokens_boundary` proves that the compiler's starting
 integer is exactly the prime encoding of `Cslib.URM.State.init inputs`, for
 empty and nonempty programs.
 

@@ -5,8 +5,8 @@ spaces, tabs, and linefeeds; everything visible is a comment. The full
 specification, history, and the exact semantic choices are in
 [docs/whitespace/spec.md](../../../docs/whitespace/spec.md).
 
-[`whitespaceComplete`](../../Computability/Whitespace.lean) preserves both halting answers
-and divergence. Its [divergence proof](../../Computability/Whitespace/Divergence.lean)
+[`whitespaceComplete`](../../Computability/Whitespace/Main.lean#L24) preserves both halting answers
+and divergence. Its [divergence proof](../../Computability/Whitespace/Divergence.lean#L144)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../../../docs/divergence-preservation.md) gives halting and result
 equivalence, output validity, and error freedom.

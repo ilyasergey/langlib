@@ -1,6 +1,6 @@
 # Brainfuck is Turing complete
 
-[`Langlib/Computability/Brainfuck.lean`](../../Langlib/Computability/Brainfuck.lean)
+[`Langlib/Computability/Brainfuck/Main.lean`](../../Langlib/Computability/Brainfuck/Main.lean)
 contains a total compiler from cslib's unlimited register machine to
 Brainfuck and a proof that every halting source run is simulated. The public
 witness is
@@ -15,7 +15,7 @@ The witness also supplies the completeness stage used by the verified
 Turpentine compilation pipeline described in
 [`certified-compilation.md`](../certified-compilation.md).
 
-[`brainfuckComplete`](../../Langlib/Computability/Brainfuck.lean) combines this
+[`brainfuckComplete`](../../Langlib/Computability/Brainfuck/Main.lean) combines this
 halting simulation with the [divergence proof](../../Langlib/Computability/Brainfuck/Divergence.lean)
 for the same compiler. The [shared interface](../divergence-preservation.md)
 gives halting and result equivalence, output validity, and error freedom.
@@ -33,7 +33,7 @@ theorem simulation (P : Cslib.URM.Program) (inputs : List Nat) (result : Nat)
 ```
 
 The input vector is compiled into the Brainfuck program. The generated code
-does not read its runtime input, so `encodeInput` returns an empty stream.
+does not read runtime input; the completeness contract runs it on `Input.empty`.
 
 The decoder is deliberately simple:
 

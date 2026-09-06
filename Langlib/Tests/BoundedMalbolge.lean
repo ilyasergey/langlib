@@ -1,6 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.Malbolge
-
+import Langlib.Computability.Malbolge.Main
 /-!
 Tests for Malbolge's finite-control count and for the halting decision that
 now rests on it.  The compile-time examples check that the index is bounded

@@ -335,7 +335,7 @@ its completeness claim is still open.
 Finite test runs cannot establish exhaustion of *every* target fuel budget.
 The kernel-checked divergence proofs live in
 `Langlib/Computability/<Language>/Divergence.lean`. Each public
-`<Language>.lean` combines that proof with the forward proof and compiler
+`<Language>/Main.lean` combines that proof with the forward proof and compiler
 from `<Language>/Simulation.lean` into `<lang>Complete : TuringComplete`.
 All eleven witnesses include both obligations. The
 [proof table](divergence-preservation.md#witness-migration) records the exact

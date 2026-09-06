@@ -22,7 +22,7 @@ bounded storage; and code restoration does not restore operands. The
 * **Progress tracker**: [completeness-progress.md](completeness-progress.md),
   which says how far the completeness effort has got and what is next.
 * **Machine-checked groundwork**:
-  [`Langlib/Computability/MalbolgeUnshackled.lean`](../../Langlib/Computability/MalbolgeUnshackled.lean),
+  [`Langlib/Computability/MalbolgeUnshackled/Main.lean`](../../Langlib/Computability/MalbolgeUnshackled/Main.lean),
   written up in
   [malbolge-unshackled/computability.md](computability.md).
 
@@ -1108,7 +1108,7 @@ the copy identity `crz (crz a k) k = a` over every value at widths 5, 7 and
 ## Correctness
 
 **Nothing is proved.** This backend has no entry in
-`Langlib/Languages/Turpentine/Certified/`, and the `docs/README.md` matrix
+`Langlib/Languages/Turpentine/Compile/Certified/`, and the `docs/README.md` matrix
 says so.
 
 The statement it should be proved against is unusual, and worth writing down
@@ -1121,13 +1121,13 @@ semantics — the obligation is entirely on the back end:
 > `MalbolgeUnshackled.run (build bs) input fuel` halts with output `bs`, for
 > a large enough `fuel` and *every* legal starting rotation width.
 
-`CertifiedCompiler` in `Langlib/Common/Compilation.lean` then follows by
+`CertifiedCompilerNoIO` in `Langlib/Common/Compilation.lean` then follows by
 composing that with `evalProgram`'s own definition, and the I/O-aware
-`IOCertifiedCompiler` follows too, since a program with no input has a trace
+`CertifiedCompiler` follows too, since a program with no input has a trace
 that is exactly its output events.
 
 The proof would be an induction over the plan, and the machinery is already
-in `Langlib/Computability/MalbolgeUnshackled.lean`: `crazy_run` folds a row
+in `Langlib/Computability/MalbolgeUnshackled/Main.lean`: `crazy_run` folds a row
 of crazy cells in one lemma, `step1_out` is the output step, `nop_run`
 handles the padding, `exec_halts_of_run?` gets from the step relation to
 `exec`, and `decode_at_ofNat` is what makes `wordFor` correct. The one piece

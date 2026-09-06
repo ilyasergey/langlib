@@ -1,6 +1,5 @@
 import Langlib.Computability.Thue.Simulation
-import Langlib.Computability.Divergence
-
+import Langlib.Computability.Common.Divergence
 /-! # Thue preserves URM divergence -/
 
 namespace Langlib.Computability.URMThue

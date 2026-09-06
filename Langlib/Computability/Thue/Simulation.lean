@@ -1,5 +1,5 @@
-import Langlib.Computability.Brainfuck
-import Langlib.Computability.Counter
+import Langlib.Computability.Brainfuck.Main
+import Langlib.Computability.Common.Counter
 import Langlib.Languages.Thue.Semantics
 import Langlib.Languages.Thue.Stability
 
@@ -3874,8 +3874,6 @@ def compile (P : Cslib.URM.Program) (inputs : List Nat) : Prog :=
   { rules := compileRules P inputs
     initial := str (encodeState R ⟨Cslib.URM.Regs.ofInputs inputs, 0⟩ (.control 0)) }
 
-/-- The compiler embeds the input vector in the generated counter program. -/
-def encodeInput (_inputs : List Nat) : Input := Input.ofString ""
 
 /-- Read register zero from the final state emitted by `Config.finalState`.
 The first `b` is the left boundary of the register file, and the following

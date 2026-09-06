@@ -19,8 +19,8 @@ does not have and langlib needs, namely an *executable* interpreter.
 cslib's execution semantics is a relation, `Step`, together with a
 `Part`-valued `eval` built from `Classical.choose`. That is the right choice
 for reasoning but it cannot be run, and langlib's differential tests
-(`Langlib/Tests/URMWhitespace.lean`) want to execute a URM program and
-compare its answer against the compiled Whitespace program's output. So this
+(`Langlib/Tests/URMSubleq.lean`) want to execute a URM program and
+compare its answer against the compiled Subleq program's output. So this
 module defines a fuel-driven `step`/`run` and proves it agrees with cslib's
 relation:
 

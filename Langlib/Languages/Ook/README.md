@@ -5,8 +5,8 @@ commands, spelled as pairs of the words `Ook.`, `Ook?`, `Ook!`. The full
 specification, the Librarian, and the exact semantic choices are in
 [docs/ook/spec.md](../../../docs/ook/spec.md).
 
-[`ookComplete`](../../Computability/Ook.lean) preserves both halting answers
-and divergence. Its [divergence proof](../../Computability/Ook/Divergence.lean)
+[`ookComplete`](../../Computability/Ook/Main.lean#L25) preserves both halting answers
+and divergence. Its [divergence proof](../../Computability/Ook/Divergence.lean#L15)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../../../docs/divergence-preservation.md) gives halting and result
 equivalence, output validity, and error freedom.

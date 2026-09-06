@@ -7,6 +7,9 @@ history, tables, and the exact semantic choices (including every place the
 printed spec and the reference interpreter disagree) are in
 [docs/malbolge/spec.md](../../../docs/malbolge/spec.md).
 
+The [computability account](../../../docs/malbolge/computability.md) explains the
+representation, proved result and remaining scope.
+
 ## Modules
 
 * `Syntax.lean`: the machine vocabulary. A Malbolge "AST" is the loaded
@@ -105,7 +108,8 @@ machine's 59049 words -- 97.4% -- and it prints the same 11459 bytes as
 the hand-written `99bottles.mal` above, which needs about fifteen million
 cycles to this one's 28363 because it has real loops and this one has none
 at all. It is also as close to the wall as this backend gets: Malbolge is
-finite, so no compiler into it can be total, and a program printing much
+finite, so no semantics-preserving compiler can cover all Turpentine programs,
+and a program printing much
 more than the song is refused with the number of bytes that would have
 fitted.
 

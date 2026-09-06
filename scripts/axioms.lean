@@ -1,3 +1,50 @@
+import Langlib.Common.Divergence
+import Langlib.Computability.Common.Divergence
+import Langlib.Computability.Brainfuck.Divergence
+import Langlib.Computability.Brainloller.Divergence
+import Langlib.Computability.Fractran.Divergence
+import Langlib.Computability.Ook.Divergence
+import Langlib.Computability.Piet.Divergence
+import Langlib.Computability.Ski.Divergence
+import Langlib.Computability.Subleq.Divergence
+import Langlib.Computability.Thue.Divergence
+import Langlib.Computability.Unlambda.Divergence
+import Langlib.Computability.Velato.Divergence
+import Langlib.Computability.Whitespace.Divergence
+import Langlib.Computability.Whitespace.Main
+import Langlib.Computability.Subleq.Main
+import Langlib.Languages.Subleq.Trace
+import Langlib.Languages.Turpentine.Compile.Derived
+import Langlib.Languages.Turpentine.Trace
+import Langlib.Languages.Turpentine.Compile.Certified.BespokeWhitespace
+import Langlib.Languages.Turpentine.Compile.Certified.BespokeVelato
+import Langlib.Computability.Brainfuck.Main
+import Langlib.Computability.Velato.Main
+import Langlib.Computability.Deadfish.Main
+import Langlib.Computability.Malbolge.Main
+import Langlib.Computability.Befunge93.Main
+import Langlib.Computability.Thue.Main
+import Langlib.Computability.Ook.Main
+import Langlib.Computability.Brainloller.Main
+import Langlib.Computability.Piet.Main
+import Langlib.Computability.Fractran.Main
+import Langlib.Languages.Turpentine.Compile.Certified.BespokeSubleq
+import Langlib.Computability.MalbolgeUnshackled.Main
+import Langlib.Computability.MalbolgeUnshackled.Obstructions
+import Langlib.Computability.MalbolgeUnshackled.Counters
+import Langlib.Computability.MalbolgeUnshackled.Runtime
+import Langlib.Computability.MalbolgeUnshackled.Rotation
+import Langlib.Computability.MalbolgeUnshackled.RotationLoop
+import Langlib.Computability.MalbolgeUnshackled.Growth
+import Langlib.Computability.MalbolgeUnshackled.ReusableGrowth
+import Langlib.Computability.MalbolgeUnshackled.Initialization
+import Langlib.Computability.MalbolgeUnshackled.MarkerReset
+import Langlib.Computability.MalbolgeUnshackled.MarkerCycle
+import Langlib.Computability.MalbolgeUnshackled.GrowingMarker
+import Langlib.Computability.MalbolgeUnshackled.BitBranch
+import Langlib.Computability.Unlambda.Main
+import Langlib.Computability.Ski.Main
+import Langlib.Languages.Turpentine.Divergence
 /-
 Axiom audit for LangLib's computability results.
 
@@ -19,52 +66,6 @@ Anything else, and in particular `sorryAx`, means the result is not what it
 claims to be. Add a line here whenever a new completeness or
 incompleteness instance lands.
 -/
-import Langlib.Common.Divergence
-import Langlib.Computability.Divergence
-import Langlib.Computability.Brainfuck.Divergence
-import Langlib.Computability.Brainloller.Divergence
-import Langlib.Computability.Fractran.Divergence
-import Langlib.Computability.Ook.Divergence
-import Langlib.Computability.Piet.Divergence
-import Langlib.Computability.Ski.Divergence
-import Langlib.Computability.Subleq.Divergence
-import Langlib.Computability.Thue.Divergence
-import Langlib.Computability.Unlambda.Divergence
-import Langlib.Computability.Velato.Divergence
-import Langlib.Computability.Whitespace.Divergence
-import Langlib.Computability.Whitespace
-import Langlib.Computability.Subleq
-import Langlib.Languages.Subleq.Trace
-import Langlib.Languages.Turpentine.Compile.Derived
-import Langlib.Languages.Turpentine.Trace
-import Langlib.Languages.Turpentine.Certified.BespokeWhitespace
-import Langlib.Computability.Brainfuck
-import Langlib.Computability.Velato
-import Langlib.Computability.Deadfish
-import Langlib.Computability.Malbolge
-import Langlib.Computability.Befunge93
-import Langlib.Computability.Thue
-import Langlib.Computability.Ook
-import Langlib.Computability.Brainloller
-import Langlib.Computability.Piet
-import Langlib.Computability.Fractran
-import Langlib.Languages.Turpentine.Certified.BespokeSubleq
-import Langlib.Computability.MalbolgeUnshackled
-import Langlib.Computability.MalbolgeUnshackled.Obstructions
-import Langlib.Computability.MalbolgeUnshackled.Counters
-import Langlib.Computability.MalbolgeUnshackled.Runtime
-import Langlib.Computability.MalbolgeUnshackled.Rotation
-import Langlib.Computability.MalbolgeUnshackled.RotationLoop
-import Langlib.Computability.MalbolgeUnshackled.Growth
-import Langlib.Computability.MalbolgeUnshackled.ReusableGrowth
-import Langlib.Computability.MalbolgeUnshackled.Initialization
-import Langlib.Computability.MalbolgeUnshackled.MarkerReset
-import Langlib.Computability.MalbolgeUnshackled.MarkerCycle
-import Langlib.Computability.MalbolgeUnshackled.GrowingMarker
-import Langlib.Computability.MalbolgeUnshackled.BitBranch
-import Langlib.Computability.Unlambda
-import Langlib.Computability.Ski
-
 open Langlib.Common
 open Langlib.Computability
 open Langlib.Turpentine.Certified
@@ -125,14 +126,15 @@ open Langlib.Turpentine.Compile
 #print axioms derivedUnlambda
 #print axioms derivedSki
 #print axioms agree
-#print axioms Langlib.Common.CertifiedCompiler.agree
+#print axioms Langlib.Common.CertifiedCompilerNoIO.agree
 
--- Certified compilation, generically: the answer-only notion, the I/O-aware
--- notion, and the proof that the second implies the first.
-#print axioms Langlib.Common.IOCertifiedCompiler.toCertified
-#print axioms Langlib.Common.IOCertifiedCompiler.toCertifiedOf
-#print axioms Langlib.Common.IOCertifiedCompiler.output_eq
-#print axioms Langlib.Common.IOCertifiedCompiler.agree
+-- Certified compilation: closed computations, arbitrary-input answer
+-- preservation, and explicit closure of the I/O certificate at empty input.
+#print axioms Langlib.Common.CertifiedCompiler.correct_answer
+#print axioms Langlib.Common.CertifiedCompiler.toClosed
+#print axioms Langlib.Common.CertifiedCompiler.toClosedOf
+#print axioms Langlib.Common.CertifiedCompiler.output_eq
+#print axioms Langlib.Common.CertifiedCompiler.agree
 #print axioms Langlib.Common.TraceLang.ofInputFree
 
 -- Brainfuck: Turing complete via paired unary tape columns. The compiler
@@ -229,7 +231,7 @@ open Langlib.Turpentine.Compile
 #print axioms URMFractran.tokenProduct_coprime
 #print axioms URMFractran.frac_eq_of_disjoint
 #print axioms URMFractran.registerBound_pos
-#print axioms URMFractran.encodeInput_pos
+#print axioms URMFractran.targetInput_pos
 
 -- The hand-written Turpentine-to-subleq backend, verified on the fragment
 -- `var answer : int := k; printByte(answer);` (1 <= k <= 255) and
@@ -273,7 +275,7 @@ open Langlib.Turpentine.Compile
 -- this proves the brainfuck parser is a left inverse of the renderer, that a
 -- rendered program is all command characters (so the encoder's filter drops
 -- nothing), and the composition of the two. The pixel walk itself is not
--- proved; see the header of Langlib/Computability/Brainloller.lean and the
+-- proved; see the header of Langlib/Computability/Brainloller/Main.lean and the
 -- `walks` suites in Langlib/Tests/CompileBrainloller.lean.
 #print axioms brainlollerComplete
 #print axioms BrainlollerSyntax.parse_renderBf
@@ -391,10 +393,10 @@ open Langlib.Turpentine.Compile
 -- and derived compilers for Whitespace.
 #print axioms bespokeWhitespace
 #print axioms bespokeWhitespace_agrees_derived
--- The behavioural half: the library's first `IOCertifiedCompiler`, with
+-- The behavioural half: the library's first `CertifiedCompiler`, with
 -- `encodeTrace = id`, and the typing soundness the print cases needed.
 #print axioms bespokeWhitespaceIO
-#print axioms bespokeWhitespaceIOErased
+#print axioms bespokeWhitespaceIOClosed
 #print axioms BespokeWhitespace.bespokeCompile_core
 #print axioms BespokeWhitespace.bespokeCompile_behaves
 #print axioms Langlib.Turpentine.Certified.decodeAnswer_epilogue
@@ -1075,3 +1077,31 @@ open Langlib.Turpentine.Compile
 
 #print axioms Langlib.Computability.URMOok.preserves_divergence
 #print axioms Langlib.Computability.URMBrainloller.preserves_divergence
+
+-- Actual source divergence, independent of answer decoding.
+#print axioms Langlib.Turpentine.StmtDiverges
+#print axioms Langlib.Turpentine.Diverges
+#print axioms Langlib.Turpentine.exec_stable
+#print axioms Langlib.Turpentine.exec_outOfFuel_of_le
+#print axioms Langlib.Turpentine.StmtDiverges.seq_left
+#print axioms Langlib.Turpentine.StmtDiverges.seq_right
+#print axioms Langlib.Turpentine.StmtDiverges.seq_cases
+#print axioms Langlib.Turpentine.StmtDiverges.ite_cases
+#print axioms Langlib.Turpentine.StmtDiverges.while_cond
+#print axioms Langlib.Turpentine.StmtDiverges.while_next
+#print axioms Langlib.Turpentine.StmtDiverges.while_cases
+#print axioms Langlib.Turpentine.diverges_iff
+
+-- Divergence of the Turpentine translations, independently of output decoding.
+#print axioms Langlib.Turpentine.Compile.URM.compileStmt_diverges
+#print axioms Langlib.Turpentine.Compile.URM.compileToURM_preserves_divergence
+#print axioms Langlib.Turpentine.Certified.BespokeSubleq.compile_source_halts
+#print axioms Langlib.Turpentine.Certified.BespokeWhitespace.simStmt_diverges
+#print axioms Langlib.Turpentine.Certified.BespokeWhitespace.bespokeCompile_preserves_divergence
+#print axioms Langlib.Turpentine.Certified.BespokeVelato.simStmt_diverges
+#print axioms Langlib.Turpentine.Certified.BespokeVelato.bespokeCompile_preserves_divergence
+
+-- Closed/I/O contract separation: the input-reading witness stays I/O-aware.
+#print axioms Langlib.Turpentine.Certified.bespokeVelatoIO
+#print axioms Langlib.Turpentine.Certified.bespokeVelatoIOClosed
+#print axioms Langlib.Turpentine.Certified.bespokeVelato_agrees_derived

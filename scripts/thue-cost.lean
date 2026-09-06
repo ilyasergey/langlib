@@ -1,5 +1,4 @@
-import Langlib.Computability.Thue
-
+import Langlib.Computability.Thue.Main
 /-!
 Size and cost of the generated Thue rulebase, for `docs/thue/computability.md`.
 

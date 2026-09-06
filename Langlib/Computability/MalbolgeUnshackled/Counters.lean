@@ -1,5 +1,4 @@
-import Langlib.Computability.MalbolgeUnshackled
-
+import Langlib.Computability.MalbolgeUnshackled.Main
 /-!
 # Finite cells containing unbounded counters
 

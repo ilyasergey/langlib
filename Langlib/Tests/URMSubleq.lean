@@ -1,6 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.Subleq
-
+import Langlib.Computability.Subleq.Main
 /-!
 Differential tests for the certified URM to subleq compiler.
 

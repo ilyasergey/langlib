@@ -79,15 +79,25 @@ taught it to you.
   Put compilers, forward proofs and language instances in
   `Langlib/Computability/<Language>/Simulation.lean`, operational divergence
   proofs in its sibling `Divergence.lean`, and assemble `<lang>Complete` in
-  the public `Langlib/Computability/<Language>.lean` module, which imports
-  `Divergence`. This order avoids a circular dependency. Shared positive-cost
+  the public `Langlib/Computability/<Language>/Main.lean` module, which imports
+  `Divergence`. Every language's computability development lives entirely in
+  its own folder; negative or unfinished claims also use `Main.lean` as the
+  entry point. Shared proof infrastructure lives in `Computability/Common/`.
+  This order avoids a circular dependency. Shared positive-cost
   simulation lives in `Langlib/Common/Divergence.lean` (`ReachesPlus`, free
   of Mathlib); continuing URM execution lives in
-  `Langlib/Computability/Divergence.lean`. A zero-cost `Reaches` cycle does
+  `Langlib/Computability/Common/Divergence.lean`. A zero-cost `Reaches` cycle does
   not prove divergence; self-jumps must also consume positive target fuel.
 
 ## Documentation policy
 
+* Before **every commit**, double-check all project documentation for
+  consistency with the code and for link validity, including the root
+  documents, `docs/`, every language README and the site documentation.
+  Every local target and heading anchor must resolve. Every numbered source
+  link must point to the exact referenced definition or theorem, not a nearby
+  comment or field. Check both incoming and outgoing links after moves, and
+  repeat the check after the last edit that changes paths or line numbers.
 * Every language doc credits the original author(s), year, and the canonical
   specification or implementation. Respect copyright: summarise
   specifications in our own words, never paste licensed text or licensed
@@ -140,8 +150,8 @@ taught it to you.
   `Langlib/Languages/Turpentine/Compile/Derived.lean` and the `--tc` half
   of `Langlib/Languages/Turpentine/Main.lean`, both built out of
   completeness witnesses, and everything under
-  `Langlib/Languages/Turpentine/Certified/`.
-* `Langlib/Languages/Turpentine/Certified/` holds the correctness proofs of
+  `Langlib/Languages/Turpentine/Compile/Certified/`.
+* `Langlib/Languages/Turpentine/Compile/Certified/` holds the correctness proofs of
   the hand-written Turpentine backends (namespace
   `Langlib.Turpentine.Certified`, one file per target, plus `Shared.lean`
   for the Turpentine-side facts every such proof needs: the fragment
@@ -150,15 +160,21 @@ taught it to you.
   next to the backends they are about rather than in
   `Langlib/Computability/`, which is reserved for the Turing-completeness
   results and their URM bridges. Nothing a runner imports may import
-  `Certified/`: the executables keep compiling without Mathlib.
+  `Compile/Certified/`: the executables keep compiling without Mathlib.
   Note that `Langlib.Turpentine.Certified` nests inside `Langlib.Turpentine`,
   so unqualified names resolve to the front end first — write
   `Langlib.Subleq.exec`, not `exec`, when you mean the target language's.
-* `Langlib/Common/Compilation.lean` — `ProgLang`, `CertifiedCompiler`,
-  `IOCertifiedCompiler` — is deliberately free of both, and
+* `Langlib/Common/Compilation.lean` — `ProgLang`, `CertifiedCompilerNoIO`,
+  `CertifiedCompiler` — is deliberately free of both, and
   `Langlib/Common.lean` rolls it up while leaving
   `Langlib/Common/Computability.lean` out. State a compiler's correctness
   against those definitions; do not move them anywhere that needs Mathlib.
+* Compiler contracts distinguish closed computations from runtime input:
+  `CertifiedCompilerNoIO spec diverges L` has no input parameter and runs targets
+  on `Input.empty`; `CertifiedCompiler spec diverges targetInput L` quantifies
+  over source streams under an explicit encoding. Forgetting traces does not
+  close a computation: use `correct_answer` to retain input, or `toClosed`
+  with proof that empty source input encodes to empty target input.
 * First build on a fresh machine needs Mathlib's cache
   (`lake exe cache get`).
 

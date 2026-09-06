@@ -1,6 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.Velato
-
+import Langlib.Computability.Velato.Main
 /-!
 Differential tests for the certified URM to Velato compiler.
 

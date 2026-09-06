@@ -1,7 +1,7 @@
 import Langlib.Common.Fuel
 import Langlib.Common.Computability
-import Langlib.Computability.URM
-import Langlib.Computability.Counter
+import Langlib.Computability.Common.URM
+import Langlib.Computability.Common.Counter
 import Langlib.Languages.Unlambda
 
 /-!
@@ -12,7 +12,7 @@ is not a machine simulation in the usual sense: the target has no store, no
 program counter and no jumps, only application.
 
 The compiler goes through the structured counter machine of
-`Langlib/Computability/Counter.lean`, which already turns an unlimited
+`Langlib/Computability/Common/Counter.lean`, which already turns an unlimited
 register machine into four commands (increment, decrement, emit one byte,
 and a while loop). What remains, and what this file does, is to run those
 four commands with combinators.
@@ -1645,8 +1645,6 @@ def compile (P : Cslib.URM.Program) (inputs : List Nat) : Term :=
   toTerm (.app (codeE (counterProgram P inputs))
     (listE (regsList (bound P inputs) (fun _ => 0))))
 
-/-- The compiled term reads nothing. -/
-def encodeInput (_ : List Nat) : Input := Input.empty
 
 /-- The answer is how many bytes came out. -/
 def decodeOutput (b : ByteArray) : Option Nat := some b.size

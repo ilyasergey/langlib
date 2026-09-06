@@ -3733,7 +3733,7 @@ def layout (P : Program) (inputs : List Nat) : Layout :=
 
 /-- Initial FRACTRAN number: the initial control marker times the input
 register prime powers. -/
-def encodeInput (P : Program) (inputs : List Nat) : Nat :=
+def targetInput (P : Program) (inputs : List Nat) : Nat :=
   let l := layout P inputs
   primeAt (if P.isEmpty then l.halt else l.marker 0 0) *
     ((List.range inputs.length).map fun r => primeAt r ^ inputs.getD r 0).prod
@@ -3770,8 +3770,8 @@ theorem encodeTokens_inputSum (inputs : List Nat) :
       List.range_succ, List.map_append, List.prod_append]
     simpa using congrArg (fun x => x * primeAt n ^ inputs.getD n 0) ih
 
-theorem encodeInput_eq_encodeTokens_boundary (P : Program) (inputs : List Nat) :
-    encodeInput P inputs =
+theorem targetInput_eq_encodeTokens_boundary (P : Program) (inputs : List Nat) :
+    targetInput P inputs =
       encodeTokens
         (boundaryTokens (layout P inputs) 0
           (Cslib.URM.Regs.ofInputs inputs)) := by
@@ -3784,7 +3784,7 @@ theorem encodeInput_eq_encodeTokens_boundary (P : Program) (inputs : List Nat) :
           Finsupp.single r (inputs.getD r 0) by
       simpa [l] using regTokens_ofInputs P inputs]
     exact encodeTokens_inputSum inputs
-  unfold encodeInput boundaryTokens
+  unfold targetInput boundaryTokens
   rw [encodeTokens_add, encodeTokens_single, pow_one, hregs]
   by_cases hempty : P.isEmpty
   · have hp : P = [] := List.isEmpty_iff.mp hempty
@@ -3794,9 +3794,9 @@ theorem encodeInput_eq_encodeTokens_boundary (P : Program) (inputs : List Nat) :
     have hlen : 0 < P.length := List.length_pos_iff.mpr hp
     simp [layout, targetMarker, hempty, hlen, Nat.mul_comm]
 
-theorem encodeInput_pos (P : Program) (inputs : List Nat) :
-    0 < encodeInput P inputs := by
-  unfold encodeInput
+theorem targetInput_pos (P : Program) (inputs : List Nat) :
+    0 < targetInput P inputs := by
+  unfold targetInput
   apply Nat.mul_pos (primeAt_prime _).pos
   apply Nat.pos_of_ne_zero
   apply List.prod_ne_zero
@@ -4268,9 +4268,9 @@ theorem simulationConcrete (P : Program) (inputs : List Nat) (result : Nat)
     (h : Cslib.URM.HaltsWithResult P inputs result) :
     Relation.ReflTransGen
       (fun n n' => Langlib.Fractran.step (compile P inputs) n = some n')
-      (encodeInput P inputs) (2 ^ result) := by
+      (targetInput P inputs) (2 ^ result) := by
   have hconcrete := rulesSteps_concrete (simulationRules P inputs result h)
-  rw [← encodeInput_eq_encodeTokens_boundary P inputs] at hconcrete
+  rw [← targetInput_eq_encodeTokens_boundary P inputs] at hconcrete
   simpa [compile, encodeTokens_single] using hconcrete
 
 theorem compile_eq_old (P : Program) (inputs : List Nat) :
@@ -4417,7 +4417,7 @@ structure CompiledProgram where
   start : Nat
 
 def compileProgram (P : Program) (inputs : List Nat) : CompiledProgram :=
-  ⟨compile P inputs, encodeInput P inputs⟩
+  ⟨compile P inputs, targetInput P inputs⟩
 
 /-- End-to-end execution through the real fuel-based FRACTRAN interpreter. -/
 theorem simulation (P : Program) (inputs : List Nat) (result : Nat)
@@ -4433,14 +4433,14 @@ theorem simulation (P : Program) (inputs : List Nat) (result : Nat)
   have hsteps := simulationConcrete P inputs result h
   have hnone := compile_terminal_none P inputs result
   obtain ⟨fuel, hexec⟩ := exec_final_of_steps hsteps hnone
-  have hstart : encodeInput P inputs ≠ 0 := Nat.ne_of_gt (encodeInput_pos P inputs)
+  have hstart : targetInput P inputs ≠ 0 := Nat.ne_of_gt (targetInput_pos P inputs)
   have heval :
       Langlib.Fractran.evalProg { out := .final }
           (compileProgram P inputs).code (compileProgram P inputs).start fuel =
         { output := (toString (2 ^ result) ++ "\n").toUTF8,
           exit := Langlib.Common.Exit.halted } := by
     unfold Langlib.Fractran.evalProg compileProgram
-    simp only [show (encodeInput P inputs == 0) = false by simp [hstart],
+    simp only [show (targetInput P inputs == 0) = false by simp [hstart],
       show (Langlib.Fractran.OutMode.final ==
         Langlib.Fractran.OutMode.trajectory) = false by decide]
     exact hexec

@@ -7,7 +7,7 @@ One unit of fuel per (attempted) instruction — Johansen's `hang` included —
 and the machine stops on its own only at `halt` or on an error, so a
 completed run is a fixed point of more fuel. Discharges the
 `Langlib.Common.LawfulProgLang` instance in
-`Langlib/Computability/MalbolgeUnshackled.lean`.
+`Langlib/Computability/MalbolgeUnshackled/Simulation.lean`.
 -/
 
 namespace Langlib.MalbolgeUnshackled

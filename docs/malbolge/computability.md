@@ -6,7 +6,7 @@ words, every word has 59049 possible values, and each of the registers
 has `n + 1` relevant positions, including EOF. Accumulated output does not
 affect execution because the evaluator only appends to it.
 
-`Langlib/Computability/Malbolge.lean` formalizes this count. Its control
+`Langlib/Computability/Malbolge/Main.lean` formalizes this count. Its control
 type is indexed by the input length:
 
 ```lean
@@ -82,7 +82,7 @@ statement are untouched: the strong structure still means what it meant.
 
 The count above says nothing about a *step*, so on its own it settles
 nothing. Three further pieces close the gap, all in
-`Langlib/Computability/Malbolge.lean`.
+`Langlib/Computability/Malbolge/Main.lean`.
 
 **A step function.** `Langlib.Malbolge.exec` recurses at the front and
 returns early on a halt, so `exec (n + 1)` is not `step (exec n)` on the
@@ -186,7 +186,7 @@ the beer song.
 The computability module should build successfully.
 
 ```
-lake build Langlib.Computability.Malbolge
+lake build Langlib.Computability.Malbolge.Main
 ```
 
 Output:

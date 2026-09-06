@@ -10,8 +10,8 @@ The language specification, every semantic decision this implementation
 makes and its source, and the example programs engraved as sheet music, are
 in [`docs/velato/spec.md`](../../../docs/velato/spec.md).
 
-[`velatoComplete`](../../Computability/Velato.lean) preserves both halting answers
-and divergence. Its [divergence proof](../../Computability/Velato/Divergence.lean)
+[`velatoComplete`](../../Computability/Velato/Main.lean#L43) preserves both halting answers
+and divergence. Its [divergence proof](../../Computability/Velato/Divergence.lean#L139)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../../../docs/divergence-preservation.md) gives halting and result
 equivalence, output validity, and error freedom.
@@ -63,13 +63,14 @@ machine already has.
 
 Everything here is free of Mathlib and cslib, so it compiles fast. The
 Turing-completeness proof, which needs both, is in
-[`Langlib/Computability/Velato.lean`](../../Computability/Velato.lean) and
+[`Langlib/Computability/Velato/Main.lean`](../../Computability/Velato/Main.lean#L43) and
 explained in
 [`docs/velato/computability.md`](../../../docs/velato/computability.md).
-That file also registers Velato's `TraceLang` instance, built from
+The sibling [Simulation.lean](../../Computability/Velato/Simulation.lean)
+registers Velato's `TraceLang` instance, built from
 `Trace.lean` and `Faithful.lean`, which is what lets the Turpentine backend
 for Velato be proved correct *behaviourally*, input included:
-[`Langlib/Languages/Turpentine/Certified/BespokeVelato.lean`](../Turpentine/Certified/BespokeVelato.lean),
+[`Langlib/Languages/Turpentine/Compile/Certified/BespokeVelato.lean`](../Turpentine/Compile/Certified/BespokeVelato.lean),
 with the fragment spelled out in
 [`docs/velato/compiler.md`](../../../docs/velato/compiler.md).
 

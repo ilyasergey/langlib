@@ -20,7 +20,7 @@ theorem.
 **That witness does not exist yet.** This page says what has been proved,
 what the two real obstructions are, and which route past them the code is
 laid out for. Everything asserted below as proved lives in
-[`Langlib/Computability/MalbolgeUnshackled.lean`](../../Langlib/Computability/MalbolgeUnshackled.lean)
+[`Langlib/Computability/MalbolgeUnshackled/Main.lean`](../../Langlib/Computability/MalbolgeUnshackled/Main.lean)
 and is checked by `scripts/axioms.lean`.
 
 ## What is proved
@@ -928,7 +928,7 @@ than a Lean proof.
 ## Verification
 
 ```
-lake build Langlib.Computability.MalbolgeUnshackled
+lake build Langlib.Computability.MalbolgeUnshackled.Main
 ```
 
 ```

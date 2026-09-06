@@ -1,7 +1,7 @@
 import Langlib.Common.Fuel
 import Std.Data.String.ToNat
 import Langlib.Common.Computability
-import Langlib.Computability.URM
+import Langlib.Computability.Common.URM
 import Langlib.Languages.Piet.Semantics
 import Langlib.Languages.Piet.Stability
 

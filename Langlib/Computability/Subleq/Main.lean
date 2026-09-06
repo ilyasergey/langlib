@@ -30,7 +30,6 @@ machine with the other models (Shepherdson and Sturgis 1963; Cutland,
 follow. -/
 def subleqComplete : TuringComplete SubleqLang where
   compile := URMSubleq.compile
-  encodeInput := fun _ => Input.ofString ""
   decodeOutput := URMSubleq.decodeOutput
   simulates := fun P inputs result h =>
     URMSubleq.simulation P inputs result h (Input.ofString "")

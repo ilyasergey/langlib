@@ -21,7 +21,7 @@ the theorem that makes the composition work.
 
 ## What "done" means
 
-1. `Langlib/Computability/<LANG>.lean` contains a term
+1. `Langlib/Computability/<LANG>/Main.lean` contains a term
    `<lang>Complete : TuringComplete <LANG>Lang`.
 2. `lake env lean scripts/axioms.lean` reports, for every declaration it
    lists, only `[propext, Classical.choice, Quot.sound]`. Anything else,
@@ -73,11 +73,11 @@ proved, not to be run.
 >   compiler is)
 > - `Langlib/Common/Computability.lean` (`TuringComplete`,
 >   `BoundedStorage`, and `computes_of_turingComplete`)
-> - **`Langlib/Computability/Whitespace.lean`**, the finished, axiom-clean
+> - **`Langlib/Computability/Whitespace/Main.lean`**, the finished, axiom-clean
 >   instance, and its `Whitespace/Simulation.lean` and
 >   `Whitespace/Divergence.lean` proof modules. Match that dependency order:
 >   runnable compiler and forward proof, operational divergence, then witness.
-> - `Langlib/Computability/URM.lean` and cslib's
+> - `Langlib/Computability/Common/URM.lean` and cslib's
 >   `Cslib/Computability/URM/{Defs,Execution,Basic}.lean` in
 >   `.lake/packages/cslib/`. Instructions are `Z n` (zero), `S n`
 >   (increment), `T m n` (copy), `J m n k` (jump if equal).
@@ -91,14 +91,14 @@ proved, not to be run.
 > copy the hand-written backend's fixed-width scheme.]
 >
 > **Deliverables:**
-> 1. `Langlib/Computability/<LANG>.lean` (namespace `Langlib.Computability`)
+> 1. `Langlib/Computability/<LANG>/Main.lean` (namespace `Langlib.Computability`)
 >    with: a `ProgLang` instance if one does not exist; a total, runnable
 >    `compile : URM.Program → List Nat → <LANG>.Prog` that `#eval` can
->    apply; `encodeInput` and `decodeOutput`; both `simulation` and
+>    apply; embedded input data and `decodeOutput`; both `simulation` and
 >    `preserves_divergence`; and `<lang>Complete : TuringComplete <LANG>Lang`.
 >    Put the compiler and forward proof in `<LANG>/Simulation.lean`, the
 >    divergence proof in `<LANG>/Divergence.lean`, and assemble the witness
->    in the public `<LANG>.lean` module.
+>    in the public `<LANG>/Main.lean` module.
 > 2. Append your declarations to `scripts/axioms.lean` and verify with
 >    `lake env lean scripts/axioms.lean` that each reports only
 >    `[propext, Classical.choice, Quot.sound]`.
@@ -124,11 +124,11 @@ proved, not to be run.
 > - Other agents may share this checkout. NEVER run bare `lake build` or
 >   `lake test`; build only your own targets by name. On lake lock or busy
 >   errors, sleep a few seconds and retry.
-> - You own: `Langlib/Computability/<LANG>.lean` and its `<LANG>/` proof modules,
+> - You own: `Langlib/Computability/<LANG>/` proof modules,
 >   `Langlib/Tests/URM<Lang>.lean`, `docs/<lang>/computability.md`, and
 >   appending to `scripts/axioms.lean`.
 > - Do NOT edit: `lakefile.toml`, `Langlib.lean`, `Langlib/Tests/Main.lean`,
->   `Langlib/Common/**`, `Langlib/Computability/{Class,URM,Whitespace}.lean`
+>   `Langlib/Common/**`, `Langlib/Computability/Common/**`, `Langlib/Computability/Whitespace/**`
 >   (read-only), `Langlib/Languages/**`, `Langlib/Languages/Turpentine/**`, other
 >   `docs/*.md`, `README.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `site/**`. No
 >   git commands.
@@ -158,11 +158,11 @@ wander off the intended derivation), **piet** (the one geometric proof),
 id` with brainfuck's, and **unlambda** and **ski**, the two that are not
 machine simulations at all.
 
-Read `Langlib/Computability/Unlambda.lean` and
-`Langlib/Computability/Ski.lean` before taking a functional target, and read
+Read `Langlib/Computability/Unlambda/Main.lean` and
+`Langlib/Computability/Ski/Main.lean` before taking a functional target, and read
 `docs/ski/computability.md` on why the first of them did not transfer to the
 second. Its front half is the shared counter machine of
-`Langlib/Computability/Counter.lean`, extracted from the brainfuck proof
+`Langlib/Computability/Common/Counter.lean`, extracted from the brainfuck proof
 precisely so that a new backend has only four commands to interpret; its
 back half is the part that is genuinely new each time.
 

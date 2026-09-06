@@ -6,11 +6,14 @@ that keeps the state integral, and that is already enough for universality.
 The full specification, history, and the exact semantic choices are in
 [docs/fractran/spec.md](../../../docs/fractran/spec.md).
 
-[`fractranComplete`](../../Computability/Fractran.lean) preserves both halting answers
-and divergence. Its [divergence proof](../../Computability/Fractran/Divergence.lean)
+[`fractranComplete`](../../Computability/Fractran/Main.lean#L15) preserves both halting answers
+and divergence. Its [divergence proof](../../Computability/Fractran/Divergence.lean#L155)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../../../docs/divergence-preservation.md) gives halting and result
 equivalence, output validity, and error freedom.
+
+The [computability account](../../../docs/fractran/computability.md) explains the
+representation, proved result and remaining scope.
 
 ## Modules
 

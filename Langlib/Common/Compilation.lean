@@ -13,23 +13,26 @@ literally the same thing everywhere.
 There are two statements, not one, and the difference between them is the
 point of this file.
 
-* `CertifiedCompiler` is the **answer-only** notion. The source program is
-  specified by a relation "this program, with this much fuel, produces this
-  answer"; the compiled program must halt and its output bytes must decode
-  to that answer. It says nothing about what the program read, what it
-  printed on the way, or in what order.
-* `IOCertifiedCompiler` is the **behavioural** notion. The source program
-  is specified by a relation that also names the `Trace` of I/O events it
-  performs, and the compiled program must reproduce that trace (up to the
-  compiler's own declared encoding of events) as well as the answer. A
-  program that does no I/O has the empty trace, so the stronger notion
-  degenerates to something very close to the weaker one exactly where the
-  weaker one was already adequate.
+* `CertifiedCompilerNoIO` describes **closed computations**: the source answer
+  and divergence predicates have no runtime input argument, and the target
+  always runs on `Input.empty`. It preserves the final decoded answer and
+  divergence, without specifying intermediate output.
+* `CertifiedCompiler` describes **input-parametrised computations** and
+  their observable behaviour. Its obligations quantify over every source
+  stream in the specification's domain, and run the same compiled program
+  on `targetInput σ`. It also preserves the completed trace up to
+  `encodeTrace`.
 
-`IOCertifiedCompiler.toCertified` proves the implication: a behaviourally
-correct compiler is answer-correct. Everything langlib has proved so far is
-answer-correct, and `docs/certified-compilation.md` says which compilers are
-candidates for the stronger statement.
+Both structures require divergence preservation independently of decoding.
+Only the I/O contract has an input encoding parameter. Its encoding may be
+identity, a representation change, or constant for a fragment without reads.
+
+Forgetting a trace does not close an input-dependent computation.
+`CertifiedCompiler.correct_answer` forgets traces while retaining input;
+`toClosed` explicitly fixes the source stream to empty and requires proof
+that its target encoding is also empty. The resulting closed contract says
+nothing about running that source on other streams. Closed here describes
+an execution interface, not a syntactic ban on read instructions.
 
 ## Fuel is existential; lawfulness is what cashes it
 
@@ -110,7 +113,7 @@ fuel value and something else at every larger one, satisfying the theorem
 while no actual invocation of the runner — which picks its own fuel bound —
 is guaranteed to see the right answer. `halted_stable` is what turns "some
 fuel works" into "every fuel from some point on works"
-(`CertifiedCompiler.correct_stable` below), which is the form a runner can
+(`CertifiedCompilerNoIO.correct_stable` below), which is the form a runner can
 rely on.
 
 This is the fuel monotonicity of `docs/verification.md`, stated as a
@@ -125,53 +128,47 @@ class LawfulProgLang (L : Type) [ProgLang L] : Prop where
     (ProgLang.run p i n).exit ≠ Exit.outOfFuel →
     ProgLang.run p i m = ProgLang.run p i n
 
-/-! ## Certified compilation, answer only -/
+/-! ## Certified compilation of closed computations -/
 
-/-- A verified compiler from a source language `Src` into `L`, correct with
-respect to `spec`.
+/-- A verified compiler for closed source computations into `L`.
 
-`spec p n a` is read as "the source program `p`, run with fuel `n`, produces
-the answer `a`". Making it a parameter rather than a field is what lets two
-compilers for the same target be compared: `agree` below says that any two
-inhabitants of the *same* `CertifiedCompiler spec L` decode the same answer.
+`spec p n a` says that the closed source computation `p` produces answer `a`
+with fuel `n`; `diverges p` describes its execution divergence. Neither has
+an external input argument. Every target run uses `Input.empty`.
 
-`compile` is total: `Except.error` names the constructs outside this
-compiler's fragment, so the fragment is part of the data rather than prose.
+The source may already contain its data, or describe a computation whose
+input has explicitly been fixed. This contract makes no claim about varying
+an external stream. Use `CertifiedCompiler` for that interface.
 
-`encodeInput` is a single stream rather than a function of the program
-because `spec` is I/O-free: the source program reads nothing, so there is
-nothing for a caller to supply. The I/O-aware counterpart below takes the
-stream as an argument.
+`compile` is total: `Except.error` names constructs outside the accepted
+fragment. For accepted programs, `correct` preserves halting answers and
+`preserves_divergence` excludes both spurious halts and runtime errors on
+divergent source computations, independently of answer decoding.
 
-The target must be lawful, and not as bookkeeping: `correct` concludes with
-"for some fuel bound", and against an unlawful target that existential can
-be satisfied by treating the fuel as an input channel — halt with the right
-bytes exactly at fuels that encode the answer — so the statement would not
-mean "the compiled program computes this". `halted_stable` is what pins
-fuel to its budget role, and it is what `correct_stable` uses to read the
-existential as "every fuel from some point on". -/
-structure CertifiedCompiler {Src Ans : Type} (spec : Src → Nat → Ans → Prop)
-    (L : Type) [ProgLang L] [LawfulProgLang L] where
-  /-- Source program to a program of `L`, or an error naming what is outside
-  the fragment. -/
+The target must be lawful: otherwise the existential fuel bound could
+serve as an input channel rather than a budget. `correct_stable` upgrades
+halting correctness to every sufficiently large target budget. -/
+structure CertifiedCompilerNoIO {Src Ans : Type} (spec : Src → Nat → Ans → Prop)
+    (diverges : Src → Prop) (L : Type) [ProgLang L] [LawfulProgLang L] where
+  /-- Compile a closed source computation, or reject it as outside the fragment. -/
   compile : Src → Except String (ProgLang.Prog L)
-  /-- The input stream the compiled program is run on. -/
-  encodeInput : Input
-  /-- How to read the answer out of the compiled program's output. -/
+  /-- Read the answer from the compiled program's output. -/
   decodeOutput : ByteArray → Option Ans
-  /-- Whenever the source produces `result` and `compile` accepts the
-  program, the compiled program halts, for some fuel bound, with an output
-  that decodes to `result`. -/
+  /-- Preserve the answer of every accepted, terminating closed computation. -/
   correct : ∀ (p : Src) (prog : ProgLang.Prog L) (result : Ans) (n : Nat),
     compile p = .ok prog → spec p n result →
       ∃ m,
-        (ProgLang.run prog encodeInput m).exit = Exit.halted ∧
-        decodeOutput (ProgLang.run prog encodeInput m).output = some result
+        (ProgLang.run prog Input.empty m).exit = Exit.halted ∧
+        decodeOutput (ProgLang.run prog Input.empty m).output = some result
+  /-- Divergent closed sources exhaust every finite target budget. -/
+  preserves_divergence : ∀ (p : Src) (prog : ProgLang.Prog L),
+    compile p = .ok prog → diverges p →
+      ∀ fuel, (ProgLang.run prog Input.empty fuel).exit = .outOfFuel
 
-namespace CertifiedCompiler
+namespace CertifiedCompilerNoIO
 
 variable {Src Ans L : Type} [ProgLang L] [LawfulProgLang L]
-  {spec : Src → Nat → Ans → Prop}
+  {spec : Src → Nat → Ans → Prop} {diverges : Src → Prop}
 
 /-- **Two verified compilers for one target agree.** On a program both
 accept and a source run that produces `result`, both compiled programs halt
@@ -179,17 +176,19 @@ and their outputs decode to the same answer.
 
 This follows from the two `correct` fields alone, so it holds for every pair
 of inhabitants and every target: once a hand-written backend has a
-`CertifiedCompiler` inhabitant, "the derived compiler is an oracle for it"
+`CertifiedCompilerNoIO` inhabitant, "the derived compiler is an oracle for it"
 stops being a testing practice and becomes a corollary. -/
-theorem agree (c₁ c₂ : CertifiedCompiler spec L)
+theorem agree
+    (c₁ : CertifiedCompilerNoIO spec diverges L)
+    (c₂ : CertifiedCompilerNoIO spec diverges L)
     (p : Src) (prog₁ prog₂ : ProgLang.Prog L) (result : Ans) (n : Nat)
     (h₁ : c₁.compile p = .ok prog₁) (h₂ : c₂.compile p = .ok prog₂)
     (hp : spec p n result) :
     ∃ m₁ m₂,
-      (ProgLang.run prog₁ c₁.encodeInput m₁).exit = Exit.halted ∧
-      (ProgLang.run prog₂ c₂.encodeInput m₂).exit = Exit.halted ∧
-      c₁.decodeOutput (ProgLang.run prog₁ c₁.encodeInput m₁).output =
-        c₂.decodeOutput (ProgLang.run prog₂ c₂.encodeInput m₂).output := by
+      (ProgLang.run prog₁ Input.empty m₁).exit = Exit.halted ∧
+      (ProgLang.run prog₂ Input.empty m₂).exit = Exit.halted ∧
+      c₁.decodeOutput (ProgLang.run prog₁ Input.empty m₁).output =
+        c₂.decodeOutput (ProgLang.run prog₂ Input.empty m₂).output := by
   obtain ⟨m₁, hh₁, hd₁⟩ := c₁.correct p prog₁ result n h₁ hp
   obtain ⟨m₂, hh₂, hd₂⟩ := c₂.correct p prog₂ result n h₂ hp
   exact ⟨m₁, m₂, hh₁, hh₂, by rw [hd₁, hd₂]⟩
@@ -199,28 +198,29 @@ point on works". The upgrade is exactly what a lawful target buys: without
 `LawfulProgLang.halted_stable` the `∃ m` in `correct` says nothing about
 the fuel bound a runner actually picks, and with it, any bound at or past
 the witness gives the same halted run. -/
-theorem correct_stable (c : CertifiedCompiler spec L)
+theorem correct_stable (c : CertifiedCompilerNoIO spec diverges L)
     (p : Src) (prog : ProgLang.Prog L) (result : Ans) (n : Nat)
     (hc : c.compile p = .ok prog) (hp : spec p n result) :
     ∃ m₀, ∀ m, m₀ ≤ m →
-      (ProgLang.run prog c.encodeInput m).exit = Exit.halted ∧
-      c.decodeOutput (ProgLang.run prog c.encodeInput m).output = some result := by
+      (ProgLang.run prog Input.empty m).exit = Exit.halted ∧
+      c.decodeOutput (ProgLang.run prog Input.empty m).output = some result := by
   obtain ⟨m₀, hh, hd⟩ := c.correct p prog result n hc hp
   refine ⟨m₀, fun m hm => ?_⟩
-  rw [LawfulProgLang.halted_stable prog c.encodeInput hm (by rw [hh]; nofun)]
+  rw [LawfulProgLang.halted_stable prog Input.empty hm (by rw [hh]; nofun)]
   exact ⟨hh, hd⟩
 
-/-- Weakening the specification weakens the obligation: a compiler correct
-for `spec` is correct for any specification `spec` refines. Used to read an
-I/O-aware result back as an ordinary one. -/
-def weaken (c : CertifiedCompiler spec L) {spec' : Src → Nat → Ans → Prop}
-    (h : ∀ p n a, spec' p n a → spec p n a) : CertifiedCompiler spec' L where
+/-- Restrict both source obligations to obtain a restricted compiler contract.
+The caller must supply implications for halting answers and divergence;
+weakening the answer predicate alone does not justify a divergence claim. -/
+def weaken (c : CertifiedCompilerNoIO spec diverges L) {spec' : Src → Nat → Ans → Prop}
+    {diverges' : Src → Prop} (h : ∀ p n a, spec' p n a → spec p n a)
+    (hd : ∀ p, diverges' p → diverges p) : CertifiedCompilerNoIO spec' diverges' L where
   compile := c.compile
-  encodeInput := c.encodeInput
   decodeOutput := c.decodeOutput
   correct p prog result n hc hp := c.correct p prog result n hc (h p n result hp)
+  preserves_divergence p prog hc hp := c.preserves_divergence p prog hc (hd p hp)
 
-end CertifiedCompiler
+end CertifiedCompilerNoIO
 
 /-! ## Trace semantics -/
 
@@ -314,20 +314,26 @@ theorem. It is a function of the trace alone, so it cannot depend on the
 program, the answer, or the fuel: the encoding is a property of the
 compilation scheme, not an excuse.
 
-Both lawfulness classes are required, for the reason `CertifiedCompiler`
+The independent `diverges p σ` predicate describes source execution on the
+same stream, including the source specification's input-domain restrictions.
+`preserves_divergence` excludes normal target halting and runtime errors at
+every finite fuel on those divergent executions. Fixing the empty input with
+`toClosed` retains the corresponding divergence obligation.
+Only completed traces are preserved here: observations during divergent
+executions are deferred to https://github.com/ilyasergey/langlib/issues/1.
+
+Both lawfulness classes are required, for the reason `CertifiedCompilerNoIO`
 gives: without them the "for some fuel" conclusion — here about the trace
 as well as the answer — could lean on fuel-indexed behaviour no run of the
 compiled program exhibits. -/
-structure IOCertifiedCompiler {Src Ans : Type}
+structure CertifiedCompiler {Src Ans : Type}
     (spec : Src → Input → Nat → Trace → Ans → Prop)
-    (L : Type) [ProgLang L] [LawfulProgLang L] [TraceLang L]
+    (diverges : Src → Input → Prop) (targetInput : Input → Input) (L : Type)
+    [ProgLang L] [LawfulProgLang L] [TraceLang L]
     [LawfulTraceLang L] where
   /-- Source program to a program of `L`, or an error naming what is outside
   the fragment. -/
   compile : Src → Except String (ProgLang.Prog L)
-  /-- The input stream the compiled program is run on, as a function of the
-  stream the source program was run on. -/
-  encodeInput : Input → Input
   /-- How to read the answer out of the compiled program's output. -/
   decodeOutput : ByteArray → Option Ans
   /-- How a source-level trace appears at the target. The identity for a
@@ -339,103 +345,118 @@ structure IOCertifiedCompiler {Src Ans : Type}
       (result : Ans) (n : Nat),
     compile p = .ok prog → spec p σ n τ result →
       ∃ m,
-        (ProgLang.run prog (encodeInput σ) m).exit = Exit.halted ∧
-        decodeOutput (ProgLang.run prog (encodeInput σ) m).output = some result ∧
-        TraceLang.trace prog (encodeInput σ) m = encodeTrace τ
+        (ProgLang.run prog (targetInput σ) m).exit = Exit.halted ∧
+        decodeOutput (ProgLang.run prog (targetInput σ) m).output = some result ∧
+        TraceLang.trace prog (targetInput σ) m = encodeTrace τ
 
-/-- The answer-only specification an I/O-aware one refines, at a fixed input
-stream: forget which events happened, keep that some run produced the
-answer. -/
+  /-- Source divergence is preserved for the declared input encoding at
+  every finite target budget, independently of the output and trace decoders. -/
+  preserves_divergence : ∀ (p : Src) (prog : ProgLang.Prog L) (σ : Input),
+    compile p = .ok prog → diverges p σ →
+      ∀ fuel, (ProgLang.run prog (targetInput σ) fuel).exit = .outOfFuel
+
+/-- Erase the trace, retaining the input stream and the halting answer. -/
 def specErase {Src Ans : Type} (spec : Src → Input → Nat → Trace → Ans → Prop)
-    (σ : Input) : Src → Nat → Ans → Prop :=
-  fun p n a => ∃ τ, spec p σ n τ a
+    : Src → Input → Nat → Ans → Prop :=
+  fun p σ n a => ∃ τ, spec p σ n τ a
 
-namespace IOCertifiedCompiler
+namespace CertifiedCompiler
 
 variable {Src Ans L : Type} [ProgLang L] [LawfulProgLang L] [TraceLang L]
   [LawfulTraceLang L] {spec : Src → Input → Nat → Trace → Ans → Prop}
+  {diverges : Src → Input → Prop} {targetInput : Input → Input}
 
-/-- **Behavioural correctness implies answer correctness.** Fixing the input
-stream and forgetting the trace turns an `IOCertifiedCompiler` into a
-`CertifiedCompiler`, so every theorem langlib proves about the weaker notion
-applies to the stronger one for free, and a backend that is later upgraded
-to the I/O-aware statement keeps everything already proved about it. -/
-def toCertified (c : IOCertifiedCompiler spec L) (σ : Input) :
-    CertifiedCompiler (specErase spec σ) L where
+/-- Forget the completed trace while retaining the arbitrary source input.
+This is an input-aware theorem, not a closed compiler certificate. -/
+theorem correct_answer (c : CertifiedCompiler spec diverges targetInput L)
+    (p : Src) (prog : ProgLang.Prog L) (σ : Input) (result : Ans) (n : Nat)
+    (hc : c.compile p = .ok prog) (hp : specErase spec p σ n result) :
+    ∃ m, (ProgLang.run prog (targetInput σ) m).exit = .halted ∧
+      c.decodeOutput (ProgLang.run prog (targetInput σ) m).output = some result := by
+  obtain ⟨τ, hτ⟩ := hp
+  obtain ⟨m, hh, ha, _⟩ := c.correct p prog σ τ result n hc hτ
+  exact ⟨m, hh, ha⟩
+
+/-- Close the source computation by fixing its input to empty. The encoding
+must send that empty source stream to an empty target stream. This forgets
+traces and retains divergence at the fixed input; it does not certify runs
+on any other source input, nor assert that the source has no read syntax. -/
+def toClosed (c : CertifiedCompiler spec diverges targetInput L)
+    (hinput : targetInput Input.empty = Input.empty) :
+    CertifiedCompilerNoIO (fun p => specErase spec p Input.empty)
+      (fun p => diverges p Input.empty) L where
   compile := c.compile
-  encodeInput := c.encodeInput σ
   decodeOutput := c.decodeOutput
-  correct := by
-    intro p prog result n hc hp
-    obtain ⟨τ, hτ⟩ := hp
-    obtain ⟨m, hhalt, hdec, _⟩ := c.correct p prog σ τ result n hc hτ
-    exact ⟨m, hhalt, hdec⟩
+  correct p prog result n hc hp := by
+    simpa only [hinput] using c.correct_answer p prog Input.empty result n hc hp
+  preserves_divergence p prog hc hd fuel := by
+    simpa only [hinput] using c.preserves_divergence p prog Input.empty hc hd fuel
 
-/-- The same implication against a specification the caller already has.
-`spec₀` is the answer-only statement a backend was originally proved
-against; `h` says the I/O-aware specification accounts for every run
-`spec₀` describes. This is the form to use when upgrading an existing
-`CertifiedCompiler` result rather than deriving a fresh one. -/
-def toCertifiedOf (c : IOCertifiedCompiler spec L) (σ : Input)
-    (spec₀ : Src → Nat → Ans → Prop)
-    (h : ∀ p n a, spec₀ p n a → ∃ τ, spec p σ n τ a) :
-    CertifiedCompiler spec₀ L :=
-  (c.toCertified σ).weaken h
+/-- Close at empty input against explicitly supplied closed source predicates. -/
+def toClosedOf (c : CertifiedCompiler spec diverges targetInput L)
+    (hinput : targetInput Input.empty = Input.empty)
+    (spec₀ : Src → Nat → Ans → Prop) (diverges₀ : Src → Prop)
+    (h : ∀ p n a, spec₀ p n a → ∃ τ, spec p Input.empty n τ a)
+    (hd : ∀ p, diverges₀ p → diverges p Input.empty) :
+    CertifiedCompilerNoIO spec₀ diverges₀ L :=
+  (c.toClosed hinput).weaken h hd
 
 /-- `correct`, upgraded from "some fuel works" to "every fuel from some
 point on works", trace included. The I/O-aware counterpart of
-`CertifiedCompiler.correct_stable`, needing both lawfulness classes: the
+`CertifiedCompilerNoIO.correct_stable`, needing both lawfulness classes: the
 run stabilises by `halted_stable` and its trace by `trace_stable`. -/
-theorem correct_stable (c : IOCertifiedCompiler spec L)
+theorem correct_stable (c : CertifiedCompiler spec diverges targetInput L)
     (p : Src) (prog : ProgLang.Prog L) (σ : Input) (τ : Trace)
     (result : Ans) (n : Nat)
     (hc : c.compile p = .ok prog) (hp : spec p σ n τ result) :
     ∃ m₀, ∀ m, m₀ ≤ m →
-      (ProgLang.run prog (c.encodeInput σ) m).exit = Exit.halted ∧
-      c.decodeOutput (ProgLang.run prog (c.encodeInput σ) m).output = some result ∧
-      TraceLang.trace prog (c.encodeInput σ) m = c.encodeTrace τ := by
+      (ProgLang.run prog (targetInput σ) m).exit = Exit.halted ∧
+      c.decodeOutput (ProgLang.run prog (targetInput σ) m).output = some result ∧
+      TraceLang.trace prog (targetInput σ) m = c.encodeTrace τ := by
   obtain ⟨m₀, hh, hd, ht⟩ := c.correct p prog σ τ result n hc hp
   refine ⟨m₀, fun m hm => ?_⟩
-  have hne : (ProgLang.run prog (c.encodeInput σ) m₀).exit ≠ Exit.outOfFuel := by
+  have hne : (ProgLang.run prog (targetInput σ) m₀).exit ≠ Exit.outOfFuel := by
     rw [hh]; nofun
-  rw [LawfulProgLang.halted_stable prog (c.encodeInput σ) hm hne,
-    LawfulTraceLang.trace_stable prog (c.encodeInput σ) hm hne]
+  rw [LawfulProgLang.halted_stable prog (targetInput σ) hm hne,
+    LawfulTraceLang.trace_stable prog (targetInput σ) hm hne]
   exact ⟨hh, hd, ht⟩
 
 /-- The output bytes of a compiled run are determined by the source trace,
 which is the part of behavioural correctness the answer-only statement
 throws away. -/
-theorem output_eq (c : IOCertifiedCompiler spec L)
+theorem output_eq (c : CertifiedCompiler spec diverges targetInput L)
     (p : Src) (prog : ProgLang.Prog L) (σ : Input) (τ : Trace)
     (result : Ans) (n : Nat)
     (hc : c.compile p = .ok prog) (hp : spec p σ n τ result) :
     ∃ m,
-      (ProgLang.run prog (c.encodeInput σ) m).output.toList =
+      (ProgLang.run prog (targetInput σ) m).output.toList =
         (c.encodeTrace τ).outputs := by
   obtain ⟨m, _, _, htr⟩ := c.correct p prog σ τ result n hc hp
-  exact ⟨m, by rw [← TraceLang.trace_outputs prog (c.encodeInput σ) m, htr]⟩
+  exact ⟨m, by rw [← TraceLang.trace_outputs prog (targetInput σ) m, htr]⟩
 
 /-- **Two behaviourally verified compilers for one target agree**, on the
 trace as well as on the answer, provided they encode traces the same way.
-The I/O-aware counterpart of `CertifiedCompiler.agree`. -/
-theorem agree (c₁ c₂ : IOCertifiedCompiler spec L)
+The I/O-aware counterpart of `CertifiedCompilerNoIO.agree`. -/
+theorem agree {targetInput₁ targetInput₂ : Input → Input}
+    (c₁ : CertifiedCompiler spec diverges targetInput₁ L)
+    (c₂ : CertifiedCompiler spec diverges targetInput₂ L)
     (henc : c₁.encodeTrace = c₂.encodeTrace)
     (p : Src) (prog₁ prog₂ : ProgLang.Prog L) (σ : Input) (τ : Trace)
     (result : Ans) (n : Nat)
     (h₁ : c₁.compile p = .ok prog₁) (h₂ : c₂.compile p = .ok prog₂)
     (hp : spec p σ n τ result) :
     ∃ m₁ m₂,
-      (ProgLang.run prog₁ (c₁.encodeInput σ) m₁).exit = Exit.halted ∧
-      (ProgLang.run prog₂ (c₂.encodeInput σ) m₂).exit = Exit.halted ∧
-      c₁.decodeOutput (ProgLang.run prog₁ (c₁.encodeInput σ) m₁).output =
-        c₂.decodeOutput (ProgLang.run prog₂ (c₂.encodeInput σ) m₂).output ∧
-      TraceLang.trace prog₁ (c₁.encodeInput σ) m₁ =
-        TraceLang.trace prog₂ (c₂.encodeInput σ) m₂ := by
+      (ProgLang.run prog₁ (targetInput₁ σ) m₁).exit = Exit.halted ∧
+      (ProgLang.run prog₂ (targetInput₂ σ) m₂).exit = Exit.halted ∧
+      c₁.decodeOutput (ProgLang.run prog₁ (targetInput₁ σ) m₁).output =
+        c₂.decodeOutput (ProgLang.run prog₂ (targetInput₂ σ) m₂).output ∧
+      TraceLang.trace prog₁ (targetInput₁ σ) m₁ =
+        TraceLang.trace prog₂ (targetInput₂ σ) m₂ := by
   obtain ⟨m₁, hh₁, hd₁, ht₁⟩ := c₁.correct p prog₁ σ τ result n h₁ hp
   obtain ⟨m₂, hh₂, hd₂, ht₂⟩ := c₂.correct p prog₂ σ τ result n h₂ hp
   refine ⟨m₁, m₂, hh₁, hh₂, by rw [hd₁, hd₂], ?_⟩
   rw [ht₁, ht₂, henc]
 
-end IOCertifiedCompiler
+end CertifiedCompiler
 
 end Langlib.Common

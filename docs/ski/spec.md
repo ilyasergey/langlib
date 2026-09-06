@@ -17,10 +17,10 @@
   - runner `lake exe ski`,
   - [examples](../../Langlib/Examples/Ski/),
   - tests in [`Langlib/Tests/Ski.lean`](../../Langlib/Tests/Ski.lean),
-  - Turing completeness in [`Langlib/Computability/Ski.lean`](../../Langlib/Computability/Ski.lean) and [docs/ski/computability.md](computability.md), and
+  - Turing completeness in [`Langlib/Computability/Ski/Main.lean`](../../Langlib/Computability/Ski/Main.lean) and [docs/ski/computability.md](computability.md), and
   - a certified Turpentine compiler derived from the completeness proof, with no hand-written one planned ([docs/ski/compiler.md](compiler.md))
 
-[`skiComplete`](../../Langlib/Computability/Ski.lean) preserves both halting answers
+[`skiComplete`](../../Langlib/Computability/Ski/Main.lean) preserves both halting answers
 and divergence. Its [divergence proof](../../Langlib/Computability/Ski/Divergence.lean)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../divergence-preservation.md) gives halting and result
@@ -102,7 +102,7 @@ about.
 ## Computational class
 
 **Turing complete**, and LangLib **proves** it:
-[`Langlib/Computability/Ski.lean`](../../Langlib/Computability/Ski.lean)
+[`Langlib/Computability/Ski/Main.lean`](../../Langlib/Computability/Ski/Main.lean)
 contains `skiComplete : TuringComplete SkiLang`, axiom-clean.
 
 [Unlambda](../unlambda/spec.md) is proved too, and its witness does *not*

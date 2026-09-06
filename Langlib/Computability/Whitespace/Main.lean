@@ -23,7 +23,6 @@ function (Shepherdson and Sturgis 1963; Cutland, *Computability*, chapter
 3), so does Whitespace. -/
 def whitespaceComplete : TuringComplete WhitespaceLang where
   compile := URMWhitespace.compile
-  encodeInput := fun _ => Input.ofString ""
   decodeOutput := URMWhitespace.decodeOutput
   simulates := fun P inputs result h =>
     URMWhitespace.simulation P inputs result h (Input.ofString "")

@@ -16,7 +16,7 @@ This script imports `Langlib.Computability`, and so Mathlib. That is fine
 for a generator run by hand; it is why the generated PPM is checked in
 rather than built as part of `lake build`.
 -/
-import Langlib.Computability.Piet
+import Langlib.Computability.Piet.Main
 import Langlib.Common.Image
 
 open Langlib.Computability

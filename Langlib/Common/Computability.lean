@@ -23,7 +23,7 @@ that `L` is Turing complete" means literally the same thing for every `L`.
   bound.
 
 The universal model is cslib's unlimited register machine
-(`Cslib.Computability.URM`); see `Langlib/Computability/URM.lean` for what
+(`Cslib.Computability.URM`); see `Langlib/Computability/Common/URM.lean` for what
 langlib adds to it and why. Finiteness in `BoundedStorage` is stated as an
 injection into an initial segment of `Nat` rather than with `Set.Finite`:
 Mathlib is available here, but the injection needs no theory at all and the
@@ -80,11 +80,11 @@ preservation. Its `simulates` field preserves the final answer, as in
 traces. Its independent `preserves_divergence` field rules out both errors
 and spurious halts, including halts whose output cannot be decoded. Neither
 lawfulness nor an iff about successfully decoded results supplies that
-obligation automatically. `derived` still produces a `CertifiedCompiler`,
+obligation automatically. `derived` still produces a `CertifiedCompilerNoIO`,
 since the Turpentine-to-URM translation supplies its own forward specification.
 
-The simulation is stated against cslib's `HaltsWithResult`, so the three
-ingredients (`compile`, `encodeInput`, `decodeOutput`) stay explicit fields
+The simulation is stated against cslib's `HaltsWithResult`, so the two
+ingredients (`compile` and `decodeOutput`) stay explicit fields
 rather than being baked into the statement. That is what makes the claim
 composable: a translation `L → L'` that preserves both halting answers and
 divergence can transport a witness by composing `compile` and preserving
@@ -114,10 +114,9 @@ compiled program itself to do the work. It also gives `simulates_stable`
 below, the form a runner can rely on. -/
 structure TuringComplete (L : Type) [ProgLang L] [LawfulProgLang L] where
   /-- The compiler: a URM program and its input vector become an `L`
-  program. This is a real, total, runnable function; `#eval` can apply it. -/
+  program containing its input data. The target always runs on `Input.empty`.
+  This is a real, total, runnable function; `#eval` can apply it. -/
   compile : Program → List Nat → ProgLang.Prog L
-  /-- The input stream the compiled program is run on. -/
-  encodeInput : List Nat → Input
   /-- How to read the machine's answer out of the program's output bytes. -/
   decodeOutput : ByteArray → Option Nat
   /-- The simulation. Whenever the URM halts with `result` in register 0,
@@ -126,16 +125,15 @@ structure TuringComplete (L : Type) [ProgLang L] [LawfulProgLang L] where
   simulates : ∀ (P : Program) (inputs : List Nat) (result : Nat),
     HaltsWithResult P inputs result →
       ∃ m,
-        (ProgLang.run (compile P inputs) (encodeInput inputs) m).exit = Exit.halted ∧
-        decodeOutput (ProgLang.run (compile P inputs) (encodeInput inputs) m).output =
+        (ProgLang.run (compile P inputs) Input.empty m).exit = Exit.halted ∧
+        decodeOutput (ProgLang.run (compile P inputs) Input.empty m).output =
           some result
 
   /-- Divergent sources neither halt nor error at any finite target fuel. -/
   preserves_divergence : ∀ P inputs,
     Cslib.URM.Diverges P inputs →
       ∀ fuel,
-        (ProgLang.run (compile P inputs)
-          (encodeInput inputs) fuel).exit = .outOfFuel
+        (ProgLang.run (compile P inputs) Input.empty fuel).exit = .outOfFuel
 
 /-! ## Consistency with cslib's vocabulary
 
@@ -168,19 +166,19 @@ variable {L : Type} [ProgLang L] [LawfulProgLang L]
 
 /-- `simulates`, upgraded from "some fuel works" to "every fuel from some
 point on works": the completeness counterpart of
-`CertifiedCompiler.correct_stable`. -/
+`CertifiedCompilerNoIO.correct_stable`. -/
 theorem TuringComplete.simulates_stable
     (tc : TuringComplete L) (P : Program) (inputs : List Nat) (result : Nat)
     (h : HaltsWithResult P inputs result) :
     ∃ m₀, ∀ m, m₀ ≤ m →
-      (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) m).exit =
+      (ProgLang.run (tc.compile P inputs) Input.empty m).exit =
         Exit.halted ∧
       tc.decodeOutput
-          (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) m).output =
+          (ProgLang.run (tc.compile P inputs) Input.empty m).output =
         some result := by
   obtain ⟨m₀, hh, hd⟩ := tc.simulates P inputs result h
   refine ⟨m₀, fun m hm => ?_⟩
-  rw [LawfulProgLang.halted_stable (tc.compile P inputs) (tc.encodeInput inputs)
+  rw [LawfulProgLang.halted_stable (tc.compile P inputs) Input.empty
     hm (by rw [hh]; nofun)]
   exact ⟨hh, hd⟩
 
@@ -190,15 +188,15 @@ different answers at different fuel budgets. -/
 theorem TuringComplete.simulates_at_completed_run
     (tc : TuringComplete L) (P : Program) (inputs : List Nat) (result fuel : Nat)
     (h : HaltsWithResult P inputs result)
-    (hc : (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) fuel).exit ≠
+    (hc : (ProgLang.run (tc.compile P inputs) Input.empty fuel).exit ≠
       .outOfFuel) :
-    (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) fuel).exit = .halted ∧
+    (ProgLang.run (tc.compile P inputs) Input.empty fuel).exit = .halted ∧
     tc.decodeOutput
-      (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) fuel).output =
+      (ProgLang.run (tc.compile P inputs) Input.empty fuel).output =
         some result := by
   obtain ⟨m, hh, hd⟩ := tc.simulates P inputs result h
-  have heq : ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) fuel =
-      ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) m := by
+  have heq : ProgLang.run (tc.compile P inputs) Input.empty fuel =
+      ProgLang.run (tc.compile P inputs) Input.empty m := by
     exact (LawfulProgLang.halted_stable _ _ (Nat.le_max_left fuel m) hc).symm.trans
       (LawfulProgLang.halted_stable _ _ (Nat.le_max_right fuel m) (by rw [hh]; nofun))
   rw [heq]
@@ -210,7 +208,7 @@ namespace TuringComplete
 independently of the output decoder. -/
 theorem halts_iff (tc : TuringComplete L) (P : Program) (inputs : List Nat) :
     Cslib.URM.Halts P inputs ↔
-      ∃ fuel, (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) fuel).exit =
+      ∃ fuel, (ProgLang.run (tc.compile P inputs) Input.empty fuel).exit =
         .halted := by
   constructor
   · rintro ⟨s, hs, hh⟩
@@ -224,11 +222,11 @@ theorem halts_iff (tc : TuringComplete L) (P : Program) (inputs : List Nat) :
 /-- Every normally halting compiled run decodes to an actual source result. -/
 theorem halted_run_result (tc : TuringComplete L)
     (P : Program) (inputs : List Nat) (fuel : Nat)
-    (hh : (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) fuel).exit =
+    (hh : (ProgLang.run (tc.compile P inputs) Input.empty fuel).exit =
       .halted) :
     ∃ result, HaltsWithResult P inputs result ∧
       tc.decodeOutput
-        (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) fuel).output =
+        (ProgLang.run (tc.compile P inputs) Input.empty fuel).output =
           some result := by
   obtain ⟨s, hs, hhalt⟩ := (tc.halts_iff P inputs).mpr ⟨fuel, hh⟩
   have hres : HaltsWithResult P inputs s.regs.output := ⟨s, hs, hhalt, rfl⟩
@@ -242,9 +240,9 @@ theorem result_iff (tc : TuringComplete L)
     (P : Program) (inputs : List Nat) (result : Nat) :
     HaltsWithResult P inputs result ↔
       ∃ fuel,
-        (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) fuel).exit = .halted ∧
+        (ProgLang.run (tc.compile P inputs) Input.empty fuel).exit = .halted ∧
         tc.decodeOutput
-          (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) fuel).output =
+          (ProgLang.run (tc.compile P inputs) Input.empty fuel).output =
             some result := by
   constructor
   · exact tc.simulates P inputs result
@@ -256,10 +254,10 @@ theorem result_iff (tc : TuringComplete L)
 /-- No normally halting compiled run has an invalid output encoding. -/
 theorem output_valid (tc : TuringComplete L)
     (P : Program) (inputs : List Nat) (fuel : Nat)
-    (hh : (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) fuel).exit =
+    (hh : (ProgLang.run (tc.compile P inputs) Input.empty fuel).exit =
       .halted) :
     ∃ result, tc.decodeOutput
-      (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) fuel).output =
+      (ProgLang.run (tc.compile P inputs) Input.empty fuel).output =
         some result := by
   obtain ⟨result, _, hd⟩ := tc.halted_run_result P inputs fuel hh
   exact ⟨result, hd⟩
@@ -268,7 +266,7 @@ theorem output_valid (tc : TuringComplete L)
 or diverges, and including fuel budgets below the simulation's witness. -/
 theorem error_free (tc : TuringComplete L)
     (P : Program) (inputs : List Nat) (fuel : Nat) (msg : String) :
-    (ProgLang.run (tc.compile P inputs) (tc.encodeInput inputs) fuel).exit ≠
+    (ProgLang.run (tc.compile P inputs) Input.empty fuel).exit ≠
       .error msg := by
   intro he
   by_cases h : Cslib.URM.Halts P inputs
@@ -288,9 +286,9 @@ theorem computes_of_turingComplete (tc : TuringComplete L)
     (hf : Cslib.URM.Computable n f)
     (args : Fin n → Nat) (v : Nat) (hv : f args = Part.some v) :
     ∃ (prog : ProgLang.Prog L) (m : Nat),
-      (ProgLang.run prog (tc.encodeInput (List.ofFn args)) m).exit = Exit.halted ∧
+      (ProgLang.run prog Input.empty m).exit = Exit.halted ∧
       tc.decodeOutput
-          (ProgLang.run prog (tc.encodeInput (List.ofFn args)) m).output = some v := by
+          (ProgLang.run prog Input.empty m).output = some v := by
   obtain ⟨P, hP⟩ := hf
   have heval : Cslib.URM.eval P (List.ofFn args) = Part.some v := by
     rw [hP args, hv]

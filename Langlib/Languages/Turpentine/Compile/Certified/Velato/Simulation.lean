@@ -1,5 +1,5 @@
 import Batteries.Tactic.OpenPrivate
-import Langlib.Languages.Turpentine.Certified.Shared
+import Langlib.Languages.Turpentine.Compile.Certified.Shared
 import Langlib.Languages.Turpentine.Compile.Derived
 import Langlib.Languages.Turpentine.Compile.Velato
 
@@ -8,13 +8,11 @@ import Langlib.Languages.Turpentine.Compile.Velato
 
 `Langlib/Languages/Turpentine/Compile/Velato.lean` is the backend people
 run: `lake exe turpentine compile --to velato` goes through it. This file
-proves it correct on a fragment, twice over: as a `TurpentineCompiler
-VelatoLang` (`bespokeVelato`, answer preservation) and as an
-`IOCertifiedCompiler` (`bespokeVelatoIO`, behaviour preservation), with
-`encodeTrace` **and `encodeInput` both the identity**. The compiled program
-reads the bytes the source reads and writes the bytes the source writes, in
-the same order, and it does so on the *same* input stream. It is the first
-behaviourally verified backend in the library whose fragment reads input.
+proves answer and trace preservation on a fragment. The public
+`CertifiedCompiler` witness is `bespokeVelatoIO`, with both `encodeTrace`
+and `targetInput` the identity. It reads the source's bytes and writes its
+output in the same order on NUL-free streams. `bespokeVelatoIOClosed` is an
+explicit specialization to empty input; it does not certify other streams.
 
 ## The covered fragment
 
@@ -1980,13 +1978,13 @@ whenever the source halts within some fuel bound with `result` in
 `answer`, the compiled Velato program halts, for some fuel bound, having
 printed whatever the source printed and then `result` in decimal on a line
 of its own. -/
-theorem bespokeCompile_correct (p : Program) (prog : Langlib.Velato.Prog) (result n : Nat)
-    (hc : bespokeCompile p = .ok prog) (hp : HaltsWithAnswer p n result) :
-    ∃ m, (Langlib.Velato.evalProg prog (Input.ofString "") m).exit = Exit.halted ∧
-      decodeAnswer (Langlib.Velato.evalProg prog (Input.ofString "") m).output = some result := by
+theorem bespokeCompile_correct (p : Program) (prog : Langlib.Velato.Prog) (σ : Input) (result n : Nat)
+    (hc : bespokeCompile p = .ok prog) (hnul : NulFree σ) (hp : HaltsWithAnswer p σ n result) :
+    ∃ m, (Langlib.Velato.evalProg prog (σ) m).exit = Exit.halted ∧
+      decodeAnswer (Langlib.Velato.evalProg prog (σ) m).output = some result := by
   obtain ⟨env₀, st, hinit, hex, hans⟩ := hp
   obtain ⟨m, hhalt, hdec, -⟩ :=
-    bespokeCompile_core p prog result n (Input.ofString "") env₀ st hc nulFree_empty hinit hex hans
+    bespokeCompile_core p prog result n σ env₀ st hc hnul hinit hex hans
   exact ⟨m, hhalt, hdec⟩
 
 /-- The behavioural specification this backend is stated against:
@@ -1995,74 +1993,8 @@ def BehavesWithAnswerNulFree (p : Program) (σ : Input) (n : Nat) (τ : Trace)
     (result : Nat) : Prop :=
   NulFree σ ∧ BehavesWithAnswer p σ n τ result
 
+/-- Answer preservation on the same input domain as behavioural correctness. -/
+def HaltsWithAnswerNulFree (p : Program) (σ : Input) (n result : Nat) : Prop :=
+  NulFree σ ∧ HaltsWithAnswer p σ n result
+
 end Langlib.Turpentine.Certified.BespokeVelato
-
-namespace Langlib.Turpentine.Certified
-
-open Langlib.Common
-open Langlib.Computability (VelatoLang)
-open Langlib.Turpentine.Compile.URM (TurpentineHaltsWith)
-open Langlib.Turpentine.Compile (TurpentineCompiler derivedVelato)
-
-/-- **The hand-written Turpentine-to-Velato backend, as a verified
-compiler.** `compile` is `Langlib.Turpentine.Compile.Velato`'s own
-`compileProgram`, gated by the fragment check of
-`Langlib.Turpentine.Certified.BespokeVelato` and applied to the source
-program with `println(""); print(answer);` appended.
-
-The second inhabitant of `TurpentineCompiler VelatoLang`, next to
-`derivedVelato`. -/
-def bespokeVelato : TurpentineCompiler VelatoLang where
-  compile := BespokeVelato.bespokeCompile
-  encodeInput := Input.ofString ""
-  decodeOutput := decodeAnswer
-  correct := fun p prog result n hc hp =>
-    BespokeVelato.bespokeCompile_correct p prog result n hc hp
-
-/-- **The hand-written backend, as a *behaviourally* verified compiler.**
-The second inhabitant of `IOCertifiedCompiler` in the library, and the
-first whose fragment reads input.
-
-`encodeTrace` is the identity, and so is `encodeInput`: the compiled program
-runs on the very stream the source runs on, reads the bytes the source
-reads, and writes the bytes the source writes, in the same order. The one
-concession is in the specification: `BehavesWithAnswerNulFree` restricts the
-stream to one with no NUL byte, because Velato's `Input` cannot tell a NUL
-from the end of the stream and the backend, honestly, does not try. -/
-def bespokeVelatoIO :
-    IOCertifiedCompiler BespokeVelato.BehavesWithAnswerNulFree VelatoLang where
-  compile := BespokeVelato.bespokeCompile
-  encodeInput := id
-  decodeOutput := decodeAnswer
-  encodeTrace := id
-  correct := fun p prog σ τ result n hc hp =>
-    BespokeVelato.bespokeCompile_behaves p prog σ τ result n hc hp.1 hp.2
-
-/-- Behavioural correctness implies answer correctness, for free: forgetting
-which events happened turns the instance above into a `CertifiedCompiler`
-at any fixed NUL-free stream. -/
-def bespokeVelatoIOErased (σ : Input) :
-    CertifiedCompiler (specErase BespokeVelato.BehavesWithAnswerNulFree σ) VelatoLang :=
-  bespokeVelatoIO.toCertified σ
-
-/-- **The derived compiler is no longer an untested oracle for the Velato
-backend.** On a Turpentine program both compilers accept and a source run
-that halts with `result` in `answer`, the hand-written backend and the
-compiler derived from `velatoComplete` both halt and their outputs decode
-to the same answer. -/
-theorem bespokeVelato_agrees_derived (p : Turpentine.Program)
-    (prog₁ prog₂ : ProgLang.Prog VelatoLang) (result n : Nat)
-    (h₁ : bespokeVelato.compile p = .ok prog₁)
-    (h₂ : derivedVelato.compile p = .ok prog₂)
-    (hp : TurpentineHaltsWith p n result) :
-    ∃ m₁ m₂,
-      (ProgLang.run prog₁ bespokeVelato.encodeInput m₁).exit = Exit.halted ∧
-      (ProgLang.run prog₂ derivedVelato.encodeInput m₂).exit = Exit.halted ∧
-      bespokeVelato.decodeOutput
-          (ProgLang.run prog₁ bespokeVelato.encodeInput m₁).output =
-        derivedVelato.decodeOutput
-          (ProgLang.run prog₂ derivedVelato.encodeInput m₂).output :=
-  CertifiedCompiler.agree bespokeVelato derivedVelato p prog₁ prog₂ result n h₁ h₂ hp
-
-end Langlib.Turpentine.Certified
-

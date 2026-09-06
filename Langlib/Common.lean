@@ -9,8 +9,8 @@ import Langlib.Common.TestHarness
 
 Shared infrastructure for all languages in the library: the pure execution
 model (`Input`, `RunResult`, `Exit`, `Trace`), the notion of a language and
-of a correct compiler (`ProgLang`, `CertifiedCompiler`,
-`IOCertifiedCompiler`), standalone-runner scaffolding (`Runner`), the
+of a correct compiler (`ProgLang`, `CertifiedCompilerNoIO`,
+`CertifiedCompiler`), standalone-runner scaffolding (`Runner`), the
 golden-test harness (`Suite`), and an RGB image type with a PPM reader for
 the graphical languages (`Image`).
 

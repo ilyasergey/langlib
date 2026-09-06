@@ -6,7 +6,7 @@ import Langlib.Languages.Unlambda.Semantics
 `exec` iterates the machine's `step` one unit of fuel at a time and stops on
 its own only when `step` does, so a completed run is a fixed point of more
 fuel. Discharges unlambda's `Langlib.Common.LawfulProgLang` instance in
-`Langlib/Computability/Unlambda.lean`.
+`Langlib/Computability/Unlambda/Simulation.lean`.
 -/
 
 namespace Langlib.Unlambda

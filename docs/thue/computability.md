@@ -1,19 +1,19 @@
 # Thue is Turing complete
 
-`Langlib/Computability/Thue.lean` contains a total runnable generator from an
+`Langlib/Computability/Thue/Main.lean` contains a total runnable generator from an
 unlimited register machine program and input vector to a parsed Thue program,
 and the simulation theorem that makes it a completeness proof:
-[`thueComplete : TuringComplete ThueLang`](../../Langlib/Computability/Thue.lean#L15).
+[`thueComplete : TuringComplete ThueLang`](../../Langlib/Computability/Thue/Main.lean#L15).
 Composing it with the shared Turpentine-to-URM pass gives a certified
 Turpentine-to-Thue compiler,
-[`derivedThue`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L136).
+[`derivedThue`](../../Langlib/Languages/Turpentine/Compile/Derived.lean#L114).
 
 Post proved in 1947 that semi-Thue systems are universal, so the *result* is
 not news. What the esolang literature does not have is a check that the
 particular deterministic strategy an interpreter uses cannot wander off the
 intended derivation, and that is most of the work below.
 
-[`thueComplete`](../../Langlib/Computability/Thue.lean) combines this
+[`thueComplete`](../../Langlib/Computability/Thue/Main.lean) combines this
 halting simulation with the [divergence proof](../../Langlib/Computability/Thue/Divergence.lean)
 for the same compiler. The [shared interface](../divergence-preservation.md)
 gives halting and result equivalence, output validity, and error freedom.
@@ -52,7 +52,7 @@ or a left-hand cell plus token.
 ## Generated execution
 
 The compiler reuses the structured counter language and its proved macros
-from `Langlib/Computability/Brainfuck.lean`. For source instruction `k`, the
+from `Langlib/Computability/Brainfuck/Main.lean`. For source instruction `k`, the
 counter macro performs the register update and leaves
 `nextProgramCounter + 1` in a dedicated counter. A final Thue phase consumes
 that counter and installs the next source control marker. Syntactic jumps
@@ -164,7 +164,7 @@ proves the converse fact that makes the run *stop*: once the program counter
 has run off the end of the source program, no generated rule matches at all,
 which is exactly Thue's halting condition. `decodeOutput_encodeState` then
 reads register zero out of the final state that `Config.finalState` prints,
-and [`simulation`](../../Langlib/Computability/Thue/Simulation.lean#L3949) assembles the
+and [`simulation`](../../Langlib/Computability/Thue/Simulation.lean#L3947) assembles the
 three parts into the `TuringComplete` obligation.
 
 ### What the claim does and does not say
@@ -218,7 +218,7 @@ J 0 0 0
 The module builds on its own.
 
 ```
-lake build Langlib.Computability.Thue
+lake build Langlib.Computability.Thue.Main
 ```
 
 Output:

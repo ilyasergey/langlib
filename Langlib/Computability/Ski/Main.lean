@@ -14,7 +14,7 @@ open Langlib.Common
 /-- **SKI is Turing complete.**
 
 The witness compiles a URM program into a single application: the structured
-counter machine of `Langlib/Computability/Counter.lean`, rendered in
+counter machine of `Langlib/Computability/Common/Counter.lean`, rendered in
 combinators, applied to a register file of Scott numerals. The file carries
 one cell more than the machine has registers, because SKI has no output
 instruction and `counterProgram` reports its answer by emitting bytes; that
@@ -29,10 +29,9 @@ function (Shepherdson and Sturgis 1963; Cutland, *Computability*, chapter 3),
 so does the SKI calculus. -/
 def skiComplete : TuringComplete SkiLang where
   compile := URMSki.compile
-  encodeInput := URMSki.encodeInput
   decodeOutput := URMSki.decodeOutput
   simulates := fun P inputs result h =>
-    URMSki.simulation P inputs result h (URMSki.encodeInput inputs)
+    URMSki.simulation P inputs result h Langlib.Common.Input.empty
   preserves_divergence := URMSki.preserves_divergence
 
 end Langlib.Computability

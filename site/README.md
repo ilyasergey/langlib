@@ -15,7 +15,7 @@ verbatim on the page, which is ugly enough that somebody will notice.
 ```
 site/
   lakefile.toml       a Lake package of its own, NOT referenced by the root lakefile
-  lean-toolchain      leanprover/lean4:v4.33.1, the same pin as the root project
+  lean-toolchain      leanprover/lean4:v4.33.0, the same pin as the root project
   Main.lean           the generator: reads the repository, writes out/
   Site/
     Html.lean         escaping, slugs, string helpers
@@ -102,16 +102,8 @@ playground works" gets to be a test rather than a claim.
 * the site reads `docs/`, `CONTRIBUTING.md` and `Langlib/Examples/` as data,
   and writes only into `site/out/`.
 
-`site/out/` is in the repository `.gitignore`. Note that a `git add -A` from
-another branch of work committed an early copy of `site/out/` before that line
-existed, so the ignore does not take effect until somebody runs
-
-```
-git rm -r --cached site/out
-```
-
-once, and commits the removal. Generated output does not belong in the history;
-the workflow rebuilds it on every deploy.
+`site/out/` is generated and gitignored. The workflow rebuilds it for each
+deployment; only the Markdown sources, generator and static assets are tracked.
 
 ## Deployment
 
@@ -224,9 +216,8 @@ Link destinations are resolved against the directory of the document being
 rendered and looked up in a publication table in `Main.lean`. A path the site
 publishes becomes a site URL; anything else becomes a link into the repository
 on GitHub, so following `Langlib/Examples/Brainfuck/` from a spec page lands on
-the actual examples. One alias is in that table: `docs/README.md` still points
-the front end at `wtf/spec.md`, its name before the rename to Turpentine, and
-the table maps that path to `/turpentine/` rather than to a 404.
+the actual examples. A legacy alias maps `docs/wtf/spec.md`, the front end's old name, to
+`/turpentine/`. Current documentation links use `docs/turpentine/spec.md`.
 
 The generator publishes a full page for `piet` and `brainloller` as soon as
 `docs/<name>/spec.md` exists, and shows a "coming soon" card until then, so a

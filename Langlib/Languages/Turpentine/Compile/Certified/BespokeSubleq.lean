@@ -20,7 +20,7 @@ emits is the one this file's `correct` field is about.
 ## The covered fragment, and why it is this small
 
 The bespoke backend accepts all of Turpentine. The specification a
-`TurpentineCompiler` has to meet does not: `TurpentineHaltsWith p n result`
+`TurpentineCompiler` has to meet does not: `ClosedHaltsWith p n result`
 names a single natural number, the final value of the variable `answer`, on
 an empty input stream. A compiled program can only report that number
 through its output bytes, so a program in the covered fragment has to print
@@ -534,7 +534,7 @@ theorem backend_printLit (k : Int) (hk : 0 < k) :
 /-! ## The reference semantics of the two shapes -/
 
 /-- `var answer: int;` with an empty body halts with `0` in `answer`. -/
-theorem haltsWith_progSkip {n result : Nat} (h : TurpentineHaltsWith (progOf .skipZero) n result) :
+theorem haltsWith_progSkip {σ : Input} {n result : Nat} (h : TurpentineHaltsWith (progOf .skipZero) σ n result) :
     result = 0 := by
   obtain ⟨env₀, st, hinit, hex, hans⟩ := h
   have henv : env₀ = (∅ : Std.HashMap String Turpentine.Value).insert "answer" (.int 0) := by
@@ -552,8 +552,8 @@ theorem haltsWith_progSkip {n result : Nat} (h : TurpentineHaltsWith (progOf .sk
 
 /-- `var answer: int := k; printByte(answer);` halts with `k` in `answer`,
 having printed the single byte `k mod 256`. -/
-theorem haltsWith_progPrint {k : Int} {n result : Nat}
-    (h : TurpentineHaltsWith (progOf (.printLit k)) n result) : (result : Int) = k := by
+theorem haltsWith_progPrint {σ : Input} {k : Int} {n result : Nat}
+    (h : TurpentineHaltsWith (progOf (.printLit k)) σ n result) : (result : Int) = k := by
   obtain ⟨env₀, st, hinit, hex, hans⟩ := h
   have henv : env₀ = (∅ : Std.HashMap String Turpentine.Value).insert "answer" (.int k) := by
     rw [show Turpentine.initEnv (progOf (.printLit k))
@@ -625,6 +625,23 @@ theorem compile_progPrint (k : Int) (h1 : 1 ≤ k) (h2 : k ≤ 255) :
   rw [compile, hs]
   exact backend_printLit k (by omega)
 
+/-- Every accepted source program in this finite fragment completes at fuel one. -/
+theorem compile_source_halts {p : Turpentine.Program} {prog : Prog}
+    (hc : compile p = .ok prog) (input : Input) :
+    (Turpentine.evalProgram p input 1).exit = .halted := by
+  obtain ⟨sh, hs, _⟩ := compile_eq hc
+  rw [progOf_shapeOf hs]
+  cases sh with
+  | skipZero =>
+    rw [Turpentine.evalProgram, show Turpentine.initEnv (progOf .skipZero) =
+      .ok ((∅ : Std.HashMap String Turpentine.Value).insert "answer" (.int 0)) from rfl]
+    simp [progOf, Turpentine.exec]
+  | printLit k =>
+    rw [Turpentine.evalProgram, show Turpentine.initEnv (progOf (.printLit k)) =
+      .ok ((∅ : Std.HashMap String Turpentine.Value).insert "answer" (.int k)) from rfl]
+    simp [progOf, Turpentine.exec, Turpentine.evalExpr, pure, Except.pure]
+
+
 end BespokeSubleq
 
 /-- **The hand-written backend as a verified compiler.**
@@ -638,7 +655,6 @@ the reference-semantics lemmas with the twelve-instruction subleq
 simulation. -/
 def bespokeSubleq : TurpentineCompiler SubleqLang where
   compile := BespokeSubleq.compile
-  encodeInput := Input.ofString ""
   decodeOutput := BespokeSubleq.decodeOutput
   correct := by
     intro p prog result n hc hp
@@ -647,7 +663,7 @@ def bespokeSubleq : TurpentineCompiler SubleqLang where
     rw [BespokeSubleq.progOf_shapeOf hsh] at hp
     cases sh with
     | skipZero =>
-      obtain ⟨f, hf⟩ := BespokeSubleq.run_skip (Input.ofString "")
+      obtain ⟨f, hf⟩ := BespokeSubleq.run_skip Input.empty
       refine ⟨f, ?_, ?_⟩
       · show (Langlib.Subleq.evalProg _ _ f).exit = _
         rw [show BespokeSubleq.imgOf .skipZero = BespokeSubleq.imgSkip from rfl, hf]
@@ -658,7 +674,7 @@ def bespokeSubleq : TurpentineCompiler SubleqLang where
     | printLit k =>
       obtain ⟨hk1, hk2⟩ := BespokeSubleq.printLit_range hsh
       have hres : (result : Int) = k := BespokeSubleq.haltsWith_progPrint hp
-      obtain ⟨f, hf⟩ := BespokeSubleq.run_print k (Input.ofString "")
+      obtain ⟨f, hf⟩ := BespokeSubleq.run_print k Input.empty
       refine ⟨f, ?_, ?_⟩
       · show (Langlib.Subleq.evalProg _ _ f).exit = _
         rw [show BespokeSubleq.imgOf (.printLit k) = BespokeSubleq.imgPrint k from rfl, hf]
@@ -669,6 +685,13 @@ def bespokeSubleq : TurpentineCompiler SubleqLang where
         simp only [Option.some.injEq]
         simp [Nat.toUInt8, UInt8.toNat, UInt8.ofNat]
         omega
+
+  preserves_divergence := by
+    intro p prog hc hd fuel
+    have hh := BespokeSubleq.compile_source_halts hc Input.empty
+    have hx := hd 1
+    rw [hh] at hx
+    contradiction
 
 /-- **The corollary the exercise is for.** `agree` was proved once in
 `Derived.lean` against the specification `TurpentineHaltsWith`; instantiating
@@ -682,15 +705,15 @@ theorem bespokeSubleq_agrees_derived
     (p : Turpentine.Program) (prog₁ prog₂ : Langlib.Subleq.Prog) (result n : Nat)
     (h₁ : bespokeSubleq.compile p = .ok prog₁)
     (h₂ : derivedSubleq.compile p = .ok prog₂)
-    (hp : TurpentineHaltsWith p n result) :
+    (hp : TurpentineHaltsWith p Input.empty n result) :
     ∃ m₁ m₂,
-      (ProgLang.run (L := SubleqLang) prog₁ bespokeSubleq.encodeInput m₁).exit = Exit.halted ∧
-      (ProgLang.run (L := SubleqLang) prog₂ derivedSubleq.encodeInput m₂).exit = Exit.halted ∧
+      (ProgLang.run (L := SubleqLang) prog₁ Input.empty m₁).exit = Exit.halted ∧
+      (ProgLang.run (L := SubleqLang) prog₂ Input.empty m₂).exit = Exit.halted ∧
       bespokeSubleq.decodeOutput
-          (ProgLang.run (L := SubleqLang) prog₁ bespokeSubleq.encodeInput m₁).output =
+          (ProgLang.run (L := SubleqLang) prog₁ Input.empty m₁).output =
         derivedSubleq.decodeOutput
-          (ProgLang.run (L := SubleqLang) prog₂ derivedSubleq.encodeInput m₂).output :=
-  CertifiedCompiler.agree bespokeSubleq derivedSubleq p prog₁ prog₂ result n h₁ h₂ hp
+          (ProgLang.run (L := SubleqLang) prog₂ Input.empty m₂).output :=
+  CertifiedCompilerNoIO.agree bespokeSubleq derivedSubleq p prog₁ prog₂ result n h₁ h₂ hp
 
 /-- **The corollary is not vacuous**, which is worth checking, because a
 hypothesis of the form "both compilers accept `p`" is easy to state and, for
@@ -706,20 +729,20 @@ theorem bespokeSubleq_agrees_derived_nonvacuous :
     ∃ (prog₁ prog₂ : Langlib.Subleq.Prog) (m₁ m₂ : Nat),
       bespokeSubleq.compile (BespokeSubleq.progOf .skipZero) = .ok prog₁ ∧
       derivedSubleq.compile (BespokeSubleq.progOf .skipZero) = .ok prog₂ ∧
-      (ProgLang.run (L := SubleqLang) prog₁ bespokeSubleq.encodeInput m₁).exit = Exit.halted ∧
-      (ProgLang.run (L := SubleqLang) prog₂ derivedSubleq.encodeInput m₂).exit = Exit.halted ∧
+      (ProgLang.run (L := SubleqLang) prog₁ Input.empty m₁).exit = Exit.halted ∧
+      (ProgLang.run (L := SubleqLang) prog₂ Input.empty m₂).exit = Exit.halted ∧
       bespokeSubleq.decodeOutput
-          (ProgLang.run (L := SubleqLang) prog₁ bespokeSubleq.encodeInput m₁).output =
+          (ProgLang.run (L := SubleqLang) prog₁ Input.empty m₁).output =
         derivedSubleq.decodeOutput
-          (ProgLang.run (L := SubleqLang) prog₂ derivedSubleq.encodeInput m₂).output := by
+          (ProgLang.run (L := SubleqLang) prog₂ Input.empty m₂).output := by
   obtain ⟨prog₂, h₂⟩ :
       ∃ prog, derivedSubleq.compile (BespokeSubleq.progOf .skipZero) = .ok prog := ⟨_, rfl⟩
   have h₁ : bespokeSubleq.compile (BespokeSubleq.progOf .skipZero) =
       .ok BespokeSubleq.imgSkip := BespokeSubleq.compile_progSkip
-  have hp : TurpentineHaltsWith (BespokeSubleq.progOf .skipZero) 1 0 := by
+  have hp : TurpentineHaltsWith (BespokeSubleq.progOf .skipZero) Input.empty 1 0 := by
     refine ⟨(∅ : Std.HashMap String Turpentine.Value).insert "answer" (.int 0),
       { env := (∅ : Std.HashMap String Turpentine.Value).insert "answer" (.int 0),
-        input := Input.ofString "" }, rfl, ?_, ?_⟩
+        input := Input.empty }, rfl, ?_, ?_⟩
     · simp [BespokeSubleq.progOf, Turpentine.exec]
     · simp [answerVar]
   obtain ⟨m₁, m₂, e₁, e₂, e₃⟩ :=

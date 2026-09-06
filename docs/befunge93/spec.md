@@ -19,7 +19,7 @@
   - runner `lake exe befunge93`,
   - [examples](../../Langlib/Examples/Befunge93/),
   - tests in [`Langlib/Tests/Befunge93.lean`](../../Langlib/Tests/Befunge93.lean),
-  - a finite-state restriction of the language, with decidable halting, in [`Langlib/Computability/Befunge93.lean`](../../Langlib/Computability/Befunge93.lean) and [docs/befunge93/computability.md](computability.md), and
+  - a finite-state restriction of the language, with decidable halting, in [`Langlib/Computability/Befunge93/Main.lean`](../../Langlib/Computability/Befunge93/Main.lean) and [docs/befunge93/computability.md](computability.md), and
   - no Turpentine backend, for reasons recorded in [docs/befunge93/compiler.md](compiler.md)
 
 ## History

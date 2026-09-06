@@ -13,10 +13,10 @@
   - runner `lake exe fractran`,
   - [examples](../../Langlib/Examples/Fractran/),
   - tests in [`Langlib/Tests/Fractran.lean`](../../Langlib/Tests/Fractran.lean),
-  - Turing completeness in [`Langlib/Computability/Fractran.lean`](../../Langlib/Computability/Fractran.lean) and [docs/fractran/computability.md](computability.md), and
+  - Turing completeness in [`Langlib/Computability/Fractran/Main.lean`](../../Langlib/Computability/Fractran/Main.lean) and [docs/fractran/computability.md](computability.md), and
   - a hand-written Turpentine backend in [`Langlib/Languages/Turpentine/Compile/Fractran.lean`](../../Langlib/Languages/Turpentine/Compile/Fractran.lean), plus a certified one derived from the completeness proof ([docs/fractran/compiler.md](compiler.md))
 
-[`fractranComplete`](../../Langlib/Computability/Fractran.lean) preserves both halting answers
+[`fractranComplete`](../../Langlib/Computability/Fractran/Main.lean) preserves both halting answers
 and divergence. Its [divergence proof](../../Langlib/Computability/Fractran/Divergence.lean)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../divergence-preservation.md) gives halting and result

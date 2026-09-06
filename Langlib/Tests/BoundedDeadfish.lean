@@ -1,6 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.Deadfish
-
+import Langlib.Computability.Deadfish.Main
 /-!
 # Deadfish termination tests
 

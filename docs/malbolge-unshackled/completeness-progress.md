@@ -7,7 +7,7 @@ The previous assessment that only one walk pass and assembly remained was
 incorrect. The [proof audit](proof-audit.md) gives the checked obstructions,
 primary sources, and a revised construction.
 
-The existing [base module](../../Langlib/Computability/MalbolgeUnshackled.lean)
+The existing [base module](../../Langlib/Computability/MalbolgeUnshackled/Main.lean)
 proves substantial local algebra and conditional execution lemmas. The new
 [obstruction module](../../Langlib/Computability/MalbolgeUnshackled/Obstructions.lean)
 proves that its infinite blank-tail invariant cannot hold with natural-seeded

@@ -8,10 +8,10 @@
   - runner `lake exe brainloller`,
   - [examples](../../Langlib/Examples/Brainloller/),
   - tests in [`Langlib/Tests/Brainloller.lean`](../../Langlib/Tests/Brainloller.lean),
-  - Turing completeness, inherited from brainfuck, in [`Langlib/Computability/Brainloller.lean`](../../Langlib/Computability/Brainloller.lean), and
+  - Turing completeness, inherited from brainfuck, in [`Langlib/Computability/Brainloller/Main.lean`](../../Langlib/Computability/Brainloller/Main.lean), and
   - a Turpentine backend via brainfuck in [`Langlib/Languages/Turpentine/Compile/Brainloller.lean`](../../Langlib/Languages/Turpentine/Compile/Brainloller.lean), plus a certified one derived from the completeness proof ([docs/brainloller/compiler.md](compiler.md))
 
-[`brainlollerComplete`](../../Langlib/Computability/Brainloller.lean) preserves both halting answers
+[`brainlollerComplete`](../../Langlib/Computability/Brainloller/Main.lean) preserves both halting answers
 and divergence. Its [divergence proof](../../Langlib/Computability/Brainloller/Divergence.lean)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../divergence-preservation.md) gives halting and result

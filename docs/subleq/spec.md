@@ -20,10 +20,10 @@
   - runner `lake exe subleq`,
   - [examples](../../Langlib/Examples/Subleq/),
   - tests in [`Langlib/Tests/Subleq.lean`](../../Langlib/Tests/Subleq.lean),
-  - Turing completeness in [`Langlib/Computability/Subleq.lean`](../../Langlib/Computability/Subleq.lean) and [docs/subleq/computability.md](computability.md), and
-  - a hand-written Turpentine backend proved correct on a fragment in [`Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean`](../../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean), plus a certified one derived from the completeness proof ([docs/subleq/compiler.md](compiler.md))
+  - Turing completeness in [`Langlib/Computability/Subleq/Main.lean`](../../Langlib/Computability/Subleq/Main.lean) and [docs/subleq/computability.md](computability.md), and
+  - a hand-written Turpentine backend proved correct on a fragment in [`Langlib/Languages/Turpentine/Compile/Certified/BespokeSubleq.lean`](../../Langlib/Languages/Turpentine/Compile/Certified/BespokeSubleq.lean), plus a certified one derived from the completeness proof ([docs/subleq/compiler.md](compiler.md))
 
-[`subleqComplete`](../../Langlib/Computability/Subleq.lean) preserves both halting answers
+[`subleqComplete`](../../Langlib/Computability/Subleq/Main.lean) preserves both halting answers
 and divergence. Its [divergence proof](../../Langlib/Computability/Subleq/Divergence.lean)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../divergence-preservation.md) gives halting and result

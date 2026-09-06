@@ -12,10 +12,10 @@
   - runner `lake exe thue`,
   - [examples](../../Langlib/Examples/Thue/),
   - tests in [`Langlib/Tests/Thue.lean`](../../Langlib/Tests/Thue.lean),
-  - Turing completeness in [`Langlib/Computability/Thue.lean`](../../Langlib/Computability/Thue.lean) and [docs/thue/computability.md](computability.md), and
+  - Turing completeness in [`Langlib/Computability/Thue/Main.lean`](../../Langlib/Computability/Thue/Main.lean) and [docs/thue/computability.md](computability.md), and
   - a certified Turpentine compiler derived from the completeness proof; the hand-written one is still planned ([docs/thue/compiler.md](compiler.md))
 
-[`thueComplete`](../../Langlib/Computability/Thue.lean) preserves both halting answers
+[`thueComplete`](../../Langlib/Computability/Thue/Main.lean) preserves both halting answers
 and divergence. Its [divergence proof](../../Langlib/Computability/Thue/Divergence.lean)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../divergence-preservation.md) gives halting and result
@@ -39,7 +39,7 @@ constraint-programming Turing tarpit: you do not write instructions, you
 write a grammar and let the string sort itself out. Thue is
 Turing-complete, by the obvious embedding of unrestricted grammars — and
 here that is a theorem rather than an appeal to the obvious:
-[`thueComplete`](../../Langlib/Computability/Thue.lean#L15) compiles a
+[`thueComplete`](../../Langlib/Computability/Thue/Main.lean#L15) compiles a
 register machine into Thue and proves the compiled rules simulate it under
 this interpreter's own strategy. See
 [docs/thue/computability.md](computability.md).

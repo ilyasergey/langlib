@@ -24,7 +24,7 @@ open Langlib.Turpentine.Compile (derivedPiet)
 def runCertified (src : String) (_input : Input) (fuel : Nat) :
     Except String RunResult := do
   let prog ← derivedPiet.compileSource src
-  let result := ProgLang.run (L := PietLang) prog derivedPiet.encodeInput fuel
+  let result := ProgLang.run (L := PietLang) prog (Input.ofString "") fuel
   match derivedPiet.decodeOutput result.output with
   | none => throw "the compiled image's output did not decode"
   | some n => return { output := (toString n).toUTF8, exit := result.exit }

@@ -1,6 +1,6 @@
 # SKI is Turing complete
 
-[`Langlib/Computability/Ski.lean`](../../Langlib/Computability/Ski.lean)
+[`Langlib/Computability/Ski/Main.lean`](../../Langlib/Computability/Ski/Main.lean)
 compiles an arbitrary unlimited register machine into the SKI combinator
 calculus and proves the simulation. The result is the term
 
@@ -17,7 +17,7 @@ combinators and almost nothing else. It is worth saying at the top why the
 Unlambda witness does not simply transfer, because the obvious guess is that
 it should.
 
-[`skiComplete`](../../Langlib/Computability/Ski.lean) combines this
+[`skiComplete`](../../Langlib/Computability/Ski/Main.lean) combines this
 halting simulation with the [divergence proof](../../Langlib/Computability/Ski/Divergence.lean)
 for the same compiler. The [shared interface](../divergence-preservation.md)
 gives halting and result equivalence, output validity, and error freedom.
@@ -140,7 +140,7 @@ Nothing has to be forced.
 ## The simulation
 
 The induction is on the step count of
-[`Counter.EvN`](../../Langlib/Computability/Counter.lean), as in the Unlambda
+[`Counter.EvN`](../../Langlib/Computability/Common/Counter.lean), as in the Unlambda
 proof and for the same reason: the `loopS` premise is a derivation for
 `b ++ Cmd.loop r b :: cs` whose two halves are not subderivations of it.
 

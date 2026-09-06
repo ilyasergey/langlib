@@ -14,7 +14,7 @@ open Langlib.Common
 /-- **Unlambda is Turing complete.**
 
 The witness compiles a URM program into a single application: the structured
-counter machine of `Langlib/Computability/Counter.lean`, rendered in
+counter machine of `Langlib/Computability/Common/Counter.lean`, rendered in
 combinators, applied to a register file of Scott numerals. Registers are a
 Scott list, the loop is a call-by-value fixed point, and the answer comes back
 in unary, one `*` per unit of register 0.
@@ -29,11 +29,10 @@ function (Shepherdson and Sturgis 1963; Cutland, *Computability*, chapter 3),
 so does Unlambda. -/
 def unlambdaComplete : TuringComplete UnlambdaLang where
   compile := URMUnlambda.compile
-  encodeInput := URMUnlambda.encodeInput
   decodeOutput := URMUnlambda.decodeOutput
   simulates := fun P inputs result h =>
-    URMUnlambda.simulation P inputs result h (URMUnlambda.encodeInput inputs)
+    URMUnlambda.simulation P inputs result h Langlib.Common.Input.empty
   preserves_divergence := fun P inputs hd fuel =>
-    URMUnlambda.preserves_divergence P inputs hd (URMUnlambda.encodeInput inputs) fuel
+    URMUnlambda.preserves_divergence P inputs hd Langlib.Common.Input.empty fuel
 
 end Langlib.Computability

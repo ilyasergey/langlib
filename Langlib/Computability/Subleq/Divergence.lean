@@ -1,6 +1,5 @@
 import Langlib.Computability.Subleq.Simulation
-import Langlib.Computability.Divergence
-
+import Langlib.Computability.Common.Divergence
 /-! # Subleq preserves URM divergence -/
 
 namespace Langlib.Computability.URMSubleq

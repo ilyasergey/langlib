@@ -9,7 +9,7 @@ scripts/render-docs-images.sh.
 
 Nobody paints a Piet program with a loop in it by hand, so this is a tiny
 assembler. It knows two layouts, both taken from the codel geometry that
-Langlib/Computability/Piet.lean uses and *proves* correct:
+Langlib/Computability/Piet/Main.lean uses and *proves* correct:
 
 * `linear_grid`, after `linearGrid`: three rows, the commands laid left to
   right along the middle one, a white codel and a full-height terminal bar

@@ -1,6 +1,5 @@
 import Langlib.Common.Computability
-import Langlib.Computability.URM
-
+import Langlib.Computability.Common.URM
 /-!
 # The structured counter machine, and a URM compiled into it
 
@@ -19,8 +18,8 @@ all-zero state to a state that has emitted exactly `result` bytes.
 
 A backend therefore has only to interpret four commands. Brainfuck lays the
 registers out as unary columns on the tape
-(`Langlib/Computability/Brainfuck.lean`); Unlambda and SKI hold them in a
-combinator tuple (`Langlib/Computability/Unlambda.lean`).
+(`Langlib/Computability/Brainfuck/Main.lean`); Unlambda and SKI hold them in a
+combinator tuple (`Langlib/Computability/Unlambda/Main.lean`).
 
 `dec` on a zero register has no rule: the semantics below is a big-step
 relation, and a program that decrements a zero register simply has no

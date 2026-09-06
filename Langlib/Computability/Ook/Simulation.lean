@@ -1,4 +1,4 @@
-import Langlib.Computability.Brainfuck
+import Langlib.Computability.Brainfuck.Main
 import Langlib.Languages.Ook
 import Batteries.Tactic.OpenPrivate
 

@@ -1,10 +1,10 @@
-import Langlib.Computability.Whitespace
+import Langlib.Computability.Whitespace.Main
 import Langlib.Languages.Turpentine.Trace
 
 /-!
 # What every certified Turpentine backend needs from Turpentine
 
-The hand-written backends under `Langlib/Languages/Turpentine/Certified/`
+The hand-written backends under `Langlib/Languages/Turpentine/Compile/Certified/`
 are proved against the same source language, and the first of them,
 `BespokeWhitespace.lean`, had to build a stock of source-side facts to do
 it: how to invert the reference evaluator, that a fragment expression's
@@ -697,14 +697,14 @@ def answerProgram (p : Program) : Program :=
 theorem initEnv_answerProgram (p : Program) :
     Turpentine.initEnv (answerProgram p) = Turpentine.initEnv p := rfl
 
-/-- The answer convention, spelled out: within fuel `n`, `p` halts on empty
-input with `result` in the variable `answer`. This is
+/-- The answer convention, spelled out: within fuel `n`, `p` halts on input `σ`
+with `result` in the variable `answer`. This is
 `Langlib.Turpentine.Compile.URM.TurpentineHaltsWith`, repeated so that the
 proofs do not depend on the certified pipeline's file. -/
-def HaltsWithAnswer (p : Program) (n : Nat) (result : Nat) : Prop :=
+def HaltsWithAnswer (p : Program) (σ : Input) (n : Nat) (result : Nat) : Prop :=
   ∃ (env₀ : Std.HashMap String Value) (st : Turpentine.State),
     Turpentine.initEnv p = .ok env₀ ∧
-    Turpentine.exec n p.body { env := env₀, input := Input.ofString "" } =
+    Turpentine.exec n p.body { env := env₀, input := σ } =
       (st, Exit.halted) ∧
     st.env[answerVar]? = some (Value.int (result : Int))
 

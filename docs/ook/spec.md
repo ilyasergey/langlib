@@ -10,10 +10,10 @@
   - runner `lake exe ook`,
   - [examples](../../Langlib/Examples/Ook/),
   - tests in [`Langlib/Tests/Ook.lean`](../../Langlib/Tests/Ook.lean),
-  - Turing completeness, inherited from brainfuck together with a proved syntax round trip, in [`Langlib/Computability/Ook.lean`](../../Langlib/Computability/Ook.lean), and
+  - Turing completeness, inherited from brainfuck together with a proved syntax round trip, in [`Langlib/Computability/Ook/Main.lean`](../../Langlib/Computability/Ook/Main.lean), and
   - a Turpentine backend via brainfuck in [`Langlib/Languages/Turpentine/Compile/Ook.lean`](../../Langlib/Languages/Turpentine/Compile/Ook.lean), plus a certified one derived from the completeness proof ([docs/ook/compiler.md](compiler.md))
 
-[`ookComplete`](../../Langlib/Computability/Ook.lean) preserves both halting answers
+[`ookComplete`](../../Langlib/Computability/Ook/Main.lean) preserves both halting answers
 and divergence. Its [divergence proof](../../Langlib/Computability/Ook/Divergence.lean)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../divergence-preservation.md) gives halting and result

@@ -1,4 +1,4 @@
-import Langlib.Computability.MalbolgeUnshackled
+import Langlib.Computability.MalbolgeUnshackled.Main
 import Mathlib.Data.List.Rotate
 
 /-!

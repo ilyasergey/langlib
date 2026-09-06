@@ -1,6 +1,5 @@
 import Langlib.Common.Divergence
-import Langlib.Computability.URM
-
+import Langlib.Computability.Common.URM
 /-! # Continuing a divergent URM execution -/
 
 namespace Langlib.Computability.URM

@@ -1,6 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.Ski
-
+import Langlib.Computability.Ski.Main
 /-!
 Tests for the certified compiler into the SKI calculus.
 

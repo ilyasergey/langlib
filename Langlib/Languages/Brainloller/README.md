@@ -5,8 +5,8 @@ eight commands, cyan and dark cyan to turn the reading head, everything
 else a comment. The specification and semantic notes are in
 [docs/brainloller/spec.md](../../../docs/brainloller/spec.md).
 
-[`brainlollerComplete`](../../Computability/Brainloller.lean) preserves both halting answers
-and divergence. Its [divergence proof](../../Computability/Brainloller/Divergence.lean)
+[`brainlollerComplete`](../../Computability/Brainloller/Main.lean#L24) preserves both halting answers
+and divergence. Its [divergence proof](../../Computability/Brainloller/Divergence.lean#L16)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../../../docs/divergence-preservation.md) gives halting and result
 equivalence, output validity, and error freedom.

@@ -1,6 +1,5 @@
 import Langlib.Computability.Ski.Simulation
-import Langlib.Computability.Divergence
-
+import Langlib.Computability.Common.Divergence
 /-! # SKI preserves URM divergence
 
 The fixed point keeps making positive head reductions. Strictness of the

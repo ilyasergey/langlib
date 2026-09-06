@@ -1,6 +1,5 @@
 import Langlib.Computability.Unlambda.Simulation
-import Langlib.Computability.Divergence
-
+import Langlib.Computability.Common.Divergence
 /-! # Unlambda preserves URM divergence
 
 The strict fixed point, the terminating guard and body, and the next recursive

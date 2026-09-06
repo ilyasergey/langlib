@@ -1,5 +1,5 @@
 import Langlib.Common.Computability
-import Langlib.Computability.Counter
+import Langlib.Computability.Common.Counter
 import Langlib.Languages.MalbolgeUnshackled
 
 /-!

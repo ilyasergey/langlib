@@ -1,6 +1,5 @@
 import Langlib.Computability.Brainfuck.Simulation
-import Langlib.Computability.Divergence
-
+import Langlib.Computability.Common.Divergence
 /-! # Brainfuck preserves URM divergence
 
 Every dispatcher body is a terminating counter derivation even when the

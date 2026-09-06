@@ -1,5 +1,5 @@
 import Langlib.Common.Fuel
-import Langlib.Computability.URM
+import Langlib.Computability.Common.URM
 import Langlib.Languages.Turpentine.Semantics
 
 /-!
@@ -3962,15 +3962,15 @@ theorem compileToURM_inputs {p : Turpentine.Program} {P : UProg} {inputs : List 
 /-! ## The end-to-end theorem -/
 
 /-- The answer convention as a proposition about the source: within fuel `n`,
-`p` halts on empty input with `result` in the variable `answer`.
+`p` halts on the caller input `σ` with `result` in the variable `answer`.
 
 Fuel is universal here and existential on the target side of
 `compileToURM_correct`: the two bounds are unrelated, which is what keeps the
 target's cost model out of the statement. -/
-def TurpentineHaltsWith (p : Turpentine.Program) (n : Nat) (result : Nat) : Prop :=
+def TurpentineHaltsWith (p : Turpentine.Program) (σ : Input) (n : Nat) (result : Nat) : Prop :=
   ∃ (env₀ : Std.HashMap String Value) (st : Turpentine.State),
     Turpentine.initEnv p = .ok env₀ ∧
-    Turpentine.exec n p.body { env := env₀, input := Input.ofString "" } =
+    Turpentine.exec n p.body { env := env₀, input := σ } =
       (st, Exit.halted) ∧
     st.env[answerVar]? = some (Value.int (result : Int))
 
@@ -3984,9 +3984,9 @@ program disappears from the statement and what is left is a verified
 compiler from Turpentine into every language with a completeness witness. -/
 theorem compileToURM_correct
     (p : Turpentine.Program) (P : UProg) (inputs : List Nat)
-    (result n : Nat)
+    (σ : Input) (result n : Nat)
     (hc : compileToURM p = .ok (P, inputs))
-    (hp : TurpentineHaltsWith p n result) :
+    (hp : TurpentineHaltsWith p σ n result) :
     Cslib.URM.HaltsWithResult P inputs result := by
   obtain ⟨env₀, st, hinit, hex, hans⟩ := hp
   rw [compileToURM] at hc
@@ -4062,7 +4062,7 @@ theorem compileToURM_correct
         have hinit' : declEnv ∅ p.decls = .ok env₀ := by rw [← initEnv_eq p]; exact hinit
         obtain ⟨mf, envD, hpreExec, hpreMono⟩ :=
           exec_declPrelude p.decls ∅ env₀
-            { env := defEnv ∅ p.decls, input := Input.ofString "" }
+            { env := defEnv ∅ p.decls, input := σ }
             hdistinct hdecls hinit' (by intro y w hw; simp at hw)
             (by
               intro d hd _
@@ -4070,8 +4070,8 @@ theorem compileToURM_correct
         obtain ⟨regs₁, hr₁, hA₁, hz₁⟩ :=
           reaches_compileStmt slots hg (body ++ [Cslib.URM.Instr.T ans.base 0]) mf
             (declPrelude p.decls) 0 cpre
-            { env := defEnv ∅ p.decls, input := Input.ofString "" }
-            { env := envD, input := Input.ofString "" }
+            { env := defEnv ∅ p.decls, input := σ }
+            { env := envD, input := σ }
             (Cslib.URM.Regs.ofInputs ([] : List Nat)) hcpre hcpre' hpreExec hA0 hz0
         -- the prelude leaves the registers agreeing with `initEnv p`
         have hA₁' : Agree slots env₀ regs₁ := by
@@ -4086,7 +4086,7 @@ theorem compileToURM_correct
         obtain ⟨regs', hr₂, hA', _⟩ :=
           reaches_compileStmt slots hg (body ++ [Cslib.URM.Instr.T ans.base 0]) n p.body
             (stmtSize slots (declPrelude p.decls)) cbody
-            { env := env₀, input := Input.ofString "" } st regs₁
+            { env := env₀, input := σ } st regs₁
             (by simpa using hcbody) hcbody' hex hA₁' hz₁
         have hr : Reaches (Ex (body ++ [Cslib.URM.Instr.T ans.base 0]))
             ⟨0, Cslib.URM.Regs.ofInputs ([] : List Nat)⟩

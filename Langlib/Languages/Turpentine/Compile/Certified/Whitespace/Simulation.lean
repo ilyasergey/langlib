@@ -1,5 +1,5 @@
 import Batteries.Tactic.OpenPrivate
-import Langlib.Languages.Turpentine.Certified.Shared
+import Langlib.Languages.Turpentine.Compile.Certified.Shared
 import Langlib.Languages.Turpentine.Compile.Derived
 import Langlib.Languages.Turpentine.Compile.Whitespace
 import Langlib.Languages.Turpentine.Trace
@@ -356,7 +356,7 @@ theorem labelsOk_of_nodup (W : List Instr) (h : (labelsOf W).Nodup) :
 
 /-! ## Single instructions
 
-`Langlib/Computability/Whitespace.lean` already proves the atoms for `push`,
+`Langlib/Computability/Whitespace/Main.lean` already proves the atoms for `push`,
 `label`, `store`, `retrieve`, `add`, `sub`, `jz` and `outnum`. These are the
 ones this backend also needs. -/
 
@@ -3741,98 +3741,13 @@ theorem bespokeCompile_behaves (p : Program) (prog : Prog) (σ : Input) (τ : Tr
 source halts within some fuel bound with `result` in `answer`, the compiled
 whitespace program halts, for some fuel bound, having printed whatever the
 source printed and then `result` in decimal on a line of its own. -/
-theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
-    (hc : bespokeCompile p = .ok prog) (hp : HaltsWithAnswer p n result) :
+theorem bespokeCompile_correct (p : Program) (prog : Prog) (σ : Input) (result n : Nat)
+    (hc : bespokeCompile p = .ok prog) (hp : HaltsWithAnswer p σ n result) :
     ∃ m, (Whitespace.evalProg prog (Input.ofString "") m).exit = Exit.halted ∧
       decodeAnswer (Whitespace.evalProg prog (Input.ofString "") m).output = some result := by
   obtain ⟨env₀, st, hinit, hex, hans⟩ := hp
   obtain ⟨m, hhalt, hdec, -⟩ :=
-    bespokeCompile_core p prog result n (Input.ofString "") env₀ st hc hinit hex hans
+    bespokeCompile_core p prog result n σ env₀ st hc hinit hex hans
   exact ⟨m, hhalt, hdec⟩
 
 end Langlib.Turpentine.Certified.BespokeWhitespace
-
-namespace Langlib.Turpentine.Certified
-
-open Langlib.Common
-open Langlib.Computability (WhitespaceLang)
-open Langlib.Turpentine.Compile.URM (TurpentineHaltsWith)
-open Langlib.Turpentine.Compile (TurpentineCompiler derivedWhitespace)
-
-/-- **The hand-written Turpentine-to-Whitespace backend, as a verified
-compiler.** `compile` is `Langlib.Turpentine.Compile.Whitespace`'s own
-`compileChecked`, gated by the fragment check of
-`Langlib.Turpentine.Certified.BespokeWhitespace` and applied to the source
-program with `print(answer)` appended.
-
-The second inhabitant of `TurpentineCompiler WhitespaceLang`, and the first
-one that is not derived from a completeness proof. -/
-def bespokeWhitespace : TurpentineCompiler WhitespaceLang where
-  compile := BespokeWhitespace.bespokeCompile
-  encodeInput := Input.ofString ""
-  decodeOutput := decodeAnswer
-  correct := fun p prog result n hc hp =>
-    BespokeWhitespace.bespokeCompile_correct p prog result n hc hp
-
-/-- **The hand-written backend, as a *behaviourally* verified compiler.**
-The first inhabitant of
-[`IOCertifiedCompiler`](../../Common/Compilation.lean) in the library.
-
-`encodeTrace` is the identity, which is the strongest thing this definition
-can say: the compiled program does not re-encode the source's I/O, it
-performs it. `encodeInput` ignores the source's stream because the verified
-fragment never reads — that is what keeps the identity honest rather than
-an artefact of running both sides on nothing.
-
-The specification is stated at `answerProgram p`, the source with the
-compiler's epilogue, because the epilogue's newline and answer are events
-the compiled program really performs. -/
-def bespokeWhitespaceIO :
-    IOCertifiedCompiler BehavesWithAnswer WhitespaceLang where
-  compile := BespokeWhitespace.bespokeCompile
-  encodeInput := fun _ => Input.ofString ""
-  decodeOutput := decodeAnswer
-  encodeTrace := id
-  correct := fun p prog σ τ result n hc hp =>
-    BespokeWhitespace.bespokeCompile_behaves p prog σ τ result n hc hp
-
-/-- Behavioural correctness implies answer correctness, for free: forgetting
-which events happened turns the instance above into a `CertifiedCompiler`.
-`bespokeWhitespace` proves the answer-only statement directly instead, and
-against the sharper specification — it does not need the epilogue's events
-to exist — so the two coexist rather than one replacing the other.
-
-Connecting them the other way, from `HaltsWithAnswer` to
-`BehavesWithAnswer` at the *same* fuel bound, is not free and is not done:
-`seq` runs its second half at one less fuel, so a body that halts with
-exactly `n` leaves nothing for the epilogue, and closing that gap needs
-fuel monotonicity for `Turpentine.exec`, which the library deliberately
-does without (`Langlib.Common.Reaches` carries fuel exactly). -/
-def bespokeWhitespaceIOErased :
-    CertifiedCompiler
-      (specErase BehavesWithAnswer (Input.ofString "")) WhitespaceLang :=
-  bespokeWhitespaceIO.toCertified (Input.ofString "")
-
-/-- **The derived compiler is no longer an untested oracle.** On a Turpentine
-program both compilers accept and a source run that halts with `result` in
-`answer`, the hand-written backend and the compiler derived from
-`whitespaceComplete` both halt and their outputs decode to the same answer.
-
-This is `agree` instantiated at the two inhabitants; the content is the two
-`correct` fields, one proved in `Langlib/Computability/Whitespace.lean` and
-one proved here. -/
-theorem bespokeWhitespace_agrees_derived (p : Turpentine.Program)
-    (prog₁ prog₂ : ProgLang.Prog WhitespaceLang) (result n : Nat)
-    (h₁ : bespokeWhitespace.compile p = .ok prog₁)
-    (h₂ : derivedWhitespace.compile p = .ok prog₂)
-    (hp : TurpentineHaltsWith p n result) :
-    ∃ m₁ m₂,
-      (ProgLang.run prog₁ bespokeWhitespace.encodeInput m₁).exit = Exit.halted ∧
-      (ProgLang.run prog₂ derivedWhitespace.encodeInput m₂).exit = Exit.halted ∧
-      bespokeWhitespace.decodeOutput
-          (ProgLang.run prog₁ bespokeWhitespace.encodeInput m₁).output =
-        derivedWhitespace.decodeOutput
-          (ProgLang.run prog₂ derivedWhitespace.encodeInput m₂).output :=
-  CertifiedCompiler.agree bespokeWhitespace derivedWhitespace p prog₁ prog₂ result n h₁ h₂ hp
-
-end Langlib.Turpentine.Certified

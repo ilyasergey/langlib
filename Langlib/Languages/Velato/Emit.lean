@@ -7,7 +7,7 @@ import Langlib.Languages.Velato.Parser
 and it is what makes Velato practical to *write*: the encoder that the
 example generator, the Turpentine backend
 (`Langlib/Languages/Turpentine/Compile/Velato.lean`) and the completeness
-witness (`Langlib/Computability/Velato.lean`) all emit through.
+witness (`Langlib/Computability/Velato/Main.lean`) all emit through.
 
 ## The freedom a Velato composer actually has
 

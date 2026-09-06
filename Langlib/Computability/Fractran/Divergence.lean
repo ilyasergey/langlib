@@ -1,6 +1,5 @@
 import Langlib.Computability.Fractran.Simulation
-import Langlib.Computability.Divergence
-
+import Langlib.Computability.Common.Divergence
 /-! # FRACTRAN preserves URM divergence -/
 
 namespace Langlib.Computability.URMFractran
@@ -136,7 +135,7 @@ theorem concrete_progress {rs : List SRule} {s t : Tokens}
 theorem core_diverges (P : Program) (inputs : List Nat)
     (hd : Cslib.URM.Diverges P inputs) (fuel : Nat) :
     (Langlib.Fractran.exec { out := .final } (compile P inputs) fuel
-      (encodeInput P inputs) ByteArray.empty).exit = .outOfFuel := by
+      (targetInput P inputs) ByteArray.empty).exit = .outOfFuel := by
   let E := fun f (s : Cslib.URM.State) => Langlib.Fractran.exec { out := .final }
     (compile P inputs) f (encodeTokens (boundaryTokens (layout P inputs) s.pc s.regs))
       ByteArray.empty
@@ -148,7 +147,7 @@ theorem core_diverges (P : Program) (inputs : List Nat)
       obtain ⟨t, hstep, ht⟩ := URM.diverges_progress hd hs
       exact ⟨t, concrete_progress (urmStep_progress P inputs hstep), ht⟩)
     fuel (Cslib.URM.State.init inputs) .refl
-  rw [encodeInput_eq_encodeTokens_boundary]
+  rw [targetInput_eq_encodeTokens_boundary]
   exact h
 
 /-- The original FRACTRAN artifact has a positive starting integer and
@@ -157,9 +156,9 @@ theorem preserves_divergence (P : Program) (inputs : List Nat)
     (hd : Cslib.URM.Diverges P inputs) (fuel : Nat) :
     (Langlib.Fractran.evalProg { out := .final } (compileProgram P inputs).code
       (compileProgram P inputs).start fuel).exit = .outOfFuel := by
-  have hpos := encodeInput_pos P inputs
+  have hpos := targetInput_pos P inputs
   simp only [Langlib.Fractran.evalProg, compileProgram]
-  simp only [show (encodeInput P inputs == 0) = false by simp [Nat.ne_of_gt hpos],
+  simp only [show (targetInput P inputs == 0) = false by simp [Nat.ne_of_gt hpos],
     show (Langlib.Fractran.OutMode.final == .trajectory) = false by decide,
     Bool.false_eq_true, if_false]
   exact core_diverges P inputs hd fuel

@@ -1,6 +1,6 @@
 # Subleq is Turing complete
 
-[`Langlib/Computability/Subleq.lean`](../../Langlib/Computability/Subleq.lean)
+[`Langlib/Computability/Subleq/Main.lean`](../../Langlib/Computability/Subleq/Main.lean)
 compiles an arbitrary unlimited register machine into subleq and proves the
 simulation. The result is the term
 
@@ -68,7 +68,7 @@ Two consequences worth naming.
   stream. Addresses at or past the image read as 0, so registers beyond the
   input vector start at 0, which is exactly `Cslib.URM.Regs.ofInputs`. The
   compiled program therefore never executes an input instruction, and
-  `encodeInput` is the empty stream. `TuringComplete.compile` takes the input
+  The target runs on `Input.empty`. `TuringComplete.compile` takes the input
   vector as an argument precisely so that a backend may do this.
 * **Registers live above all code**, so a register write can never damage an
   instruction. The invariant only has to say that the code region still

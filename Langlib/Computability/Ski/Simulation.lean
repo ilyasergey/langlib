@@ -1,13 +1,13 @@
 import Langlib.Common.Computability
-import Langlib.Computability.URM
-import Langlib.Computability.Counter
+import Langlib.Computability.Common.URM
+import Langlib.Computability.Common.Counter
 import Langlib.Languages.Ski
 
 /-!
 # SKI is Turing complete
 
 The other half of the functional route. Unlambda
-(`Langlib/Computability/Unlambda.lean`) is call by value and has an output
+(`Langlib/Computability/Unlambda/Main.lean`) is call by value and has an output
 instruction; SKI is normal order and has neither, so the two proofs share an
 idea and almost no machinery.
 
@@ -947,8 +947,6 @@ def compile (P : Cslib.URM.Program) (inputs : List Nat) : Term :=
       (.app (codeT (bound P inputs) (counterProgram P inputs))
         (listT (stateList (bound P inputs) initState))))
 
-/-- SKI reads nothing. -/
-def encodeInput (_ : List Nat) : Input := Input.empty
 
 /-- **The simulation.** Whenever the URM halts with `result` in register 0,
 the compiled term has a normal form, and that normal form is `result` copies

@@ -15,7 +15,7 @@
   - [examples](../../Langlib/Examples/Turpentine/),
   - tests in [`Langlib/Tests/Turpentine.lean`](../../Langlib/Tests/Turpentine.lean),
   - hand-written compilers to the other languages in [`Langlib/Languages/Turpentine/Compile/`](../../Langlib/Languages/Turpentine/Compile/), the certified ones derived from completeness witnesses in [`Compile/Derived.lean`](../../Langlib/Languages/Turpentine/Compile/Derived.lean), and
-  - correctness proofs of the hand-written backends in [`Langlib/Languages/Turpentine/Certified/`](../../Langlib/Languages/Turpentine/Certified/)
+  - correctness proofs of the hand-written backends in [`Langlib/Languages/Turpentine/Compile/Certified/`](../../Langlib/Languages/Turpentine/Compile/Certified/)
 
 ## The name
 
@@ -336,11 +336,13 @@ Output:
 ## Compilation to esoteric languages
 
 ```
-lake exe turpentine compile --to <whitespace|subleq> [-o out] file.turp
+lake exe turpentine compile --to <target> [-o out] file.turp
 ```
 
-Three backends exist, and all accept the entire language: no statement
-form, operator, or I/O style is out of fragment.
+Eleven hand-written backends exist: Brainfuck, Ook!, Brainloller, Whitespace,
+Subleq, Piet, Velato, FRACTRAN, Unlambda, Malbolge and Malbolge Unshackled.
+Their accepted fragments and semantic gaps differ; the
+[compiler table](../README.md#why-two-kinds-of-compiler) compares them.
 
 There is also a **certified** compiler, selected with `--tc`, which
 is derived from a language's Turing-completeness proof rather than written
@@ -351,10 +353,10 @@ fragment whose result is named by a variable called `answer`; see
 ```
 echo | lake exe turpentine exec --via whitespace --tc Langlib/Examples/Turpentine/sum.turp
 ```
- Each documents
-its layout and its semantic gaps in `docs/<langname>/compiler.md`, and
-each is tested by compiling every example, running it on the target's
-interpreter, and comparing against this interpreter's output.
+Each backend documents its layout and semantic gaps in
+`docs/<langname>/compiler.md`. Compiler tests compare supported examples
+against the Turpentine interpreter, with explicit expectations for the
+documented deviations.
 
 Compile Euclid's algorithm to whitespace and run the result.
 

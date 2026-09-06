@@ -8,8 +8,7 @@ byte per unit of register 0, and normalises the result. SKI has no output
 instruction, so the answer is the normal form itself: three `K`s in front of
 an `I`. See docs/ski/computability.md.
 -/
-import Langlib.Computability.Ski
-
+import Langlib.Computability.Ski.Main
 open Langlib.Common
 open Langlib.Computability.Counter
 open Langlib.Computability.URMSki

@@ -125,19 +125,25 @@ When you do prove one, state it as an inhabitant of one of the two
 interfaces in `Langlib/Common/Compilation.lean` rather than as a bespoke
 theorem, so that it composes with everything else:
 
-* `CertifiedCompiler spec L` preserves the *answer*. Enough for a source
-  program with no I/O; the derived compilers and all three verified bespoke
-  backends are stated with it.
-* `IOCertifiedCompiler spec L` preserves the *behaviour*: the trace of
-  bytes consumed and emitted, in order, under an encoding the compiler
-  declares. It needs a `TraceLang` instance for the target — the
-  interpreter has to record its events — and it implies the first, so
-  nothing is lost by upgrading later.
+* `CertifiedCompilerNoIO spec diverges L` certifies **closed computations**.
+  Use `spec : Src → Nat → Ans → Prop` and `diverges : Src → Prop`;
+  target execution always uses `Input.empty`, with no input encoding parameter.
+* `CertifiedCompiler ioSpec diverges targetInput L` certifies
+  **input-parametrised computations** and their completed I/O traces. Both
+  source predicates quantify over caller input; `targetInput : Input → Input`
+  is an explicit contract parameter. State any input-domain restriction in
+  both predicates. Output-only fragments may use a constant encoding.
 
-Both are generic in the source language and the answer type; Turpentine's
-`TurpentineCompiler` is the first at `TurpentineHaltsWith`.
+Prove `.outOfFuel` at every finite target budget for divergent accepted source
+runs; never infer this from failure to decode an answer. `correct_answer`
+forgets I/O traces while retaining arbitrary input. `toClosed` fixes source
+input to empty and requires proof that its target encoding is empty too;
+trace erasure alone does not close an input-dependent computation.
+`TurpentineCompiler L` uses the closed answer contract. Its derived fragment
+rejects reads; input-reading certificates such as `bespokeVelatoIO` use the
+I/O contract instead.
 
-Start from `Langlib/Languages/Turpentine/Certified/Shared.lean`, which has
+Start from `Langlib/Languages/Turpentine/Compile/Certified/Shared.lean`, which has
 the source-side half of every such proof — the fragment predicates, the
 evaluator inversion lemmas, the `answer` epilogue and its decoder, and the
 two specifications `HaltsWithAnswer` and `BehavesWithAnswer` — so a new

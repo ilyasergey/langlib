@@ -12,6 +12,9 @@ The strengthened [`TuringComplete` interface](../../../docs/divergence-preservat
 does not change MU's proof status: no TC witness exists yet. Its current
 foundations and runtime proofs remain unchanged.
 
+The [computability account](../../../docs/malbolge-unshackled/computability.md) explains the
+representation, proved result and remaining scope.
+
 ## Modules
 
 * `Syntax.lean`: trits, values and their normalisation, the crazy

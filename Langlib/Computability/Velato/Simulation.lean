@@ -1,6 +1,6 @@
 import Langlib.Common.Computability
-import Langlib.Computability.URM
-import Langlib.Computability.Counter
+import Langlib.Computability.Common.URM
+import Langlib.Computability.Common.Counter
 import Langlib.Languages.Velato.Stability
 import Langlib.Languages.Velato.Faithful
 import Mathlib
@@ -12,7 +12,7 @@ This file compiles an arbitrary unlimited register machine into Velato and
 proves the simulation, giving `velatoComplete : TuringComplete VelatoLang`.
 
 The register-machine half of the compiler is shared and lives in
-`Langlib/Computability/Counter.lean`: it turns a URM program into the
+`Langlib/Computability/Common/Counter.lean`: it turns a URM program into the
 structured counter machine `Cmd`, whose four commands — increment,
 decrement, emit a byte, and loop while a register is nonzero — are what this
 file has to express in Velato.
@@ -647,9 +647,6 @@ def compile (P : Cslib.URM.Program) (inputs : List Nat) : Langlib.Velato.Prog :=
 /-- The answer is the number of bytes the program printed. -/
 def decodeOutput (out : ByteArray) : Option Nat := some out.size
 
-/-- The compiled program reads nothing: the input vector is compiled into
-the register-loading prologue. -/
-def encodeInput (_inputs : List Nat) : Input := Input.ofString ""
 
 open Langlib.Velato in
 /-- **The simulation.** Whenever the URM halts with `result` in register 0,
@@ -699,9 +696,9 @@ instance : LawfulProgLang VelatoLang where
 from `TraceLang.ofInputFree`: the interpreter records its own events, and
 `Langlib/Languages/Velato/Trace.lean` proves the bookkeeping laws about the
 record it keeps, `Velato/Faithful.lean` the faithfulness law. It is what
-makes an `IOCertifiedCompiler` into Velato expressible at all, and Velato is
+makes an `CertifiedCompiler` into Velato expressible at all, and Velato is
 the first target in the library whose verified backend reads input
-(`Langlib/Languages/Turpentine/Certified/BespokeVelato.lean`). -/
+(`Langlib/Languages/Turpentine/Compile/Certified/BespokeVelato.lean`). -/
 instance : TraceLang VelatoLang where
   trace := Langlib.Velato.evalTrace
   trace_outputs := Langlib.Velato.evalTrace_outputs

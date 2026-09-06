@@ -11,7 +11,7 @@ executions. The Lean development proves that no such witness exists for this
 interface.
 
 The definitions and proofs are in
-[`Langlib/Computability/Deadfish.lean`](../../Langlib/Computability/Deadfish.lean).
+[`Langlib/Computability/Deadfish/Main.lean`](../../Langlib/Computability/Deadfish/Main.lean).
 
 ## The storage picture
 
@@ -120,7 +120,7 @@ revised negative-result interface.
 Build only the two Deadfish targets below. Expect both targets to build.
 
 ```text
-lake build Langlib.Computability.Deadfish Langlib.Tests.BoundedDeadfish
+lake build Langlib.Computability.Deadfish.Main Langlib.Tests.BoundedDeadfish
 ```
 
 The command reports:

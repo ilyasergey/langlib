@@ -24,10 +24,10 @@
   - runner `lake exe velato`,
   - [examples](../../Langlib/Examples/Velato/),
   - tests in [`Langlib/Tests/Velato.lean`](../../Langlib/Tests/Velato.lean),
-  - Turing completeness in [`Langlib/Computability/Velato.lean`](../../Langlib/Computability/Velato.lean) and [docs/velato/computability.md](computability.md), and
-  - a hand-written Turpentine backend proved correct on a fragment, behaviourally and input included, in [`Langlib/Languages/Turpentine/Certified/BespokeVelato.lean`](../../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean), plus a certified one derived from the completeness proof ([docs/velato/compiler.md](compiler.md))
+  - Turing completeness in [`Langlib/Computability/Velato/Main.lean`](../../Langlib/Computability/Velato/Main.lean) and [docs/velato/computability.md](computability.md), and
+  - a hand-written Turpentine backend proved correct on a fragment, behaviourally and input included, in [`Langlib/Languages/Turpentine/Compile/Certified/BespokeVelato.lean`](../../Langlib/Languages/Turpentine/Compile/Certified/BespokeVelato.lean), plus a certified one derived from the completeness proof ([docs/velato/compiler.md](compiler.md))
 
-[`velatoComplete`](../../Langlib/Computability/Velato.lean) preserves both halting answers
+[`velatoComplete`](../../Langlib/Computability/Velato/Main.lean) preserves both halting answers
 and divergence. Its [divergence proof](../../Langlib/Computability/Velato/Divergence.lean)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../divergence-preservation.md) gives halting and result

@@ -1,6 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.Thue
-
+import Langlib.Computability.Thue.Main
 /-!
 Differential tests for the executable URM to Thue generator.
 

@@ -1,6 +1,6 @@
 # Unlambda is Turing complete
 
-[`Langlib/Computability/Unlambda.lean`](../../Langlib/Computability/Unlambda.lean)
+[`Langlib/Computability/Unlambda/Main.lean`](../../Langlib/Computability/Unlambda/Main.lean)
 compiles an arbitrary unlimited register machine into Unlambda and proves the
 simulation. The result is the term
 
@@ -18,7 +18,7 @@ argument here is bracket abstraction, the translation Schonfinkel and Curry
 used to eliminate variables, applied to a program written in a lambda
 notation that exists only inside the proof.
 
-[`unlambdaComplete`](../../Langlib/Computability/Unlambda.lean) preserves both halting answers
+[`unlambdaComplete`](../../Langlib/Computability/Unlambda/Main.lean) preserves both halting answers
 and divergence. Its [divergence proof](../../Langlib/Computability/Unlambda/Divergence.lean)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../divergence-preservation.md) gives halting and result
@@ -61,7 +61,7 @@ from the start.
 ## Two halves, and only one of them is new
 
 The register-machine half of this compiler is shared. `counterProgram` in
-[`Langlib/Computability/Counter.lean`](../../Langlib/Computability/Counter.lean)
+[`Langlib/Computability/Common/Counter.lean`](../../Langlib/Computability/Common/Counter.lean)
 already turns a URM program and its input vector into the structured counter
 machine `Cmd`: increment a register, decrement a register, emit one byte, and
 `loop r b`, which runs `b` while register `r` is nonzero. It ends by emitting

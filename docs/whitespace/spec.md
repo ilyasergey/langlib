@@ -13,10 +13,10 @@
   - runner `lake exe whitespace`,
   - [examples](../../Langlib/Examples/Whitespace/),
   - tests in [`Langlib/Tests/Whitespace.lean`](../../Langlib/Tests/Whitespace.lean),
-  - Turing completeness in [`Langlib/Computability/Whitespace.lean`](../../Langlib/Computability/Whitespace.lean), and
-  - a hand-written Turpentine backend proved correct on a fragment in [`Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean`](../../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean), plus a certified one derived from the completeness proof ([docs/whitespace/compiler.md](compiler.md))
+  - Turing completeness in [`Langlib/Computability/Whitespace/Main.lean`](../../Langlib/Computability/Whitespace/Main.lean), and
+  - a hand-written Turpentine backend proved correct on a fragment in [`Langlib/Languages/Turpentine/Compile/Certified/BespokeWhitespace.lean`](../../Langlib/Languages/Turpentine/Compile/Certified/BespokeWhitespace.lean), plus a certified one derived from the completeness proof ([docs/whitespace/compiler.md](compiler.md))
 
-[`whitespaceComplete`](../../Langlib/Computability/Whitespace.lean) preserves both halting answers
+[`whitespaceComplete`](../../Langlib/Computability/Whitespace/Main.lean) preserves both halting answers
 and divergence. Its [divergence proof](../../Langlib/Computability/Whitespace/Divergence.lean)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../divergence-preservation.md) gives halting and result

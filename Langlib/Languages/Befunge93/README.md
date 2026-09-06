@@ -7,6 +7,9 @@ makes it pleasingly easy to interpret. The full specification, history, and
 the exact semantic choices (each checked against Pressey's `bef.c` v2.25)
 are in [docs/befunge93/spec.md](../../../docs/befunge93/spec.md).
 
+The [computability account](../../../docs/befunge93/computability.md) explains the
+representation, proved result and remaining scope.
+
 ## Modules
 
 * `Syntax.lean`: the playfield, an 80x25 grid of `Int` cells. There is no

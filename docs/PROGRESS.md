@@ -5,6 +5,73 @@ Entries describe their dated checkpoints; the temporary separate divergence
 interface in the first two proof milestones was superseded by the combined
 `TuringComplete` interface below.
 
+## 2026-09-06: separate closed and input-parametrised compiler contracts
+
+`CertifiedCompilerNoIO spec diverges L` now describes closed computations:
+`spec : Src → Nat → Ans → Prop`, `diverges : Src → Prop`, and every target
+run uses `Input.empty`. There is no `targetInput` parameter. The derived
+Turpentine certificates and direct bespoke Subleq/Whitespace certificates
+use this interface. The final API also removes `targetInput` from
+`TuringComplete`: every compiled URM/input pair runs on `Input.empty`, so
+the derived construction needs no input encoding or side condition.
+
+`CertifiedCompiler` retains arbitrary caller input, its explicit encoding,
+and completed-trace and divergence preservation. The input-reading Velato
+witness is `bespokeVelatoIO`; tests now call it directly. `correct_answer`
+forgets traces without losing the input argument. `toClosed` and `toClosedOf`
+replace the previous automatic `toCertified` conversions: closing fixes source
+input to empty and requires proof that its target encoding is also empty.
+The explicitly named `bespokeWhitespaceIOClosed` and `bespokeVelatoIOClosed`
+make that restriction visible. Closed means a fixed execution interface,
+not a syntactic proof that a program contains no reads.
+
+Documentation, contribution policies and declaration links follow the API.
+Historical progress entries below describe earlier interfaces. Finite input
+storage and fuel-bounded finite traces are unchanged. Preservation of
+observations during divergence is deferred to
+[issue #1](https://github.com/ilyasergey/langlib/issues/1); the exploratory
+observation-proof file was removed. Infinite input is a separate extension.
+
+The documentation/comment sweep also corrected stale backend restrictions,
+finite-trace descriptions, module paths and declaration links. Investigated a
+reported repeated rebuild with the Subleq `isqrt.turp` command: unchanged runs
+performed zero build jobs, all 3,057 local artifact timestamps stayed unchanged,
+and `lake --no-build exe` succeeded. Documented direct executable invocation
+for batch compilation to avoid Lake's dependency-graph checks.
+
+Validation: the full library and Turpentine executable build pass. All 784
+axiom reports are clean (751 use only the standard logical axioms; 33 use none).
+The documentation audit passes 1,053 local links, including 210 numbered links
+to 107 distinct declarations. The generated site passed all 305 checks and its
+playgrounds passed all 45. All 1,700 golden/compiler tests and both Velato
+round-trip checks pass. The branch is ready for the requested commit, push and
+fast-forward merge into the repository's default branch, `master`.
+
+## 2026-09-06: uniform proof folders and source divergence foundations
+
+Every language's computability development now lives in its own folder,
+with `Main.lean` as its entry point. Shared URM, counter and divergence
+infrastructure lives under `Langlib/Computability/Common/`. The certified
+Turpentine backend proofs moved to `Turpentine/Compile/Certified/`;
+`Compiler/` is not used. All imports, proof links and documentation paths
+follow the moves, while declaration namespaces and compiler functions stay
+unchanged. Every per-language computability account is linked directly from
+its language README and indexed from both main READMEs. Named witnesses and
+divergence proofs link to their exact declaration lines. The main README's
+`TuringComplete` description is now concise.
+
+`Turpentine/Divergence.lean` defines divergence using the actual source
+interpreter's exit at every finite fuel. It proves completed-run stability
+and structural divergence inversions for sequences, conditionals and loops,
+including the distinction between a divergent loop body and a terminating
+body followed by a divergent next iteration. These facts stay free of
+Mathlib and do not infer divergence from the absence of a decoded answer.
+They are foundations for the requested mandatory compiler-divergence fields
+and upgrades of the existing certified fragments.
+
+Validation is in progress for this layout checkpoint; compiler-contract
+strengthening remains the next stage.
+
 ## 2026-09-06: TuringComplete includes divergence preservation
 
 After committing and pushing the all-eleven proof milestone (`052b87e`),
@@ -468,7 +535,7 @@ found by watching a program not finish.
 
 * The textbook clause ``[x] E = `kE`` for an `E` without `x` is unsound: it
   evaluates `E` when the closure is built. `abs` keeps it for *value
-  expressions* only, exactly as `Langlib/Computability/Unlambda.lean` does,
+  expressions* only, exactly as `Langlib/Computability/Unlambda/Main.lean` does,
   and the `s` expansion everywhere else is what makes a thunk a thunk.
 * **Constructors have to be strict.** A pair built as `λf. f (x+1) y`
   captures the expression, not the value, and recomputes it at every
@@ -517,7 +584,7 @@ rewritten from a plan into a description.
 ## 2026-09-03: Malbolge Unshackled gets a walk, and a two-operation branch
 
 Two pieces of the Turing-completeness effort, both in
-`Langlib/Computability/MalbolgeUnshackled.lean`, both axiom-clean. There is
+`Langlib/Computability/MalbolgeUnshackled/Main.lean`, both axiom-clean. There is
 still **no `TuringComplete` witness**; the tracker
 `docs/malbolge-unshackled/completeness-progress.md` says what is left.
 
@@ -595,9 +662,9 @@ followed by the rest of its block. `Faithful.seq` is that composition, and
 `instance : TraceLang VelatoLang` sits beside `ProgLang VelatoLang`.
 
 **The hand-written Velato backend is proved correct on a fragment,
-behaviourally.** `Langlib/Languages/Turpentine/Certified/BespokeVelato.lean`
+behaviourally.** `Langlib/Languages/Turpentine/Compile/Certified/BespokeVelato.lean`
 gives `bespokeVelato : TurpentineCompiler VelatoLang` and `bespokeVelatoIO :
-IOCertifiedCompiler BehavesWithAnswerNulFree VelatoLang` with `encodeInput`
+CertifiedCompiler BehavesWithAnswerNulFree VelatoLang` with `encodeInput`
 **and** `encodeTrace` both the identity: the compiled program runs on the
 source's own stream and performs its events, reads included. It is the
 first behaviourally verified backend in the library whose fragment reads.
@@ -617,7 +684,7 @@ Turpentine writes `C8`. `docs/velato/compiler.md` records it and a golden
 test pins it.
 
 **Shared source-side lemmas.**
-`Langlib/Languages/Turpentine/Certified/Shared.lean` now holds everything
+`Langlib/Languages/Turpentine/Compile/Certified/Shared.lean` now holds everything
 the certified backends need from Turpentine and nothing about any target:
 fragment predicates, evaluator inversion, `evalExpr_hasTy`, the `initEnv`
 unfolding, the `answer` epilogue and its decoder, and the two
@@ -728,7 +795,7 @@ is the tracks after it, which the language ignores.
 `AGENTS.md` was a hand-made copy of `CLAUDE.md` and had already drifted: it
 was missing the "Example programs" requirement, the whole graphical-languages
 policy (derived images, `scripts/render-docs-images.sh`), and the
-`Turpentine/Certified/` section with its warning about name resolution. An
+`Turpentine/Compile/Certified/` section with its warning about name resolution. An
 agent that read `AGENTS.md` — Codex, Cursor, Gemini CLI all look for that
 name — was working from stale rules.
 
@@ -741,7 +808,7 @@ file never referenced before. `CONTRIBUTING.md` points back.
 
 ## 2026-08-31: lawfulness is now required, not optional
 
-Follow-up to the entry below: `CertifiedCompiler`, `IOCertifiedCompiler`
+Follow-up to the entry below: `CertifiedCompilerNoIO`, `CertifiedCompiler`
 and `TuringComplete` now **require** `LawfulProgLang` (the I/O-aware one
 also `LawfulTraceLang`) instead of offering lawful upgrades on the side.
 The reason is semantic, not stylistic: against an unlawful interpreter the
@@ -763,7 +830,7 @@ one structural soft spot and two misleading docstrings, all now fixed.
   `∃ m` concluding every correctness statement said nothing about the fuel
   bound a runner actually picks. The new classes state fuel stability (a
   completed run, trace included, is a fixed point of more fuel);
-  `CertifiedCompiler.correct_stable`, `IOCertifiedCompiler.correct_stable`
+  `CertifiedCompilerNoIO.correct_stable`, `CertifiedCompiler.correct_stable`
   and `TuringComplete.simulates_stable` upgrade every `∃ m` to "every fuel
   from some point on". **Every `ProgLang` tag has an instance** — proved
   per interpreter in `Langlib/Languages/<L>/Stability.lean` by one uniform
@@ -946,7 +1013,7 @@ it did not render at all; it is now a real third column saying what each
 file was written under, with `sum.turp`, `primes-mu.turp` and `sort-mu.turp`
 added and `suite/` pointed at.
 
-**Four places still said nothing inhabits `IOCertifiedCompiler`.**
+**Four places still said nothing inhabits `CertifiedCompiler`.**
 `bespokeWhitespaceIO` landed in the commit before last, and
 `docs/verification.md` was in the odd position of marking whitespace
 `**yes**` in its behavioural column and then denying it in the paragraph
@@ -1012,7 +1079,7 @@ This is the prerequisite for the rest of milestone 2, which is the proof:
 
 ## 2026-08-31: a compiler proved to behave, not just to answer
 
-`IOCertifiedCompiler` has an inhabitant. `bespokeWhitespaceIO` is the
+`CertifiedCompiler` has an inhabitant. `bespokeWhitespaceIO` is the
 hand-written Turpentine-to-whitespace backend proved *behaviourally*
 correct on the output fragment, and its `encodeTrace` is the **identity**:
 the compiled program does not re-encode the source's I/O into a target
@@ -1139,7 +1206,7 @@ parse. `reaches_bytesCode`, by contrast, deliberately does not name the
 bytes it wrote; `Whitespace/Trace.lean` recovers them from the trace.
 
 What is left in Stage 6 milestone 1 is the packaging: `bespokeWhitespaceIO
-: IOCertifiedCompiler`, with `spec` at `answerProgram p` and `encodeTrace`
+: CertifiedCompiler`, with `spec` at `answerProgram p` and `encodeTrace`
 the identity. `docs/certified-compilation.md` §1.4 still says "nothing,
 yet", and will until that instance exists.
 
@@ -1206,7 +1273,7 @@ on the accumulator: `crz` is tritwise, so each output trit sees only the
 input trit at its own position, and two inputs differing at one position
 agree at every other, while `...000` and `...222` differ everywhere. That
 sharper statement is now `no_accumulator_flag` in
-`Langlib/Computability/MalbolgeUnshackled.lean`, proved by the session that
+`Langlib/Computability/MalbolgeUnshackled/Main.lean`, proved by the session that
 caught the error — so a branch flag provably has to be *read* from something
 already uniform, which is what forces the unary register encoding rather
 than merely recommending it. A comparison still cannot be collapsed without
@@ -1444,7 +1511,7 @@ that places them, and the induction on `Ev`.
 Two things this batch: the target for the compiler is now fixed, and the
 composition obstacle is cleared.
 
-**The target.** `Langlib/Computability/Counter.lean` already carries the
+**The target.** `Langlib/Computability/Common/Counter.lean` already carries the
 target-independent half of every completeness proof: `counterProgram`
 compiles a URM program and its inputs into a structured counter machine
 with four commands (`inc`, `dec`, `emit`, `loop`), and
@@ -1794,11 +1861,11 @@ straight-line `printf` of a uuencoded gzip. 1168 tests pass.
 bridges. The two correctness proofs of the hand-written Turpentine
 backends were sitting there because that is where the `TurpentineCompiler`
 vocabulary happened to be, not because they belong. They now live in
-`Langlib/Languages/Turpentine/Certified/`, one file per target, under the
+`Langlib/Languages/Turpentine/Compile/Certified/`, one file per target, under the
 namespace `Langlib.Turpentine.Certified`.
 
 Two things had to be said out loud for the move to work. First,
-`Certified/` is a documented Mathlib exception under `Langlib/Languages/`,
+`Compile/Certified/` is a documented Mathlib exception under `Langlib/Languages/`,
 alongside `Compile/Derived.lean` and the `--tc` half of `Main.lean`: it is
 proof-side, and nothing a runner imports may reach it, so the executables
 still compile without Mathlib. Second, `Langlib.Turpentine.Certified`
@@ -2042,7 +2109,7 @@ the proof. See [unlambda/computability.md](unlambda/computability.md).
 **The counter machine is now shared.** The register-machine half of the
 brainfuck proof was never about brainfuck. `Cmd`, its big-step semantics,
 and the URM-to-counter compiler with `counterProgram_spec` moved to
-`Langlib/Computability/Counter.lean`, leaving brainfuck with the tape
+`Langlib/Computability/Common/Counter.lean`, leaving brainfuck with the tape
 layout that is actually its own. Thue already reused them and now says so
 by importing the shared module. A new backend therefore has four commands
 to interpret and nothing else: increment, decrement, emit a byte, and a
@@ -2271,7 +2338,7 @@ proofs have to be able to name.
 Malbolge Unshackled is one of Stage 8's open positive claims.
 This is the start of it. There is no `TuringComplete` witness
 yet and this entry does not claim one; what landed is
-`Langlib/Computability/MalbolgeUnshackled.lean`, axiom-clean, containing the
+`Langlib/Computability/MalbolgeUnshackled/Main.lean`, axiom-clean, containing the
 layer a witness has to be built on and the two theorems that say why the
 obvious constructions do not work.
 
@@ -2352,7 +2419,7 @@ Four new programs in `Langlib/Examples/Piet/`, with golden tests:
 
 `scripts/gen-piet-examples.py` lays them out, because nobody paints a loop
 by hand. It implements the two codel geometries `linearGrid` and `loopGrid`
-from `Langlib/Computability/Piet.lean` — the ones the completeness proof
+from `Langlib/Computability/Piet/Main.lean` — the ones the completeness proof
 already uses — plus cheap constant building (a square with a correction
 beats a block of n codels above about twelve). Its output is checked the
 only honest way, by running the programs.
@@ -2472,7 +2539,7 @@ link followed.
 `Langlib/Languages/Turpentine/Compile/Derived.lean`.
 
 **Certified compilation became generic, and acquired an I/O-aware
-sibling.** `CertifiedCompiler spec L` is parameterised by the source
+sibling.** `CertifiedCompilerNoIO spec L` is parameterised by the source
 specification, so `agree` and the new `weaken` are proved once for every
 source and target; `TurpentineCompiler L` is that type at
 `TurpentineHaltsWith` and everything already proved kept working
@@ -2481,14 +2548,14 @@ unchanged.
 The new statement is the one the library did not have. A run's observable
 behaviour is a `Trace` of interleaved `inp`/`out` events; a language opts
 into reporting one with a `TraceLang` instance, subject to two laws tying
-the report back to its interpreter; and `IOCertifiedCompiler` demands that
+the report back to its interpreter; and `CertifiedCompiler` demands that
 a compiled program reproduce the source's trace, under an encoding the
 compiler declares as data, as well as its answer.
-`IOCertifiedCompiler.toCertified` proves the behavioural notion implies the
+`CertifiedCompiler.toCertified` proves the behavioural notion implies the
 answer-only one, so nothing already proved has to be reproved when a
 backend is upgraded.
 
-Nothing inhabits `IOCertifiedCompiler` yet, on purpose. The prerequisite is
+Nothing inhabits `CertifiedCompiler` yet, on purpose. The prerequisite is
 per-language: an interpreter has to record its events. FRACTRAN got the
 first `TraceLang` instance for free, since its `run` provably ignores the
 input stream and `TraceLang.ofInputFree` discharges the side condition by
@@ -2496,7 +2563,7 @@ input stream and `TraceLang.ofInputFree` discharges the side condition by
 
 `lake build` and `lake test` clean (979 tests); `scripts/axioms.lean` audits
 the new definitions and reports the three standard axioms or fewer —
-`CertifiedCompiler.agree` needs none at all.
+`CertifiedCompilerNoIO.agree` needs none at all.
 
 A consistency pass over the documentation afterwards turned up three stale
 spots, none of them caused by the refactor and all of them about which
@@ -2816,7 +2883,7 @@ function of the output and invents nothing; the cost is output size.
 ## 2026-09-01: Whitespace proved Turing complete
 
 The first entry in the `TC proved` column.
-`Langlib/Computability/Whitespace.lean` compiles cslib's unlimited
+`Langlib/Computability/Whitespace/Main.lean` compiles cslib's unlimited
 register machine into Whitespace and proves the compilation simulates,
 yielding `whitespaceComplete : TuringComplete WhitespaceLang`.
 `#print axioms` reports only `propext`, `Classical.choice` and

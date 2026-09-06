@@ -3,7 +3,7 @@
 * **Status**: implemented; the round trip is proved except for the pixel walk.
 * **Family**: TapeIR, via brainfuck.
 * **Implementation**: [`Langlib/Languages/Turpentine/Compile/Brainloller.lean`](../../Langlib/Languages/Turpentine/Compile/Brainloller.lean).
-* **Completeness witness**: [`Langlib/Computability/Brainloller.lean`](../../Langlib/Computability/Brainloller.lean).
+* **Completeness witness**: [`Langlib/Computability/Brainloller/Main.lean`](../../Langlib/Computability/Brainloller/Main.lean).
 * **Tests**: [`Langlib/Tests/CompileBrainloller.lean`](../../Langlib/Tests/CompileBrainloller.lean), 34 cases.
 
 ## Also nothing to generate
@@ -168,7 +168,7 @@ verified compilers for one target must agree wherever both accept a
 program.
 
 **The picture is right.** Reading a compiled image back is three steps,
-and `Langlib/Computability/Brainloller.lean` proves two of them.
+and `Langlib/Computability/Brainloller/Main.lean` proves two of them.
 
 1. **The pixel walk.** `decode img` recovers the characters that were
    painted. **This is not proved.** It is the serpentine traversal itself:
@@ -222,7 +222,7 @@ on the programs the backend emits. That bridge is a test.
 
 ## Brainloller is Turing complete
 
-`Langlib/Computability/Brainloller.lean` carries
+`Langlib/Computability/Brainloller/Main.lean` carries
 `brainlollerComplete : TuringComplete BrainlollerLang`. Since a decoded
 program is a brainfuck program on the brainfuck evaluator, the witness is
 `brainfuckComplete`'s unchanged: same compiler from the unlimited register
@@ -235,12 +235,13 @@ What that does **not** say:
   a Lean proof; cslib proves no equivalence between URM-computability and
   any other model. `Langlib.Computability.computes_of_turingComplete` is
   the honest statement of what does follow.
-* [`brainlollerComplete`](../../Langlib/Computability/Brainloller.lean) now includes
+* [`brainlollerComplete`](../../Langlib/Computability/Brainloller/Main.lean) now includes
   both answer and divergence preservation. Its
   [divergence proof](../../Langlib/Computability/Brainloller/Divergence.lean)
   transfers Brainfuck’s proved divergence preservation through
   the same runner correspondence. This strengthens the URM-to-target half;
-  the derived Turpentine route still has its own forward specification.
+  the derived Turpentine route also preserves divergence, using the separate
+  operational proof for the shared Turpentine-to-URM pass.
 * The completeness claim is about the *program*. That the program survives
   being painted and read back is the round trip above, whose first step is
   a test rather than a theorem.

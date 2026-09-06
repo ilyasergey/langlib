@@ -42,11 +42,10 @@ unbounded reading is the right one for a specification that names no
 width. -/
 def velatoComplete : TuringComplete VelatoLang where
   compile := URMVelato.compile
-  encodeInput := fun _ => Input.ofString ""
   decodeOutput := URMVelato.decodeOutput
   simulates := fun P inputs result h =>
     URMVelato.simulation P inputs result h (Input.ofString "")
   preserves_divergence := fun P inputs hd fuel =>
-    URMVelato.preserves_divergence P inputs hd (URMVelato.encodeInput inputs) fuel
+    URMVelato.preserves_divergence P inputs hd Langlib.Common.Input.empty fuel
 
 end Langlib.Computability

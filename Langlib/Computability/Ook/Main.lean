@@ -24,10 +24,9 @@ The compiled program ignores its external input, because the URM input
 vector is embedded by the compiler. -/
 def ookComplete : TuringComplete OokLang where
   compile := URMBrainfuck.compile
-  encodeInput := URMBrainfuck.encodeInput
   decodeOutput := URMBrainfuck.decodeOutput
   simulates := fun P inputs result h =>
-    URMBrainfuck.simulation P inputs result h (URMBrainfuck.encodeInput inputs)
+    URMBrainfuck.simulation P inputs result h Langlib.Common.Input.empty
   preserves_divergence := URMOok.preserves_divergence
 
 /-- The compiled URM program, written as Ook! source, parses back to the

@@ -1,6 +1,6 @@
 import Langlib.Common.Fuel
 import Langlib.Common.Computability
-import Langlib.Computability.URM
+import Langlib.Computability.Common.URM
 import Langlib.Languages.Whitespace
 
 /-!
@@ -1114,7 +1114,7 @@ the bookkeeping laws about the record it keeps, and `Whitespace/Faithful.lean`
 the faithfulness law.
 
 This is the library's first `TraceLang` instance for a language that
-consumes input, and it is what makes an `IOCertifiedCompiler` into
+consumes input, and it is what makes an `CertifiedCompiler` into
 whitespace expressible at all. -/
 instance : TraceLang WhitespaceLang where
   trace := Langlib.Whitespace.evalTrace
@@ -1127,7 +1127,7 @@ instance : TraceLang WhitespaceLang where
 /-- **Whitespace is lawful**: a completed run is a fixed point of more fuel.
 Proved in `Langlib/Languages/Whitespace/Stability.lean`; it upgrades every
 `∃ m` statement about a whitespace run to "every fuel from some point on"
-(`CertifiedCompiler.correct_stable`, `TuringComplete.simulates_stable`). -/
+(`CertifiedCompilerNoIO.correct_stable`, `TuringComplete.simulates_stable`). -/
 instance : LawfulProgLang WhitespaceLang where
   halted_stable := Langlib.Whitespace.evalProg_stable
 

@@ -14,7 +14,7 @@ The independent execution obligation is this field of `TuringComplete`:
     Cslib.URM.Diverges P inputs →
       ∀ fuel,
         (ProgLang.run (compile P inputs)
-          (encodeInput inputs) fuel).exit = .outOfFuel
+          Input.empty fuel).exit = .outOfFuel
 ```
 
 cslib defines `Diverges P inputs` as `¬ Halts P inputs`. The field therefore
@@ -34,11 +34,17 @@ halt. Requiring `.outOfFuel` independently of decoding closes this gap and
 also excludes errors. Lawfulness alone does not: a spurious halt or error
 can remain perfectly stable as the fuel increases.
 
+`compile P inputs` embeds the URM register vector in the target program or
+its initial state. `TuringComplete` always runs this closed computation on
+`Input.empty`; it has no input-encoding field. The
+[compiler account](certified-compilation.md#why-the-derived-contract-is-closed)
+distinguishes this from a source language's streaming input.
+
 ## Consequences proved once
 
 The following theorems live in the `Langlib.Common.TuringComplete`
 namespace. “Target run” always means running `tc.compile P inputs` on
-`tc.encodeInput inputs`.
+`Input.empty`.
 
 | Theorem | Guarantee |
 | --- | --- |
@@ -71,28 +77,32 @@ The proof files have an acyclic dependency order:
 1. `<Language>/Simulation.lean` defines the runnable compiler, forward
    simulation, language tag and lawful interpreter instances.
 2. `<Language>/Divergence.lean` imports that module and proves the operational
-   divergence obligation for the same compiler and input encoding.
-3. The public `<Language>.lean` imports `Divergence` and assembles the original
-   `<lang>Complete` name with both fields. Existing imports and compiler
-   functions remain available.
+   divergence obligation for the same compiler and embedded input data.
+3. The public `<Language>/Main.lean` imports `Divergence` and assembles the original
+   `<lang>Complete` name with both fields. Compiler functions and witness names
+   remain available; imports now name the language’s `Main` module.
 
-The stronger URM contract does not automatically strengthen the
-Turpentine-to-URM translation or `CertifiedCompiler`; those still have their
-own forward correctness specifications.
+The Turpentine-to-URM translation has its own operational divergence proof;
+composing it with these witnesses strengthens all eleven derived compilers.
+Both `CertifiedCompilerNoIO` and `CertifiedCompiler` now require divergence
+preservation. `CertifiedCompilerNoIO` has closed source predicates and an
+empty target stream. Only `CertifiedCompiler` quantifies over runtime input
+and takes an explicit input-encoding parameter. See
+[certified compilation](certified-compilation.md) for the bespoke proofs too.
 
 | Witness | Proved route |
 | --- | --- |
-| [`whitespaceComplete`](../Langlib/Computability/Whitespace.lean) | Positive labelled-block simulation, including taken self-jumps. |
-| [`subleqComplete`](../Langlib/Computability/Subleq.lean) | Positive block simulation; an intermediate jump prefix handles self-jumps. |
-| [`brainfuckComplete`](../Langlib/Computability/Brainfuck.lean) | Terminating dispatcher bodies return to a positive-cost structured loop check. |
-| [`fractranComplete`](../Langlib/Computability/Fractran.lean) | Nonempty fraction-rule sequences, including the alternating-marker cycle for a self-jump. |
-| [`thueComplete`](../Langlib/Computability/Thue.lean) | Nonempty deterministic macro rewriting through each dispatcher turn. |
-| [`pietComplete`](../Langlib/Computability/Piet.lean) | Positive execution through the compiled codel dispatcher and its looping branch. |
-| [`ookComplete`](../Langlib/Computability/Ook.lean) | Transfer of the proved Brainfuck property through its existing runner correspondence. |
-| [`brainlollerComplete`](../Langlib/Computability/Brainloller.lean) | Transfer of the proved Brainfuck property for the existing decoded-program interface; the pixel-walk obligation remains separate. |
-| [`unlambdaComplete`](../Langlib/Computability/Unlambda.lean) | Positive CEK prefixes through the strict fixed point, terminating guard and body, and recursive call. |
-| [`skiComplete`](../Langlib/Computability/Ski.lean) | Positive head reduction of recursive calls; strict compiled continuations force the dispatcher under normal order. |
-| [`velatoComplete`](../Langlib/Computability/Velato.lean) | Induction on while-loop fuel using terminating dispatcher bodies, then stability across the initial prefix. |
+| [`whitespaceComplete`](../Langlib/Computability/Whitespace/Main.lean) | Positive labelled-block simulation, including taken self-jumps. |
+| [`subleqComplete`](../Langlib/Computability/Subleq/Main.lean) | Positive block simulation; an intermediate jump prefix handles self-jumps. |
+| [`brainfuckComplete`](../Langlib/Computability/Brainfuck/Main.lean) | Terminating dispatcher bodies return to a positive-cost structured loop check. |
+| [`fractranComplete`](../Langlib/Computability/Fractran/Main.lean) | Nonempty fraction-rule sequences, including the alternating-marker cycle for a self-jump. |
+| [`thueComplete`](../Langlib/Computability/Thue/Main.lean) | Nonempty deterministic macro rewriting through each dispatcher turn. |
+| [`pietComplete`](../Langlib/Computability/Piet/Main.lean) | Positive execution through the compiled codel dispatcher and its looping branch. |
+| [`ookComplete`](../Langlib/Computability/Ook/Main.lean) | Transfer of the proved Brainfuck property through its existing runner correspondence. |
+| [`brainlollerComplete`](../Langlib/Computability/Brainloller/Main.lean) | Transfer of the proved Brainfuck property for the existing decoded-program interface; the pixel-walk obligation remains separate. |
+| [`unlambdaComplete`](../Langlib/Computability/Unlambda/Main.lean) | Positive CEK prefixes through the strict fixed point, terminating guard and body, and recursive call. |
+| [`skiComplete`](../Langlib/Computability/Ski/Main.lean) | Positive head reduction of recursive calls; strict compiled continuations force the dispatcher under normal order. |
+| [`velatoComplete`](../Langlib/Computability/Velato/Main.lean) | Induction on while-loop fuel using terminating dispatcher bodies, then stability across the initial prefix. |
 
 **Unlambda is now complete.**
 [The Unlambda divergence proof](../Langlib/Computability/Unlambda/Divergence.lean)
@@ -114,7 +124,7 @@ answer preservation. The shared
 distinction with `ReachesPlus` and proves `outOfFuel_of_progress` by strong
 induction on fuel, using stability for budgets shorter than a simulation
 segment. This helper remains free of Mathlib and cslib. The
-[URM progress lemma](../Langlib/Computability/Divergence.lean) supplies a
+[URM progress lemma](../Langlib/Computability/Common/Divergence.lean) supplies a
 successor for each state reachable on a divergent input.
 A proof by reflection of completed target executions,
 including errors, is another valid route.

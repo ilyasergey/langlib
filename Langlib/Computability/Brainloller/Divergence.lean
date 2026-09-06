@@ -16,7 +16,7 @@ open Langlib.Common
 theorem preserves_divergence (P : Cslib.URM.Program) (inputs : List Nat)
     (hd : Cslib.URM.Diverges P inputs) (fuel : Nat) :
     (Langlib.Brainfuck.evalProg {} (URMBrainfuck.compile P inputs)
-      (URMBrainfuck.encodeInput inputs) fuel).exit = .outOfFuel :=
-  URMBrainfuck.preserves_divergence P inputs hd (URMBrainfuck.encodeInput inputs) fuel
+      Langlib.Common.Input.empty fuel).exit = .outOfFuel :=
+  URMBrainfuck.preserves_divergence P inputs hd Langlib.Common.Input.empty fuel
 
 end Langlib.Computability.URMBrainloller

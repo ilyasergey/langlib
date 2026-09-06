@@ -10,7 +10,7 @@
   - runner `lake exe deadfish`,
   - [examples](../../Langlib/Examples/Deadfish/),
   - tests in [`Langlib/Tests/Deadfish.lean`](../../Langlib/Tests/Deadfish.lean),
-  - exact termination and decidable halting in [`Langlib/Computability/Deadfish.lean`](../../Langlib/Computability/Deadfish.lean) and [docs/deadfish/computability.md](computability.md), and
+  - exact termination and decidable halting in [`Langlib/Computability/Deadfish/Main.lean`](../../Langlib/Computability/Deadfish/Main.lean) and [docs/deadfish/computability.md](computability.md), and
   - no Turpentine backend yet ([docs/deadfish/compiler.md](compiler.md))
 
 ## History

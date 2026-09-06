@@ -13,7 +13,7 @@ had to give; the third, faithfulness, is `Whitespace/Faithful.lean`'s.
 `Whitespace.evalTrace` is that function — the interpreter now records an
 event at each of `outchar`, `outnum`, `readchar` and `readnum` — and this
 file proves the two bookkeeping laws. The instance itself is registered next to
-`ProgLang WhitespaceLang` in `Langlib/Computability/Whitespace.lean`, which is
+`ProgLang WhitespaceLang` in `Langlib/Computability/Whitespace/Main.lean`, which is
 where FRACTRAN's sits; nothing here needs Mathlib.
 
 ## The invariant

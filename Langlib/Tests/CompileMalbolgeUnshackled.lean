@@ -101,7 +101,7 @@ halves are a property of the emitted file worth pinning down. -/
 def strictRejects (src : String) (_input : Input) (_fuel : Nat) :
     Except String RunResult := do
   let text ← compileSource src
-  match Langlib.MalbolgeUnshackled.runWith { strict := true } text Input.empty 1000 with
+  match Langlib.MalbolgeUnshackled.runWith { strict := true } text (Input.ofString "") 1000 with
   | .error _ => return { output := "strict rejects the data cells".toUTF8, exit := .halted }
   | .ok _ => throw "the strict loader accepted the emitted program"
 

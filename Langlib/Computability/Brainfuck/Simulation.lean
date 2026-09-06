@@ -1,7 +1,7 @@
 import Langlib.Common.Fuel
 import Langlib.Common.Computability
-import Langlib.Computability.URM
-import Langlib.Computability.Counter
+import Langlib.Computability.Common.URM
+import Langlib.Computability.Common.Counter
 import Langlib.Languages.Brainfuck
 
 /-!
@@ -12,7 +12,7 @@ proves the simulation, giving `brainfuckComplete : TuringComplete
 BrainfuckLang`.
 
 The register-machine half of the compiler is shared, and lives in
-`Langlib/Computability/Counter.lean`: it turns a URM program into the
+`Langlib/Computability/Common/Counter.lean`: it turns a URM program into the
 structured counter machine `Cmd`, whose four commands are what this file
 lays out on the tape.
 
@@ -1200,9 +1200,6 @@ def compile (P : Cslib.URM.Program) (inputs : List Nat) : Brainfuck.Prog :=
 /-- Decode the unary output convention by counting emitted bytes. -/
 def decodeOutput (out : ByteArray) : Option Nat := some out.size
 
-/-- The compiled program embeds the URM input vector, so its runtime input
-stream is empty. -/
-def encodeInput (_inputs : List Nat) : Input := Input.ofString ""
 
 /-- **Simulation theorem.** A halting URM run becomes a halting execution of
 the compiled Brainfuck program whose byte-count output is the URM result. -/

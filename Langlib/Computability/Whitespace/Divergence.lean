@@ -1,6 +1,5 @@
 import Langlib.Computability.Whitespace.Simulation
-import Langlib.Computability.Divergence
-
+import Langlib.Computability.Common.Divergence
 /-! # Whitespace preserves URM divergence
 
 The positive block costs refine the existing finite-prefix simulation.

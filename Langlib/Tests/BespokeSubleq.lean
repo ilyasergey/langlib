@@ -1,5 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Languages.Turpentine.Certified.BespokeSubleq
+import Langlib.Languages.Turpentine.Compile.Certified.BespokeSubleq
 import Langlib.Languages.Subleq.Semantics
 import Langlib.Languages.Turpentine.Semantics
 
@@ -55,7 +55,7 @@ def runBespoke (src : String) (_input : Input) (fuel : Nat) : Except String RunR
   let _ ← (Turpentine.checkProgram p).mapError ("type error: " ++ ·)
   let prog ← bespokeSubleq.compile p
   let want ← referenceAnswer p fuel
-  let r := Langlib.Subleq.evalProg prog bespokeSubleq.encodeInput fuel
+  let r := Langlib.Subleq.evalProg prog (Input.ofString "") fuel
   match bespokeSubleq.decodeOutput r.output with
   | none => throw "the compiled program's output did not decode"
   | some n =>

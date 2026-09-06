@@ -1,6 +1,5 @@
 import Langlib.Computability.Piet.Simulation
-import Langlib.Computability.Divergence
-
+import Langlib.Computability.Common.Divergence
 /-! # Piet preserves URM divergence -/
 
 namespace Langlib.Computability.URMPiet

@@ -42,7 +42,7 @@ law (`halted_stable`: a completed run does not change with more fuel), and
 [`LawfulTraceLang`](../Langlib/Common/Compilation.lean) its trace
 counterpart; the `correct_stable` corollaries (and
 `TuringComplete.simulates_stable`) use them to upgrade every `∃ m` to
-"every fuel from some point on". `CertifiedCompiler`, `IOCertifiedCompiler`
+"every fuel from some point on". `CertifiedCompilerNoIO`, `CertifiedCompiler`
 and `TuringComplete` **require** the classes — an unlawful target could
 satisfy the bare `∃ m` by abusing fuel as an input channel, so the
 requirement is part of what the statements mean, not a convenience.
@@ -71,21 +71,12 @@ theorem compile_correct (P : Turpentine.Program) (hP : InFragment C P) (i : Inpu
          (T.run (C P) i m).output = (Turpentine.run P i n).output
 ```
 
-This is a *forward simulation with a halting hypothesis*, and it is the
-right strength for this library:
-
-* It is what a user cares about: run the compiled program, get the same
-  bytes.
-* It says nothing about non-halting programs, which is honest. Deadfish
-  cannot express most loops; brainfuck programs may diverge where the Turpentine
-  original diverges too. Preservation of divergence is a separate, harder
-  statement (see "Later" below).
-* Because both semantics are deterministic and observable behaviour is a
-  byte stream, forward simulation on halting runs already gives the
-  backward direction for halting runs: there is nothing else the compiled
-  program could have done. (That argument quietly uses fuel stability —
-  "the run at the witness fuel is *the* run" — which is now the stated law
-  `LawfulProgLang.halted_stable` rather than an unspoken assumption.)
+This sketch is the halting half of correctness. Forward simulation alone
+leaves non-halting source executions unconstrained and cannot rule out a
+spurious target halt with an undecodable answer. Both certified compiler
+interfaces additionally require divergence preservation: source execution
+that exhausts every finite source budget must exhaust every finite target
+budget, excluding runtime errors as well as normal halting.
 
 `InFragment C P` is a decidable predicate defined per compiler (no
 `readInt` for a byte-only backend, values within a documented range for
@@ -96,7 +87,7 @@ is `(C P).isOk`, and the theorem is stated against the successful case.
 ### Where this lives in Lean
 
 The sketch above is now a definition rather than prose:
-[`IOCertifiedCompiler`](../Langlib/Common/Compilation.lean#L321) in
+[`CertifiedCompiler`](../Langlib/Common/Compilation.lean#L329) in
 `Langlib/Common/Compilation.lean`, generic in the source language, the
 answer type and the target. It differs from the sketch in two ways, both
 strengthenings.
@@ -117,19 +108,19 @@ erroring run can observably depend on bytes no honest trace claims.
 *The target's stream and events are the source's under a declared
 encoding.* The sketch runs both programs on the same `Input` and demands
 identical output, which only makes sense for a backend that passes bytes
-through unchanged. `encodeInput` and `encodeTrace` are the compiler's own
-declaration of how it re-represents I/O — the identity for a byte-for-byte
+through unchanged. The contract parameter `targetInput` and witness field `encodeTrace`
+declare how the compiler represents I/O — the identity for a byte-for-byte
 backend, something explicit for whitespace's line-oriented numbers — so a
 re-encoding backend states a real theorem instead of a weakened one.
 
-What it does *not* strengthen is the halting hypothesis: divergence is
-still unconstrained, and "Later" below is still where that is owed. The
-weaker, answer-only
-[`CertifiedCompiler`](../Langlib/Common/Compilation.lean#L153) is what every
-result in the table below is stated with today, and
-[`toCertified`](../Langlib/Common/Compilation.lean#L363) proves the
-behavioural statement implies it, so a backend can be upgraded without
-reproving anything that already rests on it.
+Both contracts include the independent divergence obligation.
+`CertifiedCompilerNoIO` describes closed computations: its source predicates have
+no input argument and the target runs on `Input.empty`.
+`CertifiedCompiler` retains the `targetInput : Input → Input` parameter;
+both obligations quantify over source input. `correct_answer` forgets traces
+without dropping that input, while `toClosed` fixes the source stream to
+empty and requires its target encoding to be empty too.
+See [the precise contracts and witnesses](certified-compilation.md).
 
 ## How each proof is structured
 
@@ -230,7 +221,7 @@ than merely awkward. The reference semantics makes a failed assert a
 failed"`, and the runner exits 1. A backend must produce something
 observably equivalent, and targets differ in what they can express.
 
-What the three backends do today, all verified by running them:
+Three representative backends handle failed assertions as follows:
 
 | target | mechanism | observed outcome | faithful? |
 |---|---|---|---|
@@ -301,8 +292,8 @@ pages for why), so they have no proof obligations.
 
 One thing, and it is not a compiler-correctness result: **Whitespace is
 proved Turing complete**
-([Whitespace.lean](../Langlib/Computability/Whitespace.lean),
-[`whitespaceComplete`](../Langlib/Computability/Whitespace.lean#L24)), by
+([Whitespace.lean](../Langlib/Computability/Whitespace/Main.lean),
+[`whitespaceComplete`](../Langlib/Computability/Whitespace/Main.lean#L24)), by
 compiling cslib's unlimited register machine into it and proving the
 compilation simulates. `#print axioms` on the result reports only
 `propext`, `Classical.choice` and `Quot.sound`.
@@ -321,17 +312,17 @@ as the proof.
 
 | Backend | Effective compiler | Simulation | End-to-end theorem | Derived compiler | Behavioural (I/O) |
 |---------|--------------------|------------|--------------------|------------------|-------------------|
-| whitespace | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L2695) | [yes, scalars and output](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3744) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L117) | [**yes**, output only, `encodeTrace = id`](../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean#L3790) |
-| subleq | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) | [yes, two shapes](../Langlib/Languages/Turpentine/Certified/BespokeSubleq.lean#L639) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L121) | - |
-| velato | yes | [yes](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L1254) | [yes, scalars, output and `readByte`](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L1983) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L180) | [**yes**, input included, `encodeTrace = encodeInput = id`, NUL-free streams](../Langlib/Languages/Turpentine/Certified/BespokeVelato.lean#L2032) |
-| brainfuck | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L125) | - |
-| fractran | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L130) | n/a (no I/O) |
-| thue | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L136) | - |
-| piet | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L142) | - |
-| ook | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L148) | - |
-| brainloller | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L153) | - |
-| unlambda | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L159) | - |
-| ski | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L166) | n/a (no I/O) |
+| whitespace | yes | [yes](../Langlib/Languages/Turpentine/Compile/Certified/Whitespace/Simulation.lean#L2695) | [yes, scalars and output](../Langlib/Languages/Turpentine/Compile/Certified/Whitespace/Simulation.lean#L3744) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L95) | [**yes**, output only, `encodeTrace = id`](../Langlib/Languages/Turpentine/Compile/Certified/BespokeWhitespace.lean#L43) |
+| subleq | yes | [yes](../Langlib/Languages/Turpentine/Compile/Certified/BespokeSubleq.lean#L656) | [yes, two shapes](../Langlib/Languages/Turpentine/Compile/Certified/BespokeSubleq.lean#L656) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L99) | - |
+| velato | yes | [yes](../Langlib/Languages/Turpentine/Compile/Certified/Velato/Simulation.lean#L1252) | [yes, scalars, output and `readByte`](../Langlib/Languages/Turpentine/Compile/Certified/Velato/Simulation.lean#L1981) | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L158) | [**yes**, input included, `encodeTrace = targetInput = id`, NUL-free streams](../Langlib/Languages/Turpentine/Compile/Certified/BespokeVelato.lean#L24) |
+| brainfuck | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L103) | - |
+| fractran | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L108) | n/a (no I/O) |
+| thue | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L114) | - |
+| piet | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L120) | - |
+| ook | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L126) | - |
+| brainloller | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L131) | - |
+| unlambda | yes | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L137) | - |
+| ski | - | - | - | [yes](../Langlib/Languages/Turpentine/Compile/Derived.lean#L144) | n/a (no I/O) |
 | deadfish | - | - | - | n/a (not complete) | - |
 | malbolge | - | - | - | n/a (not complete) | - |
 
@@ -363,8 +354,9 @@ one more idea than the other two, because its interpreter runs whole
 sub-runs rather than single steps: the two-stream simulation also has to
 say that the two runs consume the *same bytes*, or a statement could not
 be followed by the rest of its block. Those are exactly the three backends
-the library has proved answer-correct, so the remaining work on the rows is
-on the Turpentine side and in the simulation, not in the interpreter.
+with bespoke certified fragments. Extending those fragments needs further
+source/target simulation proofs; preservation of observations during divergence
+will additionally need trace-prefix monotonicity in the interpreters.
 
 Fuel monotonicity dropped out of the scoreboard as a proof tool — both
 proofs use the exact-cost `Langlib.Common.Reaches` and never needed it —
@@ -400,17 +392,18 @@ source inputs, independently of decoding. The shared consequences are
 halting and result equivalences, output validity, and error freedom.
 An iff about decoded results alone would still permit undecodable halts.
 
-The runnable compilers are unchanged. The derived Turpentine compilers keep
-their forward `CertifiedCompiler` specification: the stronger URM-to-target
-witness does not automatically prove divergence preservation for the
-Turpentine-to-URM half. [The proof notes](divergence-preservation.md)
-record the individual target proofs.
+The runnable compilers are unchanged. The Turpentine-to-URM pass now also
+preserves divergence, so all eleven derived compiler contracts include both
+proofs. The existing certified bespoke Whitespace, Subleq and Velato fragments,
+including the Whitespace and Velato I/O witnesses, satisfy the stronger
+contracts too. See [certified compilation](certified-compilation.md).
 
 ## Later
 
-* **Divergence preservation**: if the Turpentine program never halts, neither
-  does the compiled one. Provable as a coinductive statement or via the
-  fuel-indexed prefix ordering, and worth doing after the halting case.
+* **Infinite I/O traces**: divergence preservation is proved for every existing
+  certified witness. Matching the emitted/read prefixes of infinite executions
+  is a further obligation beyond exhaustion at every finite budget, deferred
+  to [issue #1](https://github.com/ilyasergey/langlib/issues/1).
 * **Runtime-error correspondence**: Turpentine's `assert` failures and division
   by zero currently have no target-side counterpart (brainfuck cannot
   report an error). Options: compile errors to a documented halting

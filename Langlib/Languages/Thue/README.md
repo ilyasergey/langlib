@@ -6,11 +6,14 @@ string, and execution rewrites the string until no rule applies. The full
 specification, history, and the exact semantic choices are in
 [docs/thue/spec.md](../../../docs/thue/spec.md).
 
-[`thueComplete`](../../Computability/Thue.lean) preserves both halting answers
-and divergence. Its [divergence proof](../../Computability/Thue/Divergence.lean)
+[`thueComplete`](../../Computability/Thue/Main.lean#L15) preserves both halting answers
+and divergence. Its [divergence proof](../../Computability/Thue/Divergence.lean#L154)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../../../docs/divergence-preservation.md) gives halting and result
 equivalence, output validity, and error freedom.
+
+The [computability account](../../../docs/thue/computability.md) explains the
+representation, proved result and remaining scope.
 
 ## Modules
 

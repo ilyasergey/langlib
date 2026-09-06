@@ -1,6 +1,5 @@
 import Langlib.Common.TestHarness
-import Langlib.Computability.Unlambda
-
+import Langlib.Computability.Unlambda.Main
 /-!
 Differential tests for the certified URM to Unlambda compiler.
 
@@ -59,7 +58,7 @@ def run (src : String) (_input : Input) (fuel : Nat) : Except String RunResult :
     let want := Langlib.Computability.URM.result P inputs urmSteps
     let prog := Langlib.Computability.URMUnlambda.compile P inputs
     let r := Langlib.Unlambda.evalProg prog
-      (Langlib.Computability.URMUnlambda.encodeInput inputs) fuel
+      Langlib.Common.Input.empty fuel
     match r.exit with
     | .halted =>
       match Langlib.Computability.URMUnlambda.decodeOutput r.output with

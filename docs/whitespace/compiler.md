@@ -6,8 +6,8 @@
   and `compileSource : String → Except String String` (`.turp` text to `.ws`
   text)
 * **Tests**: [Langlib/Tests/CompileWhitespace.lean](../../Langlib/Tests/CompileWhitespace.lean)
-* **Correctness proof**: [Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean](../../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean)
-  (module `Langlib.Languages.Turpentine.Certified.BespokeWhitespace`), tested by
+* **Correctness proof**: [Langlib/Languages/Turpentine/Compile/Certified/BespokeWhitespace.lean](../../Langlib/Languages/Turpentine/Compile/Certified/BespokeWhitespace.lean)
+  (module `Langlib.Languages.Turpentine.Compile.Certified.BespokeWhitespace`), tested by
   [Langlib/Tests/BespokeWhitespace.lean](../../Langlib/Tests/BespokeWhitespace.lean)
 * **Language pages**: `docs/turpentine/spec.md`, `docs/whitespace/spec.md`
 
@@ -337,25 +337,25 @@ accepted language is unchanged on every input a program can be given.
 
 This backend is the first hand-written compiler in the library with a
 machine-checked correctness theorem. The proof is
-[Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean](../../Langlib/Languages/Turpentine/Certified/BespokeWhitespace.lean);
+[Langlib/Languages/Turpentine/Compile/Certified/BespokeWhitespace.lean](../../Langlib/Languages/Turpentine/Compile/Certified/BespokeWhitespace.lean);
 it reasons about the code generator in
 `Langlib/Languages/Turpentine/Compile/Whitespace.lean` itself, not about a copy of it.
 
 ### What is proved
 
 ```lean
-theorem bespokeCompile_correct (p : Program) (prog : Prog) (result n : Nat)
-    (hc : bespokeCompile p = .ok prog) (hp : HaltsWithAnswer p n result) :
+theorem bespokeCompile_correct (p : Program) (prog : Prog) (σ : Input) (result n : Nat)
+    (hc : bespokeCompile p = .ok prog) (hp : HaltsWithAnswer p σ n result) :
     ∃ m, (Whitespace.evalProg prog (Input.ofString "") m).exit = Exit.halted ∧
       decodeAnswer
         (Whitespace.evalProg prog (Input.ofString "") m).output = some result
 ```
 
-`HaltsWithAnswer p n result` is the specification the library states
+`HaltsWithAnswer p σ n result` is the specification the library states
 compiler correctness against
 (`Langlib/Languages/Turpentine/Compile/Derived.lean`, via
 `Langlib.Turpentine.Compile.URM.TurpentineHaltsWith`): within fuel `n`, the
-source program halts on empty input with `result` in a variable called
+source program halts on the caller input `σ` with `result` in a variable called
 `answer`. The theorem says the compiled whitespace program then halts, for
 some fuel bound of its own, having printed `result` in decimal. Source fuel
 is universally quantified and target fuel existentially, so the two cost
@@ -378,11 +378,12 @@ newline is provably the last one in the output, whatever came before it.
 Packaged as a `TurpentineCompiler WhitespaceLang`:
 
 ```lean
-def bespokeWhitespace : TurpentineCompiler WhitespaceLang where
+def bespokeWhitespace :
+    TurpentineCompiler WhitespaceLang where
   compile := BespokeWhitespace.bespokeCompile
-  encodeInput := Input.ofString ""
   decodeOutput := decodeAnswer
   correct := …
+  preserves_divergence := …
 ```
 
 The source-side half of this proof no longer lives here. Everything it
@@ -390,7 +391,7 @@ needs from Turpentine and nothing from whitespace — the fragment
 predicates, the evaluator inversion lemmas, `evalExpr_hasTy`, the `initEnv`
 unfolding, the `answer` epilogue and its decoder, and both specifications —
 is in
-[`Certified/Shared.lean`](../../Langlib/Languages/Turpentine/Certified/Shared.lean),
+[`Certified/Shared.lean`](../../Langlib/Languages/Turpentine/Compile/Certified/Shared.lean),
 where the Velato proof reads it too.
 
 ### What is proved behaviourally
@@ -399,15 +400,17 @@ The theorem above says the compiled program computes the right answer. A
 second one says it *behaves* like the source:
 
 ```lean
-def bespokeWhitespaceIO : IOCertifiedCompiler BehavesWithAnswer WhitespaceLang where
+def bespokeWhitespaceIO :
+    CertifiedCompiler BehavesWithAnswer Turpentine.Diverges
+      bespokeWhitespaceInput WhitespaceLang where
   compile := BespokeWhitespace.bespokeCompile
-  encodeInput := fun _ => Input.ofString ""
   decodeOutput := decodeAnswer
   encodeTrace := id
   correct := …
+  preserves_divergence := …
 ```
 
-`encodeTrace = id` is the whole point. `IOCertifiedCompiler` lets a backend
+`encodeTrace = id` is the whole point. `CertifiedCompiler` lets a backend
 declare that it re-encodes the source's I/O — a Piet image printing a
 decimal numeral would have to — and this one declares that it does not. The
 events the compiled program performs *are* the events the source performs,
@@ -417,24 +420,20 @@ The specification is `BehavesWithAnswer`, which is `TurpentineBehavesWith`
 at `answerProgram p`: the source **with** the epilogue. The epilogue's
 newline and answer are events the compiled program really performs, so a
 specification that named only the source's own events would be describing a
-different program. `encodeInput` ignores the source's input stream, which
+different program. `targetInput` ignores the source's input stream, which
 is honest only because the fragment cannot read — when `readInt` joins it,
 the input events will have to match too.
 
-It was the library's first inhabitant of `IOCertifiedCompiler`;
+It was the library's first inhabitant of `CertifiedCompiler`;
 [Velato's](../velato/compiler.md#verification-status) is the second, and
-the first whose fragment reads, so `encodeInput` there is the identity too.
+the first whose fragment reads, so `targetInput` there is the identity too.
 The answer-only `bespokeWhitespace` stays alongside it rather than being
 replaced: it is proved against a sharper specification, one that does not
-need the epilogue's events to exist. Deriving it *from* the behavioural
-instance at the same fuel bound is not free, and is not done — `seq` runs
-its second half at one less fuel, so a body that halts with exactly `n`
-leaves nothing for the epilogue, and closing that gap would need fuel
-monotonicity for `Turpentine.exec`, which the library does without.
-
-The five cases in the `bespoke whitespace performs the source's events`
-suite run exactly this claim: compile with the behavioural compiler, run
-it, and compare the two event lists.
+need the epilogue's events to exist. Both witnesses now preserve divergence of the original source body, and trace
+closure retains that proof at empty source input. The answer specification
+for the direct witness describes the original body; the erased specification
+describes a completed execution including the epilogue. The source stability
+lemma in `Turpentine/Divergence.lean` supports increasing its fuel budget.
 
 ### Over what fragment
 
@@ -463,7 +462,7 @@ Left out, and why:
 |---|---|
 | `/` and `%` | the Euclidean correction above branches on the sign of the divisor; that is a separate arithmetic obligation, not yet discharged |
 | arrays, `a[i]`, `len(a)` | a second address space and the bounds-check trap |
-| input (`readInt`, `readByte`) | the specification runs on an empty input stream, and `readByte` diverges from whitespace's `readchar` at end of input anyway (above) |
+| input (`readInt`, `readByte`) | input simulation is not certified, and `readByte` disagrees with whitespace's `readchar` at EOF (above) |
 | `printByte(e)` | it compiles to `push 256; mod; outchar`, so it carries the same Euclidean obligation that keeps `%` out |
 | declaration initialisers | they are the reference interpreter's `initEnv` loop, which the proof does not cover; write them as leading assignments instead |
 
@@ -561,20 +560,9 @@ for one target, on a program both accept, decode the same answer. Until now
 Whitespace had one inhabitant of `TurpentineCompiler`, so `agree` had nothing
 to say. It now has two:
 
-```lean
-theorem bespokeWhitespace_agrees_derived (p : Turpentine.Program)
-    (prog₁ prog₂ : ProgLang.Prog WhitespaceLang) (result n : Nat)
-    (h₁ : bespokeWhitespace.compile p = .ok prog₁)
-    (h₂ : derivedWhitespace.compile p = .ok prog₂)
-    (hp : TurpentineHaltsWith p n result) :
-    ∃ m₁ m₂,
-      (ProgLang.run prog₁ bespokeWhitespace.encodeInput m₁).exit = Exit.halted ∧
-      (ProgLang.run prog₂ derivedWhitespace.encodeInput m₂).exit = Exit.halted ∧
-      bespokeWhitespace.decodeOutput
-          (ProgLang.run prog₁ bespokeWhitespace.encodeInput m₁).output =
-        derivedWhitespace.decodeOutput
-          (ProgLang.run prog₂ derivedWhitespace.encodeInput m₂).output
-```
+If both compilers accept the program and its source run at empty input
+halts with an answer, both target executions at empty input halt and decode
+to that answer. Neither closed contract has an input encoding parameter.
 
 "The derived compiler is an oracle for the hand-written one" was a testing
 practice; it is now a corollary of two theorems. The `bespoke whitespace vs
@@ -582,15 +570,23 @@ derived whitespace` suite runs it on concrete programs, which still earns its
 keep: it checks the plumbing around the two theorems (input encoding,
 decoder, renderer, parser) that the statement does not constrain.
 
+### Divergence preservation
+
+[The operational proof](../../Langlib/Languages/Turpentine/Compile/Certified/Whitespace/Divergence.lean)
+shows positive target progress from every divergent source statement. A loop
+jump lands after its label, which the invariant tracks explicitly. A divergent
+body continues within the body; a completed iteration reaches the next true
+guard. The declaration prologue establishes the initial heap relation.
+Both answer and I/O witnesses include the resulting all-fuel exhaustion proof.
+The closed answer certificate always runs on empty input. Only the I/O
+certificate has an input encoding parameter; it ignores the source stream
+because no accepted statement reads it.
+
 ### What is not proved
 
 * **Everything outside the fragment above.** The backend compiles arrays,
   I/O, `/` and `%` and the tests say it compiles them correctly; nothing in
   this file says so.
-* **Non-halting source programs.** The theorem is conditional on the source
-  halting. Divergence preservation for Turpentine is a separate statement
-  (`docs/verification.md`, "Later"). The URM-to-Whitespace completeness
-  witness already preserves divergence for its own source model.
 * **Runtime errors.** A failed `assert` and a division by zero make the
   hypothesis false, so the theorem says nothing about them. The four
   semantic gaps above are still documented and tested, not proved: in

@@ -4,11 +4,14 @@ Urban Müller's 1993 tape machine, the library's exemplar language and
 primary compilation target. The full specification, history, and the exact
 semantic choices are in [docs/brainfuck/spec.md](../../../docs/brainfuck/spec.md).
 
-[`brainfuckComplete`](../../Computability/Brainfuck.lean) preserves both halting answers
-and divergence. Its [divergence proof](../../Computability/Brainfuck/Divergence.lean)
+[`brainfuckComplete`](../../Computability/Brainfuck/Main.lean#L19) preserves both halting answers
+and divergence. Its [divergence proof](../../Computability/Brainfuck/Divergence.lean#L92)
 requires every finite budget on a divergent URM input to yield `.outOfFuel`.
 The [shared interface](../../../docs/divergence-preservation.md) gives halting and result
 equivalence, output validity, and error freedom.
+
+The [computability account](../../../docs/brainfuck/computability.md) explains the
+representation, proved result and remaining scope.
 
 ## Modules
 

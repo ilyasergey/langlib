@@ -1,6 +1,6 @@
 # Velato is Turing complete
 
-[`Langlib/Computability/Velato.lean`](../../Langlib/Computability/Velato.lean)
+[`Langlib/Computability/Velato/Main.lean`](../../Langlib/Computability/Velato/Main.lean)
 compiles an arbitrary unlimited register machine into Velato and proves the
 simulation. The result is the term
 
@@ -31,7 +31,7 @@ The compiled program ignores its input stream: the input vector is compiled
 into the register-loading prologue.
 
 The register-machine half is shared with every other backend and lives in
-[`Langlib/Computability/Counter.lean`](../../Langlib/Computability/Counter.lean).
+[`Langlib/Computability/Common/Counter.lean`](../../Langlib/Computability/Common/Counter.lean).
 It turns a URM program into a structured counter machine with four commands
 — increment a register, decrement one, emit a byte, and loop while a
 register is nonzero — and proves that this simulates the URM. A backend has
