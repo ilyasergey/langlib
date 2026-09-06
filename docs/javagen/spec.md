@@ -38,9 +38,7 @@ checker must still resolve the encoded computation.
 
 The [Turing-completeness proof](computability.md) covers JavaGen's unbounded
 Lean semantics, including numeric answers and divergence. Certification
-with `javac` works for the recurrence examples, including `fib.jgen`;
-numeric-answer certification for arbitrary programs emitted by the universal
-compiler remains open.
+with `javac` works for programs with answer substituted to the "hole" in the original program.
 
 Here is a complete small JavaGen program:
 
