@@ -149,6 +149,8 @@ that number. A separate single command additionally asks `javac` to check
 the same specialization. The examples below include Fibonacci(10), factorial(5)
 and a sum, expressed as type recurrences rather than literal answers.
 
+**[Jump to example programs](#example-programs)**
+
 ## Syntax
 
 ```text
